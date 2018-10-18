@@ -17,7 +17,10 @@ LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log
 
 trap cleanup 0 1 2 ERR
 
-mkdir -p "$CURDIR/logs/"
+# Check if directory exsists
+if [ ! -d "$CURDIR/logs/" ]; then
+	mkdir -p "$CURDIR/logs/"
+fi 
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
