@@ -12,7 +12,10 @@ OVERRIDE=false
 
 trap "" 1 2 ERR
 
-mkdir -p "logs/"
+# Check if directory exsists
+if [ ! -d "logs" ]; then
+	mkdir -p "logs"
+fi 
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
