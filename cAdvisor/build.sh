@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2017, 2018.
+# © Copyright IBM Corporation 2018.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 set -e
@@ -13,9 +13,11 @@ GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/cAdvisor/patch"
 
 FORCE="false"
-LOG_FILE="${CURDIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 
 trap cleanup 0 1 2 ERR
+
+mkdir -p "$CURDIR/logs/"
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
@@ -57,7 +59,7 @@ function prepare() {
 
 function cleanup() {
 	rm -rf "${GOPATH}/src/github.com/google/cadvisor"
-	rm -rf "${CURDIR}/crc32.go"
+	rm -rf "${CURDIR}/patch.diff"
 	printf -- 'Cleaned up the artifacts\n' >>"$LOG_FILE"
 }
 
@@ -95,7 +97,6 @@ function configureAndInstall() {
 	# Checkout the code from repository
 	mkdir -p "${GOPATH}/src/github.com/google"
 	cd "${GOPATH}/src/github.com/google"
-	printf -- 'Cloning the cadvisor code \n' >> "$LOG_FILE"
 	git clone -b "v${PACKAGE_VERSION}" -q https://github.com/google/cadvisor.git >> "${LOG_FILE}"
 	printf -- 'Cloned the cadvisor code \n' >> "$LOG_FILE"
     
@@ -198,7 +199,7 @@ case "$DISTRO" in
 
 "sles-12.3" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-	sudo zypper install -y -q git libseccomp-devel wget tar curl gcc patch > /dev/null
+	sudo zypper -q install -y  git libseccomp-devel wget tar curl gcc patch > /dev/null
 	configureAndInstall
 	;;
 
