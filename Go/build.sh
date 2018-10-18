@@ -1,16 +1,18 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# © Copyright IBM Corporation 2017, 2018.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 set -e
 
 PACKAGE_NAME="go"
 PACKAGE_VERSION="1.10.1"
-LOG_FILE="${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
 
 trap "" 1 2 ERR
+
+mkdir -p "logs/"
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
@@ -180,7 +182,7 @@ case "$DISTRO" in
 "sles-12.3" | "sles-15")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Go from repository \n' | tee -a "$LOG_FILE"
-  sudo zypper install -y -q tar wget gcc > /dev/null
+  sudo zypper -q install -y  tar wget gcc > /dev/null
   configureAndInstall
   ;;
 
