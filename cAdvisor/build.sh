@@ -47,7 +47,7 @@ function prepare() {
 		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' | tee -a "$LOG_FILE"
 	else
 		# Ask user for prerequisite installation
-		printf -- "\n\nAs part of the installation , Go 1.10.1 will be installed, \n"
+		printf -- "\nAs part of the installation , Go 1.10.1 will be installed, \n"
 		while true; do
 			read -r -p "Do you want to continue (y/n) ? :  " yn
 			case $yn in
@@ -72,7 +72,7 @@ function configureAndInstall() {
 
 	# Install go
 	printf -- "Installing Go... \n" | tee -a "$LOG_FILE"
-	curl -s $GO_INSTALL_URL | bash
+	curl -s $GO_INSTALL_URL | sudo bash
 
 	# Install cAdvisor
 	printf -- '\nInstalling cAdvisor..... \n'
@@ -91,7 +91,7 @@ function configureAndInstall() {
 		printf -- "GOPATH already set : Value : %s \n" "$GOPATH" >>"$LOG_FILE"
 	fi
 
-	printenv >>"$LOG_FILE"
+	printenv >> "$LOG_FILE"
 
 	#  Install godep tool
 	cd "$GOPATH"
@@ -99,7 +99,14 @@ function configureAndInstall() {
 	printf -- 'Installed godep tool at GOPATH \n' >>"$LOG_FILE"
 
 	# Checkout the code from repository
-	mkdir -p "${GOPATH}/src/github.com/google"
+	if [ ! -d "${GOPATH}/src/github.com/google" ]; then
+		mkdir -p "${GOPATH}/src/github.com/google"
+	fi
+	
+	#Remove so that there is no conflict while doing clone on subsequent tries.
+	rm -rf "${GOPATH}/src/github.com/google/cadvisor" 
+
+
 	cd "${GOPATH}/src/github.com/google"
 	git clone -b "v${PACKAGE_VERSION}" -q https://github.com/google/cadvisor.git >> "${LOG_FILE}"
 	printf -- 'Cloned the cadvisor code \n' >>"$LOG_FILE"
@@ -115,7 +122,7 @@ function configureAndInstall() {
 	"${GOPATH}"/bin/godep go build .
 
 	# Add cadvisor to /usr/bin
-	cp "${GOPATH}/src/github.com/google/cadvisor/cadvisor" /usr/bin/
+	sudo cp -f "${GOPATH}/src/github.com/google/cadvisor/cadvisor" /usr/bin/
 	printf -- 'Build cAdvisor successfully \n' >>"$LOG_FILE"
 
 	# Run Tests
@@ -211,6 +218,7 @@ DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get -qq update >/dev/null
 	sudo apt-get -qq install wget git libseccomp-dev curl patch >/dev/null
 	configureAndInstall
@@ -218,12 +226,14 @@ case "$DISTRO" in
 
 "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y -q wget git libseccomp-devel patch >/dev/null
 	configureAndInstall
 	;;
 
 "sles-12.3" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper -q install -y git libseccomp-devel wget tar curl gcc patch >/dev/null
 	configureAndInstall
 	;;
