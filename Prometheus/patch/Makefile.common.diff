@@ -1,0 +1,12 @@
+--- Makefile.common	2018-10-24 10:30:17.024573725 +0000
++++ newfile	2018-10-24 10:38:29.094593825 +0000
+@@ -75,8 +75,7 @@
+ .PHONY: common-test
+ common-test:
+ 	@echo ">> running all tests"
+-	$(GO) test -race $(pkgs)
+-
++	$(GO) test $(pkgs)
+ .PHONY: common-format
+ common-format:
+ 	@echo ">> formatting code"
