@@ -1,0 +1,62 @@
+--- originalfile	2018-10-31 05:15:39.320937000 -0400
++++ updatedfile	2018-10-12 00:47:19.377821000 -0400
+@@ -93,13 +93,13 @@
+ CALICO_GIT_VER := $(shell git describe --tags --dirty --always)
+ 
+ # Versions and location of dependencies used in the build.
+-BIRD_VER?=v0.3.2-13-g17d14e60
++BIRD_VER?=v0.3.2
+ BIRD_IMAGE ?= calico/bird:$(BIRD_VER)-$(ARCH)
+ 
+ # Versions and locations of dependencies used in tests.
+-CALICOCTL_VER?=master
+-CNI_VER?=master
+-RR_VER?=master
++CALICOCTL_VER?=latest
++CNI_VER?=latest
++RR_VER?=latest
+ TEST_CONTAINER_NAME_VER?=latest
+ CTL_CONTAINER_NAME?=calico/ctl:$(CALICOCTL_VER)-$(ARCH)
+ RR_CONTAINER_NAME ?= calico/routereflector:$(RR_VER)
+@@ -108,7 +108,7 @@
+ # If building on amd64 omit the arch in the container name.  Fixme!
+ ETCD_IMAGE?=quay.io/coreos/etcd:$(ETCD_VERSION)
+ ifneq ($(BUILDARCH),amd64)
+-        ETCD_IMAGE=$(ETCD_IMAGE)-$(ARCH)
++        ETCD_IMAGE=quay.io/coreos/etcd:v3.3.7-$(ARCH)
+ endif
+ 
+ K8S_VERSION?=v1.10.4
+@@ -235,7 +235,7 @@
+ 	docker run --rm -v $(CURDIR)/dist/bin:/go/bin:rw $(CALICO_BUILD) /bin/sh -c "\
+ 	  echo; echo calico-node-$(ARCH) -v;         /go/bin/calico-node-$(ARCH) -v; \
+ 	"
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) . --build-arg BIRD_IMAGE=$(BIRD_IMAGE) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg ver=$(CALICO_GIT_VER) -f ./Dockerfile.$(ARCH)
++	docker build  -t $(BUILD_IMAGE):latest-$(ARCH) . --build-arg BIRD_IMAGE=$(BIRD_IMAGE) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg ver=$(CALICO_GIT_VER) -f ./Dockerfile.$(ARCH)
+ 	touch $@
+ 
+ # ensure we have a real imagetag
+@@ -377,7 +377,6 @@
+ # variables.  These are used for the STs.
+ dist/calicoctl:
+ 	-docker rm -f calicoctl
+-	docker pull $(CTL_CONTAINER_NAME)
+ 	docker create --name calicoctl $(CTL_CONTAINER_NAME)
+ 	docker cp calicoctl:calicoctl dist/calicoctl && \
+ 	  test -e dist/calicoctl && \
+@@ -386,7 +385,6 @@
+ 
+ dist/calico-cni-plugin dist/calico-ipam-plugin:
+ 	-docker rm -f calico-cni
+-	docker pull calico/cni:$(CNI_VER)
+ 	docker create --name calico-cni calico/cni:$(CNI_VER)
+ 	docker cp calico-cni:/opt/cni/bin/calico dist/calico-cni-plugin && \
+ 	  test -e dist/calico-cni-plugin && \
+@@ -402,7 +400,6 @@
+ 	docker save --output busybox.tar $(ARCH)/busybox:latest
+ 
+ routereflector.tar:
+-	-docker pull $(RR_CONTAINER_NAME)
+ 	docker save --output routereflector.tar $(RR_CONTAINER_NAME)
+ 
+ workload.tar:
