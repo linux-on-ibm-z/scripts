@@ -1,0 +1,30 @@
+--- originalfile	2018-10-31 05:09:45.734574000 -0400
++++ updatedfile	2018-10-12 00:28:38.202757000 -0400
+@@ -1,6 +1,6 @@
+ FROM s390x/golang:1.9.2
+ 
+-MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
++MAINTAINER Shaun Crampton <shaun@tigera.io>
+ 
+ RUN apt-get update && apt-get install -y git make autoconf automake libtool unzip
+ 
+@@ -25,13 +25,18 @@
+ 
+ # TODO: Lock this down to specific versions
+ # Install gogo, an optimised fork of the Golang generators
++RUN rm -vrf /go/src/github.com/gogo/protobuf/*
++RUN go get -d github.com/gogo/protobuf/proto
++WORKDIR /go/src/github.com/gogo/protobuf
++RUN git checkout v1.0.0
++WORKDIR /src
+ RUN go get github.com/gogo/protobuf/proto \
+        github.com/gogo/protobuf/protoc-gen-gogo \
+        github.com/gogo/protobuf/gogoproto \
+        github.com/gogo/protobuf/protoc-gen-gogofast \
+        github.com/gogo/protobuf/protoc-gen-gogofaster \
+        github.com/gogo/protobuf/protoc-gen-gogoslick
+-
+ RUN apt-get purge -y git make autoconf automake libtool unzip && apt-get clean -y
+ 
+ ENTRYPOINT ["protoc"]
++
