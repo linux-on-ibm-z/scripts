@@ -1,0 +1,14 @@
+--- originalfile	2018-10-31 05:19:22.703098000 -0400
++++ updatedfile	2018-10-12 00:48:55.400395000 -0400
+@@ -1,7 +1,8 @@
+-FROM alpine:latest
++FROM s390x/alpine:3.8
+ 
+-ADD etcd /usr/local/bin/
+-ADD etcdctl /usr/local/bin/
++ADD bin/etcd /usr/local/bin/
++ADD bin/etcdctl /usr/local/bin/
++ENV ETCD_UNSUPPORTED_ARCH=s390x
+ RUN mkdir -p /var/etcd/
+ RUN mkdir -p /var/lib/etcd/
+ 
