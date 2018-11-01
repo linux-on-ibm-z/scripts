@@ -1,0 +1,19 @@
+--- originalfile	2018-10-31 05:29:25.217282000 -0400
++++ updatedfile	2018-10-12 00:50:28.952224000 -0400
+@@ -35,7 +35,7 @@
+ endif
+ 
+ CONTAINER_NAME=calico/routereflector
+-GO_BUILD_VER ?= v0.16
++GO_BUILD_VER ?= v0.17
+ 
+ 
+ .PHONY: clean image
+@@ -100,7 +100,6 @@
+ 	-docker rm -f calico-confd
+ 	# Latest confd binaries are stored in automated builds of calico/confd.
+ 	# To get them, we create (but don't start) a container from that image.
+-	docker pull $(CONFD_CONTAINER_NAME)
+ 	docker create --name calico-confd $(CONFD_CONTAINER_NAME)
+ 	# Then we copy the files out of the container.  Since docker preserves
+ 	# mtimes on its copy, check the file really did appear, then touch it
