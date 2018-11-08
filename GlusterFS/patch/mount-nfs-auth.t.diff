@@ -1,0 +1,35 @@
+--- mount-nfs-auth.t	2018-10-23 03:39:46.262401449 +0000
++++ mn	2018-10-23 03:50:18.102598781 +0000
+@@ -15,16 +15,17 @@
+ TEST pidof glusterd
+ TEST $CLI volume info
+ 
+-H0IP=$(ip addr show |grep -w inet |grep -v 127.0.0.1|awk '{ print $2 }'| cut -d "/" -f 1)
++#H0IP=$(ip addr show |grep -w inet |grep -v 127.0.0.1|awk '{ print $2 }'| cut -d "/" -f 1)
++H0IP=$(hostname -i | awk '{ print $1 }')
+ H0IP6=$(host $HOSTNAME | grep IPv6 | awk '{print $NF}')
+ 
+ # Export variables for allow & deny
+-EXPORT_ALLOW="/$V0 $H0(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
+-EXPORT_ALLOW_SLASH="/$V0/ $H0(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
++EXPORT_ALLOW="/$V0 $H0IP(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
++EXPORT_ALLOW_SLASH="/$V0/ $H0IP(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
+ EXPORT_DENY="/$V0 1.2.3.4(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
+ 
+ # Netgroup variables for allow & deny
+-NETGROUP_ALLOW="ngtop ng1000\nng1000 ng999\nng999 ng1\nng1 ng2\nng2 ($H0,,)"
++NETGROUP_ALLOW="ngtop ng1000\nng1000 ng999\nng999 ng1\nng1 ng2\nng2 ($H0IP,,)"
+ NETGROUP_DENY="ngtop ng1000\nng1000 ng999\nng999 ng1\nng1 ng2\nng2 (1.2.3.4,,)"
+ 
+ V0L1="$V0/L1"
+@@ -32,8 +33,8 @@
+ V0L3="$V0L2/L3"
+ 
+ # Other variations for allow & deny
+-EXPORT_ALLOW_RO="/$V0 $H0(sec=sys,ro,anonuid=0) @ngtop(sec=sys,ro,anonuid=0)"
+-EXPORT_ALLOW_L1="/$V0L1 $H0(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
++EXPORT_ALLOW_RO="/$V0 $H0IP(sec=sys,ro,anonuid=0) @ngtop(sec=sys,ro,anonuid=0)"
++EXPORT_ALLOW_L1="/$V0L1 $H0IP(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
+ EXPORT_WILDCARD="/$V0 *(sec=sys,rw,anonuid=0) @ngtop(sec=sys,rw,anonuid=0)"
+ 
+ function build_dirs () {
