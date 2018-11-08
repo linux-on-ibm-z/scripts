@@ -1,0 +1,11 @@
+--- io-threads.h	2018-11-02 10:43:54.856186212 +0000
++++ to	2018-11-02 10:44:58.436186212 +0000
+@@ -37,7 +37,7 @@
+ #define IOT_MAX_THREADS         64
+ 
+ 
+-#define IOT_THREAD_STACK_SIZE   ((size_t)(256*1024))
++#define IOT_THREAD_STACK_SIZE   ((size_t)(512*1024))
+ 
+ 
+ typedef enum {
