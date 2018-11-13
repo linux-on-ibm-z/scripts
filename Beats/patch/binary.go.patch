@@ -1,0 +1,19 @@
+--- vendor/github.com/elastic/go-libaudit/rule/binary.go.ori    2018-10-24 12:12:53.813738000 +0000
++++ vendor/github.com/elastic/go-libaudit/rule/binary.go        2018-10-24 12:14:17.858406000 +0000
+@@ -5,6 +5,7 @@
+        "encoding/binary"
+        "io"
+
++       "github.com/elastic/go-libaudit"
+        "github.com/pkg/errors"
+ )
+
+@@ -13,7 +14,7 @@
+        maxFields          = 64 // AUDIT_MAX_FIELDS
+ )
+
+-var endianness = binary.LittleEndian
++var endianness = libaudit.GetEndian()
+
+ // WireFormat is the binary representation of a rule as used to exchange rules
+ // (commands) with the kernel.
