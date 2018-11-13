@@ -1,0 +1,49 @@
+--- vendor/github.com/elastic/gosigar/sys/linux/inetdiag.go.ori 2018-10-24 12:16:15.100616000 +0000
++++ vendor/github.com/elastic/gosigar/sys/linux/inetdiag.go     2018-10-24 12:18:41.052059000 +0000
+@@ -10,6 +10,7 @@
+        "io"
+        "net"
+        "os"
++       "runtime"
+        "syscall"
+        "unsafe"
+    
+@@ -194,11 +195,19 @@
+ func serialize(msg syscall.NetlinkMessage) []byte {
+        msg.Header.Len = uint32(syscall.SizeofNlMsghdr + len(msg.Data))
+            b := make([]byte, msg.Header.Len)
+-       binary.LittleEndian.PutUint32(b[0:4], msg.Header.Len)
+-       binary.LittleEndian.PutUint16(b[4:6], msg.Header.Type)
+-       binary.LittleEndian.PutUint16(b[6:8], msg.Header.Flags)
+-       binary.LittleEndian.PutUint32(b[8:12], msg.Header.Seq)
+-       binary.LittleEndian.PutUint32(b[12:16], msg.Header.Pid)
++       if runtime.GOARCH == "s390x" {
++               binary.BigEndian.PutUint32(b[0:4], msg.Header.Len)
++               binary.BigEndian.PutUint16(b[4:6], msg.Header.Type)
++               binary.BigEndian.PutUint16(b[6:8], msg.Header.Flags)
++               binary.BigEndian.PutUint32(b[8:12], msg.Header.Seq)
++               binary.BigEndian.PutUint32(b[12:16], msg.Header.Pid)
++       } else {
++               binary.LittleEndian.PutUint32(b[0:4], msg.Header.Len)
++               binary.LittleEndian.PutUint16(b[4:6], msg.Header.Type)
++               binary.LittleEndian.PutUint16(b[6:8], msg.Header.Flags)
++               binary.LittleEndian.PutUint32(b[8:12], msg.Header.Seq)
++               binary.LittleEndian.PutUint32(b[12:16], msg.Header.Pid)
++       }
+        copy(b[16:], msg.Data)
+        return b
+ }
+@@ -315,7 +324,12 @@
+ func ParseInetDiagMsg(b []byte) (*InetDiagMsg, error) {
+        r := bytes.NewReader(b)
+        inetDiagMsg := &InetDiagMsg{}
+-       err := binary.Read(r, binary.LittleEndian, inetDiagMsg)
++       var err error
++       if runtime.GOARCH == "s390x" {
++               err = binary.Read(r, binary.BigEndian, inetDiagMsg)
++       } else {
++               err = binary.Read(r, binary.LittleEndian, inetDiagMsg)
++       }
+        if err != nil {
+                return nil, errors.Wrap(err, "failed to unmarshal inet_diag_msg")
+        }
