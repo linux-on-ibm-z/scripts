@@ -8,10 +8,10 @@
 #
 
 
-set -e
+set -e -o pipefail
 
 PACKAGE_NAME="go"
-PACKAGE_VERSION="1.10.1"
+PACKAGE_VERSION="1.11.2"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
@@ -50,8 +50,8 @@ function checkPrequisites()
 
     if go version | grep -q "$PACKAGE_VERSION" 
     then
-      printf -- "Version : %s (Satisfied) \n" "${PACKAGE_VERSION}" | tee -a  "$LOG_FILE"
-      printf -- "No update required for Go \n" | tee -a  "$LOG_FILE"
+      printf -- "Version : %s (Satisfied) \n" "${PACKAGE_VERSION}" |& tee -a  "$LOG_FILE"
+      printf -- "No update required for Go \n" |& tee -a  "$LOG_FILE"
       exit 0;
     fi
   fi;
@@ -59,7 +59,7 @@ function checkPrequisites()
 
 function cleanup()
 {
-  rm -rf go1.10.1.linux-s390x.tar.gz*
+  rm -rf go"${PACKAGE_VERSION}".linux-s390x.tar.gz*
   printf -- 'Cleaned up the artifacts\n'  >> "$LOG_FILE"
 }
 
@@ -69,12 +69,12 @@ function configureAndInstall()
 
   if [[ "${OVERRIDE}" == "true" ]]
   then
-    printf -- 'Go exists on the system. Override flag is set to true hence updating the same\n ' | tee -a "$LOG_FILE"
+    printf -- 'Go exists on the system. Override flag is set to true hence updating the same\n ' |& tee -a "$LOG_FILE"
   fi
 
   # Install Go
   printf -- 'Downloading go binaries \n'
-  wget -q https://storage.googleapis.com/golang/go"${PACKAGE_VERSION}".linux-s390x.tar.gz | tee -a  "$LOG_FILE"
+  wget -q https://storage.googleapis.com/golang/go"${PACKAGE_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
   chmod ugo+r go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
   #sudo rm -rf /usr/local/go
@@ -117,7 +117,7 @@ function logDetails()
     printf -- '*********************************************************************************************************\n' >> "$LOG_FILE";
 
     printf -- "Detected %s \n" "$PRETTY_NAME"
-    printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" | tee -a "$LOG_FILE"
+    printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -168,39 +168,29 @@ checkPrequisites  #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
-  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
-
-  if [[ "${VERSION_ID}" == "18.04" ]] 
-  then
-    printf -- 'Detected 18.04 version hence installing from repository \n' | tee -a "$LOG_FILE"
-    printf -- 'Installing golang from repository' | tee -a "$LOG_FILE"
-    sudo apt-get install -y golang | tee -a "${LOG_FILE}" 
- 
- else
-    printf -- 'Installing the dependencies for Go from repository \n' | tee -a "$LOG_FILE"
-    sudo apt-get install -y  wget tar gcc | tee -a "${LOG_FILE}"
-    configureAndInstall | tee -a "${LOG_FILE}"
-  fi
+  sudo apt-get install -y  wget tar gcc |& tee -a "${LOG_FILE}"
+  configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
 "rhel-7.3" | "rhel-7.4" | "rhel-7.5" | "rhel-6.x")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Go from repository \n' | tee -a "$LOG_FILE"
-	sudo yum install -y  tar wget gcc  | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y  tar wget gcc  |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
 "sles-12.3" | "sles-15")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Go from repository \n' | tee -a "$LOG_FILE"
-	sudo zypper  install -y  tar wget gcc | tee -a "${LOG_FILE}" 
-	configureAndInstall | tee -a "${LOG_FILE}"
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
+	sudo zypper  install -y  tar wget gcc |& tee -a "${LOG_FILE}" 
+	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
 *)
-  printf -- "%s not supported \n" "$DISTRO"| tee -a "$LOG_FILE"
+  printf -- "%s not supported \n" "$DISTRO"|& tee -a "$LOG_FILE"
   exit 1 ;;
 esac
 
-gettingStarted | tee -a "${LOG_FILE}"
+gettingStarted |& tee -a "${LOG_FILE}"
