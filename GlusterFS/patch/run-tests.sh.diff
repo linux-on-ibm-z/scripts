@@ -1,0 +1,17 @@
+--- run-tests.sh.orig	2018-11-15 02:18:55.663200000 -0500
++++ run-tests.sh	2018-11-14 23:59:13.567341000 -0500
+@@ -42,10 +42,10 @@
+     fi
+ 
+     # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
++    #env netstat --version > /dev/null 2>&1
++    #if [ $? -ne 0 ]; then
++    #    MISSING="$MISSING netstat"
++    #fi
+ 
+     # Check for the Perl Test Harness
+     env prove --version > /dev/null 2>&1
