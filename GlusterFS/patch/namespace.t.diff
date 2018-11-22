@@ -1,0 +1,30 @@
+--- tests/basic/namespace.t.orig	2018-11-15 02:19:41.737604000 -0500
++++ tests/basic/namespace.t	2018-11-09 00:50:09.113524000 -0500
+@@ -6,9 +6,9 @@
+ 
+ # These hashes are a result of calling SuperFastHash
+ # on the corresponding folder names.
+-NAMESPACE_HASH=28153613
+-NAMESPACE2_HASH=3926991974
+-NAMESPACE3_HASH=3493960770
++NAMESPACE_HASH=3253352021
++NAMESPACE2_HASH=458775276
++NAMESPACE3_HASH=1268089390
+ 
+ function check_brick_multiplex() {
+         local ret=$($CLI volume info|grep "cluster.brick-multiplex"|cut -d" " -f2)
+@@ -110,12 +110,12 @@
+ 
+ mkdir -p $N0/namespace{2,3}
+ EXPECT_WITHIN 10 "Y" check_samples MKDIR $NAMESPACE2_HASH /namespace2 patchy0
+-EXPECT_WITHIN 10 "Y" check_samples MKDIR $NAMESPACE3_HASH /namespace3 patchy0
++EXPECT_WITHIN 10 "Y" check_samples MKDIR $NAMESPACE3_HASH /namespace3 patchy6
+ 
+ touch $N0/namespace2/file
+ touch $N0/namespace3/file
+ EXPECT_WITHIN 10 "Y" check_samples CREATE $NAMESPACE2_HASH /namespace2/file patchy0
+-EXPECT_WITHIN 10 "Y" check_samples CREATE $NAMESPACE3_HASH /namespace3/file patchy0
++EXPECT_WITHIN 10 "Y" check_samples CREATE $NAMESPACE3_HASH /namespace3/file patchy6
+ 
+ truncate -s 0 $N0/namespace/bar
+ EXPECT_WITHIN 10 "Y" check_samples TRUNCATE $NAMESPACE_HASH /namespace/bar patchy0
