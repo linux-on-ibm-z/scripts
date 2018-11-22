@@ -12,7 +12,7 @@
 #               By Default, system tests are turned off. To run system tests for Calico, pass argument "-t" to shell script.
 #
 #
-#Download build script :   wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/calico/build_Calico.sh
+#Download build script :   wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Calico/build_Calico.sh
 #Run build script      :   bash build_Calico.sh       #(To only build Calico, provide -h for help)
 #                          bash build_Calico.sh -t    #(To build Calico and run system tests)
 #               
