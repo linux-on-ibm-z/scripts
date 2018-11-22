@@ -10,11 +10,10 @@
 set -e
 
 PACKAGE_NAME="glusterfs"
-PACKAGE_VERSION="4.0.2"
+PACKAGE_VERSION="4.1.5"
 CURDIR="$(pwd)"
 
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/patch/"
-GLUSTER_REPO_URL="https://github.com/gluster/glusterfs"
 
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 TEST_USER="$(whoami)"
@@ -89,7 +88,11 @@ function cleanup() {
 		rm -rf "${CURDIR}/throttle-rebal.t.diff"
 		rm -rf "${CURDIR}/mount-nfs-auth.t.diff"
 		rm -rf "${CURDIR}/frequency-counters.t.diff"
+		rm -rf "${CURDIR}/namespace.t.diff"
 
+		if [[ "${ID}" == "sles" ||  "${ID}" == "ubuntu" ]]; then
+			rm -rf "${CURDIR}/run-tests.sh.diff"
+		fi
 	fi
 	printf -- '\nCleaned up the artifacts\n'
 }
@@ -134,7 +137,7 @@ function configureAndInstall() {
 
 	# Download and configure GlusterFS
 	printf -- '\nDownloading GlusterFS. Please wait.\n' 
-	git clone -b v$PACKAGE_VERSION $GLUSTER_REPO_URL
+	git clone -b v"${PACKAGE_VERSION}" https://github.com/gluster/glusterfs.git
 	sleep 2
 	cd "${CURDIR}/glusterfs"
 	./autogen.sh
@@ -205,15 +208,15 @@ function runTest() {
 
 		printf -- 'Running test as TEST flag is enabled \n\n' 
 		if [[ "${ID}" == "ubuntu" ]]; then
-			sudo apt-get install -y gettext libblkid-dev uuid-dev
+			sudo apt-get install -y gettext libblkid-dev
 		fi
 
 		if [[ "${ID}" == "sles" ]]; then
-			sudo zypper --non-interactive install libblkid-devel uuid-devel gettext-tools
+			sudo zypper --non-interactive install libblkid-devel gettext-tools
 		fi
 
 		if [[ "${ID}" == "rhel" ]]; then
-			sudo yum install -y gettext libblkid-devel uuid-devel
+			sudo yum install -y gettext libblkid-devel
 		fi
 
 		cd "${CURDIR}"
@@ -260,6 +263,14 @@ function runTest() {
 		curl -o frequency-counters.t.diff $REPO_URL/frequency-counters.t.diff
 		patch "${CURDIR}/glusterfs/tests/basic/tier/frequency-counters.t" frequency-counters.t.diff
 
+		curl -o namespace.t.diff $REPO_URL/namespace.t.diff
+		patch "${CURDIR}/glusterfs/tests/basic/namespace.t" namespace.t.diff
+
+		if [[ "${ID}" == "sles" ||  "${ID}" == "ubuntu" ]]; then
+			curl -o run-tests.sh.diff $REPO_URL/run-tests.sh.diff
+			patch "${CURDIR}/glusterfs/run-tests.sh" run-tests.sh.diff
+		fi
+
 		ssh-keygen -t rsa
 		cat /root/.ssh/id_rsa.pub | cat >>/root/.ssh/authorized_keys
 
@@ -298,6 +309,7 @@ while getopts "h?dyt" opt; do
 			exit 0
 
 		else
+
 			TESTS="true"
 		fi
 
@@ -326,22 +338,22 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 	sudo apt-get update 
-	sudo apt-get install -y make automake patch curl autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev wget tar dbench git xfsprogs attr nfs-common yajl-tools sqlite3 libxml2-utils thin-provisioning-tools bc
+	sudo apt-get install -y make automake patch curl autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev wget tar dbench git xfsprogs attr nfs-common yajl-tools sqlite3 libxml2-utils thin-provisioning-tools bc uuid-dev
 	configureAndInstall | tee -a "$LOG_FILE"
 	;;
 
 "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	sudo yum install -y wget patch git curl make gcc-c++ libaio-devel boost-devel expat-devel autoconf autoheader automake libtool flex bison openssl-devel libacl-devel sqlite-devel libxml2-devel python-devel python attr yajl nfs-utils xfsprogs popt-static sysvinit-tools psmisc libibverbs-devel librdmacm-devel readline-devel lvm2-devel glib2-devel fuse-devel bc
+	sudo yum install -y wget patch git curl make gcc-c++ libaio-devel boost-devel expat-devel autoconf autoheader automake libtool flex bison openssl-devel libacl-devel sqlite-devel libxml2-devel python-devel python attr yajl nfs-utils xfsprogs popt-static sysvinit-tools psmisc libibverbs-devel librdmacm-devel readline-devel lvm2-devel glib2-devel fuse-devel bc libuuid-devel
 	configureAndInstall | tee -a "$LOG_FILE"
 
 	;;
 
-"sles-12.3" | "sles-12.2")
+"sles-12.3" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	sudo zypper --non-interactive install curl wget patch which git make gcc-c++ libaio-devel boost-devel autoconf automake cmake libtool flex bison lvm2-devel libacl-devel python-devel python attr xfsprogs sysvinit-tools psmisc bc libopenssl-devel libxml2-devel sqlite3 sqlite3-devel popt-devel nfs-utils libyajl2 python-xml net-tools
+	sudo zypper --non-interactive install curl wget patch which git make gcc-c++ libaio-devel boost-devel autoconf automake cmake libtool flex bison lvm2-devel libacl-devel python-devel python attr xfsprogs sysvinit-tools psmisc bc libopenssl-devel libxml2-devel sqlite3 sqlite3-devel popt-devel nfs-utils libyajl2 python-xml net-tools libuuid-devel
 	configureAndInstall | tee -a "$LOG_FILE"
 
 	;;
