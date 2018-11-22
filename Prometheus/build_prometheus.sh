@@ -7,7 +7,8 @@
 # Execute build script: bash build_prometheus.sh    (provide -h for help)
 #
 
-set -e
+set -e -o pipefail
+
 PACKAGE_NAME="prometheus"
 PACKAGE_VERSION="2.4.2"
 CURDIR="$(pwd)"
@@ -49,7 +50,7 @@ function prepare() {
            
     if command -v "go" > /dev/null;
     then
-        printf -- "Go : Yes ls\n";
+        printf -- "Go : Yes\n";
     else
         printf -- "Go : No \n";
         printf -- "This setup includes installation of Go.\n";
@@ -57,7 +58,7 @@ function prepare() {
 
     if command -v $PACKAGE_NAME > /dev/null;
     then
-        printf -- "%s : Yes \n" "$PACKAGE_NAME" | tee -a  "$LOG_FILE"
+        printf -- "%s : Yes \n" "$PACKAGE_NAME" |& tee -a  "$LOG_FILE"
         printf -- "\nYou already have the package installed on ur system.\n"
     else
         printf -- "%s : No \n" "$PACKAGE_NAME" ;
@@ -66,10 +67,10 @@ function prepare() {
 
     if [[ "$FORCE" == "true" ]] ;
 	then
-	    printf -- 'Force attribute provided hence continuing with install without confirmation message\n' | tee -a "$LOG_FILE"
+	    printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
 	else
 		# Ask user for prerequisite installation
-		printf -- "\n\nAs part of the installation , Go 1.10.1 will be installed, \n";
+		printf -- "As part of the installation , Go 1.10.1 will be installed, \n";
 		while true; do
     		read -r -p "Do you want to continue (y/n) ? :  " yn
     		case $yn in
@@ -85,7 +86,6 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
     rm -rf "${GOPATH}/src/github.com/prometheus"
-    printf -- "Cleaned up the artifacts\n" 
 }
 
 function configureAndInstall() {
@@ -119,7 +119,11 @@ function configureAndInstall() {
     mkdir -p "$GOPATH/src/github.com/prometheus"
     cd "$GOPATH/src/github.com/prometheus"
     printf -- 'Cloning Prometheus code \n'
-        
+    
+    if [ -d prometheus ];then
+        rm -rf prometheus
+    fi
+    
     git clone -b "v${PACKAGE_VERSION}"  https://github.com/prometheus/prometheus.git       
     printf -- 'Cloned the prometheus code \n' 
 
@@ -130,14 +134,14 @@ function configureAndInstall() {
 
     #Get a prometheus.yml in etc/prometheus/
     if [ ! -d /etc/prometheus ];then
-        mkdir /etc/prometheus/
+        sudo mkdir /etc/prometheus/
     fi
 
-    curl $CONFIG_PROM > /etc/prometheus/prometheus.yml
+    curl $CONFIG_PROM | sudo tee /etc/prometheus/prometheus.yml
     printf -- "Added prometheus.yml in /etc/prometheus \n" 
     
     # Add prometheus to /usr/bin
-    cp "${GOPATH}/src/github.com/prometheus/prometheus/prometheus" /usr/bin/                        
+    sudo cp "${GOPATH}/src/github.com/prometheus/prometheus/prometheus" /usr/bin/                        
     printf -- 'Build prometheus successfully \n' 
           
     #Run tests
@@ -181,7 +185,7 @@ function logDetails() {
     printf -- '*********************************************************************************************************\n' >>"$LOG_FILE"
 
     printf -- "Detected %s \n" "$PRETTY_NAME"
-    printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" | tee -a "$LOG_FILE"
+    printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -230,28 +234,28 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
     "ubuntu-16.04" | "ubuntu-18.04")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo apt-get update
-        sudo apt-get install -y make cmake gcc g++ wget tar git curl | tee -a "$LOG_FILE"
-        configureAndInstall | tee -a "$LOG_FILE"
+        sudo apt-get install -y make cmake gcc g++ wget tar git curl |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
     "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-        sudo yum install -y make cmake gcc wget tar git curl | tee -a "$LOG_FILE"
-        configureAndInstall | tee -a "$LOG_FILE"
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        sudo yum install -y make cmake gcc wget tar git curl |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
     "sles-12.3" | "sles-15")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-        sudo zypper install -y make cmake gcc gcc-c++ wget tar git curl | tee -a "$LOG_FILE"
-        configureAndInstall | tee -a "$LOG_FILE"
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        sudo zypper install -y make cmake gcc gcc-c++ wget tar git curl |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
     *)
-        printf -- "%s not supported \n" "$DISTRO" | tee -a "$LOG_FILE"
+        printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
         exit 1
         ;;
 esac
 
-gettingStarted | tee -a "$LOG_FILE"
+gettingStarted |& tee -a "$LOG_FILE"
