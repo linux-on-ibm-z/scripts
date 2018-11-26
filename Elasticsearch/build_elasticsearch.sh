@@ -1,0 +1,386 @@
+#!/bin/bash
+# ©  Copyright IBM Corporation 2018.
+# LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+#
+# Instructions:
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/build_elasticsearch.sh
+# Execute build script: bash build_elasticsearch.sh    (provide -h for help)
+#
+set -e -o pipefail
+
+PACKAGE_NAME="elasticsearch"
+PACKAGE_VERSION="6.4.2"
+CURDIR="$(pwd)"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/patch"
+ES_REPO_URL="https://github.com/elastic/elasticsearch"
+
+LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+NON_ROOT_USER="$(whoami)"
+FORCE="false"
+
+trap cleanup 0 1 2 ERR
+
+#Check if directory exists
+if [ ! -d "$CURDIR/logs/" ]; then
+	mkdir -p "$CURDIR/logs/"
+fi
+
+# Need handling for RHEL 6.10 as it doesn't have os-release file
+if [ -f "/etc/os-release" ]; then
+	source "/etc/os-release"
+else
+	cat /etc/redhat-release |& tee -a "$LOG_FILE"
+	export ID="rhel"
+	export VERSION_ID="6.x"
+	export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
+fi
+function prepare() {
+
+	if command -v "sudo" >/dev/null; then
+		printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
+	else
+		printf -- 'Sudo : No \n' >>"$LOG_FILE"
+		printf -- 'You can install sudo from repository using apt, yum or zypper based on your distro. \n'
+		exit 1
+	fi
+
+	if [[ "$FORCE" == "true" ]]; then
+		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
+	else
+		printf -- 'As part of the installation, dependencies would be installed/upgraded.\n'
+
+		while true; do
+			read -r -p "Do you want to continue (y/n) ? :  " yn
+			case $yn in
+			[Yy]*)
+
+				break
+				;;
+			[Nn]*) exit ;;
+			*) echo "Please provide Correct input to proceed." ;;
+			esac
+		done
+	fi
+}
+
+function cleanup() {
+	rm -rf "${CURDIR}/elasticsearch.yml.diff"
+	rm -rf "${CURDIR}/jvm.options.diff"
+	rm -rf "${CURDIR}/OpenJDK10_s390x_Linux_jdk-10.0.2.13.tar.gz"
+	rm -rf "${CURDIR}/installer.properties"
+	rm -rf "${CURDIR}/installer.properties.java"
+	rm -rf "${CURDIR}/ibm-java-s390x-sdk-7.1-4.30.bin"
+	rm -rf "${CURDIR}/test_results.log"
+	printf -- '\nCleaned up the artifacts\n' >>"$LOG_FILE"
+}
+
+function configureAndInstall() {
+	printf -- '\nConfiguration and Installation started \n'
+
+	#Installing dependencies
+	printf -- 'User responded with Yes. \n'
+	printf -- 'Downloading openjdk\n'
+	wget 'https://github.com/AdoptOpenJDK/openjdk10-releases/releases/download/jdk-10.0.2%2B13/OpenJDK10_s390x_Linux_jdk-10.0.2.13.tar.gz'
+	sudo tar -C /usr/local -xzf OpenJDK10_s390x_Linux_jdk-10.0.2.13.tar.gz
+	export PATH=/usr/local/jdk-10.0.2+13/bin:$PATH
+	java -version |& tee -a "$LOG_FILE"
+	printf -- 'Adopt JDK 10 installed\n'
+
+	cd "${CURDIR}"
+	#Setting environment variable needed for building
+	unset JAVA_TOOL_OPTIONS
+	export LANG="en_US.UTF-8"
+	export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
+	export JAVA_HOME=/usr/local/jdk-10.0.2+13/
+	export _JAVA_OPTIONS="-Xmx10g"
+
+	#Added symlink for PATH
+	sudo ln -sf /usr/local/jdk-10.0.2+13/bin/java /usr/bin/
+	printf -- 'Adding JAVA_HOME to bashrc \n'
+	#add JAVA_HOME to ~/.bashrc
+	cd "${HOME}"
+	if [[ "$(grep -q JAVA_HOME .bashrc)" ]]; then
+
+		printf -- '\nChanging JAVA_HOME\n'
+		sed -n 's/^.*\bJAVA_HOME\b.*$/export JAVA_HOME=\/usr\/local\/jdk-9.0.4+11\//p' ~/.bashrc
+	else
+		echo "export JAVA_HOME=/usr/local/jdk-10.0.2+13/" >>.bashrc
+	fi
+
+	if [[ "${ID}" == "sles" ]]; then
+		export ANT_HOME=/usr/share/ant/ #  for SLES
+		export PATH=$ANT_HOME/bin:$PATH #  for SLES
+	fi
+
+	printenv >>"$LOG_FILE"
+	cd "${CURDIR}"
+	# Download and configure ElasticSearch
+	printf -- 'Downloading Elasticsearch. Please wait.\n'
+	git clone -b v$PACKAGE_VERSION $ES_REPO_URL
+	sleep 2
+
+	#Patch Applied for known errors
+	cd "${CURDIR}"
+	# patch config file
+	curl -o jvm.options.diff $REPO_URL/jvm.options.diff
+	patch "${CURDIR}/elasticsearch/distribution/src/config/jvm.options" jvm.options.diff
+
+	curl -o elasticsearch.yml.diff $REPO_URL/elasticsearch.yml.diff
+	patch "${CURDIR}/elasticsearch/distribution/src/config/elasticsearch.yml" elasticsearch.yml.diff
+
+	printf -- 'Patch applied for files elasticsearch.yml and  jvm.options\n'
+
+	#Build elasticsearch
+	printf -- 'Building Elasticsearch \n'
+	printf -- 'Build might take some time.Sit back and relax\n'
+	cd "${CURDIR}/elasticsearch"
+	./gradlew assemble 
+	#Verify elasticsearch installation
+	if [[ $(grep -q "BUILD FAILED" "$LOG_FILE") ]]; then
+		printf -- '\nBuild failed due to some unknown issues.\n'
+		exit 1
+	fi
+	printf -- 'Built Elasticsearch successfully \n\n'
+}
+
+function runTest() {
+	printf -- 'Setting up the environment for testing \n'
+	#install java 8
+	printf -- 'Installing java 8 \n'
+	if [[ "${ID}" == "sles" ]]; then
+		sudo zypper install -y java-1_8_0-openjdk-devel java-1_8_0-openjdk
+		export JAVA8_HOME=/usr/lib64/jvm/java-1.8.0-openjdk
+	elif [[ "${ID}" == "ubuntu" ]]; then
+		sudo apt-get install -y openjdk-8-jdk
+		export JAVA8_HOME=/usr/lib/jvm/java-8-openjdk-s390x
+	elif [[ "${ID}" == "rhel" ]]; then
+		sudo yum install -y java-1.8.0-openjdk java-1.8.0-openjdk-devel java-1.8.0-openjdk-headless
+		export JAVA8_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.s390x
+	else
+		printf -- 'Distro not supported \n\n'
+	fi
+
+	#intall java 7
+	printf -- 'Installing java 7 \n'
+
+	if [[ "${ID}" == "rhel" ]]; then
+		sudo yum install -y java-1.7.1-ibm-devel.s390x
+		export JAVA7_HOME=/usr/lib/jvm/java-1.7.1-ibm-1.7.1.4.30-1jpp.1.el7.s390x
+	else
+		sudo wget http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/7.1.4.30/linux/s390x/ibm-java-s390x-sdk-7.1-4.30.bin
+		sudo wget https://raw.githubusercontent.com/zos-spark/scala-workbench/master/files/installer.properties.java
+		tail -n +3 installer.properties.java | sudo tee installer.properties
+		sudo cat installer.properties
+		sudo chmod +x ibm-java-s390x-sdk-7.1-4.30.bin
+		sudo ./ibm-java-s390x-sdk-7.1-4.30.bin -r installer.properties
+		#/opt/ibm/java
+		export JAVA7_HOME=/opt/ibm/java
+	fi
+
+	export JAVA10_HOME=/usr/local/jdk-10.0.2+13
+	export PATH=$JAVA10_HOME/bin:$JAVA8_HOME/bin:$JAVA7_HOME/bin:$PATH
+	export JAVA_HOME=/usr/local/jdk-10.0.2+13/
+	printf -- 'Running test \n'
+	cd "${CURDIR}/elasticsearch"
+	set +e
+	./gradlew check --continue -Dtests.haltonfailure=false
+	cd "${CURDIR}"
+	grep "REPRODUCE" "$LOG_FILE" > test_results.log
+	if [ -s test_results.log ]; then
+     	if [[ $(grep -q --invert-match "x-pack:plugin:ml:internalClusterTest" test_results.log) ]]; then
+			printf -- '**********************************************************************************************************\n'
+			printf -- '\nUnexpected test failures detected. Tip : Try running indivisual test cases\n'
+			printf -- '**********************************************************************************************************\n'
+		else
+			printf -- '****************************************************************************************************************************************\n'
+			printf -- '\n Few unit test case failures are observed on s390x as X-Pack plugin is not supported and Machine Learning is not available for s390x.\n'
+			printf -- '*****************************************************************************************************************************************\n'
+
+		fi
+	else
+    	 printf --  '\nCould not run test cases successfully\n'
+	fi
+
+
+}
+function reviewTest() {
+
+	cd "${CURDIR}"
+	grep "REPRODUCE" "$LOG_FILE" > test_results.log
+	if [ -s test_results.log ]; then
+     	if [[ $(grep -q --invert-match "x-pack:plugin:ml:internalClusterTest" test_results.log) ]]; then
+			printf -- '**********************************************************************************************************\n'
+			printf -- '\nUnexpected test failures detected. Tip : Try running indivisual test cases\n'
+			printf -- '**********************************************************************************************************\n'
+		else
+			printf -- '****************************************************************************************************************************************\n'
+			printf -- '\n Few unit test case failures are observed on s390x as X-Pack plugin is not supported and Machine Learning is not available for s390x.\n'
+			printf -- '*****************************************************************************************************************************************\n'
+
+		fi
+	else
+    	 printf --  '\nCould not run test cases successfully\n'
+	fi
+
+}
+
+function startService() {
+	printf -- "\n\nstarting service\n"
+	cd "${CURDIR}/elasticsearch"
+	sudo tar -C /usr/share/ -xf distribution/archives/tar/build/distributions/elasticsearch-6.4.2-SNAPSHOT.tar.gz
+	sudo mv /usr/share/elasticsearch-6.4.2-SNAPSHOT /usr/share/elasticsearch
+
+	if ([[ -z "$(cut -d: -f1 /etc/group | grep elastic)" ]]); then
+		printf -- '\nCreating group elastic\n'
+		sudo /usr/sbin/groupadd elastic # If group is not already created
+
+	fi
+	sudo chown "$NON_ROOT_USER:elastic" -R /usr/share/elasticsearch
+
+	#To access elastic search from anywhere
+	sudo ln -sf /usr/share/elasticsearch/bin/elasticsearch /usr/bin/
+
+	# elasticsearch calls this file internally
+	sudo ln -sf /usr/share/elasticsearch/bin/elasticsearch-env /usr/bin/
+
+	#Verify elasticsearch installation
+	if command -v "$PACKAGE_NAME" >/dev/null; then
+		printf -- "%s installation completed.\n" "$PACKAGE_NAME"
+	else
+		printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
+		exit 127
+	fi
+
+	printf -- 'Service started\n'
+}
+
+function installClient() {
+	printf -- '\nInstalling curator client\n'
+	if [[ "${ID}" == "sles" ]]; then
+		sudo zypper install -y python-pip python-devel
+	fi
+
+	if [[ "${ID}" == "ubuntu" ]]; then
+		sudo apt-get update
+		sudo apt-get install -y python-pip
+	fi
+
+	if [[ "${ID}" == "rhel" ]]; then
+		sudo yum install -y python-setuptools
+		sudo easy_install pip
+	fi
+
+	sudo -H pip install elasticsearch-curator
+	printf -- "\nInstalled Elasticsearch Curator client successfully"
+
+
+
+}
+
+function logDetails() {
+	printf -- 'SYSTEM DETAILS\n' >"$LOG_FILE"
+	if [ -f "/etc/os-release" ]; then
+		cat "/etc/os-release" >>"$LOG_FILE"
+	fi
+
+	cat /proc/version >>"$LOG_FILE"
+	printf -- "\nDetected %s \n" "$PRETTY_NAME"
+	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+}
+
+# Print the usage message
+function printHelp() {
+	echo
+	echo "Usage: "
+	echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests]"
+	echo
+}
+
+while getopts "h?dyt" opt; do
+	case "$opt" in
+	h | \?)
+		printHelp
+		exit 0
+		;;
+	d)
+		set -x
+		;;
+	y)
+		FORCE="true"
+		;;
+	t)
+		if command -v "$PACKAGE_NAME" >/dev/null; then
+			TESTS="true"
+			printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+			runTest |& tee -a "$LOG_FILE"
+			reviewTest |& tee -a "$LOG_FILE"
+			exit 0
+
+		else
+			TESTS="true"
+		fi
+		;;
+	esac
+done
+
+function printSummary() {
+	printf -- '\n********************************************************************************************************\n'
+	printf -- "\n* Getting Started * \n"
+	printf -- '\n\nSet JAVA_HOME to start using elasticsearch right away.'
+	printf -- '\nexport JAVA_HOME=/usr/local/jdk-10.0.2+13/\n'
+	printf -- '\nRestarting the session will apply changes automatically'
+	printf -- '\n\nStart Elasticsearch using the following command :   elasticsearch '
+	printf -- '\nFor more information on curator client visit https://www.elastic.co/guide/en/elasticsearch/client/curator/current/index.html \n\n'
+	printf -- '**********************************************************************************************************\n'
+
+}
+
+logDetails
+prepare
+
+DISTRO="$ID-$VERSION_ID"
+case "$DISTRO" in
+"ubuntu-16.04" | "ubuntu-18.04")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
+	sudo apt-get update
+	sudo apt-get install -y tar patch wget unzip curl maven git make automake autoconf libtool patch libx11-dev libxt-dev pkg-config texinfo locales-all ant hostname |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	startService |& tee -a "$LOG_FILE"
+	installClient |& tee -a "$LOG_FILE"
+	;;
+
+"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
+	sudo yum install -y unzip patch curl which git gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch libXt-devel libX11-devel texinfo ant ant-junit.noarch hostname |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	startService |& tee -a "$LOG_FILE"
+	installClient |& tee -a "$LOG_FILE"
+	;;
+
+"sles-12.3" | "sles-15")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
+	sudo zypper --non-interactive install tar patch wget unzip curl which git gcc-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo ant ant-junit.noarch make net-tools | tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	startService |& tee -a "$LOG_FILE"
+	installClient |& tee -a "$LOG_FILE"
+	;;
+
+*)
+	printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
+	exit 1
+	;;
+esac
+
+	#Run test
+
+if [[ "$TESTS" == "true" ]]; then
+	printf -- '\nRunning tests\n'
+	runTest |& tee -a "$LOG_FILE"
+	reviewTest |& tee -a "$LOG_FILE"
+fi
+
+cleanup
+printSummary |& tee -a "$LOG_FILE"
