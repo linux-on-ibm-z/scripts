@@ -20,6 +20,8 @@
 
 ### 1. Determine if Calico system tests are to be run
 set -e
+set -o pipefail
+
 FORCE="false"
 TESTS="false"
 
@@ -49,15 +51,15 @@ while getopts "h?dyt" opt; do
 	esac
 done
 
-PACKAGE_NAME="Calico"
-PACKAGE_VERSION="v3.2.3"
+NAME_PACKAGE="Calico"
+VERSION_PACKAGE="v3.2.3"
 
 cd $HOME
 #Check if directory exists
-if [ ! -d "${PACKAGE_NAME}_${PACKAGE_VERSION}" ]; then
-   mkdir -p "${PACKAGE_NAME}_${PACKAGE_VERSION}"
+if [ ! -d "${NAME_PACKAGE}_${VERSION_PACKAGE}" ]; then
+   mkdir -p "${NAME_PACKAGE}_${VERSION_PACKAGE}"
 fi
-export WORKDIR=${HOME}/${PACKAGE_NAME}_${PACKAGE_VERSION}
+export WORKDIR=${HOME}/${NAME_PACKAGE}_${VERSION_PACKAGE}
 cd $WORKDIR
 
 if [ ! -d "${WORKDIR}/logs" ]; then
@@ -100,23 +102,23 @@ fi
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$CONF_LOG"
+	printf -- "Installing %s %s for %s \n" "$NAME_PACKAGE" "$VERSION_PACKAGE" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies . . .  it may take some time.\n"
 	sudo apt-get update 
-	sudo apt-get install -y wget git libseccomp-dev curl patch  | tee -a "$CONF_LOG"
+	sudo apt-get install -y wget git libseccomp-dev curl patch 2>&1 | tee -a "$CONF_LOG"
 	;;
 
 "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$CONF_LOG"
+	printf -- "Installing %s %s for %s \n" "$NAME_PACKAGE" "$VERSION_PACKAGE" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies . . .  it may take some time.\n"
-	sudo yum install -y curl git wget tar gcc glibc-static.s390x make which patch | tee -a "$CONF_LOG"
+	sudo yum install -y curl git wget tar gcc glibc-static.s390x make which patch 2>&1 | tee -a "$CONF_LOG"
 	export CC=gcc
 	;;
 
 "sles-12.3" | "sles-15")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$CONF_LOG"
+	printf -- "Installing %s %s for %s \n" "$NAME_PACKAGE" "$VERSION_PACKAGE" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies . . .  it may take some time.\n"
-    sudo zypper install -y curl git wget tar gcc glibc-static.s390x make which patch | tee -a "$CONF_LOG"
+    sudo zypper install -y curl git wget tar gcc glibc-static.s390x make which patch 2>&1 | tee -a "$CONF_LOG"
     export CC=gcc
 	;;
 
@@ -131,7 +133,7 @@ printf -- "\nChecking if Docker is already present on the system . . . \n" | tee
 if [ -x "$(command -v docker)" ]; then
     docker --version | grep "Docker version" | tee -a "$CONF_LOG"
     echo "Docker exists !!" | tee -a "$CONF_LOG"
-    docker ps >> "$CONF_LOG"
+    docker ps 2>&1 | tee -a "$CONF_LOG"
 else
     printf -- "\n Please install and run Docker first !! \n" | tee -a "$CONF_LOG"
     exit 1
@@ -162,8 +164,10 @@ printf -- '\nConfiguration and Installation started \n' | tee -a "$CONF_LOG"
 # Install go
 printf -- "\nInstalling Go . . . \n"  | tee -a "$CONF_LOG"
 printf -- "\nDownloading Build Script for Go . . . \n"  | tee -a "$CONF_LOG"
-wget -O build_go.sh $GO_INSTALL_URL | tee -a "$CONF_LOG"
-bash build_go.sh -v 1.10.1 | tee -a "$CONF_LOG"
+rm -rf build_go.sh
+wget -O build_go.sh $GO_INSTALL_URL 2>&1 | tee -a "$CONF_LOG"
+bash build_go.sh -v 1.10.1 2>&1 | tee -a "$CONF_LOG"
+rm -rf build_go.sh
 
 
 # Set GOPATH if not already set
@@ -192,15 +196,27 @@ mkdir -p $GOPATH/src/github.com/coreos
 mkdir -p $GOPATH/etcd_temp
 cd $GOPATH/src/github.com/coreos
 rm -rf etcd
-git clone git://github.com/coreos/etcd | tee -a "$CONF_LOG"
+git clone git://github.com/coreos/etcd 2>&1 | tee -a "$CONF_LOG"
 cd etcd
-git checkout v3.3.7 | tee -a "$CONF_LOG"
+git checkout v3.3.7 2>&1 | tee -a "$CONF_LOG"
 export ETCD_DATA_DIR=$GOPATH/etcd_temp
 export ETCD_UNSUPPORTED_ARCH=s390x
-printf -- "\nBuilding . . . \n"  | tee -a "$CONF_LOG"
+printf -- "\nBuilding . . . \n"  2>&1 | tee -a "$CONF_LOG"
 ./build
 
 printenv >> "$CONF_LOG"
+
+#Exporting Calico ENV to $HOME/setenv.sh for later use
+cd $HOME
+cat << EOF > setenv.sh
+#CALICO ENV
+export GOPATH=$GOPATH
+export PATH=$GOPATH/bin:$PATH
+export ETCD_DATA_DIR=$GOPATH/etcd_temp
+export ETCD_UNSUPPORTED_ARCH=s390x
+export WORKDIR=$WORKDIR
+export LOGDIR=$LOGDIR
+EOF
 
 #### 4. Build `calicoctl` and  `calico/node` image
 export GOBUILD_LOG="${LOGDIR}/go-build-$(date +"%F-%T").log"
@@ -209,9 +225,9 @@ printf -- "\nBuilding go-build . . . \n"  | tee -a "$GOBUILD_LOG"
 ### 4.1 Build `go-build`
 ##This builds a docker image calico/go-build that is used to build other components
 rm -rf $GOPATH/src/github.com/projectcalico/go-build
-git clone https://github.com/projectcalico/go-build $GOPATH/src/github.com/projectcalico/go-build | tee -a "$GOBUILD_LOG"
+git clone https://github.com/projectcalico/go-build $GOPATH/src/github.com/projectcalico/go-build 2>&1 | tee -a "$GOBUILD_LOG"
 cd $GOPATH/src/github.com/projectcalico/go-build
-git checkout v0.17 | tee -a "$GOBUILD_LOG"
+git checkout v0.17 2>&1 | tee -a "$GOBUILD_LOG"
 
 ## Then  build `calico/go-build-s390x` image
 ARCH=s390x make build 2>&1 | tee -a "$GOBUILD_LOG"
@@ -233,9 +249,9 @@ touch $CALICOCTL_LOG
 printf -- "\nBuilding calicoctl . . . \n"  | tee -a "$CALICOCTL_LOG"
 ## Download the source code
 rm -rf $GOPATH/src/github.com/projectcalico/calicoctl
-git clone https://github.com/projectcalico/calicoctl $GOPATH/src/github.com/projectcalico/calicoctl | tee -a "$CALICOCTL_LOG"
+git clone https://github.com/projectcalico/calicoctl $GOPATH/src/github.com/projectcalico/calicoctl 2>&1 | tee -a "$CALICOCTL_LOG"
 cd $GOPATH/src/github.com/projectcalico/calicoctl 
-git checkout v3.2.3 | tee -a "$CALICOCTL_LOG"
+git checkout v3.2.3 2>&1 | tee -a "$CALICOCTL_LOG"
 
 ## Build the `calicoctl` binary and `calico/ctl` image
 ARCH=s390x make calico/ctl 2>&1 | tee -a "$CALICOCTL_LOG"
@@ -255,9 +271,9 @@ touch $BIRD_LOG
 printf -- "\nBuilding bird . . . \n"  | tee -a "$BIRD_LOG"
 ## Download the source code
 sudo rm -rf $GOPATH/src/github.com/projectcalico/bird
-git clone https://github.com/projectcalico/bird $GOPATH/src/github.com/projectcalico/bird | tee -a "$BIRD_LOG"
+git clone https://github.com/projectcalico/bird $GOPATH/src/github.com/projectcalico/bird 2>&1 | tee -a "$BIRD_LOG"
 cd $GOPATH/src/github.com/projectcalico/bird 
-git checkout v0.3.2 | tee -a "$BIRD_LOG"
+git checkout v0.3.2 2>&1 | tee -a "$BIRD_LOG"
 
 ## Create `Dockerfile-s390x`
 cat << 'EOF' > Dockerfile-s390x
@@ -272,9 +288,9 @@ EOF
 
 ## Modify `build.sh`, patching build.sh file
 printf -- "\nDownloading patch for bird . . . \n"  | tee -a "$BIRD_LOG"
-curl  -o "bird_build.sh.diff" $PATCH_URL/bird_build.sh.diff | tee -a "$BIRD_LOG"
+curl  -o "bird_build.sh.diff" $PATCH_URL/bird_build.sh.diff 2>&1 | tee -a "$BIRD_LOG"
 printf -- "\nApplying patch to build.sh . . . \n"  | tee -a "$BIRD_LOG"
-patch build.sh bird_build.sh.diff | tee -a "$BIRD_LOG"
+patch build.sh bird_build.sh.diff 2>&1 | tee -a "$BIRD_LOG"
 rm -rf bird_build.sh.diff
 
 ## Run `build.sh` to build 3 executable files (in `dist/s390x/`)
@@ -296,23 +312,23 @@ touch $TYPHA_LOG
 printf -- "\nBuilding typha . . . \n"  | tee -a "$TYPHA_LOG"
 ## Download the source code
 rm -rf $GOPATH/src/github.com/projectcalico/typha
-git clone https://github.com/projectcalico/typha $GOPATH/src/github.com/projectcalico/typha | tee -a "$TYPHA_LOG"
+git clone https://github.com/projectcalico/typha $GOPATH/src/github.com/projectcalico/typha 2>&1 | tee -a "$TYPHA_LOG"
 cd $GOPATH/src/github.com/projectcalico/typha 
-git checkout v3.2.3 | tee -a "$TYPHA_LOG"
+git checkout v3.2.3 2>&1 | tee -a "$TYPHA_LOG"
 
 ## Modify `Makefile`, patching Makefile
 printf -- "\nDownloading patch for typha Makefile . . . \n"  | tee -a "$TYPHA_LOG"
-curl  -o "typha_makefile.diff" $PATCH_URL/typha_makefile.diff | tee -a "$TYPHA_LOG"
+curl  -o "typha_makefile.diff" $PATCH_URL/typha_makefile.diff 2>&1 | tee -a "$TYPHA_LOG"
 printf -- "\nApplying patch to Makefile . . . \n"  | tee -a "$$TYPHA_LOG"
-patch Makefile typha_makefile.diff | tee -a "$TYPHA_LOG"
+patch Makefile typha_makefile.diff 2>&1 | tee -a "$TYPHA_LOG"
 rm -rf typha_makefile.diff
 
 ## Modify `docker-image/Dockerfile.s390x`, patching Dockerfile.s390x
 cd docker-image
 printf -- "\nDownloading patch for typha Dockerfile.s390x . . . \n"  | tee -a "$TYPHA_LOG"
-curl  -o "typha_dockerfile.diff" $PATCH_URL/typha_dockerfile.diff | tee -a "$TYPHA_LOG"
+curl  -o "typha_dockerfile.diff" $PATCH_URL/typha_dockerfile.diff 2>&1 | tee -a "$TYPHA_LOG"
 printf -- "\nApplying patch to Dockerfile.s390x . . . \n"  | tee -a "$TYPHA_LOG"
-patch Dockerfile.s390x typha_dockerfile.diff | tee -a "$TYPHA_LOG"
+patch Dockerfile.s390x typha_dockerfile.diff 2>&1 | tee -a "$TYPHA_LOG"
 rm -rf typha_dockerfile.diff
 
 ## Build the binaries and docker image for typha
@@ -333,14 +349,14 @@ export PROTO_LOG="${LOGDIR}/docker-protobuf-$(date +"%F-%T").log"
 touch $PROTO_LOG
 printf -- "\nBuilding docker-protobuf . . . \n"  | tee -a "$PROTO_LOG"
 rm -rf $GOPATH/src/github.com/projectcalico/docker-protobuf
-git clone https://github.com/tigera/docker-protobuf $GOPATH/src/github.com/projectcalico/docker-protobuf | tee -a "$PROTO_LOG"
+git clone https://github.com/tigera/docker-protobuf $GOPATH/src/github.com/projectcalico/docker-protobuf 2>&1 | tee -a "$PROTO_LOG"
 cd  $GOPATH/src/github.com/projectcalico/docker-protobuf
 
 ## Modify `Dockerfile-s390x`, patching the same
 printf -- "\nDownloading patch for docker-protobuf Dockerfile-s390x . . . \n"  | tee -a "$PROTO_LOG"
-curl  -o "protobuf_dockerfile.diff" $PATCH_URL/protobuf_dockerfile.diff | tee -a "$PROTO_LOG"
+curl  -o "protobuf_dockerfile.diff" $PATCH_URL/protobuf_dockerfile.diff 2>&1 | tee -a "$PROTO_LOG"
 printf -- "\nApplying patch to Dockerfile-s390x . . . \n"  | tee -a "$PROTO_LOG"
-patch Dockerfile-s390x protobuf_dockerfile.diff | tee -a "$PROTO_LOG"
+patch Dockerfile-s390x protobuf_dockerfile.diff 2>&1 | tee -a "$PROTO_LOG"
 rm -rf protobuf_dockerfile.diff
 
 ## Build and tag docker image `calico/protoc-s390x`
@@ -360,23 +376,24 @@ docker tag calico/protoc-s390x:latest calico/protoc:latest-s390x
 export FELIX_LOG="${LOGDIR}/felix-$(date +"%F-%T").log"
 touch $FELIX_LOG
 printf -- "\nBuilding felix . . . \n"  | tee -a "$FELIX_LOG"
-git clone https://github.com/projectcalico/felix $GOPATH/src/github.com/projectcalico/felix | tee -a "$FELIX_LOG"
+rm -rf $GOPATH/src/github.com/projectcalico/felix
+git clone https://github.com/projectcalico/felix $GOPATH/src/github.com/projectcalico/felix 2>&1 | tee -a "$FELIX_LOG"
 cd $GOPATH/src/github.com/projectcalico/felix
-git checkout v3.2.3 | tee -a "$FELIX_LOG"
+git checkout v3.2.3 2>&1 | tee -a "$FELIX_LOG"
 
 ## Modify Makefile, patching the same
 printf -- "\nDownloading patch for felix Makefile . . . \n"  | tee -a "$FELIX_LOG"
-curl  -o "felix_makefile.diff" $PATCH_URL/felix_makefile.diff | tee -a "$FELIX_LOG"
+curl  -o "felix_makefile.diff" $PATCH_URL/felix_makefile.diff 2>&1 | tee -a "$FELIX_LOG"
 printf -- "\nApplying patch to Makefile . . . \n"  | tee -a "$FELIX_LOG"
-patch Makefile felix_makefile.diff | tee -a "$FELIX_LOG"
+patch Makefile felix_makefile.diff 2>&1 | tee -a "$FELIX_LOG"
 rm -rf felix_makefile.diff
 
 ## Modify `docker-image/Dockerfile.s390x`
 cd docker-image/
 printf -- "\nDownloading patch for felix Dockerfile.s390x . . . \n"  | tee -a "$FELIX_LOG"
-curl  -o "felix_dockerfile.diff" $PATCH_URL/felix_dockerfile.diff | tee -a "$FELIX_LOG"
+curl  -o "felix_dockerfile.diff" $PATCH_URL/felix_dockerfile.diff 2>&1 | tee -a "$FELIX_LOG"
 printf -- "\nApplying patch to Dockerfile.s390x . . . \n"  | tee -a "$FELIX_LOG"
-patch Dockerfile.s390x felix_dockerfile.diff | tee -a "$FELIX_LOG"
+patch Dockerfile.s390x felix_dockerfile.diff 2>&1 | tee -a "$FELIX_LOG"
 rm -rf felix_dockerfile.diff
 
 ## Build the felix binaries
@@ -397,11 +414,11 @@ export CNI_LOG="${LOGDIR}/cni-plugin-$(date +"%F-%T").log"
 touch $CNI_LOG
 printf -- "\nBuilding cni-plugin . . . \n"  | tee -a "$CNI_LOG"
 ## Download the source code
-sudo mkdir -p /opt/cni/bin | tee -a "$CNI_LOG"
+sudo mkdir -p /opt/cni/bin 2>&1 | tee -a "$CNI_LOG"
 rm -rf $GOPATH/src/github.com/projectcalico/cni-plugin
-git clone https://github.com/projectcalico/cni-plugin.git $GOPATH/src/github.com/projectcalico/cni-plugin | tee -a "$CNI_LOG"
+git clone https://github.com/projectcalico/cni-plugin.git $GOPATH/src/github.com/projectcalico/cni-plugin 2>&1 | tee -a "$CNI_LOG"
 cd $GOPATH/src/github.com/projectcalico/cni-plugin
-git checkout v3.2.3 | tee -a "$CNI_LOG"
+git checkout v3.2.3 2>&1 | tee -a "$CNI_LOG"
 
 ## Build binaries and image
 ARCH=s390x make image 2>&1 | tee -a "$CNI_LOG"
@@ -415,7 +432,7 @@ else
 fi
 
 printf -- "\nCopying cni-plugin binaries to /opt/cni/bin . . . \n"  | tee -a "$CNI_LOG"
-sudo cp bin/s390x/* /opt/cni/bin | tee -a "$CNI_LOG"
+sudo cp bin/s390x/* /opt/cni/bin 2>&1 | tee -a "$CNI_LOG"
 docker tag calico/cni:latest-s390x calico/cni:latest
 docker tag calico/cni:latest quay.io/calico/cni-s390x:v3.2.3
 
@@ -426,22 +443,22 @@ touch $NODE_LOG
 printf -- "\nBuilding Calico node . . . \n"  | tee -a "$NODE_LOG"
 ## Download the source
 rm -rf $GOPATH/src/github.com/projectcalico/node
-git clone https://github.com/projectcalico/node $GOPATH/src/github.com/projectcalico/node | tee -a "$NODE_LOG"
+git clone https://github.com/projectcalico/node $GOPATH/src/github.com/projectcalico/node 2>&1 | tee -a "$NODE_LOG"
 cd $GOPATH/src/github.com/projectcalico/node
-git checkout v3.2.3 | tee -a "$NODE_LOG"
+git checkout v3.2.3 2>&1 | tee -a "$NODE_LOG"
 
 ## Modify `Makefile`, patching the same
 printf -- "\nDownloading patch for node Makefile . . . \n"  | tee -a "$NODE_LOG"
-curl  -o "node_makefile.diff" $PATCH_URL/node_makefile.diff | tee -a "$NODE_LOG"
+curl  -o "node_makefile.diff" $PATCH_URL/node_makefile.diff 2>&1 | tee -a "$NODE_LOG"
 printf -- "\nApplying patch to Makefile . . . \n"  | tee -a "$NODE_LOG"
-patch Makefile node_makefile.diff | tee -a "$NODE_LOG"
+patch Makefile node_makefile.diff 2>&1 | tee -a "$NODE_LOG"
 rm -rf node_makefile.diff
 
 ## Modify `Dockerfile.s390x`, patching the same
 printf -- "\nDownloading patch for node Dockerfile.s390x . . . \n"  | tee -a "$NODE_LOG"
-curl  -o "node_dockerfile.diff" $PATCH_URL/node_dockerfile.diff | tee -a "$NODE_LOG"
+curl  -o "node_dockerfile.diff" $PATCH_URL/node_dockerfile.diff 2>&1 | tee -a "$NODE_LOG"
 printf -- "\nApplying patch to Dockerfile.s390x . . . \n"  | tee -a "$NODE_LOG"
-patch Dockerfile.s390x node_dockerfile.diff | tee -a "$NODE_LOG"
+patch Dockerfile.s390x node_dockerfile.diff 2>&1 | tee -a "$NODE_LOG"
 rm -rf node_dockerfile.diff
 
 ## Get the yaml binary if not installed, needed for building `calico/node`
@@ -452,7 +469,7 @@ if [[ -e yaml ]]
 then
     printf -- "\nYaml binary exists. \n" | tee -a "$CONF_LOG"
 else
-    ln -s yq.v1 yaml | tee -a "$CONF_LOG"
+    ln -s yq.v1 yaml 2>&1 | tee -a "$CONF_LOG"
 fi
 export PATH=$PATH:$GOPATH/bin
 
@@ -462,11 +479,11 @@ cd $GOPATH/src/github.com/projectcalico/node
 mkdir -p filesystem/bin
 mkdir -p dist
 printf -- "\nCopying bird binaries . . . \n"  | tee -a "$NODE_LOG"
-cp $GOPATH/src/github.com/projectcalico/bird/dist/s390x/* $GOPATH/src/github.com/projectcalico/node/filesystem/bin | tee -a "$NODE_LOG"
+cp $GOPATH/src/github.com/projectcalico/bird/dist/s390x/* $GOPATH/src/github.com/projectcalico/node/filesystem/bin 2>&1 | tee -a "$NODE_LOG"
 printf -- "\nCopying felix binaries . . . \n"  | tee -a "$NODE_LOG"
-cp $GOPATH/src/github.com/projectcalico/felix/bin/calico-felix-s390x $GOPATH/src/github.com/projectcalico/node/filesystem/bin/calico-felix | tee -a "$NODE_LOG"
+cp $GOPATH/src/github.com/projectcalico/felix/bin/calico-felix-s390x $GOPATH/src/github.com/projectcalico/node/filesystem/bin/calico-felix 2>&1 | tee -a "$NODE_LOG"
 printf -- "\nCopying calicoctl binaries . . . \n"  | tee -a "$NODE_LOG"
-cp $GOPATH/src/github.com/projectcalico/calicoctl/bin/calicoctl-linux-s390x $GOPATH/src/github.com/projectcalico/node/dist/calicoctl | tee -a "$NODE_LOG"
+cp $GOPATH/src/github.com/projectcalico/calicoctl/bin/calicoctl-linux-s390x $GOPATH/src/github.com/projectcalico/node/dist/calicoctl 2>&1 | tee -a "$NODE_LOG"
 
 printf -- "\nBuilding calico/node Image . . . \n"  | tee -a "$NODE_LOG"
 ARCH=s390x make calico/node 2>&1 | tee -a "$NODE_LOG"
@@ -490,19 +507,19 @@ touch $ETCD_LOG
 printf -- "\nBuilding etcd Image . . . \n"  | tee -a "$ETCD_LOG"
 rm -rf $GOPATH/src/github.com/projectcalico/etcd
 cd $GOPATH/src/github.com/projectcalico/
-git clone https://github.com/coreos/etcd | tee -a "$ETCD_LOG"
+git clone https://github.com/coreos/etcd 2>&1 | tee -a "$ETCD_LOG"
 cd etcd 
-git checkout v3.3.7 | tee -a "$ETCD_LOG"
+git checkout v3.3.7 2>&1 | tee -a "$ETCD_LOG"
 
 ## Modify `Dockerfile-release` for s390x
 printf -- "\nDownloading patch for etcd Dockerfile-release . . . \n"  | tee -a "$ETCD_LOG"
-curl  -o "etcd_dockerfile.diff" $PATCH_URL/etcd_dockerfile.diff | tee -a "$ETCD_LOG"
+curl  -o "etcd_dockerfile.diff" $PATCH_URL/etcd_dockerfile.diff 2>&1 | tee -a "$ETCD_LOG"
 printf -- "\nApplying patch to Dockerfile-release . . . \n"  | tee -a "$ETCD_LOG"
-patch Dockerfile-release etcd_dockerfile.diff | tee -a "$ETCD_LOG"
+patch Dockerfile-release etcd_dockerfile.diff 2>&1 | tee -a "$ETCD_LOG"
 rm -rf etcd_dockerfile.diff
 
 ## Then build etcd and image
-./build | tee -a "$ETCD_LOG"
+./build 2>&1 | tee -a "$ETCD_LOG"
 docker build -f Dockerfile-release  -t quay.io/coreos/etcd . 2>&1 | tee -a "$ETCD_LOG"
 
 if grep -Fxq "Successfully tagged quay.io/coreos/etcd:latest" $ETCD_LOG
@@ -515,9 +532,9 @@ fi
 
 cd bin
 printf -- "\nCreate a tar file containing etcd, etcdctl binaries . . . \n"  | tee -a "$ETCD_LOG"
-tar cvf etcd-v3.3.7-linux-s390x.tar etcd etcdctl | tee -a "$ETCD_LOG"
+tar cvf etcd-v3.3.7-linux-s390x.tar etcd etcdctl 2>&1 | tee -a "$ETCD_LOG"
 printf -- "\nCompressing etcd tar file using gzip . . . \n"  | tee -a "$ETCD_LOG"
-gzip etcd-v3.3.7-linux-s390x.tar | tee -a "$ETCD_LOG"
+gzip etcd-v3.3.7-linux-s390x.tar 2>&1 | tee -a "$ETCD_LOG"
 docker tag quay.io/coreos/etcd:latest quay.io/coreos/etcd:v3.3.7-s390x
 docker tag quay.io/coreos/etcd quay.io/coreos/etcd:v3.3.7
 
@@ -527,9 +544,9 @@ export CONFD_LOG="${LOGDIR}/confd-$(date +"%F-%T").log"
 touch $CONFD_LOG
 printf -- "\nBuilding confd Image . . . \n"  | tee -a "$CONFD_LOG"
 rm -rf $GOPATH/src/github.com/projectcalico/confd-v3.1.3
-git clone https://github.com/projectcalico/confd $GOPATH/src/github.com/projectcalico/confd-v3.1.3 | tee -a "$CONFD_LOG"
+git clone https://github.com/projectcalico/confd $GOPATH/src/github.com/projectcalico/confd-v3.1.3 2>&1 | tee -a "$CONFD_LOG"
 cd $GOPATH/src/github.com/projectcalico/confd-v3.1.3
-git checkout v3.1.3 | tee -a "$CONFD_LOG"
+git checkout v3.1.3 2>&1 | tee -a "$CONFD_LOG"
 printf -- "\nCreating Dockerfile-s390x for confd Image . . . \n"  | tee -a "$CONFD_LOG"
 ## Create `Dockerfile-s390x`
 cat << 'EOF' > Dockerfile-s390x
@@ -560,17 +577,17 @@ export RREFLECTOR_LOG="${LOGDIR}/routereflector-$(date +"%F-%T").log"
 touch $RREFLECTOR_LOG
 printf -- "\nBuilding Routereflector . . . \n"  | tee -a "$RREFLECTOR_LOG"
 rm -rf $GOPATH/src/github.com/projectcalico/routereflector
-git clone https://github.com/projectcalico/routereflector.git $GOPATH/src/github.com/projectcalico/routereflector | tee -a "$RREFLECTOR_LOG"
+git clone https://github.com/projectcalico/routereflector.git $GOPATH/src/github.com/projectcalico/routereflector 2>&1 | tee -a "$RREFLECTOR_LOG"
 cd $GOPATH/src/github.com/projectcalico/routereflector
-git checkout v0.6.3 | tee -a "$RREFLECTOR_LOG"
+git checkout v0.6.3 2>&1 | tee -a "$RREFLECTOR_LOG"
 printf -- "\nCopying bird binaries to image directory of Routereflector . . . \n"  | tee -a "$RREFLECTOR_LOG"
-cp $GOPATH/src/github.com/projectcalico/bird/dist/s390x/* image/ | tee -a "$RREFLECTOR_LOG"
+cp $GOPATH/src/github.com/projectcalico/bird/dist/s390x/* image/ 2>&1 | tee -a "$RREFLECTOR_LOG"
 
 ## Modify `Makefile`, patching the same
 printf -- "\nDownloading patch for routereflector Makefile . . . \n"  | tee -a "$RREFLECTOR_LOG"
-curl  -o "routereflector_makefile.diff" $PATCH_URL/routereflector_makefile.diff | tee -a "$RREFLECTOR_LOG"
+curl  -o "routereflector_makefile.diff" $PATCH_URL/routereflector_makefile.diff 2>&1 | tee -a "$RREFLECTOR_LOG"
 printf -- "\nApplying patch to Makefile . . . \n"  | tee -a "$RREFLECTOR_LOG"
-patch Makefile routereflector_makefile.diff | tee -a "$RREFLECTOR_LOG"
+patch Makefile routereflector_makefile.diff 2>&1 | tee -a "$RREFLECTOR_LOG"
 rm -rf routereflector_makefile.diff
 
 ## Build the routereflector 
@@ -593,7 +610,7 @@ export DIND_LOG="${LOGDIR}/dind-$(date +"%F-%T").log"
 touch $DIND_LOG
 printf -- "\nBuilding dind Image for s390x . . . \n"  | tee -a "$DIND_LOG"
 rm -rf $GOPATH/src/github.com/projectcalico/dind
-git clone https://github.com/projectcalico/dind $GOPATH/src/github.com/projectcalico/dind | tee -a "$DIND_LOG"
+git clone https://github.com/projectcalico/dind $GOPATH/src/github.com/projectcalico/dind 2>&1 | tee -a "$DIND_LOG"
 cd $GOPATH/src/github.com/projectcalico/dind
 ## Build the dind
 docker build -t calico/dind -f Dockerfile-s390x . 2>&1 | tee -a "$DIND_LOG"
@@ -647,9 +664,9 @@ EOF
 ### 5.6 Run the test cases
 #Pull s390x images for creating workload
 printf -- "\nPulling s390x images for creating workload . . . \n"  | tee -a "$TEST_LOG"
-docker pull s390x/busybox | tee -a "$TEST_LOG"
+docker pull s390x/busybox 2>&1 | tee -a "$TEST_LOG"
 docker tag s390x/busybox busybox
-docker pull s390x/nginx | tee -a "$TEST_LOG"
+docker pull s390x/nginx 2>&1 | tee -a "$TEST_LOG"
 docker tag s390x/nginx nginx
 
 
@@ -675,6 +692,8 @@ touch $VERIFY_LOG
 printf -- "\nVerifying if all needed images are successfully built/downloaded ? . . . \n"  | tee -a "$VERIFY_LOG"
 cd $WORKDIR
 echo "Required Docker Images: " >> $VERIFY_LOG
+rm -rf docker_images_expected.txt
+rm -rf docker_images.txt
 cat << 'EOF' > docker_images_expected.txt
 calico/dind:latest
 calico/routereflector:latest
@@ -752,34 +771,33 @@ then
     printf -- "                            Testlogs are saved in $TEST_LOG \n" | tee -a "$TEST_LOG" 
     printf -- "##############-----------------------------------------------------------------------------------------------############## \n" | tee -a "$TEST_LOG" 
     cd $GOPATH/src/github.com/projectcalico/node
-    ARCH=s390x make st 2>&1 | tee -a "$TEST_LOG" 
+    ARCH=s390x make st 2>&1 | tee -a "$TEST_LOG"
+    if tail -n 30 "$TEST_LOG" | grep -q "OK (SKIP=9)"; then
+        printf -- "\n                            All tests have passed !!!\n" | tee -a "$TEST_LOG"
+    else
+        printf -- "\n                            There are tests case failures!!! \n" | tee -a "$TEST_LOG"
+        printf -- "\n                            To rerun Calico tests, run the following commands . . . \n"
+        printf -- "\n                            Test logs will be saved in ${LOGDIR}/testLog-DATE-TIME.log  ## \n" | tee -a "$TEST_LOG"
+        printf -- "\n------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
+        printf -- "\n                            source \$HOME/setenv.sh \n"
+        printf -- "                              cd \$GOPATH/src/github.com/projectcalico/node \n"
+        printf -- "                              ARCH=s390x make st 2>&1 | tee -a \$LOGDIR/testLog-\$(date +"%%F-%%T").log \n"
+        printf -- "\n------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
+    fi   
 else
     set +x
     cd $GOPATH
-    printf -- "------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
+    printf -- "\n------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
     printf -- "       System tests won't run for Calico by default as \"-t\" was not passed to this script in beginning. \n" | tee -a "$TEST_LOG" 
-    printf -- "------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
+    printf -- "\n------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
     printf -- " \n" | tee -a "$TEST_LOG" 
     printf -- " \n" | tee -a "$TEST_LOG" 
-    printf -- "                        To run Calico system tests, run the following commands now: \n" | tee -a "$TEST_LOG" 
-    printf -- "------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
-	printf -- "                       PACKAGE_NAME=\"Calico\" \n" | tee -a "$TEST_LOG" 
-    printf -- "                       PACKAGE_VERSION=\"v3.2.3\" \n" | tee -a "$TEST_LOG" 
-	printf -- "                       export WORKDIR=\${HOME}/\${PACKAGE_NAME}_\${PACKAGE_VERSION} \n" | tee -a "$TEST_LOG" 
-	printf -- "                       export LOGDIR=\${WORKDIR}/logs \n" | tee -a "$TEST_LOG" 
-	if [[ "$GO_FLAG" == "DEFAULT" ]]
-	then
-	    printf -- "                  ##   Set default value for GOPATH \n" | tee -a "$TEST_LOG" 
-	    printf -- "                       export GOPATH=\$HOME/go \n" | tee -a "$TEST_LOG" 
-    else
-	    printf -- "                  ##   GOPATH already set in the system : Value : %s \n" "$GOPATH" | tee -a "$TEST_LOG" 
-    fi
-    printf -- "                       export PATH=\$GOPATH/bin:\$PATH \n" | tee -a "$TEST_LOG" 
-    printf -- "                       export ETCD_DATA_DIR=\$GOPATH/etcd_temp \n" | tee -a "$TEST_LOG" 
-    printf -- "                       export ETCD_UNSUPPORTED_ARCH=s390x \n" | tee -a "$TEST_LOG" 
-    printf -- " \n" | tee -a "$TEST_LOG" 
-    printf -- " \n" | tee -a "$TEST_LOG" 
-    printf -- "                  ##  Running system tests now. Test logs are saved in ${LOGDIR}/testLog-DATE-TIME.log  ## \n" | tee -a "$TEST_LOG" 
+    printf -- "                        To run Calico system tests, run the following commands now: \n" | tee -a "$TEST_LOG"
+    printf -- "                        Test logs are saved in ${LOGDIR}/testLog-DATE-TIME.log  ## \n" | tee -a "$TEST_LOG" 
+    printf -- "\n------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
+	printf -- "                       source \$HOME/setenv.sh \n" | tee -a "$TEST_LOG" 
     printf -- "                       cd \$GOPATH/src/github.com/projectcalico/node \n" | tee -a "$TEST_LOG" 
-    printf -- "                       ARCH=s390x make st 2>&1 | tee -a \$LOGDIR/\$(date +"%%F-%%T").log \n" | tee -a "$TEST_LOG" 
+	printf -- "                       ARCH=s390x make st 2>&1 | tee -a \$LOGDIR/testLog-\$(date +"%%F-%%T").log \n" | tee -a "$TEST_LOG"
+    printf -- "\n------------------------------------------------------------------------------------------------------------------- \n" | tee -a "$TEST_LOG" 
+
 fi
