@@ -1,15 +1,15 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# ©  Copyright IBM Corporation 2018.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kibana/build_kibana.sh
 # Execute build script: bash build_kibana.sh    (provide -h for help)
 #
-set -e
+set -e -o pipefail
 
 PACKAGE_NAME="kibana"
-PACKAGE_VERSION="6.4.2"
+PACKAGE_VERSION="6.5.0"
 
 FORCE=false
 WORKDIR="/usr/local"
@@ -43,7 +43,7 @@ function prepare() {
 	fi
 
 	if [[ "$FORCE" == "true" ]]; then
-		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' | tee -a "${LOG_FILE}"
+		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "${LOG_FILE}"
 	else
 		# Ask user for prerequisite installation
 		printf -- "\nAs part of the installation , Node.js v8.11.4 will be installed, \n"
@@ -62,7 +62,7 @@ function prepare() {
 }
 
 function cleanup() {
-	sudo rm -rf "${WORKDIR}/kibana-6.4.2-linux-x86_64.tar.gz" "${WORKDIR}/node-v8.11.4-linux-s390x.tar.gz*"
+	sudo rm -rf "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64.tar.gz" "${WORKDIR}/node-v8.11.4-linux-s390x.tar.gz*"
 	printf -- 'Cleaned up the artifacts\n' >>"${LOG_FILE}"
 }
 
@@ -91,20 +91,20 @@ function configureAndInstall() {
 	printf -- 'Download Kibana release package and extract\n' 
 	
 	cd "${WORKDIR}"
-	sudo wget https://artifacts.elastic.co/downloads/kibana/kibana-6.4.2-linux-x86_64.tar.gz  
-	sudo tar xvf kibana-6.4.2-linux-x86_64.tar.gz 
+	sudo wget https://artifacts.elastic.co/downloads/kibana/kibana-"${PACKAGE_VERSION}"-linux-x86_64.tar.gz  
+	sudo tar xvf kibana-"${PACKAGE_VERSION}"-linux-x86_64.tar.gz 
 
 	printf -- 'Replace Node.js in the package with the installed Node.js.\n' 
-	cd "${WORKDIR}/kibana-6.4.2-linux-x86_64"
+	cd "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64"
 	sudo mv node node_old # rename the node
 	sudo ln -sf "${WORKDIR}"/nodejs node
 
 	# Add config/kibana.yml to /etc/kibana/config/
 	sudo mkdir -p /etc/kibana/config/
-	sudo cp -Rf "${WORKDIR}/kibana-6.4.2-linux-x86_64/config/kibana.yml" /etc/kibana/config/kibana.yml
+	sudo cp -Rf "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64/config/kibana.yml" /etc/kibana/config/kibana.yml
 
 	# Add kibana to /usr/bin
-	sudo ln -sf "${WORKDIR}/kibana-6.4.2-linux-x86_64/bin/kibana" /usr/bin/
+	sudo ln -sf "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64/bin/kibana" /usr/bin/
 	printf -- 'Installed kibana successfully \n' 
 
 	#Cleanup
@@ -129,7 +129,7 @@ function logDetails() {
 	printf -- '*********************************************************************************************************\n' >>"$LOG_FILE"
 
 	printf -- "Detected %s \n" "$PRETTY_NAME"
-	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" | tee -a "$LOG_FILE"
+	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -175,28 +175,28 @@ prepare
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
-	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "${LOG_FILE}"
+	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo apt-get update
-	sudo apt-get install -y wget tar | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+	sudo apt-get install -y wget tar |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "${LOG_FILE}"
-	sudo yum install -y  wget tar | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+	sudo yum install -y  wget tar |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "sles-12.3" | "sles-15")
-	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "${LOG_FILE}"
-	sudo zypper  install -y wget tar | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+	sudo zypper  install -y wget tar |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 *)
-	printf -- "%s not supported \n" "$DISTRO" | tee -a "${LOG_FILE}"
+	printf -- "%s not supported \n" "$DISTRO" |& tee -a "${LOG_FILE}"
 	exit 1
 	;;
 esac
 
-gettingStarted | tee -a "${LOG_FILE}"
+gettingStarted |& tee -a "${LOG_FILE}"
