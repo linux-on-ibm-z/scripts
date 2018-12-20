@@ -10,7 +10,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="prometheus"
-PACKAGE_VERSION="2.4.2"
+PACKAGE_VERSION="2.5.0"
 CURDIR="$(pwd)"
 
 GO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
@@ -70,7 +70,9 @@ function prepare() {
 	    printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
 	else
 		# Ask user for prerequisite installation
-		printf -- "As part of the installation , Go 1.10.1 will be installed, \n";
+		DISTRO="$ID"
+		if [[ "$DISTRO" != "ubuntu" ]] ; then
+		printf -- "As part of the installation , Go 1.11.2 will be installed, \n";
 		while true; do
     		read -r -p "Do you want to continue (y/n) ? :  " yn
     		case $yn in
@@ -80,6 +82,7 @@ function prepare() {
         		*) 	echo "Please provide confirmation to proceed.";;
    		 	esac
 		done
+		fi
 	fi	
 }
 
@@ -90,11 +93,13 @@ function cleanup() {
 
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
+    DISTRO="$ID"
 
     #GO Installation
+    if [[ "$DISTRO" != "ubuntu" ]];then
     printf -- "\n\n Installing Go \n" 
     curl $GO_URL | bash
-        
+    fi    
     # Install prometheus
     printf -- 'Installing prometheus..... \n'
                 
@@ -236,11 +241,12 @@ case "$DISTRO" in
     "ubuntu-16.04" | "ubuntu-18.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo apt-get update
-        sudo apt-get install -y make cmake gcc g++ wget tar git curl |& tee -a "$LOG_FILE"
+        sudo apt-get install -y make cmake gcc g++ wget tar git curl golang-1.10 |& tee -a "$LOG_FILE"
+        export PATH=/usr/lib/go-1.10/bin:$PATH 
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-    "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo yum install -y make cmake gcc wget tar git curl |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
