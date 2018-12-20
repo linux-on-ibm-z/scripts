@@ -11,7 +11,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="go"
-PACKAGE_VERSION="1.11.2"
+PACKAGE_VERSION="1.11.4"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
@@ -77,7 +77,6 @@ function configureAndInstall()
   wget -q https://storage.googleapis.com/golang/go"${PACKAGE_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
   chmod ugo+r go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
-  sudo rm -rf /usr/local/go
   sudo tar -C /usr/local -xzf go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
   sudo ln -sf /usr/local/go/bin/go /usr/bin/ 
