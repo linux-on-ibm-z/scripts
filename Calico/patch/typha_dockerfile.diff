@@ -1,5 +1,5 @@
---- originalfile	2018-10-31 05:07:33.978984000 -0400
-+++ updatedfile	2018-10-12 00:27:28.572759000 -0400
+--- originalfile	2018-12-25 00:57:00.867698510 -0500
++++ updatedfile	2018-12-14 08:15:16.237698510 -0500
 @@ -1,7 +1,7 @@
  ARG QEMU_IMAGE=calico/go-build:latest
  FROM ${QEMU_IMAGE} as qemu
