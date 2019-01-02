@@ -1,6 +1,6 @@
---- originalfile	2018-10-31 05:07:44.244010000 -0400
-+++ updatedfile	2018-10-12 00:27:28.563428000 -0400
-@@ -251,7 +251,7 @@
+--- originalfile	2018-12-25 00:57:28.607698510 -0500
++++ updatedfile	2018-12-14 08:15:16.237698510 -0500
+@@ -255,7 +255,7 @@
  	rm -rf docker-image/bin
  	mkdir -p docker-image/bin
  	cp bin/calico-typha-$(ARCH) docker-image/bin/
