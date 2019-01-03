@@ -10,7 +10,7 @@
 set -e
 
 PACKAGE_NAME="cadvisor"
-PACKAGE_VERSION="0.27.4"
+PACKAGE_VERSION="0.31.0"
 CURDIR="$(pwd)"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
@@ -52,10 +52,12 @@ function prepare() {
 	fi
 
 	if [[ "$FORCE" == "true" ]]; then
-		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' | tee -a "$LOG_FILE"
+		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
 	else
 		# Ask user for prerequisite installation
-		printf -- "\nAs part of the installation , Go 1.10.1 will be installed, \n"
+		DISTRO="$ID"
+		if [[ "$DISTRO" == "sles" ]] ; then
+		printf -- "\nAs part of the installation , Go 1.10.5 will be installed, \n"
 		while true; do
 			read -r -p "Do you want to continue (y/n) ? :  " yn
 			case $yn in
@@ -68,20 +70,22 @@ function prepare() {
 			esac
 		done
 	fi
+	fi
 }
 
 function cleanup() {
 	rm -rf "${CURDIR}/crc32.go.diff"
-	printf -- 'Cleaned up the artifacts\n' | tee -a "${LOG_FILE}"
+	printf -- 'Cleaned up the artifacts\n' |& tee -a "${LOG_FILE}"
 }
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
-
+	DISTRO="$ID"
 	# Install go
 	printf -- "Installing Go... \n" 
-	curl -s  $GO_INSTALL_URL | sudo bash
-
+	if [[ "$DISTRO" == "sles" ]];then
+	curl $GO_INSTALL_URL | bash -s -- -v 1.10.5
+	fi
 	# Install cAdvisor
 	printf -- '\nInstalling cAdvisor..... \n'
 
@@ -123,7 +127,7 @@ function configureAndInstall() {
 
 	# patch config file
 	curl  -o "crc32.go.diff" $PATCH_URL/crc32.go.diff 
-	patch "${GOPATH}/src/github.com/google/cadvisor/vendor/github.com/klauspost/crc32/crc32.go" crc32.go.diff | tee -a "${LOG_FILE}"
+	patch "${GOPATH}/src/github.com/google/cadvisor/vendor/github.com/klauspost/crc32/crc32.go" crc32.go.diff 
 
 	# Build cAdvisor
 	cd "${GOPATH}/src/github.com/google/cadvisor"
@@ -172,7 +176,7 @@ function logDetails() {
 	printf -- '*********************************************************************************************************\n' >>"$LOG_FILE"
 
 	printf -- "Detected %s \n" "$PRETTY_NAME"
-	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" | tee -a "$LOG_FILE"
+	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -221,31 +225,32 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
-	sudo apt-get install -y wget git libseccomp-dev curl patch  | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+	sudo apt-get install -y wget git libseccomp-dev curl patch golang-1.10 |& tee -a "${LOG_FILE}"
+	export PATH=/usr/lib/go-1.10/bin/:$PATH
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y  wget git libseccomp-devel patch  | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+	sudo yum install -y  wget git libseccomp-devel patch golang |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "sles-12.3" | "sles-15")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper  install -y git libseccomp-devel wget tar curl gcc patch  | tee -a "${LOG_FILE}"
-	configureAndInstall | tee -a "${LOG_FILE}"
+	sudo zypper  install -y git libseccomp-devel wget tar curl gcc patch  |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 *)
-	printf -- "%s not supported \n" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
 	exit 1
 	;;
 esac
 
-gettingStarted | tee -a "${LOG_FILE}"
+gettingStarted |& tee -a "${LOG_FILE}"
