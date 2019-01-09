@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# © Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -7,8 +7,7 @@
 # Execute build script: bash build_etcd.sh    (provide -h for help)
 
 
-
-set -e
+set -e -o pipefail
 PACKAGE_NAME="etcd"
 PACKAGE_VERSION="3.3.8"
 CURDIR="$(pwd)"
@@ -51,7 +50,7 @@ function prepare() {
    
     if [[ "$FORCE" == "true" ]] ;
     then
-        printf -- 'Force attribute provided hence continuing with install without confirmation message\n' | tee -a "$LOG_FILE"
+        printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
     else
         # Ask user for prerequisite installation
         printf -- "\nAs part of the installation , Go 1.10.1 will be installed, \n";
@@ -121,7 +120,7 @@ function configureAndInstall() {
     cd "/${GOPATH}/src/github.com/coreos"
     
     printf -- 'Cloning etcd code \n' 
-    git clone git://github.com/coreos/etcd 
+    git clone http://github.com/coreos/etcd 
     cd etcd
     git checkout "v${PACKAGE_VERSION}" 
     printf -- 'Cloned the etcd code \n' 
@@ -164,7 +163,7 @@ function runTest() {
 		printf -- "TEST Flag is set, continue with running test \n"
 		cd "${GOPATH}/src/github.com/coreos/etcd"
 		./test
-		printf -- "Tests completed. \n" | tee -a "$LOG_FILE"
+		printf -- "Tests completed. \n" |& tee -a "$LOG_FILE"
 	fi
 	set -e
 }
@@ -177,7 +176,7 @@ function logDetails() {
     cat /proc/version >>"$LOG_FILE"
     printf -- '*********************************************************************************************************\n' >>"$LOG_FILE"
     printf -- "Detected %s \n" "$PRETTY_NAME"
-    printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" | tee -a "$LOG_FILE"
+    printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -232,28 +231,28 @@ DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
     "ubuntu-16.04" | "ubuntu-18.04")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install git curl wget tar gcc | tee -a "${LOG_FILE}"
-        configureAndInstall | tee -a "${LOG_FILE}"
+        sudo apt-get install git curl wget tar gcc |& tee -a "${LOG_FILE}"
+        configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
     "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y curl git wget tar gcc which | tee -a "${LOG_FILE}"
-        configureAndInstall | tee -a "${LOG_FILE}"
+        sudo yum install -y curl git wget tar gcc which |& tee -a "${LOG_FILE}"
+        configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
     "sles-12.3" | "sles-15")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y  curl git wget tar gcc which | tee -a "${LOG_FILE}"
-        configureAndInstall | tee -a "${LOG_FILE}"
+        sudo zypper install -y  curl git wget tar gcc which |& tee -a "${LOG_FILE}"
+        configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
     *)
-        printf -- "%s not supported \n" "$DISTRO" | tee -a "$LOG_FILE"
+        printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
         exit 1
         ;;
 esac
 
-gettingStarted | tee -a "${LOG_FILE}"
+gettingStarted |& tee -a "${LOG_FILE}"
