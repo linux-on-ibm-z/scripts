@@ -1,0 +1,11 @@
+--- compile.sh	2018-11-05 12:28:23.615245811 +0000
++++ c.sh	2018-11-05 12:30:04.325245811 +0000
+@@ -119,7 +119,7 @@
+   # Useful if your system chooses too small of a max heap for javac.
+   # We intentionally rely on shell word splitting to allow multiple
+   # additional arguments to be passed to javac.
+-  run "${JAVAC}" -classpath "${classpath}" -sourcepath "${sourcepath}" \
++  run "${JAVAC}" -J-Xms1g -J-xms1g -classpath "${classpath}" -sourcepath "${sourcepath}" \
+       -d "${output}/classes" -source "$JAVA_VERSION" -target "$JAVA_VERSION" \
+       -encoding UTF-8 ${BAZEL_JAVAC_OPTS} "@${paramfile}"
+ 
