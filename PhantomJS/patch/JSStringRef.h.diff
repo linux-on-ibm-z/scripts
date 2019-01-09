@@ -1,0 +1,17 @@
+@@ -27,6 +27,7 @@
+ #define JSStringRef_h
+
+ #include <JavaScriptCore/JSValueRef.h>
++#include <uchar.h>
+
+ #ifndef __cplusplus
+ #include <stdbool.h>
+@@ -43,7 +44,7 @@
+ @typedef JSChar
+ @abstract A Unicode character.
+ */
+-    typedef unsigned short JSChar;
++    typedef char16_t JSChar;
+ #else
+    typedef wchar_t JSChar;
+ #endif
