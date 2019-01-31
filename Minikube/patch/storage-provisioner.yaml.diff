@@ -1,0 +1,11 @@
+--- storage-provisioner.yaml	2018-12-28 04:55:50.009196027 -0500
++++ storage-provisioner2.yaml	2018-12-28 04:59:43.859231806 -0500
+@@ -51,7 +51,7 @@
+   hostNetwork: true
+   containers:
+   - name: storage-provisioner
+-    image: gcr.io/k8s-minikube/storage-provisioner:v1.8.1
++    image: gcr.io/k8s-minikube/storage-provisioner-s390x:v1.8.1
+     command: ["/storage-provisioner"]
+     imagePullPolicy: IfNotPresent
+     volumeMounts:
