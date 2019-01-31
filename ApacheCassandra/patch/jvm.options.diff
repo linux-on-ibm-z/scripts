@@ -1,0 +1,11 @@
+--- jvm.options	2018-12-10 00:33:15.268110602 -0500
++++ jvm2.options	2018-12-10 00:34:13.688202233 -0500
+@@ -105,7 +105,7 @@
+ -XX:+HeapDumpOnOutOfMemoryError
+ 
+ # Per-thread stack size.
+--Xss256k
++-Xss32m
+ 
+ # Larger interned string table, for gossip's benefit (CASSANDRA-6410)
+ -XX:StringTableSize=1000003
