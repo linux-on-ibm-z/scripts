@@ -1,0 +1,11 @@
+--- deploy/addons/dashboard/dashboard-dp.yaml	2018-12-26 07:39:13.509292006 -0500
++++ deploy/addons/dashboard/dashboard-dp2.yaml	2018-12-26 07:52:49.397240942 -0500
+@@ -37,7 +37,7 @@
+     spec:
+       containers:
+       - name: kubernetes-dashboard
+-        image: k8s.gcr.io/kubernetes-dashboard-amd64:v1.10.0
++        image: k8s.gcr.io/kubernetes-dashboard-s390x:v1.10.0
+         imagePullPolicy: IfNotPresent
+         ports:
+         - containerPort: 9090
