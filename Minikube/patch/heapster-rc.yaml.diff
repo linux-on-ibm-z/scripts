@@ -1,0 +1,11 @@
+--- deploy/addons/heapster/heapster-rc.yaml	2018-12-26 07:39:01.649302329 -0500
++++ deploy/addons/heapster/heapster-rc2.yaml	2018-12-26 07:54:54.786930810 -0500
+@@ -37,7 +37,7 @@
+     spec:
+       containers:
+       - name: heapster
+-        image: k8s.gcr.io/heapster-amd64:v1.5.3
++        image: k8s.gcr.io/heapster-s390x:v1.5.3
+         imagePullPolicy: IfNotPresent
+         command:
+         - /heapster
