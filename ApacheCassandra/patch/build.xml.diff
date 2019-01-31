@@ -1,0 +1,38 @@
+--- build.xml	2018-12-10 23:54:16.778195743 -0500
++++ build3.xml	2018-12-11 00:02:34.738159786 -0500
+@@ -102,7 +102,7 @@
+     <property name="maven-repository-url" value="https://repository.apache.org/content/repositories/snapshots"/>
+     <property name="maven-repository-id" value="apache.snapshots.https"/>
+ 
+-    <property name="test.timeout" value="240000" />
++    <property name="test.timeout" value="900000" />
+     <property name="test.long.timeout" value="600000" />
+     <property name="test.burn.timeout" value="60000000" />
+     <property name="test.distributed.timeout" value="600000" />
+@@ -1300,7 +1300,7 @@
+         <jvmarg line="-javaagent:${basedir}/lib/jamm-${jamm.version}.jar ${additionalagent}" />
+         <jvmarg value="-ea"/>
+         <jvmarg value="-Dcassandra.debugrefcount=true"/>
+-        <jvmarg value="-Xss256k"/>
++        <jvmarg value="-Xss32m"/>
+         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
+         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
+         <jvmarg value="-Dcassandra.test.offsetseed=@{poffset}"/>
+@@ -1542,7 +1542,7 @@
+         <jvmarg value="-Djava.awt.headless=true"/>
+         <jvmarg value="-javaagent:${basedir}/lib/jamm-${jamm.version}.jar" />
+         <jvmarg value="-ea"/>
+-        <jvmarg value="-Xss256k"/>
++        <jvmarg value="-Xss32m"/>
+         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
+         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
+         <jvmarg value="-Dcassandra.skip_sync=true" />
+@@ -1584,7 +1584,7 @@
+         <jvmarg value="-Djava.awt.headless=true"/>
+         <jvmarg value="-javaagent:${basedir}/lib/jamm-${jamm.version}.jar" />
+         <jvmarg value="-ea"/>
+-        <jvmarg value="-Xss256k"/>
++        <jvmarg value="-Xss32m"/>
+         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
+         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
+         <jvmarg value="-Dcassandra.skip_sync=true" />
