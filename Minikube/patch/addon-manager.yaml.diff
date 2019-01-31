@@ -1,0 +1,11 @@
+--- deploy/addons/addon-manager.yaml	2018-12-26 07:39:01.649302329 -0500
++++ deploy/addons/addon-manager2.yaml	2018-12-26 07:46:47.198492627 -0500
+@@ -25,7 +25,7 @@
+   hostNetwork: true
+   containers:
+   - name: kube-addon-manager
+-    image: k8s.gcr.io/kube-addon-manager:v8.6
++    image: k8s.gcr.io/kube-addon-manager-s390x:v8.6
+     env:
+     - name: KUBECONFIG
+       value: /var/lib/minikube/kubeconfig
