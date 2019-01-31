@@ -1,0 +1,7 @@
+--- cassandra.yaml	2018-12-11 01:10:38.228579131 -0500
++++ cassandra2.yaml	2018-12-11 01:10:01.178579131 -0500
+@@ -45,3 +45,4 @@
+ enable_user_defined_functions: true
+ enable_scripted_user_defined_functions: true
+ prepared_statements_cache_size_mb: 1
++key_cache_size_in_mb: 12
