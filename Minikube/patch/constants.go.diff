@@ -1,0 +1,56 @@
+--- pkg/minikube/constants/constants.go	2018-12-26 07:39:13.529292006 -0500
++++ pkg/minikube/constants/constants2.go	2018-12-26 08:19:15.715181025 -0500
+@@ -169,7 +169,7 @@
+ )
+ 
+ func GetKubernetesReleaseURL(binaryName, version string) string {
+-	return fmt.Sprintf("https://storage.googleapis.com/kubernetes-release/release/%s/bin/linux/amd64/%s", version, binaryName)
++	return fmt.Sprintf("https://storage.googleapis.com/kubernetes-release/release/%s/bin/linux/s390x/%s", version, binaryName)
+ }
+ 
+ func GetKubernetesReleaseURLSha1(binaryName, version string) string {
+@@ -183,10 +183,10 @@
+ func GetKubeadmCachedImages(kubernetesVersionStr string) []string {
+ 
+ 	var images = []string{
+-		"k8s.gcr.io/kube-proxy-amd64:" + kubernetesVersionStr,
+-		"k8s.gcr.io/kube-scheduler-amd64:" + kubernetesVersionStr,
+-		"k8s.gcr.io/kube-controller-manager-amd64:" + kubernetesVersionStr,
+-		"k8s.gcr.io/kube-apiserver-amd64:" + kubernetesVersionStr,
++		"k8s.gcr.io/kube-proxy-s390x:" + kubernetesVersionStr,
++		"k8s.gcr.io/kube-scheduler-s390x:" + kubernetesVersionStr,
++		"k8s.gcr.io/kube-controller-manager-s390x:" + kubernetesVersionStr,
++		"k8s.gcr.io/kube-apiserver-s390x:" + kubernetesVersionStr,
+ 	}
+ 
+ 	gt_v1_10 := semver.MustParseRange(">=1.11.0")
+@@ -201,11 +201,11 @@
+ 
+ 	if v1_10(kubernetesVersion) || gt_v1_10(kubernetesVersion) {
+ 		images = append(images, []string{
+-			"k8s.gcr.io/pause-amd64:3.1",
+-			"k8s.gcr.io/k8s-dns-kube-dns-amd64:1.14.8",
+-			"k8s.gcr.io/k8s-dns-dnsmasq-nanny-amd64:1.14.8",
+-			"k8s.gcr.io/k8s-dns-sidecar-amd64:1.14.8",
+-			"k8s.gcr.io/etcd-amd64:3.1.12",
++			"k8s.gcr.io/pause-s390x:3.1",
++			"k8s.gcr.io/k8s-dns-kube-dns-s390x:1.14.8",
++			"k8s.gcr.io/k8s-dns-dnsmasq-nanny-s390x:1.14.8",
++			"k8s.gcr.io/k8s-dns-sidecar-s390x:1.14.8",
++			"k8s.gcr.io/etcd-s390x:3.1.12",
+ 		}...)
+ 
+ 	} else if v1_9(kubernetesVersion) {
+@@ -228,9 +228,9 @@
+ 	}
+ 
+ 	images = append(images, []string{
+-		"k8s.gcr.io/kubernetes-dashboard-amd64:v1.10.0",
+-		"k8s.gcr.io/kube-addon-manager:v8.6",
+-		"gcr.io/k8s-minikube/storage-provisioner:v1.8.1",
++		"k8s.gcr.io/kubernetes-dashboard-s390x:v1.10.0",
++		"k8s.gcr.io/kube-addon-manager-s390x:v8.6",
++		"gcr.io/k8s-minikube/storage-provisioner-s390x:v1.8.1",
+ 	}...)
+ 
+ 	return images
