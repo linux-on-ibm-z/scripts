@@ -1,0 +1,11 @@
+--- Makefile	2018-12-26 07:42:47.969236263 -0500
++++ Makefile2	2018-12-26 07:44:02.689236263 -0500
+@@ -297,7 +297,7 @@
+ 
+ .PHONY: storage-provisioner-image
+ storage-provisioner-image: out/storage-provisioner
+-	docker build -t $(REGISTRY)/storage-provisioner:$(STORAGE_PROVISIONER_TAG) -f deploy/storage-provisioner/Dockerfile .
++	docker build -t $(REGISTRY)/storage-provisioner-s390x:$(STORAGE_PROVISIONER_TAG) -f deploy/storage-provisioner/Dockerfile .	
+ 
+ .PHONY: push-storage-provisioner-image
+ push-storage-provisioner-image: storage-provisioner-image
