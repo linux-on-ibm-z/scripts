@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# © Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -10,7 +10,7 @@
 set -e
 
 PACKAGE_NAME="cadvisor"
-PACKAGE_VERSION="0.31.0"
+PACKAGE_VERSION="0.32.0"
 CURDIR="$(pwd)"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
