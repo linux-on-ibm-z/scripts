@@ -9,7 +9,7 @@
 
 set -e -o pipefail
 PACKAGE_NAME="etcd"
-PACKAGE_VERSION="3.3.8"
+PACKAGE_VERSION="3.3.11"
 CURDIR="$(pwd)"
 
 GO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
@@ -53,7 +53,7 @@ function prepare() {
         printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
     else
         # Ask user for prerequisite installation
-        printf -- "\nAs part of the installation , Go 1.10.1 will be installed, \n";
+        printf -- "\nAs part of the installation , Go 1.11.4 will be installed, \n";
         while true; do
 		    read -r -p "Do you want to continue (y/n) ? :  " yn
 		    case $yn in
@@ -234,10 +234,10 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install git curl wget tar gcc |& tee -a "${LOG_FILE}"
+        sudo apt-get install -y git curl wget tar gcc |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-    "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y curl git wget tar gcc which |& tee -a "${LOG_FILE}"
