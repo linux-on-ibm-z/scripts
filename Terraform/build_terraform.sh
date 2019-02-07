@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# © Copyright IBM Corporation 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -11,7 +11,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="terraform"
-PACKAGE_VERSION="0.11.10"
+PACKAGE_VERSION="0.11.11"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
@@ -99,7 +99,7 @@ function configureAndInstall()
   cd $GOPATH/src/github.com/hashicorp
   git clone https://github.com/hashicorp/terraform.git
   cd terraform/
-  git checkout v0.11.10
+  git checkout v"${PACKAGE_VERSION}"
   make tools
   make
 
@@ -175,7 +175,7 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5" | "rhel-6.x")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-6.x")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Terraform from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y git wget make zip which  |& tee -a "${LOG_FILE}"
