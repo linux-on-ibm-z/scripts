@@ -10,7 +10,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="haproxy"
-PACKAGE_VERSION="1.8.14"
+PACKAGE_VERSION="1.9.2"
 CURDIR="$(pwd)"
 BUILD_DIR="/usr/local"
 
@@ -67,8 +67,8 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
    
-    if [ -f "$BUILD_DIR/haproxy-1.8.14.tar.gz" ]; then
-		 rm -rf "$BUILD_DIR/haproxy-1.8.14.tar.gz"
+    if [ -f "$BUILD_DIR/haproxy-${PACKAGE_VERSION}.tar.gz" ]; then
+		 rm -rf "$BUILD_DIR/haproxy-${PACKAGE_VERSION}.tar.gz"
 	fi
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
 }
@@ -78,9 +78,9 @@ function configureAndInstall() {
     
     #Download HAproxy
 	cd "$CURDIR"
-    wget "http://www.haproxy.org/download/1.8/src/haproxy-${PACKAGE_VERSION}.tar.gz"
-    tar xzvf haproxy-1.8.14.tar.gz
-    mv haproxy-1.8.14 haproxy
+    wget "http://www.haproxy.org/download/1.9/src/haproxy-${PACKAGE_VERSION}.tar.gz"
+    tar xzvf "haproxy-${PACKAGE_VERSION}.tar.gz"
+    mv "haproxy-${PACKAGE_VERSION}" haproxy
     sudo chmod -Rf 755 haproxy
     sudo cp -Rf haproxy "$BUILD_DIR"/haproxy
     printf -- "Download HAproxy success\n" >> "$LOG_FILE"
@@ -173,7 +173,7 @@ case "$DISTRO" in
         sudo apt-get install -y wget tar make gcc curl |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-6.x" |"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+    "rhel-6.x" |"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y wget tar make gcc unzip curl |& tee -a "$LOG_FILE"
