@@ -10,7 +10,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="grafana"
-PACKAGE_VERSION="5.2.4"
+PACKAGE_VERSION="5.4.2"
 CURDIR="$(pwd)"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
