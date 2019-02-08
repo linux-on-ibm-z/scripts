@@ -9,7 +9,8 @@
 set -e -o pipefail
 
 PACKAGE_NAME="python"
-PACKAGE_VERSION="3.6.5"
+PACKAGE_VERSION="3.7.1"
+TESTS="false"
 FORCE=false
 CURDIR="$(pwd)"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -19,7 +20,6 @@ trap "" 1 2 ERR
 if [ ! -d "${CURDIR}/logs/" ]; then
 	mkdir -p "${CURDIR}/logs/"
 fi
-
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
@@ -40,7 +40,7 @@ function prepare() {
 		printf -- 'You can install the same from installing sudo from repository using apt, yum or zypper based on your distro. \n'
 		exit 1
 	fi
-	
+
 	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
 		printf -- 'Preparing the installation for python 3.6.5 \n'
 	elif [[ "${PACKAGE_VERSION}" == "3.7.1" ]]; then
@@ -76,33 +76,51 @@ function cleanup() {
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n' |& tee -a "${LOG_FILE}"
-	
+
 	#Downloading Source code
 	cd "${CURDIR}"
-      wget "https://www.python.org/ftp/${PACKAGE_NAME}/${PACKAGE_VERSION}/Python-${PACKAGE_VERSION}.tar.xz"
-      tar -xvf "Python-${PACKAGE_VERSION}.tar.xz"
+	wget "https://www.python.org/ftp/${PACKAGE_NAME}/${PACKAGE_VERSION}/Python-${PACKAGE_VERSION}.tar.xz"
+	tar -xvf "Python-${PACKAGE_VERSION}.tar.xz"
 
-    	#Configure and Build
-    	cd "$CURDIR/Python-${PACKAGE_VERSION}"
-    	./configure --prefix=/usr/local --exec-prefix=/usr/local
-	    make
+	#Configure and Build
+	cd "$CURDIR/Python-${PACKAGE_VERSION}"
+	./configure --prefix=/usr/local --exec-prefix=/usr/local
 
-    	#Install binaries
-    	sudo make install
+	cd "$CURDIR/Python-${PACKAGE_VERSION}"
+	make
 
-    	export PATH="/usr/local/bin:${PATH}"
-	    printf -- '\nInstalled python successfully \n' >>"${LOG_FILE}"
+	#Install binaries
+	cd "$CURDIR/Python-${PACKAGE_VERSION}"
+	sudo make install
 
-    	#Cleanup
-    	cleanup
+	export PATH="/usr/local/bin:${PATH}"
+	printf -- '\nInstalled python successfully \n' >>"${LOG_FILE}"
 
-    	#Verify python installation
-    	if command -V "$PACKAGE_NAME"${PACKAGE_VERSION:0:1} >/dev/null; then
-      		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME" |& tee -a "$LOG_FILE"
-    	else
-      		printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
-      		exit 127
-    	fi
+	#Run tests
+	runTest
+
+	#Cleanup
+	cleanup
+
+	#Verify python installation
+	if command -V "$PACKAGE_NAME"${PACKAGE_VERSION:0:1} >/dev/null; then
+		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME" |& tee -a "$LOG_FILE"
+	else
+		printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
+		exit 127
+	fi
+}
+
+function runTest() {
+	set +e
+	if [[ "$TESTS" == "true" ]]; then
+		printf -- "TEST Flag is set, continue with running test \n"
+		cd "$CURDIR/Python-${PACKAGE_VERSION}"
+		make test
+
+		printf -- "Tests completed. \n"
+	fi
+	set -e
 }
 
 function logDetails() {
@@ -128,7 +146,7 @@ function printHelp() {
 	echo
 }
 
-while getopts "h?dyv:" opt; do
+while getopts "h?dytv:" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -145,13 +163,18 @@ while getopts "h?dyv:" opt; do
 	y)
 		FORCE="true"
 		;;
+	t)
+		TESTS="true"
+		;;
 	esac
 done
 
 function printSummary() {
 	printf -- '\n***************************************************************************************\n'
 	printf -- "Run python: \n"
+	printf -- "export PATH="/usr/local/bin:\$PATH" \n"
 	printf -- "    python3 -V (To Check the version) \n"
+
 	printf -- '***************************************************************************************\n'
 	printf -- '\n'
 }
@@ -164,54 +187,63 @@ logDetails
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04")
-    	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-    	sudo apt-get update
-    	sudo apt-get install -y gcc g++ make libncurses5-dev libreadline6-dev libssl-dev libgdbm-dev libc6-dev libsqlite3-dev libbz2-dev xz-utils libffi-dev patch wget tar zlib1g-dev patch
-    	configureAndInstall |& tee -a "${LOG_FILE}"
-    	;;
-"ubuntu-18.04")
-    	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-    	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
-			printf -- 'Preparing the installation for python 3.6.5 \n' >> "$LOG_FILE";
-			sudo apt-get update
-			sudo apt-get install -y python3
-    		printf -- "Installed python3 successfully from the repository \n\n" >> "$LOG_FILE";
-		else
-			sudo apt-get update
-    		sudo apt-get install -y gcc g++ make libncurses5-dev libreadline6-dev libssl-dev libgdbm-dev libc6-dev libsqlite3-dev libbz2-dev xz-utils libffi-dev patch wget tar zlib1g-dev
-    		configureAndInstall |& tee -a "${LOG_FILE}"
-		fi	
-    	;;
-
-"rhel-6.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-      sudo yum install -y gcc gcc-c++ make ncurses patch xz xz-devel wget tar zlib zlib-devel patch 
-      configureAndInstall |& tee -a "${LOG_FILE}"
+	sudo apt-get update
+	sudo apt-get install -y gcc g++ make libncurses5-dev libreadline6-dev libssl-dev libgdbm-dev libc6-dev libsqlite3-dev libbz2-dev xz-utils libffi-dev patch wget tar zlib1g-dev patch
+	configureAndInstall |& tee -a "${LOG_FILE}"
+	;;
+"ubuntu-18.04")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
+		printf -- 'Preparing the installation for python 3.6.5 \n' >>"$LOG_FILE"
+		sudo apt-get update
+		sudo apt-get install -y python3
+		printf -- "Installed python3 successfully from the repository \n\n" >>"$LOG_FILE"
+	else
+		sudo apt-get update
+		sudo apt-get install -y gcc g++ make libncurses5-dev libreadline6-dev libssl-dev libgdbm-dev libc6-dev libsqlite3-dev libbz2-dev xz-utils libffi-dev patch wget tar zlib1g-dev
+		configureAndInstall |& tee -a "${LOG_FILE}"
+	fi
+	;;
+
+"rhel-6.x")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+	sudo yum install -y curl gcc gcc-c++ make ncurses patch xz xz-devel wget tar zlib zlib-devel libffi-devel git
+	if [[ "${PACKAGE_VERSION}" == "3.7.1" ]]; then
+		cd "${CURDIR}"
+		git clone git://github.com/openssl/openssl.git
+		cd openssl
+		git checkout OpenSSL_1_0_2l
+		./config --prefix=/usr --openssldir=/usr/local/openssl shared
+		make
+		sudo make install
+	fi
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-      sudo yum install -y gcc gcc-c++ make ncurses patch wget tar zlib zlib-devel xz xz-devel libffi-devel
-      configureAndInstall |& tee -a "${LOG_FILE}"
+	sudo yum install -y gcc gcc-c++ make ncurses patch wget tar zlib zlib-devel xz xz-devel libffi-devel
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "sles-12.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-      sudo zypper install -y gcc gcc-c++ make ncurses patch wget tar zlib-devel zlib libffi-devel
-      configureAndInstall |& tee -a "${LOG_FILE}"
+	sudo zypper install -y gcc gcc-c++ make ncurses patch wget tar zlib-devel zlib libffi-devel
+	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
-		printf -- 'Preparing the installation for python 3.6.5 \n' >> "$LOG_FILE";
+		printf -- 'Preparing the installation for python 3.6.5 \n' >>"$LOG_FILE"
 		sudo zypper install -y python3
-		printf -- "Installed python3 successfully from the repository \n\n" >> "$LOG_FILE";
+		printf -- "Installed python3 successfully from the repository \n\n" >>"$LOG_FILE"
 	else
 		sudo zypper install -y gcc gcc-c++ make ncurses patch wget tar zlib-devel zlib libffi-devel
 		configureAndInstall |& tee -a "${LOG_FILE}"
 	fi
-	;;	
+	;;
 
 *)
 	printf -- "%s not supported \n" "$DISTRO" |& tee -a "${LOG_FILE}"
