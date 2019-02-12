@@ -1,9 +1,18 @@
-@@ -82,7 +82,7 @@ docker-build-experimental: check-docker docker-binary docker-binary-rudder
-
- .PHONY: test
- test: build
--test: TESTFLAGS += -race -v
-+test: TESTFLAGS += -v
- test: test-style
- test: test-unit
+--- Makefile.original	2019-02-08 00:33:04.802471827 -0500
++++ Makefile	2019-02-08 00:34:22.092488223 -0500
+@@ -61,8 +61,6 @@
+ docker-binary: BINDIR = ./rootfs
+ docker-binary: GOFLAGS += -a -installsuffix cgo
+ docker-binary:
+-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build -o $(BINDIR)/helm $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/helm
+-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build -o $(BINDIR)/tiller $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/tiller
  
+ .PHONY: docker-build
+ docker-build: check-docker docker-binary
+@@ -160,4 +158,6 @@
+ 	glide install --strip-vendor
+ 	go build -o bin/protoc-gen-go ./vendor/github.com/golang/protobuf/protoc-gen-go
+ 
++       GOOS=linux GOARCH=s390x CGO_ENABLED=0 $(GO) build -o $(BINDIR)/helm $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/helm
++       GOOS=linux GOARCH=s390x CGO_ENABLED=0 $(GO) build -o $(BINDIR)/tiller $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/tiller
+ include versioning.mk
