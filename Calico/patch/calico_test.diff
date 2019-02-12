@@ -1,5 +1,14 @@
---- originalfile	2018-12-25 09:45:27.957698510 -0500
-+++ updatedfile	2018-12-25 09:43:29.337698510 -0500
+--- original/Dockerfile.s390x.calico_test	2019-02-11 06:32:00.224757910 -0500
++++ updated/Dockerfile.s390x.calico_test	2019-02-04 05:25:48.324813968 -0500
+@@ -46,7 +46,7 @@
+ # Running STs in this container requires that it has all dependencies installed
+ # for executing the tests. Install these dependencies:
+ RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-dev tshark \
+-        netcat-openbsd iptables ip6tables iproute2 iputils ipset curl && \
++        netcat-openbsd iptables ip6tables iproute2 iputils ipset curl build-base && \
+         echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && \
+         rm -rf /var/cache/apk/*
+ 
 @@ -59,7 +59,7 @@
  
  # Install etcdctl
