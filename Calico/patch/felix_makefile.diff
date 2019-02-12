@@ -1,20 +1,11 @@
---- originalfile	2018-12-25 09:16:19.447698510 -0500
-+++ updatedfile	2018-12-25 09:15:40.677698510 -0500
-@@ -154,7 +154,7 @@
- CALICO_BUILD=calico/go-build:$(GO_BUILD_VER)
- ETCD_VERSION?=v3.3.7
- K8S_VERSION?=v1.11.3
--PROTOC_VER?=v0.1
-+PROTOC_VER?=latest
- PROTOC_CONTAINER ?=calico/protoc:$(PROTOC_VER)-$(BUILDARCH)
- 
- FV_ETCDIMAGE?=quay.io/coreos/etcd:$(ETCD_VERSION)-$(BUILDARCH)
+--- original/Makefile	2019-02-11 06:28:51.414797965 -0500
++++ updated/Makefile	2019-02-04 03:03:00.673454779 -0500
 @@ -348,7 +348,7 @@
  	rm -rf docker-image/bin
  	mkdir -p docker-image/bin
  	cp bin/calico-felix-$(ARCH) docker-image/bin/
 -	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image
-+	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image
++	docker build  -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image
  ifeq ($(ARCH),amd64)
  	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
  endif
