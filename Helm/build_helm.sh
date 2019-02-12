@@ -9,13 +9,13 @@
 set -e -o pipefail
 
 PACKAGE_NAME="helm"
-PACKAGE_VERSION="2.9.1"
+PACKAGE_VERSION="2.11.0"
 CURDIR="$PWD"
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Helm/patch"
 HELM_REPO_URL="https://github.com/kubernetes/helm.git"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 FORCE="false"
-GO_VERSION="1.9.2"
+GO_VERSION="1.10.4"
 GOPATH="${CURDIR}"
 trap cleanup 0 1 2 ERR
 
@@ -109,14 +109,14 @@ function configureAndInstall() {
 
 	#for ubuntu only since installing go from repository
 	if [[ "${ID}" == "ubuntu" ]]; then
-		export PATH=/usr/lib/go-1.9/bin:$PATH
+		export PATH=/usr/lib/go-1.10/bin:$PATH
 	fi
 
 	#Install Glide
 	cd $GOPATH
-	wget https://github.com/Masterminds/glide/releases/download/v0.13.0/glide-v0.13.0-linux-s390x.tar.gz
-	tar -xzf glide-v0.13.0-linux-s390x.tar.gz
-	export PATH=$GOPATH/linux-s390x:$PATH
+	wget https://github.com/Masterminds/glide/releases/download/v0.13.1/glide-v0.13.1-linux-s390x.tar.gz
+	tar -xzf glide-v0.13.1-linux-s390x.tar.gz
+	export PATH=$GOPATH/linux-s390x:$PATH:$GOPATH/bin
 	# #Added symlink for PATH
 	# sudo ln -sf $GOPATH/linux-s390x/glide /usr/bin/
 
@@ -127,6 +127,11 @@ function configureAndInstall() {
 	cd $GOPATH/src/k8s.io
 	git clone -b v$PACKAGE_VERSION $HELM_REPO_URL
 	sleep 2
+
+	# Add patch
+	cd "${CURDIR}"
+	curl -o Makefile.diff $REPO_URL/Makefile.diff
+	patch "$GOPATH/src/k8s.io/helm/Makefile" Makefile.diff 
 
 	#Build helm
 	printf -- 'Building helm \n'
@@ -150,8 +155,8 @@ function runTest() {
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- 'Running tests \n\n' |& tee -a "$LOG_FILE"
 		cd "${CURDIR}"
-		curl -o Makefile.diff $REPO_URL/Makefile.diff
-		patch "$GOPATH/src/k8s.io/helm/Makefile" Makefile.diff
+		curl -o Makefile_test.diff $REPO_URL/Makefile_test.diff
+		patch "$GOPATH/src/k8s.io/helm/Makefile" Makefile_test.diff
 		cd "$GOPATH/src/k8s.io/helm"
 		make test
 	fi
@@ -215,21 +220,21 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
-	sudo apt-get install -y git curl make mercurial wget golang-1.9
+	sudo apt-get install -y wget tar git make golang-1.10 patch
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y git make curl mercurial wget tar
+	sudo yum install -y wget tar git make patch gcc
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "sles-12.3" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y git make curl mercurial wget tar
+	sudo zypper install -y  wget tar git make patch gcc
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
