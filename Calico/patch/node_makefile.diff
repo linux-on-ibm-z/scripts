@@ -1,11 +1,11 @@
---- originalfile	2018-12-25 01:39:38.757698510 -0500
-+++ updatedfile	2018-12-14 08:40:23.967698510 -0500
+--- original/Makefile	2019-02-11 06:32:00.224757910 -0500
++++ updated/Makefile	2019-02-04 03:20:28.633570404 -0500
 @@ -109,12 +109,12 @@
  endif
  
  # Versions and location of dependencies used in the build.
--BIRD_VER?=v0.3.2-13-g17d14e60
-+BIRD_VER?=v0.3.2
+-BIRD_VER?=v0.3.3-0-g1e8dd375
++BIRD_VER?=v0.3.3
  BIRD_IMAGE ?= calico/bird:$(BIRD_VER)-$(ARCH)
  
  # Versions and locations of dependencies used in tests.
@@ -25,7 +25,7 @@
  endif
  
  K8S_VERSION?=v1.11.3
-@@ -250,7 +250,7 @@
+@@ -254,7 +254,7 @@
  	docker run --rm -v $(CURDIR)/dist/bin:/go/bin:rw $(CALICO_BUILD) /bin/sh -c "\
  	  echo; echo calico-node-$(ARCH) -v;         /go/bin/calico-node-$(ARCH) -v; \
  	"
@@ -34,7 +34,7 @@
  	touch $@
  
  # ensure we have a real imagetag
-@@ -393,7 +393,6 @@
+@@ -405,7 +405,6 @@
  # variables.  These are used for the STs.
  dist/calicoctl:
  	-docker rm -f calicoctl
@@ -42,7 +42,7 @@
  	docker create --name calicoctl $(CTL_CONTAINER_NAME)
  	docker cp calicoctl:calicoctl dist/calicoctl && \
  	  test -e dist/calicoctl && \
-@@ -402,7 +401,6 @@
+@@ -414,7 +413,6 @@
  
  dist/calico-cni-plugin dist/calico-ipam-plugin:
  	-docker rm -f calico-cni
@@ -50,3 +50,4 @@
  	docker create --name calico-cni calico/cni:$(CNI_VER)
  	docker cp calico-cni:/opt/cni/bin/calico dist/calico-cni-plugin && \
  	  test -e dist/calico-cni-plugin && \
+ 
