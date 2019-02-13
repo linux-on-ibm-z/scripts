@@ -238,7 +238,7 @@ case "$DISTRO" in
         sudo apt-get install -y git wget make python mercurial curl |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y git wget gcc make tar which mercurial curl |& tee -a "$LOG_FILE"
