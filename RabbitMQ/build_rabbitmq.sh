@@ -212,7 +212,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-6.x")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-6.x")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y c perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel fop java-1.8.0-openjdk-devel gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar curl sed make |& tee -a "${LOG_FILE}"
