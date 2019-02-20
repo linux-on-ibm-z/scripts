@@ -1,12 +1,12 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# © Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Protobuf/build_protobuf.sh
 # Execute build script: bash build_protobuf.sh    (provide -h for help)
 #
-set -e
+set -e -o pipefail
 
 PACKAGE_NAME="protobuf"
 PACKAGE_VERSION="3.6.1"
@@ -43,7 +43,7 @@ function prepare() {
 	fi
 
 	if [[ "$FORCE" == "true" ]]; then
-		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' | tee -a "$LOG_FILE"
+		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
 	else
 		# Ask user for prerequisite installation
 		printf -- "\nAs part of the installation , some dependencies will be installed, \n"
@@ -181,7 +181,7 @@ function logDetails() {
 	printf -- '*********************************************************************************************************\n' >>"$LOG_FILE"
 
 	printf -- "Detected %s \n" "$PRETTY_NAME"
-	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" | tee -a "$LOG_FILE"
+	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -226,36 +226,36 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
-	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y  tar wget autoconf libtool automake g++ make git bzip2 curl unzip zlib1g-dev  | tee -a "$LOG_FILE"
-	configureAndInstall | tee -a "$LOG_FILE"
+	sudo apt-get install -y  tar wget autoconf libtool automake g++ make git bzip2 curl unzip zlib1g-dev  |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-6.x" | "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 
 	if [[ "$DISTRO" == "rhel-6.x" ]]; then
-		sudo yum install -y  tar wget gcc-c++ make git bzip2 curl unzip zlib zlib-devel bison binutils-devel autoconf automake libtool  | tee -a "$LOG_FILE"
-		printf -- "\nInstalling for %s \n" "$DISTRO" | tee -a "$LOG_FILE"
+		sudo yum install -y  tar wget gcc-c++ make git bzip2 curl unzip zlib zlib-devel bison binutils-devel autoconf automake libtool  |& tee -a "$LOG_FILE"
+		printf -- "\nInstalling for %s \n" "$DISTRO" |& tee -a "$LOG_FILE"
 	else
 
-		sudo yum install -y  tar wget autoconf libtool automake gcc-c++ make git bzip2 curl unzip zlib zlib-devel curl  | tee -a "$LOG_FILE"
+		sudo yum install -y  tar wget autoconf libtool automake gcc-c++ make git bzip2 curl unzip zlib zlib-devel curl  |& tee -a "$LOG_FILE"
 	fi
 
-	configureAndInstall | tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "sles-12.3" | "sles-15")
-	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-	sudo zypper  install -y tar wget autoconf libtool automake gcc-c++ make git bzip2 curl unzip zlib zlib-devel | tee -a "$LOG_FILE"
-	configureAndInstall | tee -a "$LOG_FILE"
+	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	sudo zypper  install -y tar wget autoconf libtool automake gcc-c++ make git bzip2 curl unzip zlib zlib-devel |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 *)
-	printf -- "%s not supported \n" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
 	exit 1
 	;;
 esac
 
-gettingStarted | tee -a "$LOG_FILE"
+gettingStarted |& tee -a "$LOG_FILE"
