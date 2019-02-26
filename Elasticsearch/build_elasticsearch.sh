@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2018.
+# ©  Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -9,7 +9,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="elasticsearch"
-PACKAGE_VERSION="6.5.0"
+PACKAGE_VERSION="6.6.0"
 CURDIR="$(pwd)"
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
@@ -79,9 +79,9 @@ function configureAndInstall() {
 	#Installing dependencies
 	printf -- 'User responded with Yes. \n'
 	printf -- 'Downloading openjdk\n'
-	wget 'https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11%2B28/OpenJDK11-jdk_s390x_linux_hotspot_11_28.tar.gz'
-	sudo tar -C /usr/local -xzf OpenJDK11-jdk_s390x_linux_hotspot_11_28.tar.gz
-	export PATH=/usr/local/jdk-11+28/bin:$PATH
+	wget 'https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.2%2B7/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.2_7.tar.gz'
+	sudo tar -C /usr/local -xzf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.2_7.tar.gz
+	export PATH=/usr/local/jdk-11.0.2+7/bin:$PATH
 	java -version |& tee -a "$LOG_FILE"
 	printf -- 'Adopt JDK 11 installed\n'
 
@@ -90,21 +90,21 @@ function configureAndInstall() {
 	unset JAVA_TOOL_OPTIONS
 	export LANG="en_US.UTF-8"
 	export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
-	export JAVA_HOME=/usr/local/jdk-11+28
-	export JAVA11_HOME=/usr/local/jdk-11+28
+	export JAVA_HOME=/usr/local/jdk-11.0.2+7
+	export JAVA11_HOME=/usr/local/jdk-11.0.2+7
 	export _JAVA_OPTIONS="-Xmx10g"
 
 	#Added symlink for PATH
-	sudo ln -sf /usr/local/jdk-11+28/bin/java /usr/bin/
+	sudo ln -sf /usr/local/jdk-11.0.2+7/bin/java /usr/bin/
 	printf -- 'Adding JAVA_HOME to bashrc \n'
 	#add JAVA_HOME to ~/.bashrc
 	cd "${HOME}"
 	if [[ "$(grep -q JAVA_HOME .bashrc)" ]]; then
 
 		printf -- '\nChanging JAVA_HOME\n'
-		sed -n 's/^.*\bJAVA_HOME\b.*$/export JAVA_HOME=\/usr\/local\/jdk-9.0.4+11\//p' ~/.bashrc
+		sed -n 's/^.*\bJAVA_HOME\b.*$/export JAVA_HOME=\/usr\/local\/jdk-11.0.2+7\//p' ~/.bashrc
 	else
-		echo "export JAVA_HOME=/usr/local/jdk-11+28/" >>.bashrc
+		echo "export JAVA_HOME=/usr/local/jdk-11.0.2+7/" >>.bashrc
 	fi
 
 	cd "${CURDIR}"
@@ -128,7 +128,7 @@ function configureAndInstall() {
 	printf -- 'Building Elasticsearch \n'
 	printf -- 'Build might take some time.Sit back and relax\n'
 	cd "${CURDIR}/elasticsearch"
-	./gradlew assemble 
+	./gradlew assemble
 	#Verify elasticsearch installation
 	if [[ $(grep -q "BUILD FAILED" "$LOG_FILE") ]]; then
 		printf -- '\nBuild failed due to some unknown issues.\n'
@@ -138,14 +138,14 @@ function configureAndInstall() {
 }
 
 function runTest() {
-	
+
 	#Setting environment variable needed for testing
 	unset JAVA_TOOL_OPTIONS
 	export LANG="en_US.UTF-8"
 	export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
-	export JAVA_HOME=/usr/local/jdk-11+28
-	export JAVA11_HOME=/usr/local/jdk-11+28
-	export _JAVA_OPTIONS="-Xmx10g"
+	export JAVA_HOME=/usr/local/jdk-11.0.2+7
+	export JAVA11_HOME=/usr/local/jdk-11.0.2+7
+	export _JAVA_OPTIONS="-Xss1g -Xmx10g"
 
 	printf -- 'Running test \n'
 	cd "${CURDIR}/elasticsearch"
@@ -153,11 +153,11 @@ function runTest() {
 
 	#Run network mode test cases
 	printf -- 'Running network mode test cases\n'
-	./gradlew test --continue -Dtests.haltonfailure=false -Dtests.es.node.mode=network 2>&1| tee -a network_tests.log
+	./gradlew test --continue -Dtests.haltonfailure=false -Dtests.es.node.mode=network -Dtests.jvms=4 2>&1| tee -a network_tests.log
 
 	#Run local mode test cases
 	printf -- 'Running local mode test cases\n'
-	./gradlew test --continue -Dtests.haltonfailure=false -Dtests.es.node.mode=local 2>&1| tee -a local_tests.log
+	./gradlew test --continue -Dtests.haltonfailure=false -Dtests.es.node.mode=local -Dtests.jvms=4 2>&1| tee -a local_tests.log
 
 	cd "${CURDIR}/elasticsearch"
 	grep "REPRODUCE" network_tests.log >> test_results.log
@@ -287,7 +287,7 @@ function printSummary() {
 	printf -- '\n********************************************************************************************************\n'
 	printf -- "\n* Getting Started * \n"
 	printf -- '\n\nSet JAVA_HOME to start using elasticsearch right away.'
-	printf -- '\nexport JAVA_HOME=/usr/local/jdk-11+28/\n'
+	printf -- '\nexport JAVA_HOME=/usr/local/jdk-11.0.2+7/\n'
 	printf -- '\nRestarting the session will apply changes automatically'
 	printf -- '\n\nStart Elasticsearch using the following command :   elasticsearch '
 	printf -- '\nFor more information on curator client visit https://www.elastic.co/guide/en/elasticsearch/client/curator/current/index.html \n\n'
