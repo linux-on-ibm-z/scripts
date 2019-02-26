@@ -9,9 +9,9 @@
 set -e -o pipefail
 
 PACKAGE_NAME="python"
-PACKAGE_VERSION="3.7.1"
+PACKAGE_VERSION="3.7.2"
 TESTS="false"
-FORCE=false
+FORCE="false"
 CURDIR="$(pwd)"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 
@@ -41,13 +41,13 @@ function prepare() {
 		exit 1
 	fi
 
-	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
-		printf -- 'Preparing the installation for python 3.6.5 \n'
-	elif [[ "${PACKAGE_VERSION}" == "3.7.1" ]]; then
+	if [[ "${PACKAGE_VERSION}" == "3.7.1" ]]; then
 		printf -- 'Preparing the installation for python 3.7.1 \n'
+	elif [[ "${PACKAGE_VERSION}" == "3.7.2" ]]; then
+		printf -- 'Preparing the installation for python 3.7.2 \n'
 	else
 		printf -- 'Provided python version is not supported by this script \n'
-		printf -- 'This script supports python version 3.6.5 and 3.7.1 \n'
+		printf -- 'This script supports python version 3.7.1 and 3.7.2 \n'
 	fi
 
 	if [[ "$FORCE" == "true" ]]; then
@@ -114,11 +114,20 @@ function configureAndInstall() {
 function runTest() {
 	set +e
 	if [[ "$TESTS" == "true" ]]; then
-		printf -- "TEST Flag is set, continue with running test \n"
+		printf -- "TEST Flag is set, continue with running test \n" >> "$LOG_FILE"
 		cd "$CURDIR/Python-${PACKAGE_VERSION}"
-		make test
-
+		make test 2>&1| tee -a test_results.log
 		printf -- "Tests completed. \n"
+
+		if [ -s test_results.log ]; then
+     	if [[ $(sed -n -e '/tests failed/,/tests skipped/ p' test_results.log) ]]; then
+			printf -- '**********************************************************************************************************\n'
+			printf -- '\nUnexpected test failures detected. Tip : Try running them individually using the command: make test TESTOPTS="-v <test_name>" \n'
+			printf -- '**********************************************************************************************************\n'
+		fi
+		else
+    	 printf --  '\nTest cases ran successfully without any failures\n'
+		fi
 	fi
 	set -e
 }
@@ -142,7 +151,7 @@ function printHelp() {
 	echo "Usage: "
 	echo "  build_python_3.sh  [-d <debug>] [-v package-version] [-y install-without-confirmation]"
 	echo "       default: If no -v specified, latest version will be installed "
-	echo "This script supports python version 3.6.5 and 3.7.1 "
+	echo "This script supports python version 3.7.1 and 3.7.2 "
 	echo
 }
 
@@ -158,7 +167,6 @@ while getopts "h?dytv:" opt; do
 	v)
 		PACKAGE_VERSION="$OPTARG"
 		LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-
 		;;
 	y)
 		FORCE="true"
@@ -172,7 +180,7 @@ done
 function printSummary() {
 	printf -- '\n***************************************************************************************\n'
 	printf -- "Run python: \n"
-	printf -- "export PATH="/usr/local/bin:\$PATH" \n"
+	printf -- "export PATH="/usr/local/bin:$PATH" \n"
 	printf -- "    python3 -V (To Check the version) \n"
 
 	printf -- '***************************************************************************************\n'
@@ -194,11 +202,13 @@ case "$DISTRO" in
 	;;
 "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
-		printf -- 'Preparing the installation for python 3.6.5 \n' >>"$LOG_FILE"
+	if [[ "${PACKAGE_VERSION}" == "3.7.1" ]]; then
+		printf -- 'Preparing the installation for python 3.7.1 \n' >>"$LOG_FILE"
 		sudo apt-get update
-		sudo apt-get install -y python3
-		printf -- "Installed python3 successfully from the repository \n\n" >>"$LOG_FILE"
+		sudo apt-get install -y python3.7
+		sudo rm -rf /usr/bin/python3
+		sudo ln -s /usr/bin/python3.7 /usr/bin/python3
+		printf -- "Installed python 3.7.1 successfully from the repository after removing any other python version.\n\n" >>"$LOG_FILE"
 	else
 		sudo apt-get update
 		sudo apt-get install -y gcc g++ make libncurses5-dev libreadline6-dev libssl-dev libgdbm-dev libc6-dev libsqlite3-dev libbz2-dev xz-utils libffi-dev patch wget tar zlib1g-dev
@@ -206,10 +216,9 @@ case "$DISTRO" in
 	fi
 	;;
 
-"rhel-6.x")
+"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo yum install -y curl gcc gcc-c++ make ncurses patch xz xz-devel wget tar zlib zlib-devel libffi-devel git
-	if [[ "${PACKAGE_VERSION}" == "3.7.1" ]]; then
 		cd "${CURDIR}"
 		git clone git://github.com/openssl/openssl.git
 		cd openssl
@@ -217,32 +226,21 @@ case "$DISTRO" in
 		./config --prefix=/usr --openssldir=/usr/local/openssl shared
 		make
 		sudo make install
-	fi
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	sudo yum install -y gcc gcc-c++ make ncurses patch wget tar zlib zlib-devel xz xz-devel libffi-devel
-	configureAndInstall |& tee -a "${LOG_FILE}"
-	;;
-
-"sles-12.3")
+"sles-12.3" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo zypper install -y gcc gcc-c++ make ncurses patch wget tar zlib-devel zlib libffi-devel
+		cd "${CURDIR}"
+		git clone git://github.com/openssl/openssl.git
+		cd openssl
+		git checkout OpenSSL_1_0_2l
+		./config --prefix=/usr --openssldir=/usr/local/openssl shared
+		make
+		sudo make install
+		export LC_ALL=C
 	configureAndInstall |& tee -a "${LOG_FILE}"
-	;;
-
-"sles-15")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	if [[ "${PACKAGE_VERSION}" == "3.6.5" ]]; then
-		printf -- 'Preparing the installation for python 3.6.5 \n' >>"$LOG_FILE"
-		sudo zypper install -y python3
-		printf -- "Installed python3 successfully from the repository \n\n" >>"$LOG_FILE"
-	else
-		sudo zypper install -y gcc gcc-c++ make ncurses patch wget tar zlib-devel zlib libffi-devel
-		configureAndInstall |& tee -a "${LOG_FILE}"
-	fi
 	;;
 
 *)
