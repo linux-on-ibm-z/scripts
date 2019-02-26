@@ -10,7 +10,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="haproxy"
-PACKAGE_VERSION="1.9.2"
+PACKAGE_VERSION="1.9.4"
 CURDIR="$(pwd)"
 BUILD_DIR="/usr/local"
 
