@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2018.
+# © Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -10,7 +10,7 @@
 set -e
 
 PACKAGE_NAME="glusterfs"
-PACKAGE_VERSION="4.1.5"
+PACKAGE_VERSION="5.3"
 CURDIR="$(pwd)"
 
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/patch/"
@@ -72,25 +72,23 @@ function cleanup() {
 		rm -rf "${CURDIR}/thin-provisioning-tools"
 	fi
 
-	#for sles
-	if [[ "${ID}" == "sles" ]]; then
-		rm -rf "${CURDIR}/userspace-rcu"
-	fi
-
 	if [[ "${TESTS}" == "true" ]]; then
 
-		rm -rf "${CURDIR}/xfsprogs-4.15.1.tar.gz"
-		rm -rf "${CURDIR}/xfsprogs-4.15.1"
-		rm -rf "${CURDIR}/dbench"
-		rm -rf "${CURDIR}/yajl"
+		if [[ "${ID}" == "rhel" ]]; then
+			rm -rf "${CURDIR}/dbench"
+			if [[ "${ID}" == "sles" ]]; then
+				rm -rf "${CURDIR}/yajl"
+			fi
+		fi
 
 		#cleaning patches
 		rm -rf "${CURDIR}/throttle-rebal.t.diff"
 		rm -rf "${CURDIR}/mount-nfs-auth.t.diff"
-		rm -rf "${CURDIR}/frequency-counters.t.diff"
-		rm -rf "${CURDIR}/namespace.t.diff"
+		rm -rf "${CURDIR}/bug-847622.t.diff"
+		rm -rf "${CURDIR}/bug-1161311.t.diff"
+		rm -rf "${CURDIR}/bug-1193636.t.diff"
 
-		if [[ "${ID}" == "sles" ||  "${ID}" == "ubuntu" ]]; then
+		if [[ "${DISTRO}" == "sles-12.3" ||  "${DISTRO}" == "ubuntu-16.04" ]]; then
 			rm -rf "${CURDIR}/run-tests.sh.diff"
 		fi
 	fi
@@ -106,11 +104,12 @@ function configureAndInstall() {
 
 	cd "${CURDIR}"
 
-	#only for sles and rhel
-	if [[ "${ID}" != "ubuntu" ]]; then
+	#only for rhel
+	if [[ "${ID}" == "rhel" ]]; then
 		printf -- 'Building URCU\n' 
 		git clone git://git.liburcu.org/userspace-rcu.git
 		cd userspace-rcu
+		git checkout v0.10.2
 		./bootstrap
 		./configure
 		make
@@ -126,6 +125,7 @@ function configureAndInstall() {
 		printf -- 'Building thin-provisioning-tools\n' 
 		git clone https://github.com/jthornber/thin-provisioning-tools
 		cd thin-provisioning-tools
+		git checkout v0.7.6
 		autoreconf
 		./configure
 		make
@@ -141,10 +141,10 @@ function configureAndInstall() {
 	sleep 2
 	cd "${CURDIR}/glusterfs"
 	./autogen.sh
-	if [[ "${ID}" == "sles" ]]; then
-		./configure --enable-gnfs --disable-events # for SLES
+	if [[ "${DISTRO}" == "sles-12.3" ]]; then
+		./configure --enable-gnfs --disable-events # for SLES 12 SP3
 	else
-		./configure --enable-gnfs # for RHEL and Ubuntu
+		./configure --enable-gnfs # for RHEL, SLES 15 and Ubuntu
 	fi
 
 	if [[ "${ID}" == "rhel" ]]; then
@@ -204,27 +204,6 @@ function runTest() {
 	set +e
 
 	if [[ "$TESTS" == "true" ]]; then
-		#Building xfsprogs
-
-		printf -- 'Running test as TEST flag is enabled \n\n' 
-		if [[ "${ID}" == "ubuntu" ]]; then
-			sudo apt-get install -y gettext libblkid-dev
-		fi
-
-		if [[ "${ID}" == "sles" ]]; then
-			sudo zypper --non-interactive install libblkid-devel gettext-tools
-		fi
-
-		if [[ "${ID}" == "rhel" ]]; then
-			sudo yum install -y gettext libblkid-devel
-		fi
-
-		cd "${CURDIR}"
-		wget -c https://mirrors.edge.kernel.org/pub/linux/utils/fs/xfs/xfsprogs/xfsprogs-4.15.1.tar.gz
-		tar -xvf xfsprogs-4.15.1.tar.gz
-		cd xfsprogs-4.15.1
-		make
-		make install
 
 		#Building DBENCH (Only for RHEL and SLES)
 		if [[ "${ID}" != "ubuntu" ]]; then
@@ -238,20 +217,16 @@ function runTest() {
 		fi
 
 		#Building yajl (Only for SLES)
-
 		if [[ "${ID}" == "sles" ]]; then
 			cd "${CURDIR}"
 			git clone https://github.com/lloyd/yajl
 			cd yajl
 			git checkout 2.1.0
-			mkdir build
-			cd build/
-			cmake ..
-			make
-			export PATH=$PATH:$PWD/yajl-2.1.0/bin
+			./configure
+			make install
 		fi
 
-		#Apply 3 patches
+		#Apply 6 patches
 		cd "${CURDIR}"
 
 		curl -o throttle-rebal.t.diff $REPO_URL/throttle-rebal.t.diff
@@ -260,13 +235,16 @@ function runTest() {
 		curl -o mount-nfs-auth.t.diff $REPO_URL/mount-nfs-auth.t.diff
 		patch "${CURDIR}/glusterfs/tests/basic/mount-nfs-auth.t" mount-nfs-auth.t.diff
 
-		curl -o frequency-counters.t.diff $REPO_URL/frequency-counters.t.diff
-		patch "${CURDIR}/glusterfs/tests/basic/tier/frequency-counters.t" frequency-counters.t.diff
+		curl -o bug-847622.t.diff $REPO_URL/bug-847622.t.diff
+		patch "${CURDIR}/glusterfs/tests/bugs/nfs/bug-847622.t" bug-847622.t.diff
 
-		curl -o namespace.t.diff $REPO_URL/namespace.t.diff
-		patch "${CURDIR}/glusterfs/tests/basic/namespace.t" namespace.t.diff
+		curl -o bug-1161311.t.diff $REPO_URL/bug-1161311.t.diff
+		patch "${CURDIR}/glusterfs/tests/bugs/distribute/bug-1161311.t" bug-1161311.t.diff
+		
+		curl -o bug-1193636.t.diff $REPO_URL/bug-1193636.t.diff
+		patch "${CURDIR}/glusterfs/tests/bugs/distribute/bug-1193636.t" bug-1193636.t.diff
 
-		if [[ "${ID}" == "sles" ||  "${ID}" == "ubuntu" ]]; then
+		if [[ "${DISTRO}" == "sles-12.3" ||  "${DISTRO}" == "ubuntu-16.04" ]]; then
 			curl -o run-tests.sh.diff $REPO_URL/run-tests.sh.diff
 			patch "${CURDIR}/glusterfs/run-tests.sh" run-tests.sh.diff
 		fi
@@ -338,22 +316,30 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 	sudo apt-get update 
-	sudo apt-get install -y make automake patch curl autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev wget tar dbench git xfsprogs attr nfs-common yajl-tools sqlite3 libxml2-utils thin-provisioning-tools bc uuid-dev
+	sudo apt-get install -y make automake autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python3-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev wget tar dbench git xfsprogs attr nfs-common yajl-tools sqlite3 libxml2-utils thin-provisioning-tools bc uuid-dev net-tools vim-common
 	configureAndInstall | tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	sudo yum install -y wget patch git curl make gcc-c++ libaio-devel boost-devel expat-devel autoconf autoheader automake libtool flex bison openssl-devel libacl-devel sqlite-devel libxml2-devel python-devel python attr yajl nfs-utils xfsprogs popt-static sysvinit-tools psmisc libibverbs-devel librdmacm-devel readline-devel lvm2-devel glib2-devel fuse-devel bc libuuid-devel
+	sudo yum install -y wget git make gcc-c++ libaio-devel boost-devel expat-devel autoconf autoheader automake libtool flex bison openssl-devel libacl-devel sqlite-devel libxml2-devel python-devel python pyxattr attr yajl-devel nfs-utils xfsprogs-devel popt-static sysvinit-tools psmisc libibverbs-devel librdmacm-devel readline-devel lvm2-devel glib2-devel fuse-devel bc libuuid-devel net-tools vim-common gdb
 	configureAndInstall | tee -a "$LOG_FILE"
 
 	;;
 
-"sles-12.3" | "sles-15")
+"sles-12.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	sudo zypper --non-interactive install curl wget patch which git make gcc-c++ libaio-devel boost-devel autoconf automake cmake libtool flex bison lvm2-devel libacl-devel python-devel python attr xfsprogs sysvinit-tools psmisc bc libopenssl-devel libxml2-devel sqlite3 sqlite3-devel popt-devel nfs-utils libyajl2 python-xml net-tools libuuid-devel
+	sudo zypper --non-interactive install wget which git make gcc-c++ libaio-devel boost-devel autoconf automake cmake libtool flex bison lvm2-devel libacl-devel python-devel python python-xattr attr xfsprogs-devel sysvinit-tools psmisc bc libopenssl-devel libxml2-devel sqlite3 sqlite3-devel popt-devel nfs-utils python-xml net-tools libuuid-devel liburcu-devel libyajl-devel gdb acl
+	configureAndInstall | tee -a "$LOG_FILE"
+
+	;;
+
+"sles-15")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+	sudo zypper --non-interactive install wget which git make gcc-c++ libaio-devel boost-devel autoconf automake cmake libtool flex bison lvm2-devel libacl-devel python3-devel python3 python3-xattr attr xfsprogs-devel sysvinit-tools psmisc bc libopenssl-devel libxml2-devel sqlite3 sqlite3-devel popt-devel nfs-utils python-xml net-tools-deprecated libuuid-devel liburcu-devel libyajl-devel gdb acl
 	configureAndInstall | tee -a "$LOG_FILE"
 
 	;;
