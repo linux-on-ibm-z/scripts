@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2018.
+# ©  Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -10,7 +10,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="logstash"
-PACKAGE_VERSION="6.5.0"
+PACKAGE_VERSION="6.6.0"
 
 FORCE=false
 WORKDIR="/usr/local"
@@ -71,17 +71,17 @@ function cleanup() {
 
 function configureAndInstall() {
 	#cleanup
-	printf -- 'Configuration and Installation started \n' 
+	printf -- 'Configuration and Installation started \n'
 
 	# Install IBMSDK
-	printf -- 'Configuring IBMSDK \n' 
+	printf -- 'Configuring IBMSDK \n'
 	cd "${WORKDIR}"
 	sudo wget -q http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.5.26/linux/s390x/ibm-java-s390x-sdk-8.0-5.26.bin
 	sudo wget -q https://raw.githubusercontent.com/zos-spark/scala-workbench/master/files/installer.properties.java
 	tail -n +3 installer.properties.java | sudo tee installer.properties
 	sudo cat installer.properties
 	sudo chmod +x ibm-java-s390x-sdk-8.0-5.26.bin
-	sudo ./ibm-java-s390x-sdk-8.0-5.26.bin -r installer.properties 
+	sudo ./ibm-java-s390x-sdk-8.0-5.26.bin -r installer.properties
 
 	export JAVA_HOME=/opt/ibm/java
 	export PATH="${JAVA_HOME}/bin:$PATH"
@@ -90,28 +90,28 @@ function configureAndInstall() {
 	# Install Ant (for RHEL 6.10)
 	if [[ "${VERSION_ID}" == "6.x" ]]; then
 		cd "${WORKDIR}"
-		sudo wget -q http://archive.apache.org/dist/ant/binaries/apache-ant-1.10.0-bin.tar.gz 
-		sudo tar -zxvf apache-ant-1.10.0-bin.tar.gz 
+		sudo wget -q http://archive.apache.org/dist/ant/binaries/apache-ant-1.10.0-bin.tar.gz
+		sudo tar -zxvf apache-ant-1.10.0-bin.tar.gz
 		export ANT_HOME="${WORKDIR}/apache-ant-1.10.0"
 		export PATH="${ANT_HOME}/bin:${PATH}"
 		ant -version
-		printf -- 'Installed Ant successfully for Rhel 6.10 \n' 
+		printf -- 'Installed Ant successfully for Rhel 6.10 \n'
 	fi
 
 	#Install Logstash
-	printf -- 'Installing Logstash..... \n' 
-	printf -- 'Download source code of Logstash\n' 
+	printf -- 'Installing Logstash..... \n'
+	printf -- 'Download source code of Logstash\n'
 	cd "${WORKDIR}"
-	sudo wget -q https://artifacts.elastic.co/downloads/logstash/logstash-"${PACKAGE_VERSION}".zip 
-	sudo unzip -u logstash-"${PACKAGE_VERSION}".zip 
+	sudo wget -q https://artifacts.elastic.co/downloads/logstash/logstash-"${PACKAGE_VERSION}".zip
+	sudo unzip -u logstash-"${PACKAGE_VERSION}".zip
 
 	printf -- 'Jruby runs on JVM and needs a native library (libjffi-1.2.so: java foreign language interface). Get jffi source code and build with ant.\n' |& tee -a "${LOG_FILE}"
 	cd "${WORKDIR}"
-	sudo wget -q https://github.com/jnr/jffi/archive/jffi-1.2.18.zip 
+	sudo wget -q https://github.com/jnr/jffi/archive/jffi-1.2.18.zip
 	sudo unzip -u jffi-1.2.18.zip
 	sudo chmod 777 "${WORKDIR}/logstash-${PACKAGE_VERSION}/" "${WORKDIR}/jffi-jffi-1.2.18/"
 	cd jffi-jffi-1.2.18
-	ant 
+	ant
 
 	printf -- 'Add libjffi-1.2.so to LD_LIBRARY_PATH\n'
 	export LD_LIBRARY_PATH="${WORKDIR}/jffi-jffi-1.2.18/build/jni/:$LD_LIBRARY_PATH"
@@ -121,16 +121,16 @@ function configureAndInstall() {
 	sudo cp -Rf "${WORKDIR}/logstash-${PACKAGE_VERSION}/config/logstash.yml" /etc/logstash/config/logstash.yml
 
 	# Include Logstash in the PATH
-	
+
 	sudo ln -s "${WORKDIR}/logstash-${PACKAGE_VERSION}/bin/logstash" /usr/bin/
-	printf -- 'Installed logstash successfully \n' 
-	
+	printf -- 'Installed logstash successfully \n'
+
 	#Cleanup
 	cleanup
 
 	#Verify kibana installation
 	if command -v "$PACKAGE_NAME" >/dev/null; then
-		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME" 
+		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME"
 	else
 		printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
 		exit 127
@@ -192,7 +192,7 @@ case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo apt-get update
-	sudo apt-get install -y ant make wget unzip tar gcc |& tee -a "${LOG_FILE}" 
+	sudo apt-get install -y ant make wget unzip tar gcc |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
