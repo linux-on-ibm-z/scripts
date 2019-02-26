@@ -1,8 +1,10 @@
---- throttle-rebal.t	2018-10-23 03:39:23.802391467 +0000
-+++ trt	2018-10-23 03:43:59.022495360 +0000
-@@ -17,7 +17,7 @@
- }
- 
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf4f..1cc3cac5d 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+}
+
  #Determine number of cores
 -cores=$(cat /proc/cpuinfo | grep processor | wc -l)
 +cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
