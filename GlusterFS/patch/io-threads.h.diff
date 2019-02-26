@@ -1,11 +1,13 @@
---- io-threads.h	2018-11-02 10:43:54.856186212 +0000
-+++ to	2018-11-02 10:44:58.436186212 +0000
-@@ -37,7 +37,7 @@
- #define IOT_MAX_THREADS         64
- 
- 
--#define IOT_THREAD_STACK_SIZE   ((size_t)(256*1024))
-+#define IOT_THREAD_STACK_SIZE   ((size_t)(512*1024))
- 
- 
- typedef enum {
+diff --git a/xlators/performance/io-threads/src/io-threads.h b/xlators/performance/io-threads/src/io-threads.h
+index 949d1d1b1..be5c66d7b 100644
+--- a/xlators/performance/io-threads/src/io-threads.h
++++ b/xlators/performance/io-threads/src/io-threads.h
+@@ -34,7 +34,7 @@ struct iot_conf;
+ #define IOT_DEFAULT_THREADS 16
+ #define IOT_MAX_THREADS 64
+
+-#define IOT_THREAD_STACK_SIZE ((size_t)(256 * 1024))
++#define IOT_THREAD_STACK_SIZE ((size_t)(512 * 1024))
+
+ typedef struct {
+     struct list_head clients;
