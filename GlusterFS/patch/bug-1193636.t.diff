@@ -1,0 +1,27 @@
+diff --git a/tests/bugs/distribute/bug-1193636.t b/tests/bugs/distribute/bug-1193636.t
+index ccde02e..4e8e886 100644
+--- a/tests/bugs/distribute/bug-1193636.t
++++ b/tests/bugs/distribute/bug-1193636.t
+@@ -2,6 +2,7 @@
+
+ . $(dirname $0)/../../include.rc
+ . $(dirname $0)/../../volume.rc
++. $(dirname $0)/../../dht.rc
+
+
+ checksticky () {
+@@ -41,11 +42,13 @@ dd if=/dev/zero of=$M0/dir1/FILE2 bs=64k count=10240
+ # act on the file
+ TEST mv $M0/dir1/FILE2 $M0/dir1/FILE1
+
++brick_loc=$(get_backend_paths $M0/dir1/FILE1)
++
+ build_tester $(dirname $0)/bug-1193636.c
+
+ TEST $CLI volume rebalance $V0 start force
+
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ TEST setfattr -n "user.test1" -v "test1" $M0/dir1/FILE1
+ TEST setfattr -n "user.test2" -v "test1" $M0/dir1/FILE1
