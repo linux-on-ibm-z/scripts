@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2018.
+# ©  Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -9,7 +9,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="kibana"
-PACKAGE_VERSION="6.5.0"
+PACKAGE_VERSION="6.6.0"
 
 FORCE=false
 WORKDIR="/usr/local"
@@ -46,7 +46,7 @@ function prepare() {
 		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "${LOG_FILE}"
 	else
 		# Ask user for prerequisite installation
-		printf -- "\nAs part of the installation , Node.js v8.11.4 will be installed, \n"
+		printf -- "\nAs part of the installation , dependencies would be installed/upgraded, \n"
 		while true; do
 			read -r -p "Do you want to continue (y/n) ? :  " yn
 			case $yn in
@@ -62,39 +62,60 @@ function prepare() {
 }
 
 function cleanup() {
-	sudo rm -rf "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64.tar.gz" "${WORKDIR}/node-v8.11.4-linux-s390x.tar.gz*"
+	sudo rm -rf "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64.tar.gz" "${WORKDIR}/node-v10.14.1-linux-s390x.tar.gz*" "${WORKDIR}/gcc-4.9.4.tar.gz" "${WORKDIR}/gcc_build"
 	printf -- 'Cleaned up the artifacts\n' >>"${LOG_FILE}"
+}
+
+function buildGCC() {
+	printf -- 'Building GCC \n'
+	cd "${CURDIR}"
+	wget ftp://gcc.gnu.org/pub/gcc/releases/gcc-4.9.4/gcc-4.9.4.tar.gz
+	tar -xvzf gcc-4.9.4.tar.gz
+	cd gcc-4.9.4/
+	./contrib/download_prerequisites
+	cd "${CURDIR}"
+	mkdir -p gcc_build
+	cd gcc_build/
+	../gcc-4.9.4/configure --prefix="/opt/gcc" --enable-checking=release --enable-languages=c,c++ --disable-multilib
+	make
+	sudo make install
+	export PATH=/opt/gcc/bin:$PATH
+	export LD_LIBRARY_PATH='/opt/gcc/lib64'
+	printf -- 'Built GCC successfully \n'
 }
 
 function configureAndInstall() {
 	#cleanup
-	printf -- '\nConfiguration and Installation started \n' 
+	printf -- '\nConfiguration and Installation started \n'
+
+	export PATH=/opt/gcc/bin:$PATH
+	export LD_LIBRARY_PATH='/opt/gcc/lib64'
 
 	# Install Nodejs
-	printf -- 'Downloading Nodejs binaries \n' 
+	printf -- 'Downloading Nodejs binaries \n'
 	cd "${WORKDIR}"
 
-	sudo wget https://nodejs.org/dist/v8.11.4/node-v8.11.4-linux-s390x.tar.gz 
-	sudo tar xvf node-v8.11.4-linux-s390x.tar.gz
-		
+	sudo wget https://nodejs.org/dist/v10.14.1/node-v10.14.1-linux-s390x.tar.gz
+	sudo tar xvf node-v10.14.1-linux-s390x.tar.gz
+
 	if [ ! -d "$WORKDIR/nodejs" ]; then
-		sudo mv node-v8.11.4-linux-s390x nodejs
-	fi	
-	
-	
+		sudo mv node-v10.14.1-linux-s390x nodejs
+	fi
+
+
 	sudo chmod +x nodejs
 	export PATH=$PWD/nodejs/bin:$PATH
 	node -v  >> "${LOG_FILE}"
 
 	#Install Kibana
-	printf -- '\nInstalling Kibana..... \n' 
-	printf -- 'Download Kibana release package and extract\n' 
-	
-	cd "${WORKDIR}"
-	sudo wget https://artifacts.elastic.co/downloads/kibana/kibana-"${PACKAGE_VERSION}"-linux-x86_64.tar.gz  
-	sudo tar xvf kibana-"${PACKAGE_VERSION}"-linux-x86_64.tar.gz 
+	printf -- '\nInstalling Kibana..... \n'
+	printf -- 'Download Kibana release package and extract\n'
 
-	printf -- 'Replace Node.js in the package with the installed Node.js.\n' 
+	cd "${WORKDIR}"
+	sudo wget https://artifacts.elastic.co/downloads/kibana/kibana-"${PACKAGE_VERSION}"-linux-x86_64.tar.gz
+	sudo tar xvf kibana-"${PACKAGE_VERSION}"-linux-x86_64.tar.gz
+
+	printf -- 'Replace Node.js in the package with the installed Node.js.\n'
 	cd "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64"
 	sudo mv node node_old # rename the node
 	sudo ln -sf "${WORKDIR}"/nodejs node
@@ -105,14 +126,14 @@ function configureAndInstall() {
 
 	# Add kibana to /usr/bin
 	sudo ln -sf "${WORKDIR}/kibana-${PACKAGE_VERSION}-linux-x86_64/bin/kibana" /usr/bin/
-	printf -- 'Installed kibana successfully \n' 
+	printf -- 'Installed kibana successfully \n'
 
 	#Cleanup
 	cleanup
 
 	#Verify kibana installation
 	if command -v "$PACKAGE_NAME" >/dev/null; then
-		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME" 
+		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME"
 	else
 		printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
 		exit 127
@@ -183,7 +204,8 @@ case "$DISTRO" in
 
 "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	sudo yum install -y  wget tar |& tee -a "${LOG_FILE}"
+	sudo yum install -y  wget tar make flex gcc gcc-c++ binutils-devel bzip2 |& tee -a "${LOG_FILE}"
+	buildGCC |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
