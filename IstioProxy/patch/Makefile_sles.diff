@@ -1,0 +1,11 @@
+--- Makefile_old	2019-02-14 01:35:24.815895000 -0500
++++ Makefile	2019-02-14 01:38:38.679137000 -0500
+@@ -34,7 +34,7 @@
+ 	@bazel clean
+ 
+ test:
+-	bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) //...
++	bazel $(BAZEL_STARTUP_ARGS) test --copt "-DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1" $(BAZEL_TEST_ARGS) //... --test_env=ENVOY_IP_TEST_VERSIONS=v4only
+ 
+ test_asan:
+ 	CC=clang-5.0 CXX=clang++-5.0 bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) --config=clang-asan //...
