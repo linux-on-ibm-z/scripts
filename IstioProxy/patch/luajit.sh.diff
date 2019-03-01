@@ -1,0 +1,17 @@
+--- luajit.sh	2018-10-19 07:07:41.473998004 +0000
++++ l.sh	2018-10-19 08:35:52.994801239 +0000
+@@ -2,11 +2,9 @@
+ 
+ set -e
+ 
+-VERSION=2.0.5
+-
+-curl https://github.com/LuaJIT/LuaJIT/archive/v"$VERSION".tar.gz -sLo LuaJIT-"$VERSION".tar.gz
+-tar xf LuaJIT-"$VERSION".tar.gz
+-cd LuaJIT-"$VERSION"
++git clone https://github.com/linux-on-ibm-z/LuaJIT.git
++cd LuaJIT
++git checkout v2.1
+ 
+ # Fixup Makefile with things that cannot be set via env var.
+ cat > ../luajit_make.diff << 'EOF'
