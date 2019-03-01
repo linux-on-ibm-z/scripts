@@ -1,0 +1,11 @@
+--- /home/test/testing/src/istio.io/istio/vendor/go4.org/reflectutil/swapper_unsafe_14.go	2018-11-08 08:36:52.759443430 +0000
++++ /home/test/testing/src/istio.io/istio/vendor/go4.org/reflectutil/swapper_unsafec14.go	2018-11-08 08:43:26.009838771 +0000
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !ppc64,!ppc64le,!arm64,!mips,!mipsle,!mips64,!mips64le
++// +build !ppc64,!ppc64le,!arm64,!mips,!mipsle,!mips64,!mips64le,!s390x
+ // +build !go1.5,!js,!appengine,!safe
+ 
+ package reflectutil
