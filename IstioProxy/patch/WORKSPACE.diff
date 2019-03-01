@@ -1,0 +1,29 @@
+--- workspace	2018-10-19 09:07:24.682893524 +0000
++++ ws	2018-10-19 09:11:37.783149000 +0000
+@@ -29,13 +29,20 @@
+     actual = "//external:ssl",
+ )
+ 
+-# When updating envoy sha manually please update the sha in istio.deps file also
+-ENVOY_SHA = "2d8386532f68899ca1fe6476dc458b0df1260b29"
++local_repository(
++    name = "boringssl",
++    path = "/<source_root>/boringssl",
++)
+ 
+-http_archive(
+-    name = "envoy",
+-    strip_prefix = "envoy-" + ENVOY_SHA,
+-    url = "https://github.com/istio/envoy/archive/" + ENVOY_SHA + ".zip",
++bind(
++    name = "ssl",
++    actual = "@boringssl//:ssl",
++)
++
++# When updating envoy sha manually please update the sha in istio.deps file also
++local_repository(
++  name = "envoy",
++  path = "/<source_root>/envoy",
+ )
+ 
+ load("@envoy//bazel:repositories.bzl", "envoy_dependencies")
