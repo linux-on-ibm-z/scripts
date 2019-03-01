@@ -1,0 +1,11 @@
+--- Makefile	2018-11-08 05:01:55.699460230 +0000
++++ slesChanges	2018-11-08 05:15:08.869430194 +0000
+@@ -24,7 +24,7 @@
+ TAG ?=
+ 
+ build:
+-	@bazel $(BAZEL_STARTUP_ARGS) build --copt "-DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1" $(BAZEL_BUILD_ARGS) //...   
++	@bazel $(BAZEL_STARTUP_ARGS) build -c opt --copt "-DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1" $(BAZEL_BUILD_ARGS) //...   
+ 
+ # Build only envoy - fast
+ build_envoy:
