@@ -1,0 +1,11 @@
+--- signal_action.cc	2018-10-19 07:10:35.313947964 +0000
++++ sa	2018-10-19 08:54:21.213118565 +0000
+@@ -20,6 +20,8 @@
+     error_pc = reinterpret_cast<void*>(ucontext->uc_mcontext->__ss.__rip);
+ #elif defined(__powerpc__)
+     error_pc = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->nip);
++#elif defined(__s390x__)
++    error_pc =  reinterpret_cast<void*>(ucontext->uc_mcontext.psw.addr);
+ #else
+ #warning "Please enable and test PC retrieval code for your arch in signal_action.cc"
+ // x86 Classic: reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[REG_EIP]);
