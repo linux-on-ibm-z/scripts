@@ -1,0 +1,13 @@
+--- include/mariadb_com.h.original	2019-02-12 00:49:27.591112647 -0500
++++ include/mariadb_com.h	2019-02-12 00:51:23.581112647 -0500
+@@ -228,7 +228,9 @@
+ #define SERVER_STATUS_METADATA_CHANGED    1024
+ #define SERVER_QUERY_WAS_SLOW             2048
+ #define SERVER_PS_OUT_PARAMS              4096
+-#define SERVER_SESSION_STATE_CHANGED      (1UL << 14)
++#define SERVER_STATUS_ANSI_QUOTES         32768
++#define SERVER_SESSION_STATE_CHANGED      16384
++#define SERVER_STATUS_IN_TRANS_READONLY   8192
+ 
+ #define MYSQL_ERRMSG_SIZE	512
+ #define NET_READ_TIMEOUT	30		/* Timeout on read */
