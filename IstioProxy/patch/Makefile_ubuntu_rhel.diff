@@ -1,0 +1,11 @@
+--- Makefile	2018-11-08 04:45:42.239681392 +0000
++++ Testfile	2018-11-08 04:48:30.669596621 +0000
+@@ -34,7 +34,7 @@
+ 	@bazel clean
+ 
+ test:
+-	bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) //...
++	bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) //... --test_env=ENVOY_IP_TEST_VERSION=v4only
+ 
+ test_asan:
+ 	CC=clang-5.0 CXX=clang++-5.0 bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) --config=clang-asan //...
