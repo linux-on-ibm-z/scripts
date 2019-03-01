@@ -118,7 +118,7 @@ function gettingStarted() {
 	printf -- "\n\nUsage: \n"
 	printf -- "  Apache zookeeper installed successfully \n"
 	printf -- "    To run zookeeper server ,use sudo /usr/local/zookeeper/bin/zkServer.sh start \n"
-	printf -- "    To run zookeeper server ,use sudo /usr/local/zookeeper/bin/zkCli.sh \n"
+	printf -- "    To run zookeeper client ,use sudo /usr/local/zookeeper/bin/zkCli.sh \n"
 	printf -- "  More information can be found here : https://github.com/apache/zookeeper \n"
 	printf -- '\n'
 }
