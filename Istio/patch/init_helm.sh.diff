@@ -1,0 +1,14 @@
+--- /home/test/testing/src/istio.io/istio/bin/init_helm.sh	2018-11-08 10:30:25.629980529 +0000
++++ /home/test/testing/src/istio.io/istio/bin/init_helmc.sh	2018-11-09 09:45:55.839119443 +0000
+@@ -73,10 +73,7 @@
+     TD=$(mktemp -d)
+     # Install helm. Please keep it in sync with .circleci
+     cd ${TD} && \
+-        curl -Lo ${TD}/helm.tgz https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VER}-${LOCAL_OS}-amd64.tar.gz && \
+-        tar xfz helm.tgz && \
+-        mv ${LOCAL_OS}-amd64/helm ${ISTIO_OUT}/helm-${HELM_VER} && \
+-        cp ${ISTIO_OUT}/helm-${HELM_VER} ${ISTIO_OUT}/helm && \
++        cp <path-to-Helm-binary/helm> ${ISTIO_OUT}/helm && \
+         rm -rf ${TD} && \
+         touch ${ISTIO_OUT}/version.helm.${HELM_VER}
+ fi
