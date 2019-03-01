@@ -1,0 +1,11 @@
+--- proxy/proxy/Makefile	2018-10-19 09:00:07.122878080 +0000
++++ mkf	2018-10-19 09:21:44.903393801 +0000
+@@ -24,7 +24,7 @@
+ TAG ?=
+ 
+ build:
+-	@bazel $(BAZEL_STARTUP_ARGS) build $(BAZEL_BUILD_ARGS) //...
++	@bazel $(BAZEL_STARTUP_ARGS) build -c opt $(BAZEL_BUILD_ARGS) //...
+ 
+ # Build only envoy - fast
+ build_envoy:
