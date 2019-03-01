@@ -1,0 +1,25 @@
+--- utility.cc	2018-10-19 07:09:14.443967979 +0000
++++ ut	2018-10-19 08:50:39.783307578 +0000
+@@ -379,16 +379,16 @@
+ 
+ absl::uint128 Utility::Ip6ntohl(const absl::uint128& address) {
+   // TODO(ccaraman): Support Ip6ntohl for big-endian.
+-  static_assert(ABSL_IS_LITTLE_ENDIAN,
+-                "Machines using big-endian byte order is not supported for IPv6.");
+-  return flipOrder(address);
++//  static_assert(ABSL_IS_LITTLE_ENDIAN,
++//                "Machines using big-endian byte order is not supported for IPv6.");
++    return address;
+ }
+ 
+ absl::uint128 Utility::Ip6htonl(const absl::uint128& address) {
+   // TODO(ccaraman): Support Ip6ntohl for big-endian.
+-  static_assert(ABSL_IS_LITTLE_ENDIAN,
+-                "Machines using big-endian byte order is not supported for IPv6.");
+-  return flipOrder(address);
++ // static_assert(ABSL_IS_LITTLE_ENDIAN,
++ //               "Machines using big-endian byte order is not supported for IPv6.");
++  return address;
+ }
+ 
+ absl::uint128 Utility::flipOrder(const absl::uint128& input) {
