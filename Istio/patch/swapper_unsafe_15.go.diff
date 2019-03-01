@@ -1,0 +1,11 @@
+--- swapper_unsafe_15.go	2018-11-23 05:37:10.537330000 +0000
++++ swapper_unsafe_15.go1	2018-11-23 05:38:06.795750000 +0000
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !ppc64,!ppc64le,!arm64,!mips,!mipsle,!mips64,!mips64le
++// +build !ppc64,!ppc64le,!arm64,!mips,!mipsle,!mips64,!mips64lei,!s390x
+ // +build go1.5,!js,!appengine,!safe
+ 
+ package reflectutil
