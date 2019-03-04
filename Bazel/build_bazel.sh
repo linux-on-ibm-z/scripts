@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/bazel/build_go.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/build_bazel.sh
 # Execute build script: bash build_bazel.sh    (provide -h for help)
 #
 
@@ -24,7 +24,6 @@ trap cleanup 1 2 ERR
 if [ ! -d "logs" ]; then
    mkdir -p "logs"
 fi
-
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
@@ -120,7 +119,6 @@ function configureAndInstall()
   # Install Bazel
   printf -- 'Downloading bazel \n'
   wget "${BAZEL_REPO_URL}/${PACKAGE_VERSION}/${PACKAGE_NAME}-${PACKAGE_VERSION}-dist.zip"
-  #unzip bazel-0.18.0-dist.zip
   unzip "${PACKAGE_NAME}"-"${PACKAGE_VERSION}"-"dist.zip"
   printf -- 'Compiling \n'
   sleep 2s
@@ -215,7 +213,7 @@ case "$DISTRO" in
   	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update
   	sudo apt-get install -y  curl wget patch build-essential openjdk-8-jdk python zip unzip |& tee -a "$LOG_FILE"
-  	buildGCC |& tee -a "$LOG_FILE"
+	buildGCC |& tee -a "$LOG_FILE"
   	configureAndInstall |& tee -a "$LOG_FILE"
   	;;
 
@@ -230,11 +228,11 @@ case "$DISTRO" in
   	configureAndInstall |& tee -a "$LOG_FILE"
   	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for bazel from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y  git tar java-1.8.0-openjdk java-1.8.0-openjdk-devel zip gcc-c++ unzip python libtool automake cmake golang curl wget gcc vim patch binutils-devel bzip2 make  |& tee -a "$LOG_FILE"
-  buildGCC |& tee -a "$LOG_FILE"
+	buildGCC |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
@@ -251,7 +249,7 @@ case "$DISTRO" in
  "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for bazel from repository \n' |& tee -a "$LOG_FILE"
-	sudo zypper install -y pkg-config python libtool automake cmake zlib-devel gcc6 gcc6-c++ binutils-devel patch which curl curl unzip zip patch which tar wget gcc java-1_8_0-openjdk java-1_8_0-openjdk-devel |& tee -a "$LOG_FILE" 
+	sudo zypper install -y pkg-config python libtool automake cmake zlib-devel gcc gcc-c++ binutils-devel patch which curl curl unzip zip patch which tar wget gcc java-1_8_0-openjdk java-1_8_0-openjdk-devel |& tee -a "$LOG_FILE" 
 	configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
