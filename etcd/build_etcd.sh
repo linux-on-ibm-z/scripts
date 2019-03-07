@@ -9,10 +9,9 @@
 
 set -e -o pipefail
 PACKAGE_NAME="etcd"
-PACKAGE_VERSION="3.3.11"
+PACKAGE_VERSION="3.3.12"
 CURDIR="$(pwd)"
 
-GO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
 CONFIG_ETCD="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/etcd/conf/etcd.conf.yml"
 
 
@@ -53,7 +52,7 @@ function prepare() {
         printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
     else
         # Ask user for prerequisite installation
-        printf -- "\nAs part of the installation , Go 1.11.4 will be installed, \n";
+        printf -- "\nAs part of the installation , Go 1.10.x will be installed, \n";
         while true; do
 		    read -r -p "Do you want to continue (y/n) ? :  " yn
 		    case $yn in
@@ -77,8 +76,15 @@ function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
     
     #GO Installation
+    if [[ "$ID" != "ubuntu" ]];then
     printf -- "\n\n Installing Go \n" 
-    curl $GO_URL | sudo bash
+    cd $HOME
+    wget https://storage.googleapis.com/golang/go1.10.3.linux-s390x.tar.gz
+    chmod ugo+r go1.10.3.linux-s390x.tar.gz
+    sudo tar -C /usr/local -xzf go1.10.3.linux-s390x.tar.gz
+    export PATH=$PATH:/usr/local/go/bin
+    sudo ln /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+    fi    
     
     # Install etcd
     printf -- 'Installing etcd..... \n'
@@ -162,7 +168,7 @@ function runTest() {
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- "TEST Flag is set, continue with running test \n"
 		cd "${GOPATH}/src/github.com/coreos/etcd"
-		./test
+		PASSES='bom dep build unit' ./test
 		printf -- "Tests completed. \n" |& tee -a "$LOG_FILE"
 	fi
 	set -e
@@ -234,7 +240,9 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install -y git curl wget tar gcc |& tee -a "${LOG_FILE}"
+        sudo apt-get install -y git curl wget tar gcc golang-1.10 |& tee -a "${LOG_FILE}"
+	export PATH=/usr/lib/go-1.10/bin:$PATH 
+	go version
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
     "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
