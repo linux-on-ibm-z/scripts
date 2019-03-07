@@ -11,10 +11,11 @@
 set -e -o pipefail
 
 PACKAGE_NAME="ruby"
-PACKAGE_VERSION="2.6.0"
-LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+PACKAGE_VERSION="2.6.1"
 CURDIR="$PWD"
+LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 trap cleanup 1 2 ERR
+TESTS="false"
 
 #Check if directory exsists
 if [ ! -d "logs" ]; then
@@ -46,9 +47,22 @@ function checkPrequisites()
 
 function cleanup()
 {
-  rm -rf "${PACKAGE_NAME}"-"${PACKAGE_VERSION}".tar.gz*
+  cd "${CURDIR}"
+  rm -rf "${PACKAGE_NAME}"-"${PACKAGE_VERSION}".tar.gz
   printf -- 'Cleaned up the artifacts\n'
 }
+
+function runTest() {
+	
+	if [[ "$TESTS" == "true" ]]; then
+		printf -- 'Running tests \n\n'
+		cd "${CURDIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}"
+		make test
+    printf -- 'Test Completed \n\n'
+	fi
+
+}
+
 
 function configureAndInstall()
 {
@@ -57,9 +71,9 @@ function configureAndInstall()
   #Download the source code
   printf -- 'Downloading ruby \n'
   cd "${CURDIR}"
-  wget http://cache.ruby-lang.org/pub/ruby/2.6/ruby-2.6.0.tar.gz
-  tar zxf ruby-2.6.0.tar.gz
-  cd "${CURDIR}/ruby-2.6.0"
+  wget http://cache.ruby-lang.org/pub/ruby/2.6/ruby-${PACKAGE_VERSION}.tar.gz
+  tar zxf "${PACKAGE_NAME}"-"${PACKAGE_VERSION}".tar.gz
+  cd "${CURDIR}/${PACKAGE_NAME}-${PACKAGE_VERSION}"
 
   #Building ruby
   printf -- 'Building ruby \n'
@@ -71,6 +85,10 @@ function configureAndInstall()
 
   export PATH="$PATH:/usr/local/bin"
 
+  #Run tests
+  runTest
+
+  
   #Verify installation
   ruby -v
   gem env
@@ -99,18 +117,21 @@ function logDetails()
 function printHelp() {
   echo 
   echo "Usage: "
-  echo "  install.sh [-d debug] " 
+  echo "  build_ruby.sh [-d debug] [-t install-with-tests]" 
   echo
 }
 
-while getopts "h?d" opt; do
+while getopts "dth?" opt; do
   case "$opt" in
+  d)
+    set -x
+    ;;
+  t)
+    TESTS="true"
+    ;;
   h | \?)
     printHelp
     exit 0
-    ;;
-  d)
-    set -x
     ;;
   esac
 done
