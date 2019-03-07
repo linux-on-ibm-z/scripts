@@ -10,7 +10,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="grafana"
-PACKAGE_VERSION="5.4.2"
+PACKAGE_VERSION="5.4.3"
 CURDIR="$(pwd)"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
@@ -56,7 +56,7 @@ function prepare() {
 		printf -- 'Force attribute provided hence continuing with install without confirmation message' |& tee -a "$LOG_FILE"
 	else
 		# Ask user for prerequisite installation
-		printf -- "\n\nAs part of the installation , Go 1.10.1 and PhantomJS 2.1.1 will be installed, \n"
+		printf -- "\n\nAs part of the installation , Go 1.10.4 and PhantomJS 2.1.1 will be installed, \n"
 		while true; do
 			read -r -p "Do you want to continue (y/n) ? :  " yn
 			case $yn in
@@ -73,12 +73,12 @@ function prepare() {
 
 function cleanup() {
 
-	if [ -f /opt/yarn-v1.3.2.tar.gz ]; then
-		sudo rm /opt/yarn-v1.3.2.tar.gz
+	if [ -f /usr/local/node-v8.15.0-linux-s390x/bin/yarn ]; then
+		sudo rm /usr/local/node-v8.15.0-linux-s390x/bin/yarn
 	fi
 
-	if [ -f "$BUILD_DIR/node-v8.11.3-linux-s390x.tar.xz" ]; then
-		sudo rm "$BUILD_DIR/node-v8.11.3-linux-s390x.tar.xz"
+	if [ -f "$BUILD_DIR/node-v8.15.0-linux-s390x.tar.xz" ]; then
+		sudo rm "$BUILD_DIR/node-v8.15.0-linux-s390x.tar.xz"
 	fi
 
 	printf -- 'Cleaned up the artifacts\n' >>"$LOG_FILE"
@@ -94,10 +94,10 @@ function configureAndInstall() {
 
 	#Install NodeJS
 	cd "$BUILD_DIR"
-	sudo wget  https://nodejs.org/dist/v8.11.3/node-v8.11.3-linux-s390x.tar.xz
-	sudo chmod ugo+r node-v8.11.3-linux-s390x.tar.xz
-	sudo tar -C "$BUILD_DIR" -xf node-v8.11.3-linux-s390x.tar.xz
-	export PATH=$PATH:/usr/local/node-v8.11.3-linux-s390x/bin
+	sudo wget https://nodejs.org/dist/v8.15.0/node-v8.15.0-linux-s390x.tar.xz
+	sudo chmod ugo+r node-v8.15.0-linux-s390x.tar.xz
+	sudo tar -C "$BUILD_DIR" -xf node-v8.15.0-linux-s390x.tar.xz
+	export PATH=$PATH:/usr/local/node-v8.15.0-linux-s390x/bin
 
 	printf -- 'Install NodeJS success \n' 
 
@@ -116,7 +116,6 @@ function configureAndInstall() {
 			sudo mkdir "$HOME/go"
 		fi
 		export GOPATH="${GO_DEFAULT}"
-		export PATH=$PATH:$GOPATH/bin
 	else
 		printf -- "GOPATH already set : Value : %s \n" "$GOPATH" 
 	fi
@@ -167,30 +166,17 @@ function configureAndInstall() {
 
 	printf -- 'PhantomJS install success \n' 
 
-	# export  QT_QPA_PLATFORM on Ubuntu
-	if [[ "$ID" == "ubuntu" ]]; then
-		export QT_QPA_PLATFORM=offscreen
-	fi
-
-	# Install gperf on RHEL
-	if [[ "$ID" == "rhel" ]]; then
-		sudo wget  http://archives.fedoraproject.org/pub/archive/fedora-secondary/releases/23/Everything/s390x/os/Packages/g/gperf-3.0.4-11.fc23.s390x.rpm
-		sudo rpm  -Uvh gperf-3.0.4-11.fc23.s390x.rpm
-		printf -- 'gperf install success \n' 
-	fi
-
 	# Install yarn
-	cd /opt
-	sudo wget  https://github.com/yarnpkg/yarn/releases/download/v1.3.2/yarn-v1.3.2.tar.gz
-	sudo tar zxf yarn-v1.3.2.tar.gz
-	export PATH=$PATH:/opt/yarn-v1.3.2/bin
-	printf -- 'yarn install success \n' 
-
-	# Install grunt
-	cd "$GOPATH/src/github.com/grafana/grafana"
-
-	npm install grunt
-	printf -- 'grunt install success \n' 
+	cd $GOPATH/src/github.com/grafana/grafana
+	sudo env PATH=$PATH npm install -g yarn
+	printf -- 'yarn install success \n'
+	
+	if [[ "$ID" == "ubuntu" ]]; then
+		sudo chown -R $USER:$GROUP ~/.npm
+		sudo chown -R $USER:$GROUP ~/.config
+		# export  QT_QPA_PLATFORM on Ubuntu
+		export QT_QPA_PLATFORM=offscreen
+	fi	
 
 	# Build Grafana frontend assets
 	make deps-js
@@ -273,7 +259,7 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests]"
+	echo "  build_grafana.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests]"
 	echo
 }
 
@@ -323,7 +309,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y  make gcc tar wget git unzip curl  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
@@ -331,7 +317,7 @@ case "$DISTRO" in
 
 "sles-12.3" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo zypper  install -y make gcc wget tar git unzip curl  |& tee -a "$LOG_FILE"
+	sudo zypper install -y make gcc wget tar git unzip curl  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
