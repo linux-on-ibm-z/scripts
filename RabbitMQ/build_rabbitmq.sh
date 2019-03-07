@@ -4,13 +4,13 @@
 #
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RabbitMQ/build_rabbitmq.sh
-# Execute build script: bash build_rabbitmq.sh    (provide -h for help)
+# Execute build script: bash build_rabbitmq.sh    
 #
 
 set -e -o pipefail
 
 PACKAGE_NAME="rabbitmq"
-PACKAGE_VERSION="3.7.8"
+PACKAGE_VERSION="3.7.12"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 CURDIR="$PWD"
@@ -45,25 +45,11 @@ function checkPrequisites() {
 
 function cleanup() {
 	printf -- 'Started cleanup\n'
-	rm -rf "${CURDIR}/rabbitmq-server-3.7.8.tar.xz"
+	rm -rf "${CURDIR}/rabbitmq-server-$PACKAGE_VERSION.tar.xz"
 	rm -rf "${CURDIR}/otp_src_21.0.tar.gz"
 	printf -- 'Cleaned up successfull\n'
 }
 
-function startServer() {
-	printf -- 'Starting RabbitMQ server \n'
-	cd "${CURDIR}/rabbitmq-server-3.7.8"
-	sudo make run-broker
-
-	printf -- 'Running RabbitMQ from script \n'
-	#Running RabbitMQ from script(Optional)
-	sudo mkdir -p /etc/rabbitmq
-	cd "${CURDIR}/rabbitmq-server-3.7.8"
-	sudo ln -s $PWD/plugins deps/rabbit/plugins
-	sudo deps/rabbit/scripts/rabbitmq-plugins enable rabbitmq_management
-	sudo deps/rabbit/scripts/rabbitmq-server
-
-}
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
@@ -72,31 +58,34 @@ function configureAndInstall() {
 		printf -- 'Rabbitmq exists on the system. Override flag is set to true hence updating the same\n '
 	fi
 
-	if [[ "${VERSION_ID}" != "18.04" ]]; then
-		if [[ "${ID}" == "rhel" ]]; then
-			export JAVA_HOME=/usr/lib/jvm/java ### only for RHEL distributions
-		fi
-
-		if [[ "${ID}" == "sles" ]]; then
-			export JAVA_HOME=/usr/lib64/jvm/java ### only for SLES distributions
-		fi
-
-    cd "${CURDIR}"
-    wget http://www.erlang.org/download/otp_src_21.0.tar.gz
-    tar zxf otp_src_21.0.tar.gz
-    cd otp_src_21.0
-    export ERL_TOP="${CURDIR}/otp_src_21.0"
-    ./configure --prefix=/usr
-    make
-    sudo make install
-
-		if [[ "${VERSION_ID}" == "16.04" ]]; then
-			export PATH=$PATH:$ERL_TOP/bin:/usr/lib/erlang/lib/erl_interface-3.10/bin/
-		else
-			export ANT_HOME=/usr/share/ant
-			export PATH=$PATH:$ERL_TOP/bin:/usr/lib/erlang/lib/erl_interface-3.10/bin/:$JAVA_HOME/bin:$ANT_HOME
-		fi
+	
+	if [[ "${ID}" == "rhel" ]]; then
+		     printf -- "\nBuilding make 4.x \n"
+	             cd "${CURDIR}"
+		     wget https://ftp.gnu.org/gnu/make/make-4.2.tar.gz
+		     tar -xvf make-4.2.tar.gz
+		     cd make-4.2
+		     ./configure 
+		     make && sudo make install
+		     export PATH=/usr/local/bin/:$PATH
+		     printf -- 'Installed make successfully \n'
 	fi
+		
+
+	cd "${CURDIR}"
+	printf -- "\nBuilding Erlang \n"
+	wget http://www.erlang.org/download/otp_src_21.0.tar.gz
+	tar zxf otp_src_21.0.tar.gz
+	cd otp_src_21.0
+	export ERL_TOP="${CURDIR}/otp_src_21.0"
+	./configure --prefix=/usr
+	make
+	sudo make install
+        printf -- 'Installed erlang successfully \n'
+	
+	export PATH=$PATH:$ERL_TOP/bin 
+	sudo localedef -c -f UTF-8 -i en_US en_US.UTF-8
+	export LC_ALL=en_US.UTF-8
 
 	cd "${CURDIR}"
 	# Install elixir
@@ -105,6 +94,7 @@ function configureAndInstall() {
 	cd elixir && git checkout v1.6.6
 	make
 	sudo make install
+	export PATH=/usr/local/bin:$PATH
 	elixir --version
 	printf -- 'Installed elixir successfully \n'
 
@@ -112,7 +102,7 @@ function configureAndInstall() {
 	# Install hex
 	printf -- 'Downloading and installing hex \n'
 	git clone git://github.com/hexpm/hex.git
-	cd hex && git checkout v0.18.1
+	cd hex && git checkout v0.19.0
 	mix install
 	mix hex.info
 	printf -- 'Installed hex successfully \n'
@@ -120,12 +110,17 @@ function configureAndInstall() {
 	cd "${CURDIR}"
 	# Install rabbitmq
 	printf -- 'Downloading and installing rabbitmq \n'
-	wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/3.7.8/rabbitmq-server-3.7.8.tar.xz
-	tar -xf rabbitmq-server-3.7.8.tar.xz
-	cd rabbitmq-server-3.7.8
-	sudo cp ${CURDIR}/hex/_build/dev/lib/hex/ebin/* deps/.mix/archives/hex-0.18.1/hex-0.18.1/ebin/
+	wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/$PACKAGE_VERSION/rabbitmq-server-$PACKAGE_VERSION.tar.xz
+	tar -xf rabbitmq-server-$PACKAGE_VERSION.tar.xz
+	cd rabbitmq-server-$PACKAGE_VERSION
+	sudo cp ${CURDIR}/hex/_build/dev/lib/hex/ebin/* deps/.mix/archives/hex-0.19.0/hex-0.19.0/ebin/
 	make
-	sudo make install
+	if [[ "$ID" != "ubuntu" ]]; then
+           sudo env PATH=$PATH make install
+	else
+	   sudo make install
+	fi
+	
 	printf -- 'Installed rabbitmq successfully \n'
 
 	#Clean up the downloaded zip
@@ -196,40 +191,39 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04")
+"ubuntu-16.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y ant openjdk-8-jdk openssl wget tar xz-utils make python xsltproc rsync git perl gcc g++ libncurses-dev libncurses5-dev unixodbc unixodbc-dev libssl-dev libwxgtk3.0-dev fop libxml2-utils zip sed |& tee -a "${LOG_FILE}"
+	sudo apt-get install -y locales ant  openssl wget tar xz-utils make python xsltproc rsync git zip sed wget tar make perl openssl gcc g++ libncurses-dev libncurses5-dev unixodbc unixodbc-dev libssl-dev openjdk-8-jdk libwxgtk3.0-dev xsltproc fop libxml2-utils |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-18.04")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update
-	sudo apt-get install -y ant openjdk-8-jdk erlang openssl wget tar xz-utils make python xsltproc rsync git zip curl wget sed make |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
-"rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-6.x")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y c perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel fop java-1.8.0-openjdk-devel gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar curl sed make |& tee -a "${LOG_FILE}"
+	sudo yum install -y sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar make curl java-1.8.0-ibm java-1.8.0-ibm-devel wget tar make perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel fop |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
+	;;
+
+"rhel-6.x")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar make curl java-1.8.0-ibm java-1.8.0-ibm-devel wget tar make perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel libxslt libatomic_ops-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "sles-12.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
-	sudo zypper install -y java-1_8_0-openjdk java-1_8_0-openjdk-devel perl gcc gcc-c++ libopenssl-devel libssh-devel ncurses-devel unixODBC unixODBC-devel xmlgraphics-fop tar wget curl zip unzip libxslt xmlto patch subversion procps ant ant-junit git-core sed make |& tee -a "$LOG_FILE"
+	sudo zypper install -y make tar wget gcc gcc-c++ glibc-locale glibc-i18ndata sed curl zip unzip libxslt xmlto patch subversion procps ant ant-junit git-core python-devel python-xml java-1_8_0-openjdk java-1_8_0-openjdk-devel wget tar make perl gcc gcc-c++ libopenssl-devel libssh-devel ncurses-devel unixODBC unixODBC-devel xmlgraphics-fop  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
 "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
-	sudo zypper install -y java-1_8_0-openjdk java-1_8_0-openjdk-devel perl gcc gcc-c++ libopenssl-devel libssh-devel ncurses-devel unixODBC unixODBC-devel tar wget curl zip unzip libxslt xmlto patch subversion procps ant ant-junit git-core python-devel python-xml sed make |& tee -a "${LOG_FILE}"
+	sudo zypper install -y make tar wget gcc gcc-c++ glibc-locale glibc-i18ndata sed curl zip unzip libxslt xmlto patch subversion procps ant ant-junit git-core python-devel python-xml java-1_8_0-openjdk  java-1_8_0-openjdk-devel wget tar make perl gcc gcc-c++ libopenssl-devel libssh-devel ncurses-devel unixODBC unixODBC-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
@@ -239,5 +233,5 @@ case "$DISTRO" in
 	;;
 esac
 
-#startServer
+
 gettingStarted |& tee -a "${LOG_FILE}"
