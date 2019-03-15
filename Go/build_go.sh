@@ -78,7 +78,7 @@ function configureAndInstall()
   chmod ugo+r go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
 
-  rm -rf /usr/local/go /usr/bin/go
+  sudo rm -rf /usr/local/go /usr/bin/go
   sudo tar -C /usr/local -xzf go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
   sudo ln -sf /usr/local/go/bin/go /usr/bin/ 
