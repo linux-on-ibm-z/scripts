@@ -11,7 +11,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="go"
-PACKAGE_VERSION="1.11.4"
+[ -z "$PACKAGE_VERSION" ] && PACKAGE_VERSION="1.11.4"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
