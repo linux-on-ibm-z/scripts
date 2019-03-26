@@ -1,0 +1,11 @@
+--- deploy/default-backend.yaml.original	2019-02-21 05:46:35.459790272 -0500
++++ deploy/default-backend.yaml	2019-02-21 05:47:47.619866598 -0500
+@@ -24,7 +24,7 @@
+           # Any image is permissible as long as:
+           # 1. It serves a 404 page at /
+           # 2. It serves 200 on a /healthz endpoint
+-          image: k8s.gcr.io/defaultbackend-amd64:1.5
++          image: k8s.gcr.io/defaultbackend-s390x:1.4
+           livenessProbe:
+             httpGet:
+               path: /healthz
