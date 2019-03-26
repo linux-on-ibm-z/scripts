@@ -1,0 +1,11 @@
+--- apache2.conf	2019-02-27 06:10:37.505130257 +0000
++++ apache2-copy.conf	2019-02-27 06:26:30.134423086 +0000
+@@ -219,3 +219,8 @@
+ IncludeOptional sites-enabled/*.conf
+ 
+ # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
++ServerName localhost
++AddType application/x-httpd-php .php
++<Directory />
++DirectoryIndex index.php
++</Directory>
