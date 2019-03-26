@@ -1,0 +1,4 @@
+26c26
+< go test -v -race -tags "cgo" \
+---
+> go test -v -tags "cgo" \
