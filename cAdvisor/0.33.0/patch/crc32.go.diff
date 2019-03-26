@@ -1,0 +1,24 @@
+--- originalfile        2018-10-15 09:39:12.912195020 +0000
++++ updatedfile 2018-10-15 09:37:32.792195020 +0000
+@@ -168,3 +168,21 @@
+ // ChecksumIEEE returns the CRC-32 checksum of data
+ // using the IEEE polynomial.
+ func ChecksumIEEE(data []byte) uint32 { return updateIEEE(0, data) }
++func updateCastagnoli(crc uint32, p []byte) uint32 {
++               // only use slicing-by-8 when input is >= 16 Bytes
++               if len(p) >= 16 {
++                               return updateSlicingBy8(crc, castagnoliTable8, p)
++               }
++               return update(crc, castagnoliTable, p)
++}
++
++func updateIEEE(crc uint32, p []byte) uint32 {
++               // only use slicing-by-8 when input is >= 16 Bytes
++               if len(p) >= 16 {
++                               iEEETable8Once.Do(func() {
++                                               iEEETable8 = makeTable8(IEEE)
++                               })
++                               return updateSlicingBy8(crc, iEEETable8, p)
++               }
++               return update(crc, IEEETable, p)
++}
