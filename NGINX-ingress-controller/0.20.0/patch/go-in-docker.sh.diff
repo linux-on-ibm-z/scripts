@@ -1,0 +1,12 @@
+--- build/go-in-docker.sh.original	2019-02-21 03:51:31.795586791 -0500
++++ build/go-in-docker.sh	2019-02-21 03:48:57.795233044 -0500
+@@ -40,7 +40,8 @@
+   exit 1
+ fi
+ 
+-E2E_IMAGE=quay.io/kubernetes-ingress-controller/e2e:v10042018-c8abff1
++IMAGE_TAG=$(sudo docker images | grep e2e | awk '{print $2}')
++E2E_IMAGE=quay.io/kubernetes-ingress-controller/e2e:$IMAGE_TAG
+ 
+ DOCKER_OPTS=${DOCKER_OPTS:-""}
+ 
