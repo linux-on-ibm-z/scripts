@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/mesos/build_mesos.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheMesos/1.7.0/build_mesos.sh
 # Execute build script: bash build_mesos.sh    (provide -h for help)
 
 set -e -o pipefail
@@ -14,7 +14,7 @@ CURDIR="$(pwd)"
 BUILD_DIR="/usr/local"
 GRPC_VERSION="1.11.0"
 
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Mesos/patch"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheMesos/1.7.0/patch"
 
 TESTS="false"
 FORCE="false"
