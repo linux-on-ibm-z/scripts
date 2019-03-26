@@ -1,0 +1,11 @@
+--- src/python/native_common/ext_modules.py.in.original	2019-02-28 23:19:55.535982169 -0500
++++ src/python/native_common/ext_modules.py.in	2019-02-28 23:20:33.625722219 -0500
+@@ -126,7 +126,7 @@
+ 
+ 
+     # We link different grpc library variants based on whether SSL is enabled.
+-    grpc = os.path.join('3rdparty', 'grpc-1.10.0')
++    grpc = os.path.join('3rdparty', 'grpc-1.11.0')
+     grpc_variant = '_unsecure' if '@ENABLE_SSL_TRUE@' == '#' else ''
+     libgrpcpp = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++%s.a' % grpc_variant)
+     libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc%s.a' % grpc_variant)
