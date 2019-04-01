@@ -3,18 +3,18 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Zabbix/4.0.3/build_zabbixserver.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Zabbix/4.0.5/build_zabbixserver.sh
 # Execute build script: bash build_zabbixserver.sh    (provide -h for help)
 
 set -e -o pipefail
 
 PACKAGE_NAME="zabbixserver"
 URL_NAME="zabbix"
-PACKAGE_VERSION="4.0.3"
+PACKAGE_VERSION="4.0.5"
 PHP_VERSION="5.6.8"
 CURDIR="$(pwd)"
 BUILD_DIR="/usr/local/share"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Zabbix/4.0.3/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Zabbix/4.0.5/patch"
 
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
