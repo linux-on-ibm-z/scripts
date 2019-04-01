@@ -71,6 +71,13 @@ function cleanup() {
         rm -rf "$CURDIR/mariadb-${PACKAGE_VERSION}.tar.gz"
     fi
 
+     if [ -f "$CURDIR/mariadb_com.h.diff" ]; then
+        rm -rf "$CURDIR/mariadb_com.h.diff"
+    fi
+
+
+    
+
     #rm "$CURDIR"/mariadb_com.h.diff
     printf -- "Cleaned up the artifacts\n" >>"$LOG_FILE"
 }
@@ -82,6 +89,11 @@ function configureAndInstall() {
     cd "$CURDIR"
     wget https://github.com/MariaDB/server/archive/mariadb-${PACKAGE_VERSION}.tar.gz
     tar xzf mariadb-${PACKAGE_VERSION}.tar.gz
+
+    # remove if already exist
+    if [ -d "mariadb-connector-c" ]; then
+        rm -rf "mariadb-connector-c"
+    fi
 
     # Get MariaDB Connector/C source into libmariadb folder
     git clone -b v${MARIADB_CONN_VERSION} git://github.com/MariaDB/mariadb-connector-c.git
@@ -119,9 +131,6 @@ function configureAndInstall() {
 
     sudo scripts/mysql_install_db --user=mysql
     sudo cp support-files/mysql.server /etc/init.d/mysql
-
-    # Create a symlink
-    sudo ln -sf /usr/local/mysql/bin/mysqladmin /usr/bin/mysqladmin
     
     printf -- "Installation mariadb success\n" 
     # Run Test
@@ -190,7 +199,8 @@ function gettingStarted() {
     printf -- '\n********************************************************************************************************\n'
     printf -- "\n*Getting Started * \n"
     printf -- "Running mariadb: \n"
-    printf -- "mysqladmin version --user=mysql  \n\n"
+    printf -- "sudo /usr/local/mysql/bin/mysqld_safe --user=mysql &  \n\n"
+    printf -- "/usr/local/mysql/bin/mysqladmin version --user=mysql  \n\n"
     printf -- "You have successfully started mariadb.\n"
     printf -- '**********************************************************************************************************\n'
 }
