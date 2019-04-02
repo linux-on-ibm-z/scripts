@@ -1,0 +1,175 @@
+diff --git a/Makefile b/Makefile
+index 2337af28d..4b6588bf3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -48,7 +48,7 @@ DUMB_ARCH = ${ARCH}
+ 
+ GOBUILD_FLAGS :=
+ 
+-ALL_ARCH = amd64 arm64
++ALL_ARCH = amd64 arm64 s390x
+ 
+ QEMUVERSION = v3.0.0
+ 
+@@ -64,6 +64,9 @@ BASEIMAGE?=quay.io/kubernetes-ingress-controller/nginx-$(ARCH):0.80
+ ifeq ($(ARCH),arm64)
+ 	QEMUARCH=aarch64
+ endif
++ifeq ($(ARCH),s390x)
++	QEMUARCH=s390x
++endif
+ 
+ TEMP_DIR := $(shell mktemp -d)
+ 
+@@ -119,7 +122,7 @@ else
+ 	$(SED_I) "s/CROSS_BUILD_//g" $(DOCKERFILE)
+ endif
+ 
+-	$(DOCKER) build --no-cache --pull -t $(MULTI_ARCH_IMG):$(TAG) $(TEMP_DIR)/rootfs
++	$(DOCKER) build --no-cache -t $(MULTI_ARCH_IMG):$(TAG) $(TEMP_DIR)/rootfs
+ 
+ ifeq ($(ARCH), amd64)
+ 	# This is for maintaining backward compatibility
+diff --git a/build/go-in-docker.sh b/build/go-in-docker.sh
+index e1092c469..fb8934f9a 100755
+--- a/build/go-in-docker.sh
++++ b/build/go-in-docker.sh
+@@ -40,7 +40,8 @@ if [ "$missing" = true ];then
+   exit 1
+ fi
+ 
+-E2E_IMAGE=quay.io/kubernetes-ingress-controller/e2e:v02262019-ec3a2d6bc
++IMAGE_TAG=$(sudo docker images | grep e2e | awk '{print $2}')
++E2E_IMAGE=quay.io/kubernetes-ingress-controller/e2e:$IMAGE_TAG
+ 
+ DOCKER_OPTS=${DOCKER_OPTS:-""}
+ 
+diff --git a/build/test.sh b/build/test.sh
+index b206a5e30..4384aa40e 100755
+--- a/build/test.sh
++++ b/build/test.sh
+@@ -23,5 +23,5 @@ if [ -z "${PKG}" ]; then
+     exit 1
+ fi
+ 
+-go test -v -race -tags "cgo" \
++go test -v -tags "cgo" \
+     $(go list ${PKG}/... | grep -v vendor | grep -v '/test/e2e' | grep -v images | grep -v "docs/examples")
+diff --git a/deploy/mandatory.yaml b/deploy/mandatory.yaml
+index 90d102cb9..f41575e5b 100644
+--- a/deploy/mandatory.yaml
++++ b/deploy/mandatory.yaml
+@@ -211,7 +211,7 @@ spec:
+       serviceAccountName: nginx-ingress-serviceaccount
+       containers:
+         - name: nginx-ingress-controller
+-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.23.0
++          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller-s390x:0.23.0
+           args:
+             - /nginx-ingress-controller
+             - --configmap=$(POD_NAMESPACE)/nginx-configuration
+diff --git a/deploy/with-rbac.yaml b/deploy/with-rbac.yaml
+index e6bbb193f..88efef42f 100644
+--- a/deploy/with-rbac.yaml
++++ b/deploy/with-rbac.yaml
+@@ -24,7 +24,7 @@ spec:
+       serviceAccountName: nginx-ingress-serviceaccount
+       containers:
+         - name: nginx-ingress-controller
+-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.23.0
++          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller-s390x:0.23.0
+           args:
+             - /nginx-ingress-controller
+             - --configmap=$(POD_NAMESPACE)/nginx-configuration
+diff --git a/images/e2e/Dockerfile b/images/e2e/Dockerfile
+index 3ab44be50..1692d08e1 100644
+--- a/images/e2e/Dockerfile
++++ b/images/e2e/Dockerfile
+@@ -12,7 +12,7 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
+-FROM quay.io/kubernetes-ingress-controller/nginx-amd64:0.80
++FROM quay.io/kubernetes-ingress-controller/nginx-s390x:0.80
+ 
+ RUN clean-install \
+   g++ \
+@@ -26,8 +26,8 @@ RUN clean-install \
+   pkg-config
+ 
+ ENV GOLANG_VERSION 1.11.5
+-ENV GO_ARCH        linux-amd64
+-ENV GOLANG_SHA     ff54aafedff961eb94792487e827515da683d61a5f9482f668008832631e5d25
++ENV GO_ARCH        linux-s390x
++ENV GOLANG_SHA     56209e5498c64a8338cd6f0fe0c2e2cbf6857c0acdb10c774894f0cc0d19f413
+ 
+ RUN set -eux; \
+   url="https://golang.org/dl/go${GOLANG_VERSION}.${GO_ARCH}.tar.gz"; \
+diff --git a/images/nginx/Makefile b/images/nginx/Makefile
+index 471850ffa..4768edee6 100644
+--- a/images/nginx/Makefile
++++ b/images/nginx/Makefile
+@@ -18,7 +18,7 @@ REGISTRY ?= quay.io/kubernetes-ingress-controller
+ ARCH ?= $(shell go env GOARCH)
+ DOCKER ?= docker
+ 
+-ALL_ARCH = amd64 arm64
++ALL_ARCH = amd64 arm64 s390x
+ SED_I?=sed -i
+ GOHOSTOS ?= $(shell go env GOHOSTOS)
+ 
+@@ -38,6 +38,9 @@ BASEIMAGE?=quay.io/kubernetes-ingress-controller/debian-base-$(ARCH):0.1
+ ifeq ($(ARCH),arm64)
+ 	QEMUARCH=aarch64
+ endif
++ifeq ($(ARCH),s390x)
++	QEMUARCH=s390x
++endif
+ 
+ TEMP_DIR := $(shell mktemp -d)
+ 
+diff --git a/images/nginx/rootfs/build.sh b/images/nginx/rootfs/build.sh
+index 885fef5cb..958f9a92b 100755
+--- a/images/nginx/rootfs/build.sh
++++ b/images/nginx/rootfs/build.sh
+@@ -109,6 +109,14 @@ if [[ ${ARCH} == "aarch64" ]]; then
+   ln -s /usr/lib/aarch64-linux-gnu /usr/lib/lua-platform-path
+ fi
+ 
++if [[ ${ARCH} == "s390x" ]]; then
++  ln -s /usr/lib/s390x-linux-gnu/liblua5.1.so /usr/lib/liblua.so
++  ln -s /usr/lib/s390x-linux-gnu /usr/lib/lua-platform-path
++  # avoid error:
++  # git: ../nptl/pthread_mutex_lock.c:81: __pthread_mutex_lock: Assertion `mutex->__data.__owner == 0' failed.
++  git config --global pack.threads "1"
++fi
++
+ mkdir -p /etc/nginx
+ 
+ # Get the GeoIP data
+@@ -235,6 +243,14 @@ export LUAJIT_LIB=/usr/local/lib
+ export LUA_LIB_DIR="$LUAJIT_LIB/lua"
+ 
+ cd "$BUILD_PATH/luajit2-$LUAJIT_VERSION"
++
++if [[ ${ARCH} == "s390x" ]]; then
++  wget https://github.com/LuaJIT/LuaJIT/compare/v2.1...linux-on-ibm-z:v2.1.diff -O s390x.patch
++  patch -p1 < s390x.patch
++  sed -i '144i #if LJ_HASJIT' src/lib_jit.c
++  sed -i '155i #endif' src/lib_jit.c
++fi
++
+ make CCDEBUG=-g
+ make install
+ 
+@@ -249,6 +265,10 @@ if [[ ${ARCH} == "aarch64" ]]; then
+   export PCRE_DIR=/usr/lib/aarch64-linux-gnu
+ fi
+ 
++if [[ ${ARCH} == "s390x" ]]; then
++  export PCRE_DIR=/usr/lib/s390x-linux-gnu
++fi
++
+ cd "$BUILD_PATH"
+ luarocks install lrexlib-pcre 2.7.2-1 PCRE_LIBDIR=${PCRE_DIR}
+ 
