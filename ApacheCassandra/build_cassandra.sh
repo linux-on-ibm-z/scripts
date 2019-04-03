@@ -86,31 +86,28 @@ function configureAndInstall() {
     tar -xvf apache-ant-1.9.4-bin.tar.gz
 
     printf -- "install Ant success\n" >> "$LOG_FILE"
+	
+    if [[ "$ID" == "sles" ]]; 
+    then
+		export JAVA_HOME=/usr/lib64/jvm/java-1.8.0-openjdk
+		printf -- 'export JAVA_HOME for sles  \n'  >> "$LOG_FILE"
+    else
+		# Install AdoptOpenJDK 8 (With Hotspot)
+		cd "$CURDIR"
+		wget https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u202-b08/OpenJDK8U-jdk_s390x_linux_hotspot_8u202b08.tar.gz
+		tar -xvf OpenJDK8U-jdk_s390x_linux_hotspot_8u202b08.tar.gz
+		printf -- "install AdoptOpenJDK 8 (With Hotspot) success\n" >> "$LOG_FILE"
+		export JAVA_HOME=$CURDIR/jdk8u202-b08 
+		printf -- 'export JAVA_HOME for "$ID"  \n'  >> "$LOG_FILE"		 
+    fi
 
     export LANG="en_US.UTF-8"
-    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
-
-    if [[ "$ID" == "ubuntu" ]]; then        
-    export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-s390x/
-    printf -- 'export JAVA_HOME for ubuntu  \n'  >> "$LOG_FILE"
-    fi
-    
-    if [[ "$ID" == "rhel" ]]; then
-     export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-     printf -- 'export JAVA_HOME for rhel  \n'  >> "$LOG_FILE"
-    fi
-    
-    if [[ "$ID" == "sles" ]]; then
-     export JAVA_HOME=/usr/lib64/jvm/java-1.8.0-openjdk
-     printf -- 'export JAVA_HOME for sles  \n'  >> "$LOG_FILE"
-    fi
-    
+    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"  
     export PATH=$JAVA_HOME/bin:$PATH
     export ANT_OPTS="-Xms4G -Xmx4G"
     export ANT_HOME="$CURDIR/apache-ant-1.9.4"
-    export PATH=$PATH:$ANT_HOME/bin
+    export PATH=$ANT_HOME/bin:$PATH
     java -version
-
     
     # Download  source code
     cd "$CURDIR"
@@ -170,10 +167,13 @@ function configureAndInstall() {
     sudo chown -R "$USER" "/usr/local/cassandra"
 
     export PATH=$PATH:/usr/local/cassandra/bin
-   	#Adding dependencies to path 
-	echo "export PATH=\$PATH:/usr/local/cassandra/bin" >> ~/.bashrc
+    #Adding dependencies to path 
+    echo "export PATH=\$PATH:\$JAVA_HOME/bin:/usr/local/cassandra/bin" >> ~/.bashrc
+    echo 'export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"' >> ~/.bashrc
+    echo 'export LANG="en_US.UTF-8"' >> ~/.bashrc
+    
     # Run Tests
-	runTest
+    runTest
 
     #cleanup
     cleanup
@@ -236,8 +236,11 @@ function gettingStarted() {
     printf -- "\n*Getting Started * \n"
     printf -- "Run following commands to get started: \n"
     
-    printf -- "export PATH='\$PATH:/usr/local/cassandra/bin' \n"
+    printf -- "export PATH="\$PATH:/usr/local/cassandra/bin" \n"
+    printf -- "export LANG=\"en_US.UTF-8\" \n"
+    printf -- "export JAVA_TOOL_OPTIONS=\"-Dfile.encoding=UTF8\" \n"
     printf -- "or Restart the terminal to reflect changes\n"
+    printf -- "Note: Commands given above have already been added to .bashrc\n"
     printf -- "Start cassandra server: \n"
     printf -- "cassandra  -f\n\n"
     
@@ -256,19 +259,25 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install -y curl git tar g++ make automake autoconf libtool  wget patch libx11-dev libxt-dev openjdk-8-jre openjdk-8-jdk pkg-config texinfo locales-all unzip python |& tee -a "$LOG_FILE"
+        sudo apt-get install -y curl git tar g++ make automake autoconf libtool wget patch libx11-dev libxt-dev pkg-config texinfo locales-all unzip python |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y curl git which java-1.8.0-openjdk-devel.s390x gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch words libXt-devel libX11-devel texinfo unzip python |& tee -a "$LOG_FILE"
+        sudo yum install -y curl git which gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch words libXt-devel libX11-devel texinfo unzip python |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "sles-12.3" | "sles-15")
+    "sles-12.3")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y  curl git which make wget tar zip unzip words gcc-c++ patch libtool automake autoconf ccache java-1_8_0-openjdk-devel xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi48-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo unzip python |& tee -a "$LOG_FILE"
+        sudo zypper install -y curl git which make wget tar zip unzip words gcc-c++ patch libtool automake autoconf ccache java-1_8_0-openjdk-devel xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi48-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo unzip python |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
+        ;;
+    "sles-15")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo zypper install -y curl git which make wget tar zip unzip gcc-c++ patch libtool automake autoconf ccache java-1_8_0-openjdk-devel xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo unzip python |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     *)
