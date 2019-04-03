@@ -273,20 +273,20 @@ case "$DISTRO" in
 	verify_repo_install |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum -y  install gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel libXfont.s390x libXfont-devel.s390x xorg-x11-utils.s390x xorg-x11-font-utils.s390x tzdata.noarch tzdata-java.noarch xorg-x11-fonts-Type1.noarch xorg-x11-font-utils.s390x python python-setuptools git wget tar |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.3" | "sles-15")
+"sles-12.4" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
 
-	if [[ "${VERSION_ID}" == "12.3" ]]; then
+	if [[ "${VERSION_ID}" == "12.4" ]]; then
 		sudo zypper  install -y gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel python-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 python python-setuptools wget |& tee -a "$LOG_FILE" 
-		printf -- 'Install dependencies for sles-12.3 success \n' |& tee -a "$LOG_FILE"
+		printf -- 'Install dependencies for sles-12.4 success \n' |& tee -a "$LOG_FILE"
 	else
 		sudo zypper  install -y gcc gcc-c++ make flex bison gperf ruby freetype2-devel fontconfig-devel libicu-devel sqlite3-devel libpng16-compat-devel libjpeg8-devel python2 python2-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 autoconf automake libtool patch wget |& tee -a "$LOG_FILE" 
 		printf -- 'Install dependencies for sles-15 success \n' |& tee -a "$LOG_FILE"
