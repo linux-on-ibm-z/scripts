@@ -84,8 +84,8 @@ function configureAndInstall() {
 
     printf -- "Build nginx success\n" 
    
-    # Create a symlink
-    sudo ln -sf /usr/local/nginx/sbin/nginx /usr/bin/nginx
+    # Add binary to /usr/sbin
+    sudo cp  /usr/local/nginx/sbin/nginx /usr/sbin/
     
     
     printf -- "Installation nginx success\n" 
@@ -165,7 +165,7 @@ case "$DISTRO" in
     sudo yum install -y  pcre-devel wget tar xz gcc make zlib-devel |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.3" | "sles-15")
+"sles-12.4" | "sles-15")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y  pcre-devel wget tar xz gcc make zlib-devel |& tee -a "$LOG_FILE"
