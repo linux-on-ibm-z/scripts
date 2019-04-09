@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Logstash/build_logstash.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Logstash/6.6.0/build_logstash.sh
 # Execute build script: bash build_logstash.sh    (provide -h for help)
 #
 
@@ -63,7 +63,7 @@ function prepare() {
 }
 
 function cleanup() {
-	sudo rm -rf "${WORKDIR}/ibm-java-s390x-sdk-8.0-5.26.bin" "${WORKDIR}/installer.properties"
+	sudo rm -rf "${WORKDIR}/ibm-java-s390x-sdk-8.0-5.27.bin" "${WORKDIR}/installer.properties"
 	sudo rm -rf "${WORKDIR}/jffi-1.2.18.zip" "${WORKDIR}/logstash-${PACKAGE_VERSION}.zip"
 	sudo rm -rf "${WORKDIR}/apache-ant-1.10.0-bin.tar.gz"
 	printf -- 'Cleaned up the artifacts\n' >>"${LOG_FILE}"
@@ -76,12 +76,12 @@ function configureAndInstall() {
 	# Install IBMSDK
 	printf -- 'Configuring IBMSDK \n'
 	cd "${WORKDIR}"
-	sudo wget -q http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.5.26/linux/s390x/ibm-java-s390x-sdk-8.0-5.26.bin
+	sudo wget -q http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.5.27/linux/s390x/ibm-java-s390x-sdk-8.0-5.27.bin
 	sudo wget -q https://raw.githubusercontent.com/zos-spark/scala-workbench/master/files/installer.properties.java
 	tail -n +3 installer.properties.java | sudo tee installer.properties
 	sudo cat installer.properties
-	sudo chmod +x ibm-java-s390x-sdk-8.0-5.26.bin
-	sudo ./ibm-java-s390x-sdk-8.0-5.26.bin -r installer.properties
+	sudo chmod +x ibm-java-s390x-sdk-8.0-5.27.bin
+	sudo ./ibm-java-s390x-sdk-8.0-5.27.bin -r installer.properties
 
 	export JAVA_HOME=/opt/ibm/java
 	export PATH="${JAVA_HOME}/bin:$PATH"
@@ -208,7 +208,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"sles-12.3")
+"sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo zypper install -y --type pattern Basis-Devel |& tee -a "${LOG_FILE}"
 	sudo zypper install -y ant wget unzip make gcc tar |& tee -a "${LOG_FILE}"
