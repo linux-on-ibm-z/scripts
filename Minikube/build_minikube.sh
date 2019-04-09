@@ -274,13 +274,13 @@ case "$DISTRO" in
         export PATH=/usr/lib/go-1.10/bin:$PATH
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.3" | "rhel-7.4" | "rhel-7.5")
+    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y tar wget gcc git make python golang curl patch |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "sles-12.3" | "sles-15")
+    "sles-12.4" | "sles-15")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y  tar wget gcc git make python curl patch |& tee -a "$LOG_FILE"
