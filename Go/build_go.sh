@@ -11,7 +11,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="go"
-PACKAGE_VERSION="1.11.4"
+[ -z "$PACKAGE_VERSION" ] && PACKAGE_VERSION="1.11.4"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
@@ -182,7 +182,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"sles-12.3" | "sles-15")
+"sles-12.3" | "sles-12.4" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper  install -y  tar wget gcc |& tee -a "${LOG_FILE}" 
