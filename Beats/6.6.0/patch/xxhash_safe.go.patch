@@ -1,0 +1,7 @@
+--- vendor/github.com/OneOfOne/xxhash/xxhash_safe.go
++++ vendor/github.com/OneOfOne/xxhash/xxhash_safe.go
+@@ -1,4 +1,4 @@
+-// +build appengine safe ppc64le ppc64be mipsle mips
++// +build appengine safe ppc64le ppc64be mipsle mips s390x
+
+ package xxhash
