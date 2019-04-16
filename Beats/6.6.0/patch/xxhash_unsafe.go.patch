@@ -1,0 +1,9 @@
+--- vendor/github.com/OneOfOne/xxhash/xxhash_unsafe.go
++++ vendor/github.com/OneOfOne/xxhash/xxhash_unsafe.go
+@@ -4,6 +4,7 @@
+ // +build !mipsle
+ // +build !ppc64be
+ // +build !mips
++// +build !s390x
+
+ package xxhash
