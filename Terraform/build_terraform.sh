@@ -50,9 +50,9 @@ function checkPrequisites()
   then
     printf -- "terraform : Yes" >>  "$LOG_FILE"
 
-    if terraform version | grep "$PACKAGE_VERSION" 
+    if terraform version | grep "Terraform v$PACKAGE_VERSION"
     then
-      printf -- "Version : %s (Satisfied) \n" "${PACKAGE_VERSION}" |& tee -a  "$LOG_FILE"
+      printf -- "Version : %s (Satisfied) \n" "v${PACKAGE_VERSION}" |& tee -a  "$LOG_FILE"
       printf -- "No update required for terraform \n" |& tee -a  "$LOG_FILE"
       exit 0;
     fi
@@ -61,8 +61,9 @@ function checkPrequisites()
 
 function cleanup()
 {
-  cd "${GOPATH}"
-  #Optional step to clean unwanted residue after build.
+  if [ -d "${GOPATH}/src" ]; then
+    sudo rm -rf ${GOPATH}/src
+  fi
   printf -- 'Cleaned up the artifacts\n'  >> "$LOG_FILE"
 }
 
