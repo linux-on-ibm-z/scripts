@@ -238,7 +238,7 @@ done
 function printSummary() {
 
 	printf -- "\n* Getting Started * \n"
-	printf -- '\nRefer step 3 from receipe to run test cases'
+	printf -- '\nPlease refer to Step 3 from Build instructions to run test cases'
 	printf -- "\nNote: kubernetes is needed to run test cases \n\n"
 }
 
