@@ -201,7 +201,7 @@ function printSummary() {
 	printf -- '\n********************************************************************************************************\n'
 	printf -- "\n* Getting Started * \n"
 	printf -- "\n*All relevant binaries are created and placed in /usr/bin \n"
-	printf -- '\n\nRefer step No. 4 from the receipe ( https://github.com/linux-on-ibm-z/docs/wiki/Building-Helm ) for Tiller installation.'
+	printf -- '\n\nRefer step No. 4 from the build instructions ( https://github.com/linux-on-ibm-z/docs/wiki/Building-Helm ) for Tiller installation.'
 	printf -- '\n\n**********************************************************************************************************\n'
 
 }
