@@ -207,7 +207,7 @@ done
 
 function gettingStarted() {
 
-	printf -- " Please follow following steps from the recipe to complete the installation :\n"
+	printf -- " Please follow following steps from the build instructions to complete the installation :\n"
 	printf -- " Step 5: Prerequisites to start Zabbix server. \n"
 	printf -- "      a) Start httpd server. \n"
 	printf -- "      b) Start MySQL/MariaDB service in a directory with proper permissions. \n"
