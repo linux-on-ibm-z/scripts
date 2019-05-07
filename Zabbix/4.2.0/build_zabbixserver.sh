@@ -14,7 +14,7 @@ PACKAGE_VERSION="4.2.0"
 PHP_VERSION="5.6.8"
 CURDIR="$(pwd)"
 BUILD_DIR="/usr/local/share"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Zabbix/4.0.5/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Zabbix/${PACKAGE_VERSION}/patch"
 
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -127,7 +127,7 @@ function configureAndInstall() {
 			sudo rm ubuntu16-apache2.conf
 		fi
 
-		if [[ "$VERSION_ID" == "18.04" ]]; then
+		if [[ "$VERSION_ID" == "18.04" || "$VERSION_ID" == "19.04" ]]; then
 			curl -o "ubuntu18-apache2.conf" $PATCH_URL/ubuntu18-apache2.conf.diff
 			sudo patch "/etc/apache2/apache2.conf" "ubuntu18-apache2.conf"
 			sudo rm ubuntu18-apache2.conf
@@ -207,7 +207,7 @@ done
 
 function gettingStarted() {
 
-	printf -- " Please follow following steps from the recipe to complete the installation :\n"
+	printf -- " Please follow following steps from the build instructions to complete the installation :\n"
 	printf -- " Step 5: Prerequisites to start Zabbix server. \n"
 	printf -- "      a) Start httpd server. \n"
 	printf -- "      b) Start MySQL/MariaDB service in a directory with proper permissions. \n"
@@ -238,7 +238,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-18.04")
+"ubuntu-18.04" | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
