@@ -145,7 +145,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
