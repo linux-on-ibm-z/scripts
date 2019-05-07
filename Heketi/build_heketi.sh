@@ -79,11 +79,12 @@ function cleanup() {
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
     
-    # Install go
-	printf -- "Installing Go... \n" 
-	wget  $GO_INSTALL_URL 
-    bash build_go.sh -v 1.10.5
-
+    # Install go (Only for RHEL and SLES)
+    if [[ "${ID}" != "ubuntu" ]]; then
+            printf -- "Installing Go... \n" 
+            wget  $GO_INSTALL_URL 
+            bash build_go.sh -v 1.10.5
+    fi
 
 	# Set GOPATH if not already set
 	if [[ -z "${GOPATH}" ]]; then
@@ -231,11 +232,12 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-    "ubuntu-16.04" | "ubuntu-18.04")
+    "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install -y git wget make python mercurial curl |& tee -a "$LOG_FILE"
+        sudo apt-get install -y git wget make python mercurial curl golang-1.10 |& tee -a "$LOG_FILE"
+        export PATH=/usr/lib/go-1.10/bin:$PATH
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
