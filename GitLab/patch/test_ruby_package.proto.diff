@@ -1,0 +1,10 @@
+--- test_ruby_package.proto.orig	2019-02-04 04:15:21.727372000 -0500
++++ test_ruby_package.proto	2019-02-04 04:16:51.659395000 -0500
+@@ -2,6 +2,6 @@
+ 
+ package foo_bar;
+ 
+-option ruby_package = "A.B";
++//option ruby_package = "A.B";
+ 
+ message TestRubyPackageMessage {}

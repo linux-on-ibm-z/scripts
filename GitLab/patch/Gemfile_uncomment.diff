@@ -1,0 +1,16 @@
+--- Gemfile	2019-02-19 17:55:25.544846723 +0530
++++ Gemfile.orig	2019-02-19 17:56:26.314856771 +0530
+@@ -417,10 +417,10 @@
+ end
+ 
+ # Gitaly GRPC client
+-#gem 'gitaly-proto', '~> 1.5.0', require: 'gitaly'
+-#gem 'grpc', '~> 1.15.0'
++gem 'gitaly-proto', '~> 1.5.0', require: 'gitaly'
++gem 'grpc', '~> 1.15.0'
+ 
+-#gem 'google-protobuf', '~> 3.6'
++gem 'google-protobuf', '~> 3.6'
+ 
+ gem 'toml-rb', '~> 1.0.0', require: false
+ 

@@ -1,0 +1,11 @@
+--- gitaly.rake_ORIG	2019-02-18 18:38:50.984631630 +0300
++++ gitaly.rake	2019-02-18 18:39:58.554651628 +0300
+@@ -13,7 +13,7 @@
+ 
+       version = Gitlab::GitalyClient.expected_server_version
+ 
+-      checkout_or_clone_version(version: version, repo: args.repo, target_dir: args.dir)
++#      checkout_or_clone_version(version: version, repo: args.repo, target_dir: args.dir)
+ 
+       command = %w[/usr/bin/env -u RUBYOPT -u BUNDLE_GEMFILE]
+ 
