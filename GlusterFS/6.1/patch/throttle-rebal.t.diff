@@ -1,0 +1,13 @@
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf..1cc3cac 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+ }
+
+ #Determine number of cores
+-cores=$(cat /proc/cpuinfo | grep processor | wc -l)
++cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
+ if [ "$cores" == "" ]; then
+         echo "Could not get number of cores available"
+ fi
