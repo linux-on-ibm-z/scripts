@@ -1,0 +1,13 @@
+diff --git a/deploy/addons/heapster/heapster-rc.yaml b/deploy/addons/heapster/heapster-rc.yaml
+index d9c2cc36f..646486bf6 100644
+--- a/deploy/addons/heapster/heapster-rc.yaml
++++ b/deploy/addons/heapster/heapster-rc.yaml
+@@ -37,7 +37,7 @@ spec:
+     spec:
+       containers:
+       - name: heapster
+-        image: {{default "k8s.gcr.io" .ImageRepository}}/heapster-amd64:v1.5.3
++        image: {{default "k8s.gcr.io" .ImageRepository}}/heapster-s390x:v1.5.3
+         imagePullPolicy: IfNotPresent
+         command:
+         - /heapster
