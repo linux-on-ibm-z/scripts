@@ -1,0 +1,25 @@
+--- patch/spark/common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java.orig  2019-05-17 04:48:52.741837000 +0000
++++ common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java   2019-05-17 04:46:04.871837000 +0000
+@@ -44,6 +44,7 @@
+   public static final int DOUBLE_ARRAY_OFFSET;
+
+   private static final boolean unaligned;
++  String arch = System.getProperty("os.arch", "");
+   static {
+     boolean _unaligned;
+     String arch = System.getProperty("os.arch", "");
+@@ -57,7 +58,13 @@
+           Class.forName("java.nio.Bits", false, ClassLoader.getSystemClassLoader());
+         Method unalignedMethod = bitsClass.getDeclaredMethod("unaligned");
+         unalignedMethod.setAccessible(true);
+-        _unaligned = Boolean.TRUE.equals(unalignedMethod.invoke(null));
++      //Since java.nio.Bits.unaligned() doesn't return true on s390x
++      if(arch.matches("^(s390x|s390x)$")){
++       _unaligned=true;
++      }else{
++       _unaligned = Boolean.TRUE.equals(unalignedMethod.invoke(null));
++      }
++
+       } catch (Throwable t) {
+         // We at least know x86 and x64 support unaligned access.
+         //noinspection DynamicRegexReplaceableByCompiledPattern
