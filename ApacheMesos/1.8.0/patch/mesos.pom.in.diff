@@ -1,0 +1,12 @@
+--- src/java/mesos.pom.in.original	2019-03-01 03:57:11.794987200 -0500
++++ src/java/mesos.pom.in	2019-03-01 03:58:23.435212776 -0500
+@@ -84,7 +84,8 @@
+       <plugin>
+         <artifactId>maven-javadoc-plugin</artifactId>
+         <configuration>
+-          <sourcepath>@abs_top_srcdir@/src/java/src:@abs_top_builddir@/src/java/generated</sourcepath>
++          <maxmemory>512m</maxmemory>
++	  <sourcepath>@abs_top_srcdir@/src/java/src:@abs_top_builddir@/src/java/generated</sourcepath>
+           <subpackages>org.apache.mesos</subpackages>
+         </configuration>
+         <executions>
