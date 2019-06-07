@@ -1,13 +1,9 @@
 diff --git a/pkg/minikube/constants/constants.go b/pkg/minikube/constants/constants.go
-index 92a349e6c..e77c83362 100644
+index 92a349e6c..eecc315ec 100644
 --- a/pkg/minikube/constants/constants.go
 +++ b/pkg/minikube/constants/constants.go
-@@ -282,25 +282,25 @@ func GetKubeadmCachedImages(imageRepository string, kubernetesVersionStr string)
- 
- 	var podInfraContainerImage string
- 	if v1_14plus(kubernetesVersion) {
--		podInfraContainerImage = imageRepository + "pause:3.1"
-+		podInfraContainerImage = imageRepository + "pause-s390x:3.1"
+@@ -285,22 +285,22 @@ func GetKubeadmCachedImages(imageRepository string, kubernetesVersionStr string)
+ 		podInfraContainerImage = imageRepository + "pause:3.1"
  		images = append(images, []string{
  			podInfraContainerImage,
 -			imageRepository + "k8s-dns-kube-dns-amd64:1.14.13",
@@ -23,8 +19,7 @@ index 92a349e6c..e77c83362 100644
  		}...)
  
  	} else if v1_13(kubernetesVersion) {
--		podInfraContainerImage = imageRepository + "pause:3.1"
-+		podInfraContainerImage = imageRepository + "pause-s390x:3.1"
+ 		podInfraContainerImage = imageRepository + "pause:3.1"
  		images = append(images, []string{
  			podInfraContainerImage,
 -			imageRepository + "k8s-dns-kube-dns-amd64:1.14.8",
