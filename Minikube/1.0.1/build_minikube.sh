@@ -17,7 +17,7 @@ CURDIR="$(pwd)"
 GO_DEFAULT="$HOME/go"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
-CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Minikube/1.0.1/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Minikube/1.0.1/patch"
 
 FORCE="false"
 TESTS="false"
@@ -140,31 +140,31 @@ function configureAndInstall() {
     cd "$CURDIR"
 
     #Add patches
-        curl -o "Makefile.diff"  "$CONF_URL/Makefile.diff"
+        curl -o "Makefile.diff"  "$PATCH_URL/Makefile.diff"
         patch "$GOPATH/src/k8s.io/minikube/Makefile" Makefile.diff
         printf -- 'Updated Makefile : success\n'
 
-    curl -o "addon-manager.yaml.diff"  "$CONF_URL/addon-manager.yaml.diff"
+    curl -o "addon-manager.yaml.diff"  "$PATCH_URL/addon-manager.yaml.diff"
         patch "$GOPATH/src/k8s.io/minikube/deploy/addons/addon-manager.yaml" addon-manager.yaml.diff
         printf -- 'Updated addon-manager.yaml : success\n'
 
-    curl -o "dashboard-dp.yaml.diff"  "$CONF_URL/dashboard-dp.yaml.diff"
+    curl -o "dashboard-dp.yaml.diff"  "$PATCH_URL/dashboard-dp.yaml.diff"
         patch "$GOPATH/src/k8s.io/minikube/deploy/addons/dashboard/dashboard-dp.yaml" dashboard-dp.yaml.diff
         printf -- 'Updated dashboard-dp.yaml : success\n'
 
-        curl -o "heapster-rc.yaml.diff"  "$CONF_URL/heapster-rc.yaml.diff"
+        curl -o "heapster-rc.yaml.diff"  "$PATCH_URL/heapster-rc.yaml.diff"
         patch "$GOPATH/src/k8s.io/minikube/deploy/addons/heapster/heapster-rc.yaml" heapster-rc.yaml.diff
         printf -- 'Updated heapster-rc.yaml : success\n'
 
-      curl -o "storage-provisioner.yaml.diff"  "$CONF_URL/storage-provisioner.yaml.diff"
+      curl -o "storage-provisioner.yaml.diff"  "$PATCH_URL/storage-provisioner.yaml.diff"
         patch "$GOPATH/src/k8s.io/minikube/deploy/addons/storage-provisioner/storage-provisioner.yaml" storage-provisioner.yaml.diff
         printf -- 'Updated storage-provisioner.yaml : success\n'
 
-    curl -o "constants.go.diff"  "$CONF_URL/constants.go.diff"
+    curl -o "constants.go.diff"  "$PATCH_URL/constants.go.diff"
         patch "$GOPATH/src/k8s.io/minikube/pkg/minikube/constants/constants.go" constants.go.diff
         printf -- 'Updated constants.go : success\n'
 
-    curl -o "Dockerfile.diff"  "$CONF_URL/Dockerfile.diff"
+    curl -o "Dockerfile.diff"  "$PATCH_URL/Dockerfile.diff"
         patch "$GOPATH/src/k8s.io/minikube/deploy/storage-provisioner/Dockerfile" Dockerfile.diff
         printf -- 'Updated Dockerfile : success\n'
 
