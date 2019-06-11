@@ -1,0 +1,14 @@
+--- originalfile	2018-12-26 00:30:21.127698510 -0500
++++ updatedfile	2018-12-26 00:33:24.167698510 -0500
+@@ -25,6 +25,11 @@
+ 
+ # TODO: Lock this down to specific versions
+ # Install gogo, an optimised fork of the Golang generators
++RUN rm -vrf /go/src/github.com/gogo/protobuf/*
++RUN go get -d github.com/gogo/protobuf/proto
++WORKDIR /go/src/github.com/gogo/protobuf
++RUN git checkout v1.0.0
++WORKDIR /src
+ RUN go get github.com/gogo/protobuf/proto \
+        github.com/gogo/protobuf/protoc-gen-gogo \
+        github.com/gogo/protobuf/gogoproto \
