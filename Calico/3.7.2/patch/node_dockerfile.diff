@@ -1,0 +1,12 @@
+diff --git a/Dockerfile.s390x b/Dockerfile.s390x
+index 6adfed2..13e984f 100644
+--- a/Dockerfile.s390x
++++ b/Dockerfile.s390x
+@@ -63,7 +63,6 @@ COPY --from=qemu /usr/bin/qemu-${ARCH}-static /usr/bin/
+ RUN apk add --no-cache ip6tables ipset iputils iproute2 conntrack-tools runit file ca-certificates
+ 
+ # Copy our bird binaries in
+-COPY --from=bird /bird* /bin/
+ 
+ # Copy in the filesystem - this contains felix, calico-bgp-daemon etc...
+ COPY filesystem/ /
