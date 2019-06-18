@@ -1,0 +1,20 @@
+--- bazel/repositories.bzl_old  2019-06-17 06:21:18.663953825 +0000
++++ bazel/repositories.bzl      2019-06-16 05:03:12.754147299 +0000
+@@ -607,7 +607,7 @@
+     http_archive(
+         name = "com_github_gperftools_gperftools",
+         build_file_content = BUILD_ALL_CONTENT,
+-        patch_cmds = ["./autogen.sh"],
++        #patch_cmds = ["./autogen.sh"],
+         **location
+     )
+
+@@ -629,5 +629,8 @@
+ def _is_linux_ppc(ctxt):
+     return _is_linux(ctxt) and _is_arch(ctxt, "ppc")
+
++def _is_linux_s390x(ctxt):
++    return _is_linux(ctxt) and _is_arch(ctxt, "s390x")
++
+ def _is_linux_x86_64(ctxt):
+     return _is_linux(ctxt) and _is_arch(ctxt, "x86_64")
