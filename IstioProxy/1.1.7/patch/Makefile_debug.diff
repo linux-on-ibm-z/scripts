@@ -1,0 +1,11 @@
+--- Makefile.oldfile	2019-05-15 04:14:52.724528065 +0000
++++ Makefile.newfile	2019-05-15 04:16:18.374528065 +0000
+@@ -34,7 +34,7 @@
+ PATH := /usr/lib/llvm-7/bin:$(PATH)
+ 
+ build:
+-	PATH=$(PATH) CC=$(CC) CXX=$(CXX) bazel $(BAZEL_STARTUP_ARGS) build $(BAZEL_BUILD_ARGS) $(BAZEL_TARGETS)
++	PATH=$(PATH) CC=$(CC) CXX=$(CXX) bazel $(BAZEL_STARTUP_ARGS) build $(BAZEL_BUILD_ARGS) $(BAZEL_TARGETS) --host_javabase=@local_jdk//:jdk
+ 	@bazel shutdown
+ 
+ # Build only envoy - fast
