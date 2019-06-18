@@ -1,0 +1,16 @@
+--- /home/test/BUILD-api_old	2019-05-29 11:13:03.577842575 +0000
++++ source/common/api/BUILD	2019-05-29 11:14:43.707812547 +0000
+@@ -24,11 +24,13 @@
+     srcs = ["os_sys_calls_impl.cc"] + select({
+         "//bazel:linux_x86_64": ["os_sys_calls_impl_linux.cc"],
+         "//bazel:linux_aarch64": ["os_sys_calls_impl_linux.cc"],
++        "//bazel:linux_s390x": ["os_sys_calls_impl_linux.cc"],
+         "//conditions:default": [],
+     }),
+     hdrs = ["os_sys_calls_impl.h"] + select({
+         "//bazel:linux_x86_64": ["os_sys_calls_impl_linux.h"],
+         "//bazel:linux_aarch64": ["os_sys_calls_impl_linux.h"],
++        "//bazel:linux_s390x": ["os_sys_calls_impl_linux.h"],
+         "//conditions:default": [],
+     }),
+     deps = [
