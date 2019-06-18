@@ -1,0 +1,12 @@
+--- httpd.conf	2019-02-27 07:14:48.562834478 +0000
++++ httpd-copy.conf	2019-02-27 07:18:03.442741253 +0000
+@@ -232,3 +232,9 @@
+ #       putting its name into APACHE_CONF_INCLUDE_FILES in 
+ #       /etc/sysconfig/apache2 -- this will make system updates 
+ #       easier :) 
++ServerName localhost
++AddType application/x-httpd-php .php
++<Directory />
++DirectoryIndex index.php
++</Directory>
++LoadModule php7_module /usr/lib64/apache2/mod_php7.so
