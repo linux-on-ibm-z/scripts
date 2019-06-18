@@ -1,0 +1,11 @@
+--- httpd.conf	2019-02-27 05:21:31.786499565 -0500
++++ https-copy.conf	2019-02-27 05:22:53.066620780 -0500
+@@ -1008,3 +1008,8 @@
+ #    ErrorLog logs/dummy-host.example.com-error_log
+ #    CustomLog logs/dummy-host.example.com-access_log common
+ #</VirtualHost>
++ServerName localhost
++AddType application/x-httpd-php .php
++<Directory />
++DirectoryIndex index.php
++</Directory>
