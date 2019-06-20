@@ -259,7 +259,7 @@ function printHelp() {
         echo
 }
 
-while opts $# -gt 0; do
+while test $# -gt 0; do
         case "$1" in
                 -h|--help)
                         printHelp
