@@ -259,7 +259,7 @@ function printHelp() {
         echo
 }
 
-while getopts "h?dyt" opt; do
+while getopts "h?dyvt" opt; do
         case "$opt" in
         h | \?)
                 printHelp
