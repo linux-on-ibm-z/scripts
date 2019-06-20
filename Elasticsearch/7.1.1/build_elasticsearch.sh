@@ -223,23 +223,21 @@ function installClient() {
         printf -- '\nInstalling curator client\n'
         if [[ "${ID}" == "sles" ]]; then
                 sudo zypper install -y python-pip python-devel
-        fi
 
-        if [[ "${ID}" == "ubuntu" ]]; then
+        elif [[ "${ID}" == "ubuntu" ]]; then
                 sudo apt-get update
                 sudo apt-get install -y python-pip
-        fi
 
-        if [[ "${ID}" == "rhel" ]] || [[ "${ID}" == "centos" ]]; then
+        elif [[ "${ID}" == "rhel" ]] || [[ "${ID}" == "centos" ]]; then
                 sudo yum install -y python-setuptools
                 sudo easy_install pip
+        else
+            echo "Distro not found!"
+            break
         fi
 
         sudo -H pip install elasticsearch-curator
         printf -- "\nInstalled Elasticsearch Curator client successfully"
-
-
-
 }
 
 function logDetails() {
@@ -272,6 +270,10 @@ while getopts "h?dyt" opt; do
                 ;;
         y)
                 FORCE="true"
+                ;;
+        v)
+                PACKAGE_VERSION=$1
+                echo $PACKAGE_VERSION
                 ;;
         t)
                 if command -v "$PACKAGE_NAME" >/dev/null; then
@@ -318,7 +320,7 @@ case "$DISTRO" in
 "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "centos-7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y unzip patch curl which git gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch libXt-devel libX11-devel texinfo ant ant-junit.noarch hostname |& tee -a "$LOG_FILE"
+        sudo yum --setopt=obsoletes=0 install -y unzip patch curl which git gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch libXt-devel libX11-devel texinfo ant ant-junit.noarch hostname |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         startService |& tee -a "$LOG_FILE"
         installClient |& tee -a "$LOG_FILE"
