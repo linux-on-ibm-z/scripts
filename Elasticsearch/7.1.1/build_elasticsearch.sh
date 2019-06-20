@@ -77,7 +77,7 @@ function cleanup() {
 }
 
 function configureAndInstall() {
-        REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
+        REPO_URL="https://raw.githubusercontent.com/james-crowley/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
         echo $REPO_URL
         printf -- '\nConfiguration and Installation started \n'
 
