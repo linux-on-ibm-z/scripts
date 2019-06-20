@@ -267,11 +267,11 @@ while test $# -gt 0; do
                 ;;
                 -d|--debug)
                         set -x
-                shift 2
+                shift
                 ;;
                 -y|--yes)
                         FORCE="true"
-                shift 2
+                shift
                 ;;
                 -v|--version)
                         PACKAGE_VERSION=$2
@@ -289,10 +289,11 @@ while test $# -gt 0; do
                         else
                                 TESTS="true"
                         fi
-                shift 2
+                shift
                 ;;
                 *)
                         echo -e "ERROR - Flag given: '$1' is not recognized.\n"
+                        exit 0
                 ;;
         esac
 done
