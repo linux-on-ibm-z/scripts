@@ -10,7 +10,6 @@ set -e -o pipefail
 
 PACKAGE_NAME="elasticsearch"
 PACKAGE_VERSION="7.1.1"
-
 CURDIR="$(pwd)"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
 
@@ -18,6 +17,8 @@ ES_REPO_URL="https://github.com/elastic/elasticsearch"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-$(date +"%F-%T").log"
 NON_ROOT_USER="$(whoami)"
 FORCE="false"
+CLIENT="true"
+START="true"
 
 trap cleanup 0 1 2 ERR
 
@@ -236,7 +237,7 @@ function installClient() {
                 sudo easy_install pip
         else
             echo "Distro not found!"
-            break
+            exit 0
         fi
 
         sudo -H pip install elasticsearch-curator
@@ -278,7 +279,6 @@ while test $# -gt 0; do
                 ;;
                 -v|--version)
                         PACKAGE_VERSION=$2
-                        echo $PACKAGE_VERSION
                 shift 2
                 ;;
                 -t|--test)
@@ -291,6 +291,14 @@ while test $# -gt 0; do
                         else
                                 TESTS="true"
                         fi
+                shift
+                ;;
+                -c|--client)
+                        CLIENT="false"
+                shift
+                ;;
+                -s|--start)
+                        START="false"
                 shift
                 ;;
                 *)
@@ -312,7 +320,6 @@ function printSummary() {
 
 }
 
-
 logDetails
 prepare
 
@@ -324,8 +331,13 @@ case "$DISTRO" in
         sudo apt-get update
         sudo apt-get install -y tar patch wget unzip curl maven git make automake autoconf libtool patch libx11-dev libxt-dev pkg-config texinfo locales-all ant hostname |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
-        startService |& tee -a "$LOG_FILE"
-        installClient |& tee -a "$LOG_FILE"
+        if [[ "${START}" == "true" ]]; then
+            startService |& tee -a "$LOG_FILE"
+        fi
+
+        if [[ "${CLIENT}" == "true" ]]; then
+            installClient |& tee -a "$LOG_FILE"
+        fi
         ;;
 
 "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "centos-7")
@@ -333,8 +345,13 @@ case "$DISTRO" in
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum --setopt=obsoletes=0 install -y unzip patch curl which git gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch libXt-devel libX11-devel texinfo ant ant-junit.noarch hostname |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
-        startService |& tee -a "$LOG_FILE"
-        installClient |& tee -a "$LOG_FILE"
+        if [[ "${START}" == "true" ]]; then
+            startService |& tee -a "$LOG_FILE"
+        fi
+
+        if [[ "${CLIENT}" == "true" ]]; then
+            installClient |& tee -a "$LOG_FILE"
+        fi
         ;;
 
 "sles-12.3" | "sles-15")
@@ -342,8 +359,13 @@ case "$DISTRO" in
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper --non-interactive install tar patch wget unzip curl which git gcc-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo ant ant-junit.noarch make net-tools | tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
-        startService |& tee -a "$LOG_FILE"
-        installClient |& tee -a "$LOG_FILE"
+        if [[ "${START}" == "true" ]]; then
+            startService |& tee -a "$LOG_FILE"
+        fi
+
+        if [[ "${CLIENT}" == "true" ]]; then
+            installClient |& tee -a "$LOG_FILE"
+        fi
         ;;
 
 *)
