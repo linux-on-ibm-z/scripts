@@ -8,8 +8,54 @@
 #
 set -e -o pipefail
 
+while test $# -gt 0; do
+        case "$1" in
+                -h|--help)
+                        printHelp
+                        exit 0
+                ;;
+                -d|--debug)
+                        set -x
+                shift
+                ;;
+                -y|--yes)
+                        FORCE="true"
+                shift
+                ;;
+                -v|--version)
+                        PACKAGE_VERSION=$2
+                        echo $PACKAGE_VERSION
+                        echo $REPO_URL
+                shift 2
+                ;;
+                -t|--test)
+                        if command -v "$PACKAGE_NAME" >/dev/null; then
+                                TESTS="true"
+                                printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+                                runTest |& tee -a "$LOG_FILE"
+                                reviewTest |& tee -a "$LOG_FILE"
+                                exit 0
+                        else
+                                TESTS="true"
+                        fi
+                shift
+                ;;
+                *)
+                        echo -e "ERROR - Flag given: '$1' is not recognized.\n"
+                        exit 0
+                ;;
+        esac
+done
+
 PACKAGE_NAME="elasticsearch"
-PACKAGE_VERSION="7.1.1"
+
+if [ -z $PACKAGE_VERSION ]
+then
+    echo $PACKAGE_VERSION
+else
+    PACKAGE_VERSION="7.1.1"
+fi
+
 CURDIR="$(pwd)"
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
@@ -258,45 +304,6 @@ function printHelp() {
         echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests] [-v version-of-elasticsearch]"
         echo
 }
-
-while test $# -gt 0; do
-        case "$1" in
-                -h|--help)
-                        printHelp
-                        exit 0
-                ;;
-                -d|--debug)
-                        set -x
-                shift
-                ;;
-                -y|--yes)
-                        FORCE="true"
-                shift
-                ;;
-                -v|--version)
-                        PACKAGE_VERSION=$2
-                        echo $PACKAGE_VERSION
-                        echo $REPO_URL
-                shift 2
-                ;;
-                -t|--test)
-                        if command -v "$PACKAGE_NAME" >/dev/null; then
-                                TESTS="true"
-                                printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
-                                runTest |& tee -a "$LOG_FILE"
-                                reviewTest |& tee -a "$LOG_FILE"
-                                exit 0
-                        else
-                                TESTS="true"
-                        fi
-                shift
-                ;;
-                *)
-                        echo -e "ERROR - Flag given: '$1' is not recognized.\n"
-                        exit 0
-                ;;
-        esac
-done
 
 function printSummary() {
         printf -- '\n********************************************************************************************************\n'
