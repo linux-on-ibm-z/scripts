@@ -9,13 +9,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="elasticsearch"
-
-if [ -z $PACKAGE_VERSION ]
-then
-    echo $PACKAGE_VERSION
-else
-    PACKAGE_VERSION="7.1.1"
-fi
+PACKAGE_VERSION="7.1.1"
 
 CURDIR="$(pwd)"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
