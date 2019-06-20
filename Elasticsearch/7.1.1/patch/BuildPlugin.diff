@@ -1,0 +1,62 @@
+diff --git a/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy b/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy
+index 28b0c2977f9..03a88668448 100644
+--- a/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy
++++ b/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy
+@@ -1069,6 +1069,13 @@ class BuildPlugin implements Plugin<Project> {
+                         socketToCore[currentID] = Integer.valueOf(value)
+                         currentID = ""
+                     }
++                    //check for s390x arch
++                    if (name == "vendor_id") {
++                        if (value == "IBM/S390") {
++                            currentID = value
++                            socketToCore[currentID] = findDefaultParallel_s390x()
++                        }
++                    }
+                 }
+             })
+             return socketToCore.values().sum()
+@@ -1085,6 +1092,44 @@ class BuildPlugin implements Plugin<Project> {
+         return Runtime.getRuntime().availableProcessors() / 2
+     }
+
++       //calculate no. of physical cpu cores on s390x
++       private static int findDefaultParallel_s390x() {
++               String s = null;
++               int processors = 0;
++               // code to count the  number of Physical cores for s390x
++               try {
++
++                       // run the Unix "lscpu" command
++                       // using the Runtime exec method:
++                       Process p = Runtime.getRuntime().exec("lscpu");
++
++                       BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
++                       BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
++                       // read the output from the command
++                       while ((s = stdInput.readLine()) != null) {
++                               if (s.contains(":")) {
++                                       String[] strings = s.split(":");
++                                       String name = strings[0], value = strings[1];
++                                       if (name.equals("CPU(s)")) {
++                                               processors = Integer.valueOf(value.trim()).intValue();
++                                       }
++                               }
++                       }
++
++                       return processors;
++
++                       // read any errors from the attempted command
++                       while ((s = stdError.readLine()) != null) {
++                               System.out.println(s);
++                       }
++
++                       System.exit(0);
++               } catch (IOException e) {
++                       e.printStackTrace();
++                       System.exit(-1);
++               }
++       }
++
+     private static configurePrecommit(Project project) {
+         Task precommit = Pre
