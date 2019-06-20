@@ -8,78 +8,6 @@
 #
 set -e -o pipefail
 
-while test $# -gt 0; do
-        case "$1" in
-                -h|--help)
-                        printHelp
-                        exit 0
-                ;;
-                -d|--debug)
-                        set -x
-                shift
-                ;;
-                -y|--yes)
-                        FORCE="true"
-                shift
-                ;;
-                -v|--version)
-                        PACKAGE_VERSION=$2
-                        echo $PACKAGE_VERSION
-                        echo $REPO_URL
-                shift 2
-                ;;
-                -t|--test)
-                        if command -v "$PACKAGE_NAME" >/dev/null; then
-                                TESTS="true"
-                                printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
-                                runTest |& tee -a "$LOG_FILE"
-                                reviewTest |& tee -a "$LOG_FILE"
-                                exit 0
-                        else
-                                TESTS="true"
-                        fi
-                shift
-                ;;
-                *)
-                        echo -e "ERROR - Flag given: '$1' is not recognized.\n"
-                        exit 0
-                ;;
-        esac
-done
-
-PACKAGE_NAME="elasticsearch"
-
-if [ -z $PACKAGE_VERSION ]
-then
-    echo $PACKAGE_VERSION
-else
-    PACKAGE_VERSION="7.1.1"
-fi
-
-CURDIR="$(pwd)"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
-ES_REPO_URL="https://github.com/elastic/elasticsearch"
-
-LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-NON_ROOT_USER="$(whoami)"
-FORCE="false"
-
-trap cleanup 0 1 2 ERR
-
-#Check if directory exists
-if [ ! -d "$CURDIR/logs/" ]; then
-        mkdir -p "$CURDIR/logs/"
-fi
-
-# Need handling for RHEL 6.10 as it doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-        source "/etc/os-release"
-else
-        cat /etc/redhat-release |& tee -a "$LOG_FILE"
-        export ID="rhel"
-        export VERSION_ID="6.x"
-        export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
 function prepare() {
 
         if command -v "sudo" >/dev/null; then
@@ -316,6 +244,80 @@ function printSummary() {
         printf -- '**********************************************************************************************************\n'
 
 }
+
+while test $# -gt 0; do
+        case "$1" in
+                -h|--help)
+                        printHelp
+                        exit 0
+                ;;
+                -d|--debug)
+                        set -x
+                shift
+                ;;
+                -y|--yes)
+                        FORCE="true"
+                shift
+                ;;
+                -v|--version)
+                        PACKAGE_VERSION=$2
+                        echo $PACKAGE_VERSION
+                        echo $REPO_URL
+                shift 2
+                ;;
+                -t|--test)
+                        if command -v "$PACKAGE_NAME" >/dev/null; then
+                                TESTS="true"
+                                printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+                                runTest |& tee -a "$LOG_FILE"
+                                reviewTest |& tee -a "$LOG_FILE"
+                                exit 0
+                        else
+                                TESTS="true"
+                        fi
+                shift
+                ;;
+                *)
+                        echo -e "ERROR - Flag given: '$1' is not recognized.\n"
+                        exit 0
+                ;;
+        esac
+done
+
+PACKAGE_NAME="elasticsearch"
+
+if [ -z $PACKAGE_VERSION ]
+then
+    echo $PACKAGE_VERSION
+else
+    PACKAGE_VERSION="7.1.1"
+fi
+
+CURDIR="$(pwd)"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
+ES_REPO_URL="https://github.com/elastic/elasticsearch"
+
+LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+NON_ROOT_USER="$(whoami)"
+FORCE="false"
+
+trap cleanup 0 1 2 ERR
+
+#Check if directory exists
+if [ ! -d "$CURDIR/logs/" ]; then
+        mkdir -p "$CURDIR/logs/"
+fi
+
+# Need handling for RHEL 6.10 as it doesn't have os-release file
+if [ -f "/etc/os-release" ]; then
+        source "/etc/os-release"
+else
+        cat /etc/redhat-release |& tee -a "$LOG_FILE"
+        export ID="rhel"
+        export VERSION_ID="6.x"
+        export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
+fi
+
 
 logDetails
 prepare
