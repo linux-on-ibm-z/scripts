@@ -255,37 +255,44 @@ function logDetails() {
 function printHelp() {
         echo
         echo "Usage: "
-        echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests]"
+        echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests] [-v version-of-elasticsearch]"
         echo
 }
 
-while getopts "h?dyvt" opt; do
-        case "$opt" in
-        h | \?)
-                printHelp
-                exit 0
-                ;;
-        d)
-                set -x
-                ;;
-        y)
-                FORCE="true"
-                ;;
-        v)
-                PACKAGE_VERSION=$2
-                echo $PACKAGE_VERSION
-                ;;
-        t)
-                if command -v "$PACKAGE_NAME" >/dev/null; then
-                        TESTS="true"
-                        printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
-                        runTest |& tee -a "$LOG_FILE"
-                        reviewTest |& tee -a "$LOG_FILE"
+while opts $# -gt 0; do
+        case "$1" in
+                -h|--help)
+                        printHelp
                         exit 0
-
-                else
-                        TESTS="true"
-                fi
+                ;;
+                -d|--debug)
+                        set -x
+                shift 2
+                ;;
+                -y|--yes)
+                        FORCE="true"
+                shift 2
+                ;;
+                -v|--version)
+                        PACKAGE_VERSION=$2
+                        echo $PACKAGE_VERSION
+                        echo $REPO_URL
+                shift 2
+                ;;
+                -t|--test)
+                        if command -v "$PACKAGE_NAME" >/dev/null; then
+                                TESTS="true"
+                                printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+                                runTest |& tee -a "$LOG_FILE"
+                                reviewTest |& tee -a "$LOG_FILE"
+                                exit 0
+                        else
+                                TESTS="true"
+                        fi
+                shift 2
+                ;;
+                *)
+                        echo -e "ERROR - Flag given: '$1' is not recognized.\n"
                 ;;
         esac
 done
