@@ -11,12 +11,14 @@ set -e -o pipefail
 PACKAGE_NAME="elasticsearch"
 PACKAGE_VERSION="7.0.1"
 CURDIR="$(pwd)"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
 
-LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+#LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-$(date +"%F-%T").log"
 NON_ROOT_USER="$(whoami)"
 FORCE="false"
+CLIENT="true"
+START="true"
 
 trap cleanup 0 1 2 ERR
 
@@ -75,6 +77,8 @@ function cleanup() {
 }
 
 function configureAndInstall() {
+        REPO_URL="https://raw.githubusercontent.com/james-crowley/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
+        echo $REPO_URL
         printf -- '\nConfiguration and Installation started \n'
 
         #Installing dependencies
@@ -223,23 +227,21 @@ function installClient() {
         printf -- '\nInstalling curator client\n'
         if [[ "${ID}" == "sles" ]]; then
                 sudo zypper install -y python-pip python-devel
-        fi
 
-        if [[ "${ID}" == "ubuntu" ]]; then
+        elif [[ "${ID}" == "ubuntu" ]]; then
                 sudo apt-get update
                 sudo apt-get install -y python-pip
-        fi
 
-        if [[ "${ID}" == "rhel" ]]; then
+        elif [[ "${ID}" == "rhel" ]] || [[ "${ID}" == "centos" ]]; then
                 sudo yum install -y python-setuptools
                 sudo easy_install pip
+        else
+            echo "Distro not found!"
+            exit 0
         fi
 
         sudo -H pip install elasticsearch-curator
         printf -- "\nInstalled Elasticsearch Curator client successfully"
-
-
-
 }
 
 function logDetails() {
@@ -257,33 +259,51 @@ function logDetails() {
 function printHelp() {
         echo
         echo "Usage: "
-        echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests]"
+        echo "  install.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests] [-v version-of-elasticsearch]"
         echo
 }
 
-while getopts "h?dyt" opt; do
-        case "$opt" in
-        h | \?)
-                printHelp
-                exit 0
-                ;;
-        d)
-                set -x
-                ;;
-        y)
-                FORCE="true"
-                ;;
-        t)
-                if command -v "$PACKAGE_NAME" >/dev/null; then
-                        TESTS="true"
-                        printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
-                        runTest |& tee -a "$LOG_FILE"
-                        reviewTest |& tee -a "$LOG_FILE"
+while test $# -gt 0; do
+        case "$1" in
+                -h|--help)
+                        printHelp
                         exit 0
-
-                else
-                        TESTS="true"
-                fi
+                ;;
+                -d|--debug)
+                        set -x
+                shift
+                ;;
+                -y|--yes)
+                        FORCE="true"
+                shift
+                ;;
+                -v|--version)
+                        PACKAGE_VERSION=$2
+                shift 2
+                ;;
+                -t|--test)
+                        if command -v "$PACKAGE_NAME" >/dev/null; then
+                                TESTS="true"
+                                printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+                                runTest |& tee -a "$LOG_FILE"
+                                reviewTest |& tee -a "$LOG_FILE"
+                                exit 0
+                        else
+                                TESTS="true"
+                        fi
+                shift
+                ;;
+                -c|--client)
+                        CLIENT="false"
+                shift
+                ;;
+                -s|--start)
+                        START="false"
+                shift
+                ;;
+                *)
+                        echo -e "ERROR - Flag given: '$1' is not recognized.\n"
+                        exit 0
                 ;;
         esac
 done
@@ -311,17 +331,27 @@ case "$DISTRO" in
         sudo apt-get update
         sudo apt-get install -y tar patch wget unzip curl maven git make automake autoconf libtool patch libx11-dev libxt-dev pkg-config texinfo locales-all ant hostname |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
-        startService |& tee -a "$LOG_FILE"
-        installClient |& tee -a "$LOG_FILE"
+        if [[ "${START}" == "true" ]]; then
+            startService |& tee -a "$LOG_FILE"
+        fi
+
+        if [[ "${CLIENT}" == "true" ]]; then
+            installClient |& tee -a "$LOG_FILE"
+        fi
         ;;
 
-"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "centos-7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y unzip patch curl which git gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch libXt-devel libX11-devel texinfo ant ant-junit.noarch hostname |& tee -a "$LOG_FILE"
+        sudo yum --setopt=obsoletes=0 install -y unzip patch curl which git gcc-c++ make automake autoconf libtool libstdc++-static tar wget patch libXt-devel libX11-devel texinfo ant ant-junit.noarch hostname |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
-        startService |& tee -a "$LOG_FILE"
-        installClient |& tee -a "$LOG_FILE"
+        if [[ "${START}" == "true" ]]; then
+            startService |& tee -a "$LOG_FILE"
+        fi
+
+        if [[ "${CLIENT}" == "true" ]]; then
+            installClient |& tee -a "$LOG_FILE"
+        fi
         ;;
 
 "sles-12.3" | "sles-15")
@@ -329,8 +359,13 @@ case "$DISTRO" in
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper --non-interactive install tar patch wget unzip curl which git gcc-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo ant ant-junit.noarch make net-tools | tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
-        startService |& tee -a "$LOG_FILE"
-        installClient |& tee -a "$LOG_FILE"
+        if [[ "${START}" == "true" ]]; then
+            startService |& tee -a "$LOG_FILE"
+        fi
+
+        if [[ "${CLIENT}" == "true" ]]; then
+            installClient |& tee -a "$LOG_FILE"
+        fi
         ;;
 
 *)
