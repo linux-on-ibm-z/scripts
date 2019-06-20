@@ -272,7 +272,7 @@ while getopts "h?dyvt" opt; do
                 FORCE="true"
                 ;;
         v)
-                PACKAGE_VERSION=$1
+                PACKAGE_VERSION=$2
                 echo $PACKAGE_VERSION
                 ;;
         t)
