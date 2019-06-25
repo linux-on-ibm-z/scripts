@@ -66,6 +66,7 @@ function prepare() {
 }
 
 function cleanup() {
+ :
 }
 
 function configureAndInstall() {
