@@ -251,8 +251,8 @@ case "$DISTRO" in
     sudo yum install -y git tar wget java-1.8.0-openjdk-devel gcc gcc-c++ patch libzip-devel zlib-devel libcurl-devel apr apr-util apr-devel subversion subversion-devel cyrus-sasl-md5 cyrus-sasl-devel python-devel which autoconf automake libtool bzip2 unzip openssl openssl-devel gperftools-devel curl net-tools |& tee -a "$LOG_FILE"
     cd "$CURDIR"
     wget https://www.python.org/ftp/python/3.4.10/Python-3.4.10.tgz
-    cd "$CURDIR"/Python-3.4.10
     tar zxvf Python-3.4.10.tgz
+    cd "$CURDIR"/Python-3.4.10
     ./configure --prefix=/usr/local --exec-prefix=/usr/local
     make
     sudo make install
