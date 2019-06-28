@@ -19,7 +19,6 @@ PROXY_REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/
 HELM_REPO_URL="https://github.com/kubernetes/helm.git"
 ISTIO_REPO_URL="https://github.com/istio/istio.git"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-TEST_USER="$(whoami)"
 FORCE="false"
 GOPATH="$CURDIR"
 HELM_BIN_PATH="/usr/bin/helm"
@@ -65,7 +64,9 @@ function runTest() {
 	set +e
 	cd "${CURDIR}"
 	if [[ "$TESTS" == "true" ]]; then
-		printf -- 'Running test cases \n'
+		printf -- 'Running test cases for istio\n'
+		sudo chmod +x $GOPATH/bin/envoy
+		sudo chmod +x $GOPATH/out/linux_s390x/release/envoy
 		cd $GOPATH/src/istio.io/istio
 		sudo env PATH=$PATH make test
 		printf -- '\n\n COMPLETED TEST EXECUTION !! \n' |& tee -a "$LOG_FILE"
@@ -84,38 +85,37 @@ function cleanup() {
 }
 
 function buildHelm() {
-	if [ $(command -v helm) ]
-	then
-        printf -- "helm detected skipping helm installation \n" |& tee -a "$LOG_FILE"
+	if [ $(command -v helm) ]; then
+		printf -- "helm detected skipping helm installation \n" |& tee -a "$LOG_FILE"
 	else
-	#Setting environment variable needed for building
-	export GOPATH="${CURDIR}"
-	export PATH=$GOPATH/bin:$PATH
+		#Setting environment variable needed for building
+		export GOPATH="${CURDIR}"
+		export PATH=$GOPATH/bin:$PATH
 
-	#Install Glide
-	cd $GOPATH
-	wget https://github.com/Masterminds/glide/releases/download/v0.13.0/glide-v0.13.0-linux-s390x.tar.gz
-	tar -xzf glide-v0.13.0-linux-s390x.tar.gz
-	export PATH=$GOPATH/linux-s390x:$PATH
-  
-	# Download and configure helm
-	printf -- 'Downloading helm. Please wait.\n'
-	mkdir -p $GOPATH/src/k8s.io
-	cd $GOPATH/src/k8s.io
-	git clone -b v$HELM_VERSION $HELM_REPO_URL
-	sleep 2
+		#Install Glide
+		cd $GOPATH
+		wget https://github.com/Masterminds/glide/releases/download/v0.13.0/glide-v0.13.0-linux-s390x.tar.gz
+		tar -xzf glide-v0.13.0-linux-s390x.tar.gz
+		export PATH=$GOPATH/linux-s390x:$PATH
 
-	#Build helm
-	printf -- 'Building helm \n'
-	printf -- 'Build might take some time.Sit back and relax\n'
-	cd $GOPATH/src/k8s.io/helm
-	make bootstrap build
+		# Download and configure helm
+		printf -- 'Downloading helm. Please wait.\n'
+		mkdir -p $GOPATH/src/k8s.io
+		cd $GOPATH/src/k8s.io
+		git clone -b v$HELM_VERSION $HELM_REPO_URL
+		sleep 2
 
-	#Copy binaries to /usr/bin
-	sudo cp $GOPATH/src/k8s.io/helm/bin/* /usr/bin
-	
-	printf -- '\nCopied binaries in /usr/bin\n'
-	printf -- 'helm installed\n' |& tee -a "$LOG_FILE"
+		#Build helm
+		printf -- 'Building helm \n'
+		printf -- 'Build might take some time.Sit back and relax\n'
+		cd $GOPATH/src/k8s.io/helm
+		make bootstrap build
+
+		#Copy binaries to /usr/bin
+		sudo cp $GOPATH/src/k8s.io/helm/bin/* /usr/bin
+
+		printf -- '\nCopied binaries in /usr/bin\n'
+		printf -- 'helm installed\n' |& tee -a "$LOG_FILE"
 	fi
 }
 
@@ -124,54 +124,57 @@ function dependencyInstall() {
 	printf -- 'Building dependencies\n' |& tee -a "$LOG_FILE"
 	cd "${CURDIR}"
 	export PATH=$PATH:$GOPATH/bin
-	
+
 	cd "${CURDIR}"
 	#Build Istio Proxy
 	#make a call to istio proxy script
-	if [ -f "$PROXY_DEBUG_BIN_PATH" ] && [ -f "$PROXY_RELEASE_BIN_PATH" ]
-	then
-        printf -- "Istio Proxy binaries are found at location $PROXY_DEBUG_BIN_PATH and $PROXY_RELEASE_BIN_PATH \n" |& tee -a "$LOG_FILE"
+	if [ -f "$PROXY_DEBUG_BIN_PATH" ] && [ -f "$PROXY_RELEASE_BIN_PATH" ]; then
+		printf -- "Istio Proxy binaries are found at location $PROXY_DEBUG_BIN_PATH and $PROXY_RELEASE_BIN_PATH \n" |& tee -a "$LOG_FILE"
 	else
-        printf -- 'Building Istio Proxy\n' |& tee -a "$LOG_FILE"
+		printf -- 'Building Istio Proxy\n' |& tee -a "$LOG_FILE"
 		curl -o build_istio_proxy.sh $PROXY_REPO_URL |& tee -a "$LOG_FILE"
 		chmod +x build_istio_proxy.sh
-		bash build_istio_proxy.sh -y
+		if [[ "$TESTS" == "true" ]]; then
+			printf -- 'Test case flag is enabled \n'
+			bash build_istio_proxy.sh -yt
+		else
+			bash build_istio_proxy.sh -y
+		fi
+
 		#set a path to binaries
 		printf -- 'Istio Proxy installed successfully\n' |& tee -a "$LOG_FILE"
 	fi
-	
+
 	if [ "${ID}" == "rhel" ] || [ ${ID} == "sles" ]; then
-        #Install Go
-	
-			printf -- 'Installing go\n'
-			cd "${CURDIR}"
-			wget https://storage.googleapis.com/golang/go1.10.5.linux-s390x.tar.gz
-			tar -xzf go1.10.5.linux-s390x.tar.gz
-			export PATH=${CURDIR}/go/bin:$PATH
-			export GOROOT=${CURDIR}/go
-			go version
-			printf -- 'go installed\n'
-	
+		#Install Go
+
+		printf -- 'Installing go\n'
+		cd "${CURDIR}"
+		wget "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-s390x.tar.gz"
+		tar -xzf "go${GO_VERSION}.linux-s390x.tar.gz"
+		export PATH=${CURDIR}/go/bin:$PATH
+		export GOROOT=${CURDIR}/go
+		go version
+		printf -- 'go installed\n'
+
 	fi
 
 }
-
 
 function configureAndInstall() {
 	printf -- '\nConfiguration and Installation started \n'
 	#Installing dependencies
 	printf -- 'User responded with Yes. \n'
 
-	cd "${CURDIR}" 
+	cd "${CURDIR}"
 
 	# Download and configure Istio
 	printf -- '\nDownloading Istio. Please wait.\n'
-	mkdir -p $GOPATH/src/istio.io && cd $GOPATH/src/istio.io  
+	mkdir -p $GOPATH/src/istio.io && cd $GOPATH/src/istio.io
 	git clone $ISTIO_REPO_URL
 	cd istio
 	git checkout $PACKAGE_VERSION
 
-	#Patch to be applied here (6 patches)
 	#Patch for setting Path for release and debug envoy binaries
 	cd "${CURDIR}"
 	curl -o init.sh.diff $REPO_URL/init.sh.diff
@@ -214,7 +217,6 @@ function printHelp() {
 	echo
 }
 
-
 while getopts "h?dyt" opt; do
 	case "$opt" in
 	h | \?)
@@ -245,10 +247,10 @@ prepare |& tee -a "$LOG_FILE"
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" |  "ubuntu-18.04" )
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update  
+	sudo apt-get update
 	sudo apt-get install -y golang-1.10 pkg-config zip tar zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl libcurl3-dev bzip2 mercurial patch
 	export PATH=/usr/lib/go-1.10/bin:$PATH
 	dependencyInstall
@@ -256,11 +258,10 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-
 "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y wget tar make zip unzip git vim  binutils-devel bzip2 which automake autoconf libtool zlib pkgconfig zlib-devel curl bison libcurl-devel mercurial
+	sudo yum install -y wget tar make zip unzip git vim binutils-devel bzip2 which automake autoconf libtool zlib pkgconfig zlib-devel curl bison libcurl-devel mercurial
 	dependencyInstall
 	buildHelm
 	configureAndInstall |& tee -a "$LOG_FILE"
