@@ -68,6 +68,33 @@ function configureAndInstall()
 {
   printf -- 'Configuration and Installation started \n'
   
+  if [[ "$ID" == "rhel" ]] && [[ "$VERSION_ID" == "8.0" ]]; then
+         # Install readline and gdbm from source
+         printf -- "Installing gdbm... \n"
+	         cd ${CURDIR}
+                 wget https://ftp.gnu.org/gnu/readline/readline-8.0.tar.gz
+                 tar xvzf readline-8.0.tar.gz
+                 cd $CURDIR/readline-8.0
+                 ./configure
+                 make
+                 sudo make install
+
+                 cd $CURDIR
+                 wget ftp://ftp.gnu.org/gnu/gdbm/gdbm-1.18.1.tar.gz
+                 tar xvzf gdbm-1.18.1.tar.gz
+                 cd $CURDIR/gdbm-1.18.1
+                 sudo cp /usr/local/lib/libreadline.so.8.0 /usr/local/lib/libreadline.so.8  /lib64/
+                 sudo ./configure --prefix=/usr    \
+                                        --disable-static \
+                                        --enable-libgdbm-compat
+                 sudo make
+                 sudo make check
+                 sudo make install
+
+     printf -- "install readline and gdbm success\n" >> "$LOG_FILE"
+        fi
+
+  
   #Download the source code
   printf -- 'Downloading ruby \n'
   cd "${CURDIR}"
@@ -174,10 +201,16 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
+"rhel-8.0")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
+        sudo yum install -y openssl-devel libyaml libffi-devel zlib-devel ncurses-devel tcl tk sqlite-devel gcc make wget tar gcc-c++ diffutils  |& tee -a "${LOG_FILE}"
+        configureAndInstall |& tee -a "${LOG_FILE}"
+  ;;
+
 "sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
-
 	sudo zypper install -y bison flex libopenssl-devel libyaml-devel libffi48-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite3-devel gcc make wget tar |& tee -a "${LOG_FILE}" 
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
