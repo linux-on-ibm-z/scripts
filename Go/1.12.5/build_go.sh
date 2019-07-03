@@ -175,7 +175,7 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"rhel-7.3" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-6.x")
+"rhel-7.3" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-6.x" | "rhel-8.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y  tar wget gcc  |& tee -a "${LOG_FILE}"
