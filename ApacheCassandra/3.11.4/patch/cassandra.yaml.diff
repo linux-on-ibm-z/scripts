@@ -1,0 +1,7 @@
+--- test/conf/cassandra.yaml.orig       2019-05-17 06:30:08.574417439 +0000
++++ test/conf/cassandra.yaml    2019-05-17 06:29:26.784417439 +0000
+@@ -45,3 +45,4 @@
+ enable_user_defined_functions: true
+ enable_scripted_user_defined_functions: true
+ prepared_statements_cache_size_mb: 1
++key_cache_size_in_mb: 12
