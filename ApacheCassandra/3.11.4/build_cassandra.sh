@@ -115,22 +115,22 @@ function configureAndInstall() {
     cd "$CURDIR"
 
     # Patch build.xml file
-	curl -o "build.xml.diff"  $CONF_URL/build.xml.diff
-	# replace config file
-	patch "${CURDIR}/cassandra/build.xml" build.xml.diff
-	printf -- 'Patched build.xml \n'  >> "$LOG_FILE"
+    curl -o "build.xml.diff"  $CONF_URL/build.xml.diff 
+    # replace config file
+    patch "${CURDIR}/cassandra/build.xml" build.xml.diff
+    printf -- 'Patched build.xml \n'  >> "$LOG_FILE"
     
     # Patch jvm.options file
-	curl -o "jvm.options.diff"  $CONF_URL/jvm.options.diff
-	# replace config file
-	patch "${CURDIR}/cassandra/conf/jvm.options" jvm.options.diff
-	printf -- 'Patched jvm.options \n'  >> "$LOG_FILE" 
+    curl -o "jvm.options.diff"  $CONF_URL/jvm.options.diff
+    # replace config file
+    patch "${CURDIR}/cassandra/conf/jvm.options" jvm.options.diff 
+    printf -- 'Patched jvm.options \n'  >> "$LOG_FILE" 
    
     # Patch cassandra.yaml file
-	curl -o "cassandra.yaml.diff"  $CONF_URL/cassandra.yaml.diff
-	# replace config file
-	patch "${CURDIR}/cassandra/test/conf/cassandra.yaml" cassandra.yaml.diff
-	printf -- 'Patched cassandra.yaml \n'   >> "$LOG_FILE"
+    curl -o "cassandra.yaml.diff"  $CONF_URL/cassandra.yaml.diff
+    # replace config file
+    patch "${CURDIR}/cassandra/test/conf/cassandra.yaml" cassandra.yaml.diff
+    printf -- 'Patched cassandra.yaml \n'   >> "$LOG_FILE"
     
 
     # Build Apache Cassandra
@@ -248,7 +248,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-    "ubuntu-16.04" | "ubuntu-18.04")
+    "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
