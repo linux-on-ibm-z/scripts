@@ -1,0 +1,11 @@
+--- Makefile.oldfile	2019-07-08 06:20:47.020845262 +0000
++++ Makefile.newfile	2019-07-08 06:24:50.700845262 +0000
+@@ -45,7 +45,7 @@
+ 	@bazel clean
+ 
+ test:
+-	PATH=$(PATH) CC=$(CC) CXX=$(CXX) bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) $(BAZEL_TARGETS)
++	PATH=$(PATH) CC=$(CC) CXX=$(CXX) bazel $(BAZEL_STARTUP_ARGS) test --copt "-DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1" $(BAZEL_TEST_ARGS) $(BAZEL_TARGETS) --test_env=ENVOY_IP_TEST_VERSIONS=v4only --host_javabase=@local_jdk//:jdk
+ 
+ test_asan:
+ 	PATH=$(PATH) CC=$(CC) CXX=$(CXX) bazel $(BAZEL_STARTUP_ARGS) test $(BAZEL_TEST_ARGS) --config=clang-asan -- $(BAZEL_TARGETS) $(SANITIZER_EXCLUSIONS)
