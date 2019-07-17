@@ -63,8 +63,8 @@ function checkPrequisites() {
 }
 
 function cleanup() {
-
-	if [[ ("$ID" == "rhel" || "$ID" == "sles") && -f php-$PHP_VERSION.tar.gz ]]; then
+	DISTRO="$ID-$VERSION_ID"
+	if [[ ("$DISTRO" == "rhel-7."* || "$ID" == "sles") && -f php-$PHP_VERSION.tar.gz ]]; then
 		sudo rm php-$PHP_VERSION.tar.gz
 	else
 		printf -- 'No artifacts to be cleaned.\n'
@@ -75,7 +75,12 @@ function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 
 	# Installing PHP for rhel & sles
-	if [[ "$ID" == "rhel" || "$ID" == "sles" ]]; then
+	DISTRO="$ID-$VERSION_ID"
+	if [[ "$DISTRO" == "rhel-7."* || "$ID" == "sles" ]]; then
+		#Install Apache Http server
+		wget "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheHttpServer/2.4.39/build_apachehttpserver.sh"
+		chmod +x build_apachehttpserver.sh
+		bash build_apachehttpserver.sh >>"$LOG_FILE"
 
 		#Install Open SSL
 		cd /"$CURDIR"/
@@ -187,6 +192,13 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for apigility from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y curl openssl openssl-devel git wget gcc tar libtool autoconf make pcre pcre-devel libxml2 libxml2-devel libexpat-devel hostname |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+	
+"rhel-8.0")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for apigility from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y curl openssl openssl-devel git wget gcc tar libtool autoconf make pcre pcre-devel libxml2 libxml2-devel php.s390x php-devel.s390x php-json.s390x expat.s390x php-mbstring.s390x php-xml.s390x hostname httpd-devel.s390x httpd.s390x |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
