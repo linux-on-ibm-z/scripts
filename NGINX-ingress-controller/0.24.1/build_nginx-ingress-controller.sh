@@ -66,7 +66,9 @@ function prepare() {
 }
 
 function cleanup() {
- :
+    # Remove artifacts
+    rm "$GOPATH/src/k8s.io/ingress-nginx/nginx_ingress_code_patch.diff"
+    printf -- "Cleaned up the artifacts\n" >>"$LOG_FILE"
 }
 
 function configureAndInstall() {
