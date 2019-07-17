@@ -156,7 +156,7 @@ case "$DISTRO" in
     sudo apt-get install -y wget tar gcc make libpcre3-dev openssl libssl-dev zlib1g zlib1g-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-8.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y pcre-devel wget tar xz gcc make zlib-devel |& tee -a "$LOG_FILE"
@@ -165,7 +165,7 @@ case "$DISTRO" in
 "sles-12.4" | "sles-15")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y pcre-devel wget tar xz gcc make zlib-devel |& tee -a "$LOG_FILE"
+    sudo zypper install -y pcre-devel wget tar xz gcc make zlib-devel diffutils |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
