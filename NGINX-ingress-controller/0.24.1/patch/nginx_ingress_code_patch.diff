@@ -173,3 +173,16 @@ index 28aefc6..cdd84ce 100755
  cd "$BUILD_PATH"
  luarocks install lrexlib-pcre 2.7.2-1 PCRE_LIBDIR=${PCRE_DIR}
  
+diff --git a/rootfs/Dockerfile b/rootfs/Dockerfile
+index d6d522f..74c2542 100644
+--- a/rootfs/Dockerfile
++++ b/rootfs/Dockerfile
+@@ -22,7 +22,7 @@ RUN clean-install \
+   diffutils \
+   libcap2-bin
+ 
+-COPY --chown=www-data:www-data . /
++COPY  . /
+ 
+ # Fix permission during the build to avoid issues at runtime
+ # with volumes (custom templates)
