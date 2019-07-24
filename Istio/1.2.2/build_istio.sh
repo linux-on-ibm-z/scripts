@@ -251,7 +251,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y pkg-config zip tar zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl libcurl3-dev bzip2 mercurial patch
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y pkg-config zip tar zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl libcurl3-dev bzip2 mercurial patch
 	dependencyInstall
 	buildHelm
 	configureAndInstall |& tee -a "$LOG_FILE"

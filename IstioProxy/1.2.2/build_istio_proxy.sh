@@ -419,7 +419,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y git pkg-config zip zlib1g-dev unzip python libtool automake cmake curl wget build-essential rsync clang gcc-7 g++-7 libgtk2.0-0 ninja-build clang-format-5.0
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git pkg-config zip zlib1g-dev unzip python libtool automake cmake curl wget build-essential rsync clang gcc-7 g++-7 libgtk2.0-0 ninja-build clang-format-5.0
 	sudo rm -rf /usr/bin/gcc /usr/bin/g++ /usr/bin/cc
 	sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
 	sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
