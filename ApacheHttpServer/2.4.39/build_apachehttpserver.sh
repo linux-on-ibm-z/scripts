@@ -68,7 +68,9 @@ function cleanup() {
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
-
+	 if [[ "$ID" == "rhel" ]] && [[ "$VERSION_ID" == "8.0" ]]; then
+         sudo alternatives --set python /usr/bin/python2
+         fi
 	#Download the source code
 	printf -- 'Downloading apachehttpserver and supporting packages \n'
 	cd "$CURDIR"
@@ -116,7 +118,7 @@ function printHelp() {
 	echo
 }
 
-while getopts "h?d" opt; do
+while getopts "h?dy" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -125,6 +127,9 @@ while getopts "h?d" opt; do
 	d)
 		set -x
 		;;
+	y)
+		FORCE="true"
+		;;	
 	esac
 done
 
@@ -150,12 +155,19 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-6.x" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y git openssl openssl-devel python gcc libtool autoconf make pcre pcre-devel libxml2 libxml2-devel expat-devel which wget tar |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
+
+"rhel-8.0")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
+        sudo yum install -y git openssl openssl-devel python2 gcc libtool autoconf make pcre pcre-devel libxml2 libxml2-devel expat-devel which wget tar procps |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
+        ;;
 
 "sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
