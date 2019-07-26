@@ -11,6 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="heketi"
 PACKAGE_VERSION="9.0.0"
 GLIDE_VERSION="v0.13.1"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Heketi/${PACKAGE_VERSION}/patch"
 
 CURDIR="$(pwd)"
 GO_DEFAULT="$HOME/go"
@@ -119,7 +120,9 @@ function configureAndInstall() {
     mkdir -p $GOPATH/src/github.com/heketi
     cd $GOPATH/src/github.com/heketi
 	git clone -b v"${PACKAGE_VERSION}" https://github.com/heketi/heketi.git
-    cd "$GOPATH/src/github.com/heketi/heketi"    
+    cd "$GOPATH/src/github.com/heketi/heketi"
+    curl -o glide.lock.diff $PATCH_URL/glide.lock.diff 2>&1 | tee -a "$LOG_FILE"
+    patch --ignore-whitespace glide.lock < glide.lock.diff
     make
 
     printf -- "Build and install heketi success\n" >> "$LOG_FILE"
@@ -230,19 +233,19 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install -y git make mercurial tar wget |& tee -a "$LOG_FILE"
+        sudo apt-get install -y git make mercurial tar wget patch |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+    "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y git make mercurial tar wget |& tee -a "$LOG_FILE"
+        sudo yum install -y git make mercurial tar wget patch-s390x |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     "sles-12.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y gcc git gzip make python python-devel python-setuptools tar wget |& tee -a "$LOG_FILE"
+        sudo zypper install -y gcc git gzip make python python-devel python-setuptools tar wget patch |& tee -a "$LOG_FILE"
         sudo easy_install pip |& tee -a "$LOG_FILE"
         sudo pip install mercurial |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
@@ -250,7 +253,7 @@ case "$DISTRO" in
     "sles-15")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y git gzip make mercurial python tar wget |& tee -a "$LOG_FILE"
+        sudo zypper install -y git gzip make mercurial python tar wget patch |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     *)
