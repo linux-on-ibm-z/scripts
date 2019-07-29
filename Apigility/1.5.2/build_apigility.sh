@@ -103,7 +103,7 @@ function configureAndInstall() {
 	fi
 
 	if [[ "$ID" == "ubuntu" ]]; then
-		sudo apt-get install php php-mbstring php-xml
+		sudo apt-get install -y php php-mbstring php-xml
 	fi
 
 	#Get the source for Apigility
@@ -140,11 +140,11 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  build_apigility.sh [-d debug]"
+	echo " build_apigility.sh  [-d debug] [-y install-without-confirmation]"
 	echo
 }
 
-while getopts "h?d" opt; do
+while getopts "h?yd" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -153,6 +153,9 @@ while getopts "h?d" opt; do
 	d)
 		set -x
 		;;
+	y)
+        	FORCE="true"
+        	;;
 	esac
 done
 
@@ -176,8 +179,8 @@ case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for apigility from repository \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update >/dev/null
-	sudo apt-get install git apache2 curl openssl make wget tar gcc libssl-dev libxml2 libxml2-dev libxml-parser-perl pkg-config |& tee -a "$LOG_FILE"
+	sudo apt-get update -y >/dev/null
+	sudo apt-get install -y git apache2 curl openssl make wget tar gcc libssl-dev libxml2 libxml2-dev libxml-parser-perl pkg-config |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
