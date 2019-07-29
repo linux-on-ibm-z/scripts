@@ -104,11 +104,11 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  build_htop.sh [-d debug]"
+	echo "  build_htop.sh [-d debug]  [-y install-without-confirmation] "
 	echo
 }
 
-while getopts "h?d" opt; do
+while getopts "h?yd" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -116,6 +116,9 @@ while getopts "h?d" opt; do
 		;;
 	d)
 		set -x
+		;;
+	y)
+		FORCE="true"
 		;;
 	esac
 done
@@ -140,7 +143,7 @@ case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-    sudo apt-get update >/dev/null
+    sudo apt-get update -y >/dev/null
 	sudo apt-get -y install gcc make wget tar libncursesw5 libcunit1-ncurses libncursesw5-dev python |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
@@ -149,6 +152,14 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y ncurses ncurses-devel gcc make wget tar python |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+	
+"rhel-8.0")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y ncurses ncurses-devel gcc make wget tar python2 |& tee -a "$LOG_FILE"
+	sudo ln -s /usr/bin/python2 /usr/bin/python |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
