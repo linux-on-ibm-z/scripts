@@ -13,6 +13,7 @@ PACKAGE_NAME="rabbitmq"
 PACKAGE_VERSION="3.7.15"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
+FORCE="false"
 CURDIR="$PWD"
 
 trap cleanup 1 2 ERR
@@ -32,7 +33,7 @@ else
 	export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
 fi
 
-function checkPrequisites() {
+function prepare() {
 	if command -v "sudo" >/dev/null; then
 		printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
 	else
@@ -41,6 +42,23 @@ function checkPrequisites() {
 		exit 1
 	fi
 
+	if [[ "$FORCE" == "true" ]]; then
+		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
+	else
+		# Ask user for prerequisite installation
+		printf -- "\nAs part of the installation , some dependencies will be installed, \n"
+		while true; do
+			read -r -p "Do you want to continue (y/n) ? :  " yn
+			case $yn in
+			[Yy]*)
+				printf -- 'User responded with Yes. \n' >> "$LOG_FILE"
+				break
+				;;
+			[Nn]*) exit ;;
+			*) echo "Please provide confirmation to proceed." ;;
+			esac
+		done
+	fi
 }
 
 function cleanup() {
@@ -146,12 +164,12 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  build_rabbitmq.sh [-d debug] [-v package version] [-o override] [-p check-prequisite]"
+	echo "  build_rabbitmq.sh [-d debug] [-y install-without-confirmation] [-v package version] [-o override]"
 	echo "       default: If no -v specified, latest version will be installed"
 	echo
 }
 
-while getopts "h?dopv:" opt; do
+while getopts "h?doyv:" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -160,15 +178,14 @@ while getopts "h?dopv:" opt; do
 	d)
 		set -x
 		;;
+	y)
+		FORCE="true"
+		;;		
 	v)
 		PACKAGE_VERSION="$OPTARG"
 		;;
 	o)
 		OVERRIDE=true
-		;;
-	p)
-		checkPrequisites
-		exit 0
 		;;
 	esac
 done
@@ -187,7 +204,7 @@ function gettingStarted() {
 ###############################################################################################################
 
 logDetails
-checkPrequisites #Check Prequisites
+prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
