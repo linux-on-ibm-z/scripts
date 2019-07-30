@@ -189,11 +189,11 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  build_zabbixserver.sh [-d debug]"
+	echo "  build_zabbixserver.sh [-d debug] [-y install-without-confirmation]"
 	echo
 }
 
-while getopts "h?d" opt; do
+while getopts "h?dy" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -202,6 +202,9 @@ while getopts "h?d" opt; do
 	d)
 		set -x
 		;;
+	y)
+		FORCE="true"
+		;;			
 	esac
 done
 
