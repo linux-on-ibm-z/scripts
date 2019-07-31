@@ -80,7 +80,7 @@ function configureAndInstall() {
 		#Install Apache Http server
 		wget "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheHttpServer/2.4.39/build_apachehttpserver.sh"
 		chmod +x build_apachehttpserver.sh
-		bash build_apachehttpserver.sh >>"$LOG_FILE"
+		bash build_apachehttpserver.sh -y >>"$LOG_FILE"
 
 		#Install Open SSL
 		cd /"$CURDIR"/
@@ -176,7 +176,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04")
+"ubuntu-16.04" | "ubuntu-18.04"  | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for apigility from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update -y >/dev/null
