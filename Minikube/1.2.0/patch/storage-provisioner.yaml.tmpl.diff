@@ -1,0 +1,13 @@
+diff --git a/deploy/addons/storage-provisioner/storage-provisioner.yaml.tmpl b/deploy/addons/storage-provisioner/storage-provisioner.yaml.tmpl
+index d87939b52..6eccedae5 100644
+--- a/deploy/addons/storage-provisioner/storage-provisioner.yaml.tmpl
++++ b/deploy/addons/storage-provisioner/storage-provisioner.yaml.tmpl
+@@ -51,7 +51,7 @@ spec:
+   hostNetwork: true
+   containers:
+   - name: storage-provisioner
+-    image: {{default "gcr.io/k8s-minikube" .ImageRepository}}/storage-provisioner{{.ExoticArch}}:v1.8.1
++    image: {{default "gcr.io/k8s-minikube" .ImageRepository}}/storage-provisioner-{{.ExoticArch}}:v1.8.1
+     command: ["/storage-provisioner"]
+     imagePullPolicy: IfNotPresent
+     volumeMounts:
