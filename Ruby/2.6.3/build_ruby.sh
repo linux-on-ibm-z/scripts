@@ -43,6 +43,24 @@ function checkPrequisites()
     printf -- 'You can install the same from installing sudo from repository using apt, yum or zypper based on your distro. \n';
     exit 1;
   fi;
+  
+  if [[ "$FORCE" == "true" ]]; then
+		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
+	else
+		# Ask user for prerequisite installation
+		printf -- "\nAs part of the installation , dependencies would be installed/upgraded.\n"
+		while true; do
+			read -r -p "Do you want to continue (y/n) ? :  " yn
+			case $yn in
+			[Yy]*)
+				printf -- 'User responded with Yes. \n' >>"$LOG_FILE"
+				break
+				;;
+			[Nn]*) exit ;;
+			*) echo "Please provide confirmation to proceed." ;;
+			esac
+		done
+	fi
 }
 
 function cleanup()
@@ -148,13 +166,16 @@ function printHelp() {
   echo
 }
 
-while getopts "dth?" opt; do
+while getopts "dthy?" opt; do
   case "$opt" in
   d)
     set -x
     ;;
   t)
     TESTS="true"
+    ;;
+  y)
+    FORCE="true"
     ;;
   h | \?)
     printHelp
