@@ -71,8 +71,6 @@ function configureAndInstall() {
 	# Create postgres user, group and home directory
 	sudo groupadd -r postgres || echo "group already exist"
 	sudo useradd -r -m -g postgres postgres || echo "user already exist"	
-  sudo passwd postgres
-
 	sudo -i -u postgres /bin/bash - <<'EOF'
 	  			#Change directory to postgres source code
 	 			cd /home/postgres/
@@ -116,7 +114,7 @@ function printHelp() {
 	echo
 }
 
-while getopts "h?d" opt; do
+while getopts "h?dy" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -125,6 +123,9 @@ while getopts "h?d" opt; do
 	d)
 		set -x
 		;;
+	y)
+		FORCE="true"
+		;;	
 	esac
 done
 
@@ -145,7 +146,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
@@ -153,10 +154,17 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-6.x" | "rhel-7.5" | "rhel-7.6" | "rhel-8.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
+
+	if [[ "$ID" == "rhel" && "$VERSION_ID" == "8.0" ]]; then	
+	sudo yum update -y |& tee -a "$LOG_FILE"
+	sudo yum install -y git wget gcc gcc-c++ make readline-devel zlib-devel bison flex  glibc-langpack-en procps-ng |& tee -a "$LOG_FILE"
+	else
 	sudo yum install -y git wget build-essential gcc gcc-c++ make readline-devel zlib-devel bison flex |& tee -a "$LOG_FILE"
+	fi
+
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
