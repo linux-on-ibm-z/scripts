@@ -143,6 +143,10 @@ function configureAndInstall() {
 		mkdir -p "$confdir"/opt/puppetlabs/puppet
 		mkdir -p "$confdir"/var/log/puppetlabs
 
+		# Create "puppet" user and group
+		sudo useradd -d /home/puppet -m -s /bin/bash puppet
+		sudo /usr/local/bin/puppet resource group puppet ensure=present
+
 	elif [ "$USEAS" = "agent" ]; then
 		#Locate the $confdir by command
 		confdir=$(puppet agent --configprint confdir)
@@ -184,7 +188,7 @@ function printHelp() {
 	echo
 }
 
-while getopts "h?d?s:" opt; do
+while getopts "h?dy?s:" opt; do
 	case "$opt" in
 	h | \?)
 		printHelp
@@ -193,6 +197,9 @@ while getopts "h?d?s:" opt; do
 	d)
 		set -x
 		;;
+	y)
+		FORCE="true"
+		;;	
 	s)
 		export USEAS=$OPTARG
 		;;
@@ -203,7 +210,9 @@ function gettingStarted() {
 
 	printf -- "\n\nUsage: \n"
 	printf -- "  puppet installed successfully \n"
-	printf -- "     For master installation, please follow from step 2.7 in build instructions\n"
+	printf -- "     For master installation, Set a user specified password for puppet user.\n"
+	printf -- "      	-Running \"sudo passwd puppet\" will prompt for new password.\n"
+	printf -- "     	-And please follow from step 2.8 in build instructions.\n"
 	printf -- "     For agent installation, please follow from step 3.7 in build instructions\n"
 	printf -- "  More information can be found here : https://puppetlabs.com/\n"
 	printf -- "  More information about test cases can be found here : https://tickets.puppetlabs.com/browse/PUP-8708 \n"
@@ -233,11 +242,20 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-6.x" | "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-8.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for puppet from repository \n' |& tee -a "$LOG_FILE"
+
+	if [[ "$ID" == "rhel" && "$VERSION_ID" == "8.0" ]]; then	
+	sudo yum update -y |& tee -a "$LOG_FILE"
+	sudo yum install -y gcc-c++ readline-devel tar openssl unzip libyaml PackageKit-cron openssl-devel make git wget sqlite-devel glibc-common hostname procps-ng diffutils glibc-langpack-en |& tee -a "$LOG_FILE"
+
+	else
+	
 	sudo yum install -y gcc-c++ readline-devel tar openssl unzip libyaml-devel PackageKit-cron openssl-devel make git wget sqlite-devel glibc-common hostname |& tee -a "$LOG_FILE"
+	fi
 	configureAndInstall |& tee -a "$LOG_FILE"
+	
 	;;
 
 "sles-12.4" | "sles-15")
