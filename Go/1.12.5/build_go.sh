@@ -14,7 +14,7 @@ PACKAGE_NAME="go"
 PACKAGE_VERSION="1.12.5"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
-
+FORCE="false"
 trap cleanup 1 2 ERR
 
 #Check if directory exsists
@@ -125,12 +125,12 @@ function logDetails()
 function printHelp() {
   echo 
   echo "Usage: "
-  echo "  install.sh [-d debug] [-v package-version] [-o override] [-p check-prequisite]"
+  echo "  install.sh [-d debug] [-v package-version] [-o override] [-p check-prequisite] [-y install-without-confirmation]"
   echo "       default: If no -v specified, latest version will be installed"
   echo
 }
 
-while getopts "h?dopv:" opt; do
+while getopts "h?dopvy" opt; do
   case "$opt" in
   h | \?)
     printHelp
@@ -144,6 +144,9 @@ while getopts "h?dopv:" opt; do
     ;;
   o)
     OVERRIDE=true
+    ;;
+  y)
+    FORCE="true"
     ;;
   p) 
     checkPrequisites
