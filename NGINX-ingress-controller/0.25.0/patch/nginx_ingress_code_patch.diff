@@ -1,0 +1,137 @@
+diff --git a/Makefile b/Makefile
+index 05b8b1214..56c232f2a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -48,7 +48,7 @@ DUMB_ARCH = ${ARCH}
+ 
+ GOBUILD_FLAGS := -v
+ 
+-ALL_ARCH = amd64 arm arm64
++ALL_ARCH = amd64 arm arm64 s390x
+ 
+ QEMUVERSION = v4.0.0
+ 
+@@ -85,6 +85,9 @@ endif
+ ifeq ($(ARCH),arm64)
+ 	QEMUARCH=aarch64
+ endif
++ifeq ($(ARCH),s390x)
++	QEMUARCH=s390x
++endif
+ 
+ TEMP_DIR := $(shell mktemp -d)
+ 
+@@ -127,7 +130,7 @@ else
+ 	$(SED_I) "s/CROSS_BUILD_//g" $(DOCKERFILE)
+ endif
+ 
+-	@$(DOCKER) build --no-cache --pull -t $(MULTI_ARCH_IMG):$(TAG) $(TEMP_DIR)/rootfs
++	@$(DOCKER) build --no-cache -t $(MULTI_ARCH_IMG):$(TAG) $(TEMP_DIR)/rootfs
+ 
+ ifeq ($(ARCH), amd64)
+ 	# This is for maintaining backward compatibility
+diff --git a/deploy/static/mandatory.yaml b/deploy/static/mandatory.yaml
+index d93223157..32a38afd0 100644
+--- a/deploy/static/mandatory.yaml
++++ b/deploy/static/mandatory.yaml
+@@ -211,7 +211,7 @@ spec:
+       serviceAccountName: nginx-ingress-serviceaccount
+       containers:
+         - name: nginx-ingress-controller
+-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.25.0
++          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller-s390x:0.25.0
+           args:
+             - /nginx-ingress-controller
+             - --configmap=$(POD_NAMESPACE)/nginx-configuration
+diff --git a/deploy/static/with-rbac.yaml b/deploy/static/with-rbac.yaml
+index 3da4505e3..4ffe59236 100644
+--- a/deploy/static/with-rbac.yaml
++++ b/deploy/static/with-rbac.yaml
+@@ -24,7 +24,7 @@ spec:
+       serviceAccountName: nginx-ingress-serviceaccount
+       containers:
+         - name: nginx-ingress-controller
+-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.25.0
++          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller-s390x:0.25.0
+           args:
+             - /nginx-ingress-controller
+             - --configmap=$(POD_NAMESPACE)/nginx-configuration
+diff --git a/images/nginx/Makefile b/images/nginx/Makefile
+index 500f0d782..24c1595e8 100644
+--- a/images/nginx/Makefile
++++ b/images/nginx/Makefile
+@@ -18,7 +18,7 @@ REGISTRY ?= quay.io/kubernetes-ingress-controller
+ ARCH ?= $(shell go env GOARCH)
+ DOCKER ?= docker
+ 
+-ALL_ARCH = amd64 arm arm64
++ALL_ARCH = amd64 arm arm64 s390x
+ SED_I?=sed -i
+ GOHOSTOS ?= $(shell go env GOHOSTOS)
+ 
+@@ -41,6 +41,9 @@ endif
+ ifeq ($(ARCH),arm64)
+ 	QEMUARCH=aarch64
+ endif
++ifeq ($(ARCH),s390x)
++	QEMUARCH=s390x
++endif
+ 
+ TEMP_DIR := $(shell mktemp -d)
+ 
+diff --git a/images/nginx/rootfs/build.sh b/images/nginx/rootfs/build.sh
+index cbda0c18f..5dcc30958 100755
+--- a/images/nginx/rootfs/build.sh
++++ b/images/nginx/rootfs/build.sh
+@@ -102,6 +102,13 @@ if [[ ${ARCH} == "armv7l" ]]; then
+   touch /etc/ssl/certs/ca-certificates.crt
+   c_rehash
+ fi
++if [[ ${ARCH} == "s390x" ]]; then
++  ln -s /usr/lib/s390x-linux-gnu/liblua5.1.so /usr/lib/liblua.so
++  ln -s /usr/lib/s390x-linux-gnu /usr/lib/lua-platform-path
++  # avoid error:
++  # git: ../nptl/pthread_mutex_lock.c:81: __pthread_mutex_lock: Assertion `mutex->__data.__owner == 0' failed.
++  git config --global pack.threads "1"
++fi
+ 
+ mkdir -p /etc/nginx
+ 
+@@ -173,6 +180,13 @@ get_src c573435f495aac159e34eaa0a3847172a2298eb6295fcdc35d565f9f9b990513 \
+ get_src 82209d5a5d9545c6dde3db7857f84345db22162fdea9743d5e2b2094d8d407f8 \
+         "https://github.com/openresty/lua-resty-balancer/archive/v${LUA_RESTY_BALANCER_VERSION}.tar.gz"
+ 
++# temp patch for luajit to add s390x support
++if [[ ${ARCH} == "s390x" ]]; then
++  cd "$BUILD_PATH/openresty-$OPENRESTY_VERSION/bundle/LuaJIT-2.1-20190507"
++  wget https://github.com/openresty/luajit2/compare/v2.1-agentzh...linux-on-ibm-z:v2.1-agentzh_s390x.diff -O s390x.patch
++  git apply s390x.patch
++fi
++
+ # improve compilation times
+ CORES=$(($(grep -c ^processor /proc/cpuinfo) - 0))
+ 
+@@ -194,6 +208,10 @@ if [[ ${ARCH} == "aarch64" ]]; then
+   export PCRE_DIR=/usr/lib/aarch64-linux-gnu
+ fi
+ 
++if [[ ${ARCH} == "s390x" ]]; then
++  export PCRE_DIR=/usr/lib/s390x-linux-gnu
++fi
++
+ cd "$BUILD_PATH"
+ 
+ export PATH=$PATH:/usr/local/openresty/luajit
+diff --git a/rootfs/etc/nginx/template/nginx.tmpl b/rootfs/etc/nginx/template/nginx.tmpl
+index 14478afd3..01f764b8e 100755
+--- a/rootfs/etc/nginx/template/nginx.tmpl
++++ b/rootfs/etc/nginx/template/nginx.tmpl
+@@ -881,7 +881,7 @@ stream {
+ 
+         {{ $externalAuth := $location.ExternalAuth }}
+         {{ if eq $applyGlobalAuth true }}
+-        {{ $externalAuth = $all.Cfg.GlobalExternalAuth }}
++        {{ $externalAuth := $all.Cfg.GlobalExternalAuth }}
+         {{ end }}
+ 
+         {{ if not (empty $location.Rewrite.AppRoot)}}
