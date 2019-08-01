@@ -117,6 +117,10 @@ function buildGCC() {
 	wget https://ftpmirror.gnu.org/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz
 	tar -xf gcc-7.3.0.tar.xz
 	cd gcc-7.3.0/
+	if [ "${VERSION_ID}" == "8.0" ]; then
+	 curl -o gcc_rhel8_patch.diff $REPO_URL/gcc_rhel8_patch.diff
+	 patch "${CURDIR}/gcc-7.3.0/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc" gcc_rhel8_patch.diff
+	fi
 	./contrib/download_prerequisites
 	mkdir gcc_build
 	cd gcc_build/
@@ -454,6 +458,16 @@ case "$DISTRO" in
 	configureAndInstall | tee -a "${LOG_FILE}"
 	;;
 	
+"rhel-8.0")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y diffutils hostname git tar zip gcc gcc-c++ unzip python2 libtool automake cmake curl wget xz gcc vim patch binutils-devel bzip2 make tcl gettext | tee -a "${LOG_FILE}"
+	sudo ln -sf /usr/bin/python2 /usr/bin/python
+	buildGCC
+	buildGO |& tee -a "$LOG_FILE"
+	installDependency
+	configureAndInstall | tee -a "${LOG_FILE}"
+	;;	
 
 "sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
