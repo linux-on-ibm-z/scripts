@@ -66,7 +66,7 @@ function prepare() {
 
 function cleanup() {
     # Remove artifacts
-    rm "$GOPATH/src/k8s.io/ingress-nginx/patch.diff"
+    rm -rf "$GOPATH/src/k8s.io/ingress-nginx/nginx_ingress_code_patch.diff"
     printf -- "Cleaned up the artifacts\n" >>"$LOG_FILE"
 }
 
@@ -110,8 +110,8 @@ function configureAndInstall() {
     # Build NGINX Ingress Controller with the new image
     cd "$GOPATH/src/k8s.io/ingress-nginx/"
     # Add patches
-    curl -o patch.diff $REPO_URL/nginx_ingress_code_patch.diff
-    git apply /tmp/patch.diff
+    curl -o nginx_ingress_code_patch.diff $REPO_URL/nginx_ingress_code_patch.diff
+    git apply "$GOPATH/src/k8s.io/ingress-nginx/nginx_ingress_code_patch.diff"
     printf -- "Patched source code successfully.\n" 
 
     # Build nginx image for s390x
