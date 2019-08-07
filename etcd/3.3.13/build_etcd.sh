@@ -245,7 +245,7 @@ case "$DISTRO" in
 	go version
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-    "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+    "rhel-7.4" | "rhel-7.5" | "rhel-7.6" | "rhel-8.0")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y curl git wget tar gcc which |& tee -a "${LOG_FILE}"
