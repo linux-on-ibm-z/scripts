@@ -356,7 +356,7 @@ case "$DISTRO" in
 "rhel-7.4" | "rhel-7.5" | "rhel-7.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	yum install -y autoconf automake bison bzip2 curl flex fuse-devel gcc git glib2-devel libacl-devel libaio-devel libibverbs-devel librdmacm-devel libtool libxml2-devel libuuid-devel lvm2 make openssl-devel pkgconfig python readline-devel wget zlib-devel
+	yum install -y autoconf automake bison bzip2 curl flex fuse-devel gcc git glib2-devel libacl-devel libaio-devel libibverbs-devel librdmacm-devel libtool libxml2-devel libuuid-devel lvm2 make openssl-devel pkgconfig python readline-devel wget zlib-devel patch
 	configureAndInstall | tee -a "$LOG_FILE"
 
 	;;
@@ -364,7 +364,7 @@ case "$DISTRO" in
 "sles-12.4" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	zypper install -y autoconf automake bison cmake curl flex fuse-devel gcc git glib2-devel libacl-devel libaio-devel librdmacm1 libopenssl-devel libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 rdma-core-devel readline-devel zlib-devel
+	zypper install -y autoconf automake bison cmake curl flex fuse-devel gcc git glib2-devel libacl-devel libaio-devel librdmacm1 libopenssl-devel libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 rdma-core-devel readline-devel zlib-devel patch
 	configureAndInstall | tee -a "$LOG_FILE"
 
 	;;
