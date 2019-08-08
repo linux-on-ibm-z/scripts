@@ -78,7 +78,7 @@ function configureAndInstall()
   chmod ugo+r go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
 
-  rm -rf /usr/local/go /usr/bin/go
+  sudo rm -rf /usr/local/go /usr/bin/go
   sudo tar -C /usr/local -xzf go"${PACKAGE_VERSION}".linux-s390x.tar.gz
 
   sudo ln -sf /usr/local/go/bin/go /usr/bin/ 
@@ -130,7 +130,7 @@ function printHelp() {
   echo
 }
 
-while getopts "h?dopvy" opt; do
+while getopts "h?dopyv:" opt; do
   case "$opt" in
   h | \?)
     printHelp
@@ -189,6 +189,13 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper  install -y  tar wget gcc |& tee -a "${LOG_FILE}" 
+	configureAndInstall |& tee -a "${LOG_FILE}"
+  ;;
+
+"sles-15.1")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
+	sudo zypper  install -y  tar wget gcc gzip |& tee -a "${LOG_FILE}" 
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
