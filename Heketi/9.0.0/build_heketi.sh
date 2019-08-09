@@ -16,7 +16,8 @@ PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Heket
 CURDIR="$(pwd)"
 GO_DEFAULT="$HOME/go"
 
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.12.5/build_go.sh"
+
 
 FORCE="false"
 TESTS="false"
