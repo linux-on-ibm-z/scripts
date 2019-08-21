@@ -1,0 +1,75 @@
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf..1cc3cac 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+ }
+
+ #Determine number of cores
+-cores=$(cat /proc/cpuinfo | grep processor | wc -l)
++cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
+ if [ "$cores" == "" ]; then
+         echo "Could not get number of cores available"
+ fi
+diff --git a/tests/bugs/distribute/bug-1161311.t b/tests/bugs/distribute/bug-1161311.t
+index c52c69b..45b4c7b 100755
+--- a/tests/bugs/distribute/bug-1161311.t
++++ b/tests/bugs/distribute/bug-1161311.t
+@@ -89,6 +89,7 @@ done
+ ## FILE1 and FILE2 hashes are, 678b1c4a e22c1ada, so they fall
+ ## into separate bricks when brick count is 3
+ TEST mv $M0/dir1/FILE2 $M0/dir1/FILE1
++brick_loc=$(get_backend_paths $M0/dir1/FILE1)
+
+ # unmount and remount the volume
+ EXPECT_WITHIN $UMOUNT_TIMEOUT "Y" force_umount $M0
+@@ -99,7 +100,7 @@ TEST $CLI volume rebalance $V0 start force
+
+ # Wait for FILE to get the sticky bit on, so that file is under
+ # active rebalance, before creating the links
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ # Create the links
+ ## FILE3 FILE5 FILE7 have hashes, c8c91469 566d26ce 22ce7eba
+@@ -120,7 +121,7 @@ cd /
+
+ # Ideally for this test to have done its job, the file should still be
+ # under migration, so check the sticky bit again
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ # Wait for rebalance to complete
+ EXPECT_WITHIN $REBALANCE_TIMEOUT "completed" rebalance_status_field $V0
+diff --git a/tests/bugs/distribute/bug-1193636.t b/tests/bugs/distribute/bug-1193636.t
+index ccde02e..e97d705 100644
+--- a/tests/bugs/distribute/bug-1193636.t
++++ b/tests/bugs/distribute/bug-1193636.t
+@@ -40,12 +40,13 @@ dd if=/dev/zero of=$M0/dir1/FILE2 bs=64k count=10240
+ # Rename the file to create a linkto, for rebalance to
+ # act on the file
+ TEST mv $M0/dir1/FILE2 $M0/dir1/FILE1
++brick_loc=$(get_backend_paths $M0/dir1/FILE1)
+
+ build_tester $(dirname $0)/bug-1193636.c
+
+ TEST $CLI volume rebalance $V0 start force
+
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ TEST setfattr -n "user.test1" -v "test1" $M0/dir1/FILE1
+ TEST setfattr -n "user.test2" -v "test1" $M0/dir1/FILE1
+diff --git a/tests/bugs/nfs/bug-847622.t b/tests/bugs/nfs/bug-847622.t
+index 5ccee72..20d5ec5 100755
+--- a/tests/bugs/nfs/bug-847622.t
++++ b/tests/bugs/nfs/bug-847622.t
+@@ -30,7 +30,7 @@ cd $N0
+
+ # simple getfacl setfacl commands
+ TEST touch testfile
+-TEST setfacl -m u:14:r testfile
++TEST setfacl -m u:14:r $B0/brick0/testfile
+ TEST getfacl testfile
+
+ cd
