@@ -15,6 +15,7 @@ LOG_FILE="$(pwd)/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 
 export GOPATH="$(pwd)"
+FORCE="false"
 
 trap cleanup 1 2 ERR
 
@@ -56,6 +57,24 @@ function checkPrequisites()
       exit 0;
     fi
   fi;
+  
+  if [[ "$FORCE" == "true" ]] ;
+    then
+        printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
+    else
+        # Ask user for prerequisite installation
+        printf -- "\nAs part of the installation , dependencies would be installed/upgraded.\n";
+        while true; do
+                    read -r -p "Do you want to continue (y/n) ? :  " yn
+                    case $yn in
+                            [Yy]* ) printf -- 'User responded with Yes. \n' >> "$LOG_FILE";
+                            break;;
+                    [Nn]* ) exit;;
+                    *)  echo "Please provide confirmation to proceed.";;
+                    esac
+        done
+  fi;
+  
 }
 
 function cleanup()
@@ -72,7 +91,7 @@ function installGo()
   printf -- 'Installing go\n' |& tee -a "$LOG_FILE"
   cd "${GOPATH}"
   wget "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.12.5/build_go.sh"
-  bash build_go.sh -v 1.12.6
+  bash build_go.sh -y -v 1.12.6
   go version  |& tee -a "$LOG_FILE"
   printf -- 'go installed\n' |& tee -a "$LOG_FILE"
   #set environment variables
@@ -144,11 +163,11 @@ function logDetails()
 function printHelp() {
   echo
   echo "Usage: "
-  echo "  build_terraform.sh [-d debug]"
+  echo "  build_terraform.sh [-d debug] [-y install-without-confirmation]"
   echo
 }
 
-while getopts "h?d:" opt; do
+while getopts "h?dy" opt; do
   case "$opt" in
   h | \?)
     printHelp
@@ -156,6 +175,9 @@ while getopts "h?d:" opt; do
     ;;
   d)
     set -x
+    ;;
+  y)
+    FORCE="true"
     ;;
   esac
 done
