@@ -73,16 +73,42 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
     rm -rf "~/$GOPATH/bin/glide-$GLIDE_VERSION-linux-s390x.tar.gz*"
+    if [[ "$ID" == "rhel" ]]; then
+        # Check if mercurial tar exists
+	if [ -f $CURDIR/mercurial-5.1.tar.gz ]; then
+	    sudo rm $CURDIR/mercurial-5.1.tar.gz
+	fi       
+    fi
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
 }
 
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
-    
-    # Install go
-	printf -- "Installing Go... \n" 
-	wget  $GO_INSTALL_URL 
-    bash build_go.sh
+        #Install python for rhel distro
+        if [[ "$ID" == "rhel" ]]; then
+                cd $CURDIR
+                # Pyhton install
+                wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/2.7.16/build_python2.sh
+                bash build_python2.sh -y
+                #Copying python headers required location
+                sudo cp /usr/local/include/python2.7/* /usr/include/python2.7/
+                # mercurial install
+                cd $CURDIR
+                wget https://www.mercurial-scm.org/release/mercurial-5.1.tar.gz
+                tar xvzf mercurial-5.1.tar.gz
+                cd $CURDIR/mercurial-5.1
+                make build
+                sudo make install
+                printf -- 'Installed python and mercurial on RHEL \n'
+        elif [[ "$ID" == "sles" ]]; then
+                cd $CURDIR
+                printf -- "Installing Go... \n"
+                wget  $GO_INSTALL_URL
+                bash build_go.sh -y
+                printf -- 'Installed go on SLES \n'
+        else
+        	export PATH=/usr/lib/go-1.10/bin:$PATH
+        fi
 
 	# Set GOPATH if not already set
 	if [[ -z "${GOPATH}" ]]; then
@@ -120,17 +146,13 @@ function configureAndInstall() {
     
     mkdir -p $GOPATH/src/github.com/heketi
     cd $GOPATH/src/github.com/heketi
-	git clone -b v"${PACKAGE_VERSION}" https://github.com/heketi/heketi.git
+    git clone -b v"${PACKAGE_VERSION}" https://github.com/heketi/heketi.git
     cd "$GOPATH/src/github.com/heketi/heketi"
     curl -o glide.lock.diff $PATCH_URL/glide.lock.diff 2>&1 | tee -a "$LOG_FILE"
     patch --ignore-whitespace glide.lock < glide.lock.diff
     make
-
+    sudo make install
     printf -- "Build and install heketi success\n" >> "$LOG_FILE"
-
-    # Add binary to /usr/bin
-	sudo cp heketi /usr/bin/
-    sudo cp client/cli/go/heketi-cli /usr/bin/
     
     # Create heketi lib directory
     #Check if lib directory exists
@@ -138,13 +160,10 @@ function configureAndInstall() {
 	    sudo mkdir -p /var/lib/heketi/
 	fi
 
-    #Add heketi config
-	if [ ! -d "/etc/heketi" ]; then
-		printf -- "Created heketi config Directory at /etc" 
-		sudo mkdir /etc/heketi/
-	fi
-    cd /etc/heketi
+    cd $GOPATH/src/github.com/heketi/heketi/
     wget https://raw.githubusercontent.com/heketi/heketi/v8.0.0/etc/heketi.json
+    echo "export PATH=$PATH" >> ~/.bashrc
+    echo "export GOPATH=$GOPATH" >> ~/.bashrc
 
     # Run Tests
 	runTest
@@ -219,8 +238,10 @@ function gettingStarted() {
     printf -- "Running heketi: \n"
     printf -- "heketi  \n\n"
 
-    printf -- "Command to use with config file\n"
-    printf -- "sudo heketi --config=/etc/heketi/heketi.json \n"
+    printf -- "Run below command to use Heketi with config file\n"
+    printf -- "source ~/.bashrc \n"
+    printf -- "sudo heketi --config=\$GOPATH/src/github.com/heketi/heketi/heketi.json & \n"
+    printf -- " Note: In case of error heketi: command not found use command as sudo env PATH=\$PATH heketi --config=\$GOPATH/src/github.com/heketi/heketi/heketi.json & \n"  
     printf -- "You have successfully started heketi.\n"
     printf -- '**********************************************************************************************************\n'
 }
@@ -234,19 +255,19 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo apt-get install -y git make mercurial tar wget patch |& tee -a "$LOG_FILE"
+        sudo apt-get install -y git golang-1.10 make mercurial tar wget |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     "rhel-7.5" | "rhel-7.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y git make mercurial tar wget patch-s390x |& tee -a "$LOG_FILE"
+        sudo yum install -y git golang make tar wget patch python-docutils |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     "sles-12.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y gcc git gzip make python python-devel python-setuptools tar wget patch |& tee -a "$LOG_FILE"
+        sudo zypper install -y gcc git gzip make python python-devel python-setuptools tar wget patch curl |& tee -a "$LOG_FILE"
         sudo easy_install pip |& tee -a "$LOG_FILE"
         sudo pip install mercurial |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
@@ -254,7 +275,7 @@ case "$DISTRO" in
     "sles-15")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y git gzip make mercurial python tar wget patch |& tee -a "$LOG_FILE"
+        sudo zypper install -y git gzip make mercurial python tar wget patch curl |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     *)
