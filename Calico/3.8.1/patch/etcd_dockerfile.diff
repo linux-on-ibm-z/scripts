@@ -1,0 +1,16 @@
+diff --git a/Dockerfile-release b/Dockerfile-release
+index 736445fcc..ab0df2aac 100644
+--- a/Dockerfile-release
++++ b/Dockerfile-release
+@@ -1,7 +1,8 @@
+-FROM alpine:latest
++FROM s390x/alpine:3.8
+ 
+-ADD etcd /usr/local/bin/
+-ADD etcdctl /usr/local/bin/
++ADD bin/etcd /usr/local/bin/
++ADD bin/etcdctl /usr/local/bin/
++ENV ETCD_UNSUPPORTED_ARCH=s390x
+ RUN mkdir -p /var/etcd/
+ RUN mkdir -p /var/lib/etcd/
+

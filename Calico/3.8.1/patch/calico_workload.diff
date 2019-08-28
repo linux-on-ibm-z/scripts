@@ -1,0 +1,11 @@
+--- originalfile	2019-01-24 04:58:30.237185188 -0500
++++ updatedfile	2019-01-21 05:29:40.931025001 -0500
+@@ -3,7 +3,7 @@
+ # 1) Base image has been changed FROM alpine:3.8 to FROM s390x/alpine:3.6
+ # 2) Maintainer is changed
+ 
+-FROM s390x/alpine:3.6
++FROM s390x/alpine:3.8
+ MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
+ 
+ RUN apk add --no-cache \
