@@ -115,6 +115,7 @@ function configureAndInstall()
   cd "${GOPATH}"
   printf -- 'Downloading Terraform binaries \n'
   export GO111MODULE=on
+  export GOPROXY=https://proxy.golang.org/
   mkdir -p $GOPATH/src/github.com/hashicorp
   cd $GOPATH/src/github.com/hashicorp
   git clone https://github.com/hashicorp/terraform.git
@@ -135,7 +136,7 @@ function configureAndInstall()
   XC_OS=linux XC_ARCH=s390x make bin
   printf -- ' Creating binary at location "${GOPATH}"/src/github.com/hashicorp/terraform/pkg/linux_s390x/ \n'
   printf -- " Copying binary to /usr/bin \n"
-  sudo mv "${GOPATH}/src/github.com/hashicorp/terraform/pkg/linux_s390x/terraform" "/usr/bin/terraform"
+  sudo mv ${GOPATH}/src/github.com/hashicorp/terraform/pkg/linux_s390x/terraform /usr/bin/
 
   if [ ! -s $GOPATH/src/github.com/hashicorp/terraform/test.txt ]; then
         cleanup
