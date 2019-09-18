@@ -1,0 +1,245 @@
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf..1cc3cac 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+ }
+
+ #Determine number of cores
+-cores=$(cat /proc/cpuinfo | grep processor | wc -l)
++cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
+ if [ "$cores" == "" ]; then
+         echo "Could not get number of cores available"
+ fi
+diff --git a/tests/bugs/distribute/bug-1161311.t b/tests/bugs/distribute/bug-1161311.t
+index c52c69b..45b4c7b 100755
+--- a/tests/bugs/distribute/bug-1161311.t
++++ b/tests/bugs/distribute/bug-1161311.t
+@@ -89,6 +89,7 @@ done
+ ## FILE1 and FILE2 hashes are, 678b1c4a e22c1ada, so they fall
+ ## into separate bricks when brick count is 3
+ TEST mv $M0/dir1/FILE2 $M0/dir1/FILE1
++brick_loc=$(get_backend_paths $M0/dir1/FILE1)
+
+ # unmount and remount the volume
+ EXPECT_WITHIN $UMOUNT_TIMEOUT "Y" force_umount $M0
+@@ -99,7 +100,7 @@ TEST $CLI volume rebalance $V0 start force
+
+ # Wait for FILE to get the sticky bit on, so that file is under
+ # active rebalance, before creating the links
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ # Create the links
+ ## FILE3 FILE5 FILE7 have hashes, c8c91469 566d26ce 22ce7eba
+@@ -120,7 +121,7 @@ cd /
+
+ # Ideally for this test to have done its job, the file should still be
+ # under migration, so check the sticky bit again
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ # Wait for rebalance to complete
+ EXPECT_WITHIN $REBALANCE_TIMEOUT "completed" rebalance_status_field $V0
+diff --git a/tests/bugs/distribute/bug-1193636.t b/tests/bugs/distribute/bug-1193636.t
+index ccde02e..e97d705 100644
+--- a/tests/bugs/distribute/bug-1193636.t
++++ b/tests/bugs/distribute/bug-1193636.t
+@@ -40,12 +40,13 @@ dd if=/dev/zero of=$M0/dir1/FILE2 bs=64k count=10240
+ # Rename the file to create a linkto, for rebalance to
+ # act on the file
+ TEST mv $M0/dir1/FILE2 $M0/dir1/FILE1
++brick_loc=$(get_backend_paths $M0/dir1/FILE1)
+
+ build_tester $(dirname $0)/bug-1193636.c
+
+ TEST $CLI volume rebalance $V0 start force
+
+-TEST checksticky $B0/${V0}3/dir1/FILE1
++TEST checksticky $brick_loc
+
+ TEST setfattr -n "user.test1" -v "test1" $M0/dir1/FILE1
+ TEST setfattr -n "user.test2" -v "test1" $M0/dir1/FILE1
+diff --git a/tests/bugs/nfs/bug-847622.t b/tests/bugs/nfs/bug-847622.t
+index 5ccee72..20d5ec5 100755
+--- a/tests/bugs/nfs/bug-847622.t
++++ b/tests/bugs/nfs/bug-847622.t
+@@ -30,7 +30,7 @@ cd $N0
+
+ # simple getfacl setfacl commands
+ TEST touch testfile
+-TEST setfacl -m u:14:r testfile
++TEST setfacl -m u:14:r $B0/brick0/testfile
+ TEST getfacl testfile
+
+ cd
+diff --git a/tests/basic/posix/shared-statfs.t b/tests/basic/posix/shared-statfs.t
+index 3343956..7776b44 100644
+--- a/tests/basic/posix/shared-statfs.t
++++ b/tests/basic/posix/shared-statfs.t
+@@ -28,7 +28,7 @@ TEST $GFS --volfile-server=$H0 --volfile-id=$V0 $M0
+ total_space=$(df -P $M0 | tail -1 | awk '{ print $2}')
+ # Keeping the size less than 200M mainly because XFS will use
+ # some storage in brick to keep its own metadata.
+-TEST [ $total_space -gt 194000 -a $total_space -lt 200000 ]
++TEST [ $total_space -gt 193000 -a $total_space -lt 200000 ]
+
+
+ TEST force_umount $M0
+diff --git a/tests/bugs/glusterd/bug-1242875-do-not-pass-volinfo-quota.t b/tests/bugs/glusterd/  bug-1242875-do-not-pass-volinfo-quota.t
+index c229d43..79539ed 100644
+--- a/tests/bugs/glusterd/bug-1242875-do-not-pass-volinfo-quota.t
++++ b/tests/bugs/glusterd/bug-1242875-do-not-pass-volinfo-quota.t
+@@ -24,6 +24,7 @@ EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" get_quotad_count
+
+ ## Killing all gluster process
+ pkill gluster;
++sleep 5;
+
+ ## there should not be any quota daemon running after killing quota process
+ EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" get_quotad_count
+diff --git a/tests/bugs/quota/bug-1293601.t b/tests/bugs/quota/bug-1293601.t
+index 741758b..688299f 100644
+--- a/tests/bugs/quota/bug-1293601.t
++++ b/tests/bugs/quota/bug-1293601.t
+@@ -28,6 +28,6 @@ EXPECT_WITHIN $MARKER_UPDATE_TIMEOUT "1.0MB" quotausage "/"
+ TEST $CLI volume quota $V0 disable
+ TEST $CLI volume quota $V0 enable
+
+-EXPECT_WITHIN 60 "1.0MB" quotausage "/"
++EXPECT_WITHIN 180 "1.0MB" quotausage "/"
+
+ cleanup;
+diff --git a/tests/bugs/shard/bug-1251824.t b/tests/bugs/shard/bug-1251824.t
+index d81685d..502613b 100644
+--- a/tests/bugs/shard/bug-1251824.t
++++ b/tests/bugs/shard/bug-1251824.t
+@@ -14,7 +14,7 @@ TEST $CLI volume set $V0 features.shard-block-size 4MB
+ TEST $CLI volume start $V0
+
+ TEST glusterfs --volfile-id=$V0 --volfile-server=$H0 $M0
+-TEST useradd -M test_user 2>/dev/null
++TEST useradd -UM test_user 2>/dev/null
+
+ # Create 3 files as root.
+ TEST touch $M0/foo
+diff --git a/tests/bugs/shard/bug-1468483.t b/tests/bugs/shard/bug-1468483.t
+index e462b8d..e2d2ee1 100644
+--- a/tests/bugs/shard/bug-1468483.t
++++ b/tests/bugs/shard/bug-1468483.t
+@@ -35,7 +35,7 @@ TEST stat $B0/${V0}0/.shard/$gfid_foo.6
+
+ EXPECT "7" echo `$CLI volume profile $V0 info incremental | grep -w FSYNC | awk '{print $8}'`
+
+-useradd -M test_user 2>/dev/null
++useradd -UM test_user 2>/dev/null
+
+ TEST touch $M0/bar
+
+diff --git a/tests/basic/distribute/dir-heal.t b/tests/basic/distribute/dir-heal.t
+index 851f765..23e1070 100644
+--- a/tests/basic/distribute/dir-heal.t
++++ b/tests/basic/distribute/dir-heal.t
+@@ -30,8 +30,8 @@ TEST glusterfs --entry-timeout=0 --attribute-timeout=0 -s $H0 --volfile-id $V0 $
+ ls $M0/
+ cd $M0
+
+-TEST kill_brick $V0 $H0 $B0/$V0-1
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-1
++TEST kill_brick $V0 $H0 $B0/$V0-2
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-2
+
+ TEST mkdir dir{1..4}
+
+@@ -51,7 +51,7 @@ TEST setfattr -n "user.test" -v "test" $M0/dir4
+ # Start all bricks
+
+ TEST $CLI volume start $V0 force
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-1
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-2
+
+ #$CLI volume status
+
+@@ -62,18 +62,18 @@ stat $M0/dir* > /dev/null
+
+ # Check that directories have been created on the brick that was killed
+
+-TEST ls $B0/$V0-1/dir1
++TEST ls $B0/$V0-2/dir1
+
+-TEST ls $B0/$V0-1/dir2
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir2
++TEST ls $B0/$V0-2/dir2
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir2
+
+-TEST ls $B0/$V0-1/dir3
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir3
++TEST ls $B0/$V0-2/dir3
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir3
+
+
+-TEST ls $B0/$V0-1/dir4
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir4
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir4
++TEST ls $B0/$V0-2/dir4
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir4
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir4
+
+
+ TEST rm -rf $M0/*
+@@ -97,8 +97,8 @@ ls $M0/
+ cd $M0
+ TEST mkdir dir{1..4}
+
+-TEST kill_brick $V0 $H0 $B0/$V0-1
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-1
++TEST kill_brick $V0 $H0 $B0/$V0-2
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-2
+
+ # No change for dir1
+ # Change permissions for dir2
+@@ -116,7 +116,7 @@ TEST setfattr -n "user.test" -v "test" $M0/dir4
+ # Start all bricks
+
+ TEST $CLI volume start $V0 force
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-1
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-2
+
+ #$CLI volume status
+
+@@ -127,16 +127,16 @@ stat $M0/dir* > /dev/null
+
+ # Check directories on the brick that was killed
+
+-TEST ls $B0/$V0-1/dir2
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir2
++TEST ls $B0/$V0-2/dir2
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir2
+
+-TEST ls $B0/$V0-1/dir3
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir3
++TEST ls $B0/$V0-2/dir3
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir3
+
+
+-TEST ls $B0/$V0-1/dir4
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir4
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir4
++TEST ls $B0/$V0-2/dir4
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir4
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir4
+ cd
+
+
+diff --git a/tests/basic/fops-sanity.c b/tests/basic/fops-sanity.c
+index aff72d8..8245414 100644
+--- a/tests/basic/fops-sanity.c
++++ b/tests/basic/fops-sanity.c
+@@ -21,6 +21,7 @@
+ #include <fcntl.h>
+ #include <unistd.h>
+ #include <sys/types.h>
++#include <sys/sysmacros.h>
+ #include <sys/stat.h>
+ #include <sys/xattr.h>
+ #include <errno.h>

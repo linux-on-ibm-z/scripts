@@ -1,0 +1,13 @@
+diff --git a/tests/bugs/rpc/bug-847624.t b/tests/bugs/rpc/bug-847624.t
+index fe8fc9828..cd48a7b5f 100755
+--- a/tests/bugs/rpc/bug-847624.t
++++ b/tests/bugs/rpc/bug-847624.t
+@@ -20,7 +20,7 @@ EXPECT_WITHIN $NFS_EXPORT_TIMEOUT "1" is_nfs_export_available;
+ TEST mount_nfs $H0:/$V0 $N0 nolock
+ cd $N0
+ #7
+-TEST dbench -t 10 10
++TEST dbench -c/usr/local/share/doc/loadfiles/client.txt -Bfileio -t 10 10
+ TEST rm -rf $N0/*
+ cd
+ EXPECT_WITHIN $UMOUNT_TIMEOUT "Y" force_umount $N0
