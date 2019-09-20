@@ -1,17 +1,17 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2019.
+# ©  Copyright IBM Corporation 2018, 2019.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/7.0.0/build_elasticsearch.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/build_elasticsearch.sh
 # Execute build script: bash build_elasticsearch.sh    (provide -h for help)
 #
 set -e -o pipefail
 
 PACKAGE_NAME="elasticsearch"
-PACKAGE_VERSION="7.0.0"
+PACKAGE_VERSION="6.6.0"
 CURDIR="$(pwd)"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
 
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -65,8 +65,8 @@ function prepare() {
 
 function cleanup() {
 	rm -rf "${CURDIR}/elasticsearch.yml.diff"
-	rm -rf "${CURDIR}/patch_gradle.diff"
-	rm -rf "${CURDIR}/OpenJDK12U-jdk_s390x_linux_hotspot_12_33.tar.gz"
+	rm -rf "${CURDIR}/jvm.options.diff"
+	rm -rf "${CURDIR}/OpenJDK11-jdk_s390x_linux_hotspot_11_28.tar.gz"
 	rm -rf "${CURDIR}/elasticsearch/network_tests.log"
 	rm -rf "${CURDIR}/elasticsearch/local_tests.log"
 	rm -rf "${CURDIR}/elasticsearch/test_results.log"
@@ -79,32 +79,32 @@ function configureAndInstall() {
 	#Installing dependencies
 	printf -- 'User responded with Yes. \n'
 	printf -- 'Downloading openjdk\n'
-	wget 'https://github.com/AdoptOpenJDK/openjdk12-binaries/releases/download/jdk-12%2B33/OpenJDK12U-jdk_s390x_linux_hotspot_12_33.tar.gz'
-	sudo tar -C /usr/local -xzf OpenJDK12U-jdk_s390x_linux_hotspot_12_33.tar.gz
-	export PATH=/usr/local/jdk-12+33/bin:$PATH
+	wget 'https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.2%2B7/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.2_7.tar.gz'
+	sudo tar -C /usr/local -xzf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.2_7.tar.gz
+	export PATH=/usr/local/jdk-11.0.2+7/bin:$PATH
 	java -version |& tee -a "$LOG_FILE"
-	printf -- 'Adopt JDK 12 installed\n'
+	printf -- 'Adopt JDK 11 installed\n'
 
 	cd "${CURDIR}"
 	#Setting environment variable needed for building
 	unset JAVA_TOOL_OPTIONS
 	export LANG="en_US.UTF-8"
 	export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
-	export JAVA_HOME=/usr/local/jdk-12+33
-	export JAVA12_HOME=/usr/local/jdk-12+33
+	export JAVA_HOME=/usr/local/jdk-11.0.2+7
+	export JAVA11_HOME=/usr/local/jdk-11.0.2+7
 	export _JAVA_OPTIONS="-Xmx10g"
 
 	#Added symlink for PATH
-	sudo ln -sf /usr/local/jdk-12+33/bin/java /usr/bin/
+	sudo ln -sf /usr/local/jdk-11.0.2+7/bin/java /usr/bin/
 	printf -- 'Adding JAVA_HOME to bashrc \n'
 	#add JAVA_HOME to ~/.bashrc
 	cd "${HOME}"
 	if [[ "$(grep -q JAVA_HOME .bashrc)" ]]; then
 
 		printf -- '\nChanging JAVA_HOME\n'
-		sed -n 's/^.*\bJAVA_HOME\b.*$/export JAVA_HOME=\/usr\/local\/jdk-12+33\//p' ~/.bashrc
+		sed -n 's/^.*\bJAVA_HOME\b.*$/export JAVA_HOME=\/usr\/local\/jdk-11.0.2+7\//p' ~/.bashrc
 	else
-		echo "export JAVA_HOME=/usr/local/jdk-12+33/" >>.bashrc
+		echo "export JAVA_HOME=/usr/local/jdk-11.0.2+7/" >>.bashrc
 	fi
 
 	cd "${CURDIR}"
@@ -116,13 +116,13 @@ function configureAndInstall() {
 	#Patch Applied for known errors
 	cd "${CURDIR}"
 	# patch config file
-	curl -o patch_gradle.diff $REPO_URL/patch_gradle.diff
-	patch "${CURDIR}/elasticsearch/distribution/archives/build.gradle" patch_gradle.diff
+	curl -o jvm.options.diff $REPO_URL/jvm.options.diff
+	patch "${CURDIR}/elasticsearch/distribution/src/config/jvm.options" jvm.options.diff
 
 	curl -o elasticsearch.yml.diff $REPO_URL/elasticsearch.yml.diff
 	patch "${CURDIR}/elasticsearch/distribution/src/config/elasticsearch.yml" elasticsearch.yml.diff
 
-	printf -- 'Patch applied for files elasticsearch.yml and  build.gradle\n'
+	printf -- 'Patch applied for files elasticsearch.yml and  jvm.options\n'
 
 	#Build elasticsearch
 	printf -- 'Building Elasticsearch \n'
@@ -143,8 +143,8 @@ function runTest() {
 	unset JAVA_TOOL_OPTIONS
 	export LANG="en_US.UTF-8"
 	export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
-	export JAVA_HOME=/usr/local/jdk-12+33
-	export JAVA12_HOME=/usr/local/jdk-12+33
+	export JAVA_HOME=/usr/local/jdk-11.0.2+7
+	export JAVA11_HOME=/usr/local/jdk-11.0.2+7
 	export _JAVA_OPTIONS="-Xss1g -Xmx10g"
 
 	printf -- 'Running test \n'
@@ -187,7 +187,7 @@ function reviewTest() {
 function startService() {
 	printf -- "\n\nstarting service\n"
 	cd "${CURDIR}/elasticsearch"
-	sudo tar -C /usr/share/ -xf distribution/archives/linux-tar/build/distributions/elasticsearch-"${PACKAGE_VERSION}"-SNAPSHOT-linux-s390x.tar.gz
+	sudo tar -C /usr/share/ -xf distribution/archives/tar/build/distributions/elasticsearch-"${PACKAGE_VERSION}"-SNAPSHOT.tar.gz
 	sudo mv /usr/share/elasticsearch-"${PACKAGE_VERSION}"-SNAPSHOT /usr/share/elasticsearch
 
 	if ([[ -z "$(cut -d: -f1 /etc/group | grep elastic)" ]]); then
@@ -287,7 +287,7 @@ function printSummary() {
 	printf -- '\n********************************************************************************************************\n'
 	printf -- "\n* Getting Started * \n"
 	printf -- '\n\nSet JAVA_HOME to start using elasticsearch right away.'
-	printf -- '\nexport JAVA_HOME=/usr/local/jdk-12+33/\n'
+	printf -- '\nexport JAVA_HOME=/usr/local/jdk-11.0.2+7/\n'
 	printf -- '\nRestarting the session will apply changes automatically'
 	printf -- '\n\nStart Elasticsearch using the following command :   elasticsearch '
 	printf -- '\nFor more information on curator client visit https://www.elastic.co/guide/en/elasticsearch/client/curator/current/index.html \n\n'
@@ -319,7 +319,7 @@ case "$DISTRO" in
 	installClient |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.3" | "sles-15")
+"sles-12.4" | "sles-15")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper --non-interactive install tar patch wget unzip curl which git gcc-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo ant ant-junit.noarch make net-tools | tee -a "$LOG_FILE"

@@ -1,0 +1,34 @@
+diff --git a/distribution/archives/build.gradle b/distribution/archives/build.gradle
+index ad4c77aaa5e..9361bf4fca6 100644
+--- a/distribution/archives/build.gradle
++++ b/distribution/archives/build.gradle
+@@ -167,25 +167,25 @@ task buildOssNoJdkDarwinTar(type: Tar) {
+ 
+ task buildLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'linux-x86_64'
++  archiveClassifier = 'linux-s390x'
+   with archiveFiles(modulesFiles(false, 'linux'), 'tar', 'linux', false, true)
+ }
+ 
+ task buildOssLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'linux-x86_64'
++  archiveClassifier = 'linux-s390x'
+   with archiveFiles(modulesFiles(true, 'linux'), 'tar', 'linux', true, true)
+ }
+ 
+ task buildNoJdkLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'no-jdk-linux-x86_64'
++  archiveClassifier = 'no-jdk-linux-s390x'
+   with archiveFiles(modulesFiles(false, 'linux'), 'tar', 'linux', false, false)
+ }
+ 
+ task buildOssNoJdkLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'no-jdk-linux-x86_64'
++  archiveClassifier = 'no-jdk-linux-s390x'
+   with archiveFiles(modulesFiles(true, 'linux'), 'tar', 'linux', true, false)
+ }
+ 

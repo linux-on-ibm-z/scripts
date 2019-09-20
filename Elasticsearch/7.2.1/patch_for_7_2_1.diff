@@ -1,0 +1,56 @@
+diff --git a/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy b/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy
+index d02d9d417c9..f8824c2eb12 100644
+--- a/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy
++++ b/buildSrc/src/main/groovy/org/elasticsearch/gradle/BuildPlugin.groovy
+@@ -1062,7 +1062,16 @@ class BuildPlugin implements Plugin<Project> {
+     }
+ 
+     private static int numberOfPhysicalCores(Project project) {
+-        if (project.file("/proc/cpuinfo").exists()) {
++        if ('s390x'.equals(System.getProperty('os.arch'))) {
++         // Ask s390x to count physical CPUs for us
++         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
++         project.exec{
++             executable 'nproc'
++             args '--all'
++             standardOutput = stdout
++         }
++            return Integer.parseInt(stdout.toString('UTF-8').trim())
++        } else if (project.file("/proc/cpuinfo").exists()) {
+             // Count physical cores on any Linux distro ( don't count hyper-threading )
+             Map<String, Integer> socketToCore = [:]
+             String currentID = ""
+diff --git a/distribution/archives/build.gradle b/distribution/archives/build.gradle
+index 14a7e566587..f720d4f5bfb 100644
+--- a/distribution/archives/build.gradle
++++ b/distribution/archives/build.gradle
+@@ -167,25 +167,25 @@ task buildOssNoJdkDarwinTar(type: Tar) {
+ 
+ task buildLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'linux-x86_64'
++  archiveClassifier = 'linux-s390x'
+   with archiveFiles(modulesFiles(false, 'linux'), 'tar', 'linux', false, true)
+ }
+ 
+ task buildOssLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'linux-x86_64'
++  archiveClassifier = 'linux-s390x'
+   with archiveFiles(modulesFiles(true, 'linux'), 'tar', 'linux', true, true)
+ }
+ 
+ task buildNoJdkLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'no-jdk-linux-x86_64'
++  archiveClassifier = 'no-jdk-linux-s390x'
+   with archiveFiles(modulesFiles(false, 'linux'), 'tar', 'linux', false, false)
+ }
+ 
+ task buildOssNoJdkLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'no-jdk-linux-x86_64'
++  archiveClassifier = 'no-jdk-linux-s390x'
+   with archiveFiles(modulesFiles(true, 'linux'), 'tar', 'linux', true, false)
+ }
+ 

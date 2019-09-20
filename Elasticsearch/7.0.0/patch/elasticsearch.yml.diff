@@ -1,7 +1,0 @@
---- a/distribution/src/config/elasticsearch.yml
-+++ b/distribution/src/config/elasticsearch.yml
-@@ -86,3 +86,4 @@ ${path.logs}
- # Require explicit names when deleting indices:
- #
- #action.destructive_requires_name: true
-+xpack.ml.enabled: false
