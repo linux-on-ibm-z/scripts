@@ -45,6 +45,16 @@ function prepare() {
         exit 1
     fi
 
+    printf -- "\nCheck if Docker is already present on the system . . . \n" | tee -a "$LOG_FILE"
+    if [ -x "$(command -v docker)" ]; then
+        docker --version | grep "Docker version" | tee -a "$LOG_FILE"
+        echo "Docker exists !!" | tee -a "$LOG_FILE"
+        docker ps 2>&1 | tee -a "$LOG_FILE"
+    else
+        printf -- "\n Please install docker !! \n" | tee -a "$LOG_FILE"
+        exit 1
+    fi
+    
     if [[ "$FORCE" == "true" ]]; then
         printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
     else
@@ -74,7 +84,7 @@ function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
 
     # Install Go
-    if [[ "$ID" == "rhel" || "$ID" == "sles"  ]]; then
+    if [[ ("$ID" == "rhel" && "$DISTRO" != "rhel-8.0")  ||  "$ID" == "sles" ]]; then
         cd "$CURDIR"
         wget  $GO_INSTALL_URL 
         bash build_go.sh
@@ -218,6 +228,12 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y curl git make |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"rhel-8.0")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo yum install -y curl git make golang |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-12.4" | "sles-15" | "sles-15.1")
