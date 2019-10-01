@@ -1,0 +1,11 @@
+--- Makefile.in	2019-01-09 09:11:05.465680047 +0000
++++ Makefile.in.1	2019-01-09 09:26:30.211678400 +0000
+@@ -382,7 +382,7 @@
+ # END enclude sources for V8 dtoa
+ #############################################
+ 
+-ifeq (,$(filter-out powerpc sparc,$(TARGET_CPU)))
++ifeq (,$(filter arm %86 x86_64,$(TARGET_CPU)))
+ 
+ VPATH +=	$(srcdir)/assembler \
+ 		$(srcdir)/assembler/wtf \
