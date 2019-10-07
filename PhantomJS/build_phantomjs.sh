@@ -83,7 +83,7 @@ function configureAndInstall() {
 	#Give permission
 	sudo chown -R "$USER" "$BUILD_DIR"
 
-	if [[ "${VERSION_ID}" == "15" ]]; then
+	if [[ "${VERSION_ID}" == "15" || "${VERSION_ID}" == "15.1" ]]; then
 		# Build OpenSSL 1.0.2
 		cd "$BUILD_DIR"
 
@@ -155,12 +155,12 @@ function configureAndInstall() {
 	printf -- 'Clone Phantomjs repo success\n' 
 	
 	# Download  JSStringRef.h
-	if [[ "${VERSION_ID}" == "15" ]]; then
+	if [[ "${VERSION_ID}" == "15" || "${VERSION_ID}" == "15.1" ]]; then
 		# Patch config file
-		sudo curl -o "JSStringRef.h.diff"  $CONF_URL/JSStringRef.h.diff
+		curl -o "JSStringRef.h.diff"  $CONF_URL/JSStringRef.h.diff
 		# replace config file
 		sudo patch "${BUILD_DIR}/phantomjs/src/qt/qtwebkit/Source/JavaScriptCore/API/JSStringRef.h" JSStringRef.h.diff
-		printf -- 'Updated JSStringRef.h for sles-15 \n' 
+		printf -- "Updated JSStringRef.h for %s \n" "$ID-$VERSION_ID"
 	fi
 
 	# Build Phantomjs
@@ -264,7 +264,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get  update 
 
@@ -280,16 +280,16 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.4" | "sles-15")
+"sles-12.4" | "sles-15" | "sles-15.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
 
 	if [[ "${VERSION_ID}" == "12.4" ]]; then
-		sudo zypper  install -y gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel python-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 python python-setuptools wget |& tee -a "$LOG_FILE" 
+		sudo zypper install -y gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 python python-setuptools wget |& tee -a "$LOG_FILE"
 		printf -- 'Install dependencies for sles-12.4 success \n' |& tee -a "$LOG_FILE"
 	else
-		sudo zypper  install -y gcc gcc-c++ make flex bison gperf ruby freetype2-devel fontconfig-devel libicu-devel sqlite3-devel libpng16-compat-devel libjpeg8-devel python2 python2-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 autoconf automake libtool patch wget |& tee -a "$LOG_FILE" 
-		printf -- 'Install dependencies for sles-15 success \n' |& tee -a "$LOG_FILE"
+		sudo zypper install -y gcc gcc-c++ make flex bison gperf ruby freetype2-devel fontconfig-devel libicu-devel sqlite3-devel libpng16-compat-devel libjpeg8-devel python2 python2-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 autoconf automake libtool patch wget |& tee -a "$LOG_FILE"
+		printf -- "Install dependencies for %s success \n" "$DISTRO" |& tee -a "$LOG_FILE"
 	fi
 
 	configureAndInstall |& tee -a "$LOG_FILE"
