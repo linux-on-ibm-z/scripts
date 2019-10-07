@@ -149,10 +149,17 @@ function runTest() {
     set +e
     if [[ "$TESTS" == "true" ]]; then
         printf -- 'Running tests \n\n' |& tee -a "$LOG_FILE"
-	sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
-	sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
+        sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
         cd $GOPATH/src/github.com/hashicorp/consul/
-        make test
+        make test 2>&1 | tee -a maketestlog
+        cat maketestlog | grep "FAIL" | grep github.com | awk '{print $2}' >>test.txt
+        if [ -s $GOPATH/src/github.com/hashicorp/consul/test.txt ]; then
+            printf -- '*****************************************************************************************************************************\n'
+            printf -- '\nUnexpected test failures detected. Tip : Try running them individually as go test -v <package_name> -run <failed_test_name>
+                                         or increasing the timeout using -timeout option to go test command.\n'
+            printf -- '*****************************************************************************************************************************\n'
+        fi
     fi
 
     set -e
