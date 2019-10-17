@@ -1,0 +1,28 @@
+--- /etc/collectd/collectd.conf_old	2019-08-22 09:52:08.219292319 +0000
++++ /etc/collectd/collectd.conf	2019-08-26 11:36:56.964723192 +0000
+@@ -91,7 +91,7 @@
+ #LoadPlugin apcups
+ #LoadPlugin ascent
+ #LoadPlugin barometer
+-LoadPlugin battery
++#LoadPlugin battery
+ #LoadPlugin bind
+ #LoadPlugin ceph
+ #LoadPlugin cgroups
+@@ -1312,4 +1312,16 @@
+ <Include "/etc/collectd/collectd.conf.d">
+	Filter "*.conf"
+ </Include>
++LoadPlugin network
++<Plugin network>
++  Server "localhost" "25826"
++</Plugin>
+ 
++LoadPlugin write_http
++<Plugin write_http>
++  <Node "collectd_exporter">
++    URL "http://localhost:9103/collectd-post"
++    Format "JSON"
++    StoreRates false
++  </Node>
++</Plugin>

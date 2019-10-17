@@ -1,0 +1,51 @@
+--- /opt/collectd/etc/collectd.conf_orig	2019-08-26 08:33:56.053856419 +0000
++++ /opt/collectd/etc/collectd.conf	2019-08-26 08:35:24.676521877 +0000
+@@ -949,16 +949,16 @@
+ #	IgnoreSelected false
+ #</Plugin>
+ 
+-<Plugin network>
++#<Plugin network>
+ #	# client setup:
+-	Server "ff18::efc0:4a42" "25826"
+-	<Server "239.192.74.66" "25826">
++#	Server "ff18::efc0:4a42" "25826"
++#	<Server "239.192.74.66" "25826">
+ #		SecurityLevel Encrypt
+ #		Username "user"
+ #		Password "secret"
+ #		Interface "eth0"
+ #		ResolveInterval 14400
+-	</Server>
++#	</Server>
+ #	TimeToLive 128
+ #
+ #	# server setup:
+@@ -978,7 +978,7 @@
+ #
+ #	# "garbage collection"
+ #	CacheFlush 1800
+-</Plugin>
++#</Plugin>
+ 
+ #<Plugin nfs>
+ #	ReportV2 false
+@@ -1817,4 +1817,17 @@
+ #    	Hysteresis 3
+ #    </Type>
+ #  </Host>
+-#</Plugin>
++#</Plugin> 
++LoadPlugin network
++<Plugin network>
++  Server "localhost" "25826"
++</Plugin>
++
++LoadPlugin write_http
++<Plugin write_http>
++  <Node "collectd_exporter">
++    URL "http://localhost:9103/collectd-post"
++    Format "JSON"
++    StoreRates false
++  </Node>
++</Plugin>
