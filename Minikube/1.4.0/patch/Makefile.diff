@@ -1,0 +1,24 @@
+diff --git a/Makefile b/Makefile
+index 89ace1b..0e40943 100755
+--- a/Makefile
++++ b/Makefile
+@@ -221,7 +221,7 @@ integration: out/minikube
+ 
+ .PHONY: integration-none-driver
+ integration-none-driver: e2e-linux-$(GOARCH) out/minikube-linux-$(GOARCH)
+-	sudo -E out/e2e-linux-$(GOARCH) -testdata-dir "test/integration/testdata" -minikube-start-args="--vm-driver=none" -test.v -test.timeout=60m -binary=out/minikube-linux-amd64 $(TEST_ARGS)
++	sudo -E out/e2e-linux-$(GOARCH) -testdata-dir "test/integration/testdata" -minikube-start-args="--vm-driver=none" -test.v -test.timeout=60m -binary=out/minikube-linux-s390x $(TEST_ARGS)
+ 
+ .PHONY: integration-versioned
+ integration-versioned: out/minikube
+@@ -321,8 +321,8 @@ gocyclo:
+ 
+ out/linters/golangci-lint-$(GOLINT_VERSION):
+ 	mkdir -p out/linters
+-	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b out/linters $(GOLINT_VERSION)
+-	mv out/linters/golangci-lint out/linters/golangci-lint-$(GOLINT_VERSION)
++	go get github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VERSION)
++	cp $(GOPATH)/bin/golangci-lint out/linters/golangci-lint-$(GOLINT_VERSION)
+ 
+ # this one is meant for local use
+ .PHONY: lint
