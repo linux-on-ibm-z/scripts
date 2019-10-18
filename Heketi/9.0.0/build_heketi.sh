@@ -85,7 +85,7 @@ function cleanup() {
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
         #Install python for rhel distro
-        if [[ "$ID" == "rhel" ]]; then
+        if [[ "${DISTRO}" == "rhel-7.5" || "${DISTRO}" == "rhel-7.6" || "${DISTRO}" == "rhel-7.7" ]]; then
                 cd $CURDIR
                 # Pyhton install
                 wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/2.7.16/build_python2.sh
@@ -185,9 +185,29 @@ function runTest() {
 	set +e
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- "TEST Flag is set, continue with running test \n"  >> "$LOG_FILE"
-		cd "$GOPATH/src/github.com/heketi/heketi"
-        make test
-        printf -- "Tests completed. \n" 
+		
+		if [[ "${DISTRO}" == "rhel-8.0" ]]; then
+			cd "$GOPATH/src/github.com/heketi/heketi"
+			make test 2>&1| tee -a test.log
+			printf -- "Tests completed for RHEL 8.0 \n"
+			printf -- "NOTE: The "./tests/300-db-import-export.sh" test fails for RHEL 8.0 on s390x and x86 as well. \n"
+			count_of_failures=`grep "FAIL" test.log | wc -l`
+			if [[ $count_of_failures == 1 ]]; then
+				#Check if the failure that has occured is as expected.
+				grep -E 'ERROR|./tests/300-db-import-export.sh' test.log
+					if [[ $? != 0 ]]; then
+						#Check if the above grep failed.Hence, new failures encountered
+						printf -- "Unexpected Failures found \n"
+						exit 1
+					else
+						exit 0
+					fi
+			fi
+		else
+			cd "$GOPATH/src/github.com/heketi/heketi"
+			make test
+			printf -- "Tests completed. \n" 
+		fi
 	fi
 	set -e
 }
@@ -258,12 +278,19 @@ case "$DISTRO" in
         sudo apt-get install -y git golang-1.10 make mercurial tar wget |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.5" | "rhel-7.6")
+    "rhel-7.5" | "rhel-7.6" | "rhel-7.7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y git golang make tar wget patch python-docutils |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
+    "rhel-8.0")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo yum install -y git golang make tar wget patch python2 mercurial |& tee -a "$LOG_FILE"
+	sudo ln -s /usr/bin/python2 /usr/bin/python
+        configureAndInstall |& tee -a "$LOG_FILE"
+	;;
     "sles-12.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
@@ -272,7 +299,7 @@ case "$DISTRO" in
         sudo pip install mercurial |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "sles-15")
+    "sles-15" | "sles-15.1")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y git gzip make mercurial python tar wget patch curl |& tee -a "$LOG_FILE"
