@@ -1,15 +1,15 @@
---- original/Dockerfile.s390x	2019-10-07 03:33:22.978765568 -0700
-+++ updated/Dockerfile.s390x	2019-10-07 03:35:17.548835544 -0700
-@@ -25,7 +25,7 @@
+--- original/Dockerfile.s390x	2019-10-07 02:53:58.181023143 -0700
++++ updated/Dockerfile.s390x	2019-10-03 04:27:54.950455470 -0700
+@@ -8,7 +8,7 @@
  RUN apt-get update && \
  apt-get upgrade -y && \
  apt-get install -y --no-install-recommends \
 -    gpg gpg-agent libelf-dev libmnl-dev libc-dev iptables libgcc-8-dev \
 +    gpg gpg-agent libelf-dev libmnl-dev libc-dev iptables libgcc-8-dev zlib1g zlib1g-dev zlibc \
-     bash-completion binutils binutils-dev make git curl \
-     ca-certificates xz-utils gcc pkg-config bison flex build-essential && \
+     bash-completion binutils binutils-dev ca-certificates make git curl \
+     xz-utils gcc pkg-config bison flex build-essential && \
  apt-get purge --auto-remove && \
-@@ -39,6 +39,7 @@
+@@ -22,6 +22,7 @@
  sed -i '/CFLAGS += -O2/a CFLAGS += -static' Makefile && \
  sed -i 's/LIBS = -lelf $(LIBBPF)/LIBS = -lelf -lz $(LIBBPF)/g' Makefile && \
  printf 'feature-libbfd=0\nfeature-libelf=1\nfeature-bpf=1\nfeature-libelf-mmap=1' >> FEATURES_DUMP.bpftool && \
@@ -17,11 +17,3 @@
  FEATURES_DUMP=`pwd`/FEATURES_DUMP.bpftool make -j `getconf _NPROCESSORS_ONLN` && \
  strip bpftool && \
  ldd bpftool 2>&1 | grep -q -e "Not a valid dynamic program" \
-@@ -63,7 +64,6 @@
- RUN apk add --no-cache ip6tables ipset iputils iproute2 conntrack-tools runit file ca-certificates
- 
- # Copy our bird binaries in
--COPY --from=bird /bird* /bin/
- 
- # Copy in the filesystem - this contains felix, calico-bgp-daemon etc...
- COPY filesystem/ /

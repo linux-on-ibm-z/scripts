@@ -4,7 +4,7 @@
 
 ################################################################################################################################################################
 #Script     :   build_Calico.sh
-#Description:   The script builds Calico version v3.8.1 on Linux on IBM Z for Rhel(7.5, 7.6), Ubuntu(16.04, 18.04, 19.04) and SLES(12SP4, 15, 15 SP1).
+#Description:   The script builds Calico version v3.8.1 on Linux on IBM Z for Rhel(7.5, 7.6), Ubuntu(16.04, 18.04) and SLES(12SP4, 15, 15 SP1).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource) 
 #Info/Notes :   Please refer to the instructions first for Building Calico mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Calico-3.x ).
 #               This script doesn't handle Docker installation. Install docker first before proceeding.
@@ -105,7 +105,7 @@ fi
 ### 2. Install dependencies
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
+"ubuntu-16.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$NAME_PACKAGE" "$VERSION_PACKAGE" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies . . .  it may take some time.\n"
 	sudo apt-get update 
@@ -372,8 +372,18 @@ cd $GOPATH/src/github.com/projectcalico/felix
 # Create bpf-clang-builder.Dockerfile.s390x file
 printf -- "\nDownloading  bpf-clang-builder.Dockerfile.s390x file . . . \n"  | tee -a "$FELIX_LOG"
 curl  -o "bpf-clang-builder.Dockerfile.s390x" $PATCH_URL/bpf-clang-builder.Dockerfile.s390x 2>&1 | tee -a "$FELIX_LOG"
-
 cp bpf-clang-builder.Dockerfile.s390x docker-build-images/
+
+# Modify Dockerfile.s390x, patching the same
+cd $GOPATH/src/github.com/projectcalico/felix/docker-image
+printf -- "\nDownloading patch for felix Dockerfille . . . \n"  | tee -a "$FELIX_LOG"
+curl  -o "felix_dockerfile.diff" $PATCH_URL/felix_dockerfile.diff 2>&1 | tee -a "$FELIX_LOG"
+printf -- "\nApplying patch to Dockerfile.s390x . . . \n"  | tee -a "$FELIX_LOG"
+patch Dockerfile.s390x felix_dockerfile.diff 2>&1 | tee -a "$FELIX_LOG"
+rm -rf felix_makefile.diff
+
+#Building Felix
+cd $GOPATH/src/github.com/projectcalico/felix
 ARCH=s390x make image 2>&1 | tee -a "$FELIX_LOG"
 
 if grep -Fxq "Successfully tagged calico/felix:latest-s390x" $FELIX_LOG
