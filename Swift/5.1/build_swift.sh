@@ -13,6 +13,7 @@ PACKAGE_NAME="swift"
 PACKAGE_VERSION="5.1"
 FORCE="false"
 CURDIR="$(pwd)"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Swift/5.1/patch"
 SWIFT_SOURCE_DIR=$CURDIR/swift-5.1
 if [ ! -d $SWIFT_SOURCE_DIR ]; then
         mkdir -p $SWIFT_SOURCE_DIR
@@ -133,8 +134,9 @@ function configureAndInstall() {
         git cherry-pick 68412be28a843e37e0be2557669d13024443d718
 
         # Apply patches for LLDB
-        cd ../lldb
-        git cherry-pick 852d35a9c161fd44222b14ebe10fb06529c96817
+        cd ../llvm-project
+        curl -o lldb.patch $REPO_URL/lldb.patch
+        git apply lldb.patch
 
         # Apply patches for Swift Package Manager
         cd ../swiftpm
