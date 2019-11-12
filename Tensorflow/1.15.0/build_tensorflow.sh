@@ -248,7 +248,12 @@ case "$DISTRO" in
 	#Install grpcio
 	printf -- "\nInstalling grpcio. . . \n" 
 	export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True
-	sudo -E pip3 install grpcio |& tee -a "${LOG_FILE}"
+	
+	if [[ "$DISTRO" == "ubuntu-19.04"  ]]; then
+	  sudo -E GRPC_PYTHON_LDFLAGS="" pip3 install grpcio |& tee -a "${LOG_FILE}"
+	else
+	  sudo -E pip3 install grpcio |& tee -a "${LOG_FILE}"
+	fi
 	
 	sudo ln -s /usr/bin/python3 /usr/bin/python
 	
