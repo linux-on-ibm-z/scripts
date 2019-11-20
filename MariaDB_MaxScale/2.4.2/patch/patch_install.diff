@@ -1,0 +1,27 @@
+--- BUILD/install_build_deps_old.sh     2019-09-23 20:01:49.126832814 +0000
++++ BUILD/install_build_deps.sh 2019-09-23 20:19:23.866832814 +0000
+@@ -114,12 +114,6 @@
+ fi
+
+ # cmake
+-wget -q http://max-tst-01.mariadb.com/ci-repository/cmake-3.7.1-Linux-x86_64.tar.gz --no-check-certificate
+-if [ $? != 0 ] ; then
+-    echo "CMake can not be downloaded from Maxscale build server, trying from cmake.org"
+-    wget -q https://cmake.org/files/v3.7/cmake-3.7.1-Linux-x86_64.tar.gz --no-check-certificate
+-fi
+-sudo tar xzf cmake-3.7.1-Linux-x86_64.tar.gz -C /usr/ --strip-components=1
+
+ cmake_version=`cmake --version | grep "cmake version" | awk '{ print $3 }'`
+ if [ "`echo -e "3.7.1\n$cmake_version"|sort -V|head -n 1`" != "3.7.1" ] ; then
+@@ -220,8 +214,8 @@
+ sudo make install
+ popd
+
+-wget --quiet https://nodejs.org/dist/v6.11.2/node-v6.11.2-linux-x64.tar.xz
+-tar -axf node-v6.11.2-linux-x64.tar.xz
+-sudo cp -t /usr -r node-v6.11.2-linux-x64/*
++wget --quiet https://nodejs.org/dist/v6.11.2/node-v6.11.2-linux-s390x.tar.xz
++tar -axf node-v6.11.2-linux-s390x.tar.xz
++sudo cp -t /usr -r node-v6.11.2-linux-s390x/*
+
+ sudo rm -rf $tmpdir

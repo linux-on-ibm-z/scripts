@@ -1,0 +1,11 @@
+--- lib-es5/system_old.js       2019-01-28 08:48:19.437920625 +0000
++++ lib-es5/system.js   2019-01-28 08:49:04.767920625 +0000
+@@ -106,7 +106,7 @@
+ }
+
+ function getKnownArchs() {
+-  return ['x64', 'x86', 'armv6', 'armv7', 'arm64'];
++  return ['x64', 'x86', 'armv6', 'armv7', 'arm64', 's390x'];
+ }
+
+ var hostAbi = exports.hostAbi = getHostAbi();
