@@ -1,0 +1,125 @@
+diff --git a/vendor/github.com/OneOfOne/xxhash/xxhash_safe.go b/vendor/github.com/OneOfOne/xxhash/xxhash_safe.go
+index 81b63cd..e92ec29 100644
+--- a/vendor/github.com/OneOfOne/xxhash/xxhash_safe.go
++++ b/vendor/github.com/OneOfOne/xxhash/xxhash_safe.go
+@@ -1,4 +1,4 @@
+-// +build appengine safe ppc64le ppc64be mipsle mips
++// +build appengine safe ppc64le ppc64be mipsle mips s390x
+
+ package xxhash
+
+diff --git a/vendor/github.com/OneOfOne/xxhash/xxhash_unsafe.go b/vendor/github.com/OneOfOne/xxhash/xxhash_unsafe.go
+index 42d2d35..10f2e84 100644
+--- a/vendor/github.com/OneOfOne/xxhash/xxhash_unsafe.go
++++ b/vendor/github.com/OneOfOne/xxhash/xxhash_unsafe.go
+@@ -4,6 +4,7 @@
+ // +build !mipsle
+ // +build !ppc64be
+ // +build !mips
++// +build !s390x
+
+ package xxhash
+
+diff --git a/vendor/github.com/elastic/go-libaudit/audit.go b/vendor/github.com/elastic/go-libaudit/audit.go
+index f912ab8..e1fc459 100644
+--- a/vendor/github.com/elastic/go-libaudit/audit.go
++++ b/vendor/github.com/elastic/go-libaudit/audit.go
+@@ -34,6 +34,10 @@ import (
+        "github.com/elastic/go-libaudit/auparse"
+ )
+
++var (
++       byteOrder = GetEndian()
++)
++
+ const (
+        // AuditMessageMaxLength is the maximum length of an audit message (data
+        // portion of a NetlinkMessage).
+@@ -537,7 +541,7 @@ func parseNetlinkAuditMessage(buf []byte) ([]syscall.NetlinkMessage, error) {
+
+        r := bytes.NewReader(buf)
+        m := syscall.NetlinkMessage{}
+-       if err := binary.Read(r, binary.LittleEndian, &m.Header); err != nil {
++       if err := binary.Read(r, byteOrder, &m.Header); err != nil {
+                return nil, err
+        }
+        m.Data = buf[syscall.NLMSG_HDRLEN:]
+@@ -596,7 +600,7 @@ type AuditStatus struct {
+ func (s AuditStatus) toWireFormat() []byte {
+        buf := bytes.NewBuffer(make([]byte, sizeofAuditStatus))
+        buf.Reset()
+-       if err := binary.Write(buf, binary.LittleEndian, s); err != nil {
++       if err := binary.Write(buf, byteOrder, s); err != nil {
+                // This never returns an error.
+                panic(err)
+        }
+@@ -631,7 +635,7 @@ func (s *AuditStatus) FromWireFormat(buf []byte) error {
+                        return nil
+                }
+
+-               if err := binary.Read(r, binary.LittleEndian, f); err != nil {
++               if err := binary.Read(r, byteOrder, f); err != nil {
+                        return err
+                }
+        }
+diff --git a/vendor/github.com/elastic/go-libaudit/netlink.go b/vendor/github.com/elastic/go-libaudit/netl
+index 8bc258a..1129ff7 100644
+--- a/vendor/github.com/elastic/go-libaudit/netlink.go
++++ b/vendor/github.com/elastic/go-libaudit/netlink.go
+@@ -20,7 +20,6 @@
+ package libaudit
+
+ import (
+-       "encoding/binary"
+        "fmt"
+        "io"
+        "os"
+@@ -142,11 +141,11 @@ func (c *NetlinkClient) Send(msg syscall.NetlinkMessage) (uint32, error) {
+ func serialize(msg syscall.NetlinkMessage) []byte {
+        msg.Header.Len = uint32(syscall.SizeofNlMsghdr + len(msg.Data))
+        b := make([]byte, msg.Header.Len)
+-       binary.LittleEndian.PutUint32(b[0:4], msg.Header.Len)
+-       binary.LittleEndian.PutUint16(b[4:6], msg.Header.Type)
+-       binary.LittleEndian.PutUint16(b[6:8], msg.Header.Flags)
+-       binary.LittleEndian.PutUint32(b[8:12], msg.Header.Seq)
+-       binary.LittleEndian.PutUint32(b[12:16], msg.Header.Pid)
++       byteOrder.PutUint32(b[0:4], msg.Header.Len)
++       byteOrder.PutUint16(b[4:6], msg.Header.Type)
++       byteOrder.PutUint16(b[6:8], msg.Header.Flags)
++       byteOrder.PutUint32(b[8:12], msg.Header.Seq)
++       byteOrder.PutUint32(b[12:16], msg.Header.Pid)
+        copy(b[16:], msg.Data)
+        return b
+ }
+@@ -205,7 +204,7 @@ func (c *NetlinkClient) Close() error {
+ // describing the problem will be returned.
+ func ParseNetlinkError(netlinkData []byte) error {
+        if len(netlinkData) >= 4 {
+-               errno := -binary.LittleEndian.Uint32(netlinkData[:4])
++               errno := -GetEndian().Uint32(netlinkData[:4])
+                if errno == 0 {
+                        return nil
+                }
+diff --git a/vendor/github.com/elastic/go-libaudit/rule/binary.go b/vendor/github.com/elastic/go-libaudit/
+index fd9759a..8551afd 100644
+--- a/vendor/github.com/elastic/go-libaudit/rule/binary.go
++++ b/vendor/github.com/elastic/go-libaudit/rule/binary.go
+@@ -21,7 +21,7 @@ import (
+        "bytes"
+        "encoding/binary"
+        "io"
+-
++       "github.com/elastic/go-libaudit"
+        "github.com/pkg/errors"
+ )
+
+@@ -30,7 +30,7 @@ const (
+        maxFields          = 64 // AUDIT_MAX_FIELDS
+ )
+
+-var endianness = binary.LittleEndian
++var endianness = libaudit.GetEndian()
+
+ // WireFormat is the binary representation of a rule as used to exchange rules
+ // (commands) with the kernel.
+ 
