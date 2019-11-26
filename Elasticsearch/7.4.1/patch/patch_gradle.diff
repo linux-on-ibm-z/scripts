@@ -1,0 +1,10 @@
+--- ./distribution/archives/build.gradle.oldfile        2019-08-13 08:45:35.982669511 +0000
++++ ./distribution/archives/build.gradle.newfile        2019-08-13 08:48:06.792669511 +0000
+@@ -175,7 +175,7 @@
+
+ task buildOssLinuxTar(type: Tar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'linux-x86_64'
++  archiveClassifier = 'linux-s390x'
+   with archiveFiles(modulesFiles(true, 'linux'), 'tar', 'linux', true, true)
+ }
