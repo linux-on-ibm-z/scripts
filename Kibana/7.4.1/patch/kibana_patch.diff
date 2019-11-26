@@ -1,0 +1,38 @@
+diff --git a/bin/kibana b/bin/kibana
+index 558facb9da..8da4393438 100755
+--- a/bin/kibana
++++ b/bin/kibana
+@@ -14,7 +14,7 @@ while [ -h "$SCRIPT" ] ; do
+ done
+
+ DIR="$(dirname "${SCRIPT}")/.."
+-NODE="${DIR}/node/bin/node"
++NODE="/usr/bin/node"
+ test -x "$NODE"
+ if [ ! -x "$NODE" ]; then
+   echo "unable to find usable node.js executable."
+diff --git a/package.json b/package.json
+index a2cb8ee68c..9622eeb3ee 100644
+--- a/package.json
++++ b/package.json
+@@ -354,7 +354,7 @@
+     "chance": "1.0.18",
+     "cheerio": "0.22.0",
+     "chokidar": "3.0.2",
+-    "chromedriver": "^77.0.0",
++    "chromedriver": "2.33.2",
+     "classnames": "2.2.6",
+     "dedent": "^0.7.0",
+     "delete-empty": "^2.0.0",
+diff --git a/x-pack/package.json b/x-pack/package.json
+index 3d4b75ff78..8ac4d54989 100644
+--- a/x-pack/package.json
++++ b/x-pack/package.json
+@@ -188,7 +188,6 @@
+     "@elastic/lsp-extension": "^0.1.2",
+     "@elastic/maki": "6.1.0",
+     "@elastic/node-crypto": "^1.0.0",
+-    "@elastic/nodegit": "0.25.0-alpha.23",
+     "@elastic/numeral": "2.3.3",
+     "@elastic/request-crypto": "^1.0.2",
+     "@kbn/babel-preset": "1.0.0",

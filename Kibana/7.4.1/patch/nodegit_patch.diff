@@ -1,0 +1,21 @@
+diff --git a/generate/templates/templates/binding.gyp b/generate/templates/templates/binding.gyp
+index e663e3c..bf28f6c 100644
+--- a/generate/templates/templates/binding.gyp
++++ b/generate/templates/templates/binding.gyp
+@@ -173,14 +173,8 @@
+         ],
+         [
+           "OS=='linux'", {
+-          "libraries": [
+-            "/usr/local/lib/libcurl.a",
+-            "/usr/local/ssl/lib/libssl.a",
+-            "/usr/local/ssl/lib/libcrypto.a"
+-          ],
+-          "defines": ["_FIND_ROOT_CERTS=1"],
+-          "ldflags": [
+-            "-static-libstdc++"
++          "cflags": [
++            "-std=c++11",
+           ],
+         }
+         ],
