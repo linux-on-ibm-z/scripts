@@ -1,0 +1,11 @@
+@@ -1814,8 +1814,8 @@ clean:
+ platform: linux \(linux\)
+ cp -rp bundle/ build
+ cd build
+-export LIBPQ_LIB='(/usr/lib64|/usr/lib/x86_64-linux-gnu)'
+-export LIBPQ_INC='(?:/usr/include|/usr/include/postgresql)'
++export LIBPQ_LIB='(/usr/lib64|/usr/lib/s390x-linux-gnu|/usr/lib/postgresql10/lib64)'
++export LIBPQ_INC='(?:/usr/include|/usr/include/postgresql|/usr/include/pgsql)'
+ cd LuaJIT-2.1-20190507
+ INFO: found -msse4.2 in cc.
+ gmake TARGET_STRIP=@: CCDEBUG=-g XCFLAGS='-DLUAJIT_ENABLE_LUA52COMPAT -DLUAJIT_ENABLE_GC64 -msse4.2' CC=cc PREFIX=/usr/local/openresty/luajit
