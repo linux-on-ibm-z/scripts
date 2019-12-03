@@ -1,0 +1,13 @@
+diff --git a/Makefile b/Makefile
+index 0c474c1..a2acfef 100644
+--- a/Makefile
++++ b/Makefile
+@@ -81,7 +81,7 @@ docker-binary:
+ 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GO) build -o $(BINDIR)/tiller $(GOFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' k8s.io/helm/cmd/tiller
+ 
+ .PHONY: docker-build
+-docker-build: check-docker docker-binary
++docker-build: check-docker 
+ 	docker build --rm -t ${IMAGE} rootfs
+ 	docker tag ${IMAGE} ${MUTABLE_IMAGE}
+ 
