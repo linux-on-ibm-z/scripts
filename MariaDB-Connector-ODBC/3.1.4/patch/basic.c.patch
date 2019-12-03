@@ -1,0 +1,13 @@
+diff --git a/test/basic.c b/test/basic.c
+index d9d6f3a..2a81e07 100644
+--- a/test/basic.c
++++ b/test/basic.c
+@@ -71,7 +71,7 @@ ODBC_TEST(simple_test)
+ {
+   SQLRETURN rc= SQL_SUCCESS;
+
+-  SQLINTEGER value=3;
++  SQLSMALLINT value=3;
+   SQLWCHAR Buffer[20];
+
+   char buffer[128];
