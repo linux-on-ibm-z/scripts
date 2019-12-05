@@ -180,13 +180,20 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04" | "ubuntu-19.10")
+"ubuntu-16.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo apt-get update
 	sudo apt-get install -y gcc g++ libbz2-dev libdb-dev libffi-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libssl-dev make tar tk-dev uuid-dev wget xz-utils zlib1g-dev
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
+"ubuntu-18.04" | "ubuntu-19.04" | "ubuntu-19.10")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+	sudo apt-get update
+	sudo apt-get install -y python3.8 |& tee -a "${LOG_FILE}"
+	sudo ln -sf /usr/bin/python3.8 /usr/bin/python3 |& tee -a "${LOG_FILE}"
+	;;
+	
 "rhel-6.x")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
     sudo yum install -y bzip2-devel db4-devel gcc gcc-c++ gdbm-devel git libtool libffi-devel libuuid-devel make ncurses-devel tar tk-devel wget xz xz-devel zlib-devel
