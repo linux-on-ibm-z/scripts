@@ -3,8 +3,8 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB-Connector-ODBC/3.1.4/build_mariadb-connector-odbc.sh
-# Execute build script: bash build_mariadb-connector-odbc.sh    (provide -h for help)
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB-Connector-ODBC/3.1.4/build_mariadb_connector_odbc.sh
+# Execute build script: bash build_mariadb_connector_odbc.sh    (provide -h for help)
 
 set -e -o pipefail
 
