@@ -1,6 +1,8 @@
---- original/Dockerfile.s390x	2019-10-07 03:33:22.978765568 -0700
-+++ updated/Dockerfile.s390x	2019-10-07 03:35:17.548835544 -0700
-@@ -25,7 +25,7 @@
+diff --git a/Dockerfile.s390x b/Dockerfile.s390x
+index 6adfed2..3c9de96 100644
+--- a/Dockerfile.s390x
++++ b/Dockerfile.s390x
+@@ -25,7 +25,7 @@ COPY --from=qemu /usr/bin/qemu-s390x-static /usr/bin/
  RUN apt-get update && \
  apt-get upgrade -y && \
  apt-get install -y --no-install-recommends \
@@ -9,7 +11,16 @@
      bash-completion binutils binutils-dev make git curl \
      ca-certificates xz-utils gcc pkg-config bison flex build-essential && \
  apt-get purge --auto-remove && \
-@@ -39,6 +39,7 @@
+@@ -34,11 +34,14 @@ apt-get clean
+ WORKDIR /tmp
+ 
+ RUN \
+-git clone --depth 1 -b master git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
+-cd linux/tools/bpf/bpftool/ && \
++git clone -b master git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
++cd linux && \
++git checkout 222ee9087a730b1df08d09baed0d03626e67600f && \
++cd tools/bpf/bpftool/ && \
  sed -i '/CFLAGS += -O2/a CFLAGS += -static' Makefile && \
  sed -i 's/LIBS = -lelf $(LIBBPF)/LIBS = -lelf -lz $(LIBBPF)/g' Makefile && \
  printf 'feature-libbfd=0\nfeature-libelf=1\nfeature-bpf=1\nfeature-libelf-mmap=1' >> FEATURES_DUMP.bpftool && \
@@ -17,7 +28,7 @@
  FEATURES_DUMP=`pwd`/FEATURES_DUMP.bpftool make -j `getconf _NPROCESSORS_ONLN` && \
  strip bpftool && \
  ldd bpftool 2>&1 | grep -q -e "Not a valid dynamic program" \
-@@ -63,7 +64,6 @@
+@@ -63,7 +66,6 @@ COPY --from=qemu /usr/bin/qemu-${ARCH}-static /usr/bin/
  RUN apk add --no-cache ip6tables ipset iputils iproute2 conntrack-tools runit file ca-certificates
  
  # Copy our bird binaries in

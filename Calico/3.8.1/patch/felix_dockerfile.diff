@@ -1,6 +1,8 @@
---- original/Dockerfile.s390x	2019-10-07 02:53:58.181023143 -0700
-+++ updated/Dockerfile.s390x	2019-10-03 04:27:54.950455470 -0700
-@@ -8,7 +8,7 @@
+diff --git a/docker-image/Dockerfile.s390x b/docker-image/Dockerfile.s390x
+index f3b5373..6ed11ef 100644
+--- a/docker-image/Dockerfile.s390x
++++ b/docker-image/Dockerfile.s390x
+@@ -8,7 +8,7 @@ COPY --from=qemu /usr/bin/qemu-s390x-static /usr/bin/
  RUN apt-get update && \
  apt-get upgrade -y && \
  apt-get install -y --no-install-recommends \
@@ -9,7 +11,16 @@
      bash-completion binutils binutils-dev ca-certificates make git curl \
      xz-utils gcc pkg-config bison flex build-essential && \
  apt-get purge --auto-remove && \
-@@ -22,6 +22,7 @@
+@@ -17,11 +17,14 @@ apt-get clean
+ WORKDIR /tmp
+ 
+ RUN \
+-git clone --depth 1 -b master git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
+-cd linux/tools/bpf/bpftool/ && \
++git clone -b master git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
++cd linux && \
++git checkout 222ee9087a730b1df08d09baed0d03626e67600f && \
++cd tools/bpf/bpftool/ && \
  sed -i '/CFLAGS += -O2/a CFLAGS += -static' Makefile && \
  sed -i 's/LIBS = -lelf $(LIBBPF)/LIBS = -lelf -lz $(LIBBPF)/g' Makefile && \
  printf 'feature-libbfd=0\nfeature-libelf=1\nfeature-bpf=1\nfeature-libelf-mmap=1' >> FEATURES_DUMP.bpftool && \
