@@ -259,7 +259,7 @@ case "$DISTRO" in
 "sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install  cmake perl  libopenssl-devel libapr1-devel autoconf automake libtool make tar git java-1_8_0-openjdk-devel gcc-c++ wget  which patch |& tee -a "${LOG_FILE}"
+	sudo zypper install -y cmake perl libopenssl-devel libapr1-devel autoconf automake libtool make tar git java-1_8_0-openjdk-devel gcc-c++ wget  which patch |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 "sles-15" | "sles-15.1")
