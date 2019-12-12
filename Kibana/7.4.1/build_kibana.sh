@@ -86,6 +86,8 @@ function configureAndInstall() {
         export PATH=/usr/local/bin:$PATH
         export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
         printf -- 'Built GCC 4.9.4 successfully. \n'
+	printf -- 'Cleaning up GCC source code folder \n'
+	rm -rf $CURDIR/gcc-4.9.4
     fi
 
     # Installing Node.js
