@@ -1,0 +1,10 @@
+diff --git a/.ko.yaml b/.ko.yaml
+index 5e5fb741..3ec72768 100644
+--- a/.ko.yaml
++++ b/.ko.yaml
+@@ -1,4 +1,2 @@
+# Use :nonroot base image for all containers
+-defaultBaseImage: gcr.io/distroless/static:nonroot
+-baseImageOverrides:
+-  knative.dev/serving/vendor/github.com/tsenart/vegeta: ubuntu:latest
++defaultBaseImage: localhost:5000/v0.7.0/ko.local/github.com/knative/build/build-base:latest
