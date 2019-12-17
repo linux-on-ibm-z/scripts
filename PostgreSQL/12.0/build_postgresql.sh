@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="postgresql"
 PACKAGE_VERSION="12.0"
 CURDIR="$(pwd)"
-POSTGRES_DIR="/home/postgres/"
+POSTGRES_DIR="/home/postgres"
 
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -68,32 +68,42 @@ function cleanup() {
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 
+	
 	# Create postgres user, group and home directory
 	sudo groupadd -r postgres || echo "group already exist"
-	sudo useradd -r -m -g postgres postgres || echo "user already exist"	
-	sudo -i -u postgres /bin/bash - <<'EOF'
-	  			#Change directory to postgres source code
-	 			cd /home/postgres/
-	 			rm -rf  postgres
-	 			git clone git://github.com/postgres/postgres.git
-	 			cd postgres
-	 			git checkout REL_12_0
-	        	#Configure, build and test the build
-	 			./configure
-	 			make
-	 			unset LANG
-				source "/etc/os-release"
-				if [[ "$ID" == "sles" && "$VERSION_ID" == "15" ]]; then
-					unset LC_CTYPE
-				fi	
-	 			make check
-EOF
+	sudo useradd -r -m -g postgres postgres || echo "user already exist"
 
 	if [[ "$ID" == "rhel" ]]; then
-		sudo chown -R "$USER" $POSTGRES_DIR
+		sudo chown -R "$USER" ${POSTGRES_DIR}
 	fi
-	cd $POSTGRES_DIR/postgres
-	sudo make install
+	sudo touch postgresuser_source.sh
+	sudo chmod +x postgresuser_source.sh
+sudo bash -c "cat > postgresuser_source.sh" <<'EOF'
+#!/bin/bash
+	set -e
+	#Change directory to postgres source code
+	cd /home/postgres/
+	rm -rf  postgres
+	git clone git://github.com/postgres/postgres.git
+	cd postgres
+	git checkout REL_12_0
+	#Configure, build and test the build
+	./configure
+	make
+	unset LANG
+	source "/etc/os-release"
+	if [[ "$ID" == "sles" && "$VERSION_ID" == "15" ]]; then
+		unset LC_CTYPE
+	fi	
+	make check
+    exit
+EOF
+cat postgresuser_source.sh
+sudo su -c ./postgresuser_source.sh postgres
+
+sudo chmod -R 755 ${POSTGRES_DIR}
+cd ${POSTGRES_DIR}/postgres
+sudo make install
 }
 
 function logDetails() {
@@ -152,18 +162,10 @@ DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	
-	#Postgresql 11.5 can be installed directly from repo for Ubuntu 19.04
-	if [[ "$ID" == "ubuntu" && "$VERSION_ID" == "19.04" ]]; then
-  printf -- 'Installing postgresql from repository \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update >/dev/null
-	sudo apt-get install -y postgresql-11 |& tee -a "$LOG_FILE"
-	else
-  printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update >/dev/null
-	sudo apt-get install -y bison flex wget build-essential git gcc make zlib1g-dev libreadline-dev |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-	fi
+
+	sudo DEBIAN_FRONTEND=noninteractive apt-get update >/dev/null
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y bison flex wget build-essential git gcc make zlib1g-dev libreadline-dev |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "rhel-6.x" | "rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
@@ -171,7 +173,6 @@ case "$DISTRO" in
 	printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
 
 	if [[ "$ID" == "rhel" && "$VERSION_ID" == "8.0" ]]; then	
-	sudo yum update -y |& tee -a "$LOG_FILE"
 	sudo yum install -y git wget gcc gcc-c++ make readline-devel zlib-devel bison flex  glibc-langpack-en procps-ng |& tee -a "$LOG_FILE"
 	else
 	sudo yum install -y git wget build-essential gcc gcc-c++ make readline-devel zlib-devel bison flex |& tee -a "$LOG_FILE"
