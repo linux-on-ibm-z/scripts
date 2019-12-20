@@ -65,7 +65,7 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
 	cd $SOURCE_ROOT
-	rm -rf  apache-maven-3.6.1-bin.tar.gz go1.13.1.linux-s390x.tar.gz cmake-3.7.2.tar.gz gcc-7.4.0.tar.xz
+	rm -rf  apache-maven-3.6.3-bin.tar.gz go1.13.1.linux-s390x.tar.gz cmake-3.7.2.tar.gz gcc-7.4.0.tar.xz
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
 
 }
@@ -111,9 +111,9 @@ function configureAndInstall() {
 	if [[ "$VERSION_ID" == "7.5" || "$VERSION_ID" == "7.6" || "$VERSION_ID" == "7.7" || "$ID" == "sles" ]]  ;then
 		printf -- "\nInstalling maven . . . \n"
 		cd $SOURCE_ROOT
-		wget http://www.eu.apache.org/dist/maven/maven-3/3.6.1/binaries/apache-maven-3.6.1-bin.tar.gz
-		tar -xvzf apache-maven-3.6.1-bin.tar.gz
-		export PATH=$PATH:$SOURCE_ROOT/apache-maven-3.6.1/bin/
+		wget http://www.eu.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+		tar -xvzf apache-maven-3.6.3-bin.tar.gz
+		export PATH=$PATH:$SOURCE_ROOT/apache-maven-3.6.3/bin/
 	
 	fi
 	
