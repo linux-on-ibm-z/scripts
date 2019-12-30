@@ -1,0 +1,13 @@
+diff --git a/test.sh b/test.sh
+index 99ae435..2e7d7b5 100755
+--- a/test.sh
++++ b/test.sh
+@@ -32,6 +32,6 @@ for package in $(go list ./...); do
+         continue
+     fi
+
+-    echo "./bin/golint -set_exit_status=1 $package"
+-    ./bin/golint -set_exit_status=1 "$package"
++    echo "$GOPATH/bin/golint -set_exit_status=1 $package"
++    $GOPATH/bin/golint -set_exit_status=1 "$package"
+ done
