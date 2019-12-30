@@ -79,7 +79,7 @@ function configureAndInstall() {
 	cd "$CURDIR/Python-${PACKAGE_VERSION}"
 	./configure
 	make
-    sudo make install
+    	sudo make install
 
 	printf -- '\nInstalled python successfully \n' >>"${LOG_FILE}"
 
@@ -216,13 +216,12 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 
-"rhel-7.5" | "rhel-7.6" | "rhel-8.0")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-  if [[ "$ID" == "rhel" && "$VERSION_ID" == "8.0" ]]; then	
-  sudo yum update -y |& tee -a "$LOG_FILE"
+  if [[ "$ID" == "rhel" && "$VERSION_ID" == "8.0" ]]; then
 	sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb libffi-devel libuuid make ncurses openssl readline sqlite tar tk wget xz xz zlib-devel glibc-langpack-en 
-	else	
-  sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libuuid-devel make ncurses-devel openssl-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel
+  else	
+  	sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libuuid-devel make ncurses-devel openssl-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel
   fi
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
