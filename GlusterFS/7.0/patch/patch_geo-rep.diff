@@ -1,0 +1,13 @@
+diff --git a/geo-replication/syncdaemon/monitor.py b/geo-replication/syncdaemon/monitor.p
+index 296e598..d2df505 100644
+--- a/geo-replication/syncdaemon/monitor.py
++++ b/geo-replication/syncdaemon/monitor.py
+@@ -38,7 +38,7 @@ def get_subvol_num(brick_idx, vol, hot):
+     disperse_count = vol.disperse_count(tier, hot)
+     replica_count = vol.replica_count(tier, hot)
+     distribute_count = vol.distribution_count(tier, hot)
+-    gconf.setconfig("master-distribution-count", distribute_count)
++    gconf.setconfig("master-distribution-count", str(distribute_count))
+
+     if (tier and not hot):
+         brick_idx = brick_idx - vol.get_hot_bricks_count(tier)
