@@ -1,0 +1,29 @@
+diff --git a/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java b/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java
+index d239de6083..7d3a867644 100644
+--- a/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java
++++ b/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java
+@@ -17,6 +17,7 @@
+
+ package org.apache.spark.unsafe.hash;
+
++import java.nio.ByteOrder;
+ import org.apache.spark.unsafe.Platform;
+
+ /**
+@@ -91,8 +92,14 @@ public final class Murmur3_x86_32 {
+     assert (lengthInBytes % 4 == 0);
+     int h1 = seed;
+     for (int i = 0; i < lengthInBytes; i += 4) {
+-      int halfWord = Platform.getInt(base, offset + i);
+-      int k1 = mixK1(halfWord);
++    int halfWord = Platform.getInt(base, offset + i);
++      int k1 = 0;
++      if (ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN)) {
++        k1 = mixK1((halfWord));
++      }
++      else {
++        k1 = mixK1(Integer.reverseBytes(halfWord));
++      }
+       h1 = mixH1(h1, k1);
+     }
+     return h1;
