@@ -1,0 +1,11 @@
+--- common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java   2019-12-12 02:23:08.143522751 -0500
++++ common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java_new       2019-12-12 02:24:08.083522751 -0500
+@@ -47,7 +47,7 @@
+   static {
+     boolean _unaligned;
+     String arch = System.getProperty("os.arch", "");
+-    if (arch.equals("ppc64le") || arch.equals("ppc64")) {
++    if (arch.equals("ppc64le") || arch.equals("ppc64") || arch.equals("s390x")) {
+       // Since java.nio.Bits.unaligned() doesn't return true on ppc (See JDK-8165231), but
+       // ppc64 and ppc64le support it
+       _unaligned = true;
