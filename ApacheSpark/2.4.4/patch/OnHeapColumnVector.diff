@@ -1,0 +1,20 @@
+--- sql/core/src/main/java/org/apache/spark/sql/execution/vectorized/OnHeapColumnVector.java    2019-12-12 02:21:08.683522751 -0500
++++ sql/core/src/main/java/org/apache/spark/sql/execution/vectorized/OnHeapColumnVector.java_new        2019-12-12 02:29:08.303522751 -0500
+@@ -396,7 +396,7 @@
+       Platform.copyMemory(src, Platform.BYTE_ARRAY_OFFSET + srcIndex, floatData,
+           Platform.DOUBLE_ARRAY_OFFSET + rowId * 4L, count * 4L);
+     } else {
+-      ByteBuffer bb = ByteBuffer.wrap(src).order(ByteOrder.LITTLE_ENDIAN);
++      ByteBuffer bb = ByteBuffer.wrap(src).order(ByteOrder.BIG_ENDIAN);
+       for (int i = 0; i < count; ++i) {
+         floatData[i + rowId] = bb.getFloat(srcIndex + (4 * i));
+       }
+@@ -445,7 +445,7 @@
+       Platform.copyMemory(src, Platform.BYTE_ARRAY_OFFSET + srcIndex, doubleData,
+           Platform.DOUBLE_ARRAY_OFFSET + rowId * 8L, count * 8L);
+     } else {
+-      ByteBuffer bb = ByteBuffer.wrap(src).order(ByteOrder.LITTLE_ENDIAN);
++      ByteBuffer bb = ByteBuffer.wrap(src).order(ByteOrder.BIG_ENDIAN);
+       for (int i = 0; i < count; ++i) {
+         doubleData[i + rowId] = bb.getDouble(srcIndex + (8 * i));
+       }
