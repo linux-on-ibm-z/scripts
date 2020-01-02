@@ -1,0 +1,11 @@
+--- core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala     2019-12-12 02:20:57.633522751 -0500
++++ core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala_new 2019-12-12 03:49:31.393522751 -0500
+@@ -36,7 +36,7 @@
+     STATSD_KEY_HOST -> "127.0.0.1"
+   )
+   private val socketTimeout = 30000 // milliseconds
+-  private val socketBufferSize = 8192
++  private val socketBufferSize = 10000
+
+   private def withSocketAndSink(testCode: (DatagramSocket, StatsdSink) => Any): Unit = {
+     val socket = new DatagramSocket
