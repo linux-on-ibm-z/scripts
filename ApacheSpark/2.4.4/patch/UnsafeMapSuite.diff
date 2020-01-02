@@ -1,0 +1,24 @@
+--- sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/UnsafeMapSuite.scala 2019-12-12 02:20:58.163522751 -0500
++++ sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/UnsafeMapSuite.scala_new     2019-12-12 03:54:08.403522751 -0500
+@@ -48,8 +48,8 @@
+     val ser = new JavaSerializer(new SparkConf).newInstance()
+     val mapDataSer = ser.deserialize[UnsafeMapData](ser.serialize(unsafeMapData))
+     assert(mapDataSer.numElements() == 1)
+-    assert(mapDataSer.keyArray().getInt(0) == 19285)
+-    assert(mapDataSer.valueArray().getInt(0) == 19286)
++    assert(mapDataSer.keyArray().getLong(0) == 19285)
++    assert(mapDataSer.valueArray().getLong(0) == 19286)
+     assert(mapDataSer.getBaseObject.asInstanceOf[Array[Byte]].length == 1024)
+   }
+
+@@ -57,8 +57,8 @@
+     val ser = new KryoSerializer(new SparkConf).newInstance()
+     val mapDataSer = ser.deserialize[UnsafeMapData](ser.serialize(unsafeMapData))
+     assert(mapDataSer.numElements() == 1)
+-    assert(mapDataSer.keyArray().getInt(0) == 19285)
+-    assert(mapDataSer.valueArray().getInt(0) == 19286)
++    assert(mapDataSer.keyArray().getLong(0) == 19285)
++    assert(mapDataSer.valueArray().getLong(0) == 19286)
+     assert(mapDataSer.getBaseObject.asInstanceOf[Array[Byte]].length == 1024)
+   }
+ }
