@@ -1,0 +1,22 @@
+diff --git a/test/param.c b/test/param.c
+index fff913a..902021f 100644
+--- a/test/param.c
++++ b/test/param.c
+@@ -1491,6 +1491,7 @@ ODBC_TEST(odbc45)
+ {
+   SQLSMALLINT i;
+   SQLLEN      len= 0;
++SQLCHAR     value;
+   SQLCHAR     val[][4]=        {"0",            "1"};//, "4", "-1", "0.5", "z"},
+   SQLWCHAR    valw[][4]=       { { '0', '\0' }, { '1', '\0' }, { '4', '\0' }, { '-', '1', '\0' }, { '0', '.', '5', '\0' }, { 'z', '\0' } };
+   SQLRETURN   XpctdRc[]=       {SQL_SUCCESS,    SQL_SUCCESS, SQL_ERROR, SQL_ERROR, SQL_ERROR, SQL_ERROR};
+@@ -1528,7 +1529,8 @@ ODBC_TEST(odbc45)
+   for (i= 0; i<sizeof(XpctdValue); ++i)
+   {
+     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+-    is_num(my_fetch_int(Stmt, 1), XpctdValue[i]);
++SQLGetData(Stmt, 1, SQL_C_BIT, &value, sizeof(value), 0);
++is_num(value, XpctdValue[i]);
+   }
+
+   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
