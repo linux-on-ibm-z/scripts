@@ -1,0 +1,11 @@
+--- CMakeLists.txtOrig	2019-11-27 03:18:23.340754021 -0800
++++ CMakeLists.txt	2019-11-27 03:18:47.370754021 -0800
+@@ -615,7 +615,7 @@
+ 		BUILD_BYPRODUCTS ${GRPC_LIB} ${GRPCPP_LIB}
+ 		# TODO s390x support
+ 		# TODO what if using system zlib
+-		PATCH_COMMAND rm -rf third_party/zlib && ln -s ${ZLIB_SRC} third_party/zlib && curl -L https://download.sysdig.com/dependencies/grpc-1.8.1-Makefile.patch | patch 
++		PATCH_COMMAND rm -rf third_party/zlib && ln -s ${ZLIB_SRC} third_party/zlib && curl -L https://download.sysdig.com/dependencies/grpc-1.8.1-Makefile.patch | patch && patch -l "${PROJECT_BINARY_DIR}/grpc-prefix/src/grpc/src/core/lib/support/log_linux.cc" $ENV{SOURCE_ROOT}/falco/grpc.patch
+ 		INSTALL_COMMAND "")
+ endif()
+ 
