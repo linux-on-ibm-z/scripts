@@ -1,0 +1,22 @@
+--- Makefile.old	2020-01-03 10:26:40.538296996 +0000
++++ Makefile.new	2020-01-03 10:00:09.691483192 +0000
+@@ -7,6 +7,7 @@
+ DEP           = $(GOPATH)/bin/dep
+ GOX           = $(GOPATH)/bin/gox
+ GOIMPORTS     = $(GOPATH)/bin/goimports
++ARCH          = $(shell uname -p)
+ 
+ ACCEPTANCE_DIR:=$(GOPATH)/src/helm.sh/acceptance-testing
+ # To specify the subset of acceptance tests to run. '.' means all tests
+@@ -63,7 +64,11 @@
+ 
+ .PHONY: test
+ test: build
++ifeq ($(ARCH),s390x)
++test: TESTFLAGS += -v
++else
+ test: TESTFLAGS += -race -v
++endif
+ test: test-style
+ test: test-unit
+ 
