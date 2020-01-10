@@ -1,0 +1,68 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c297215..53779b2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -464,7 +464,7 @@ else()
+ 		URL_MD5 "dc3494689a0dce7cf44e7a99c72b1f30"
+ 		BUILD_COMMAND ${CMD_MAKE}
+ 		BUILD_IN_SOURCE 1
+-		CONFIGURE_COMMAND ./configure --enable-static LIBS=-L${LIBYAML_SRC}/.libs CFLAGS=-I${LIBYAML_INCLUDE} CPPFLAGS=-I${LIBYAML_INCLUDE} LUA_INCLUDE=-I${LUAJIT_INCLUDE} LUA=${LUAJIT_SRC}/luajit
++		CONFIGURE_COMMAND ./configure --enable-static LIBS=-L${LIBYAML_SRC}/.libs CFLAGS=-I${LIBYAML_INCLUDE} CPPFLAGS=-I${LIBYAML_INCLUDE} LUA_INCLUDE=-I${LUAJIT_INCLUDE} LUA=/usr/bin/lua
+ 		INSTALL_COMMAND sh -c "cp -R ${PROJECT_BINARY_DIR}/lyaml-prefix/src/lyaml/lib/* ${PROJECT_SOURCE_DIR}/userspace/engine/lua")
+ endif()
+ 
+@@ -571,6 +571,7 @@ else()
+ 		URL "https://github.com/google/protobuf/releases/download/v3.5.0/protobuf-cpp-3.5.0.tar.gz"
+ 		URL_MD5 "e4ba8284a407712168593e79e6555eb2"
+ 		# TODO what if using system zlib?
++		PATCH_COMMAND cp $ENV{SOURCE_ROOT}/protobuf-3.5.0.patch . && patch -p0 -i protobuf-3.5.0.patch
+ 		CONFIGURE_COMMAND /usr/bin/env CPPFLAGS=-I${ZLIB_INCLUDE} LDFLAGS=-L${ZLIB_SRC} ./configure --with-zlib --prefix=${PROTOBUF_SRC}/target
+ 		BUILD_COMMAND ${CMD_MAKE}
+ 		BUILD_IN_SOURCE 1
+@@ -614,7 +615,7 @@ else()
+ 		BUILD_BYPRODUCTS ${GRPC_LIB} ${GRPCPP_LIB}
+ 		# TODO s390x support
+ 		# TODO what if using system zlib
+-		PATCH_COMMAND rm -rf third_party/zlib && ln -s ${ZLIB_SRC} third_party/zlib && curl -L https://download.sysdig.com/dependencies/grpc-1.1.4-Makefile.patch | patch
++		PATCH_COMMAND rm -rf third_party/zlib && ln -s ${ZLIB_SRC} third_party/zlib && curl -L https://download.sysdig.com/dependencies/grpc-1.8.1-Makefile.patch | patch
+ 		INSTALL_COMMAND "")
+ endif()
+ 
+@@ -656,7 +657,7 @@ set(CPACK_PACKAGE_RELOCATABLE "OFF")
+ set(CPACK_GENERATOR DEB RPM TGZ)
+ 
+ set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+-set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
++set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "s390x")
+ set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://www.falco.org")
+ set(CPACK_DEBIAN_PACKAGE_DEPENDS "dkms (>= 2.1.0.0)")
+ set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_BINARY_DIR}/scripts/debian/postinst;${CMAKE_BINARY_DIR}/scripts/debian/prerm;${PROJECT_SOURCE_DIR}/scripts/debian/postrm;${PROJECT_SOURCE_DIR}/cpack/debian/conffiles")
+diff --git a/userspace/engine/lua/rule_loader.lua b/userspace/engine/lua/rule_loader.lua
+index d6d2427..e6924c0 100644
+--- a/userspace/engine/lua/rule_loader.lua
++++ b/userspace/engine/lua/rule_loader.lua
+@@ -635,13 +635,14 @@ function load_rules(sinsp_lua_parser,
+ 	       if verbose then
+ 		  print("Skipping rule \""..v['rule'].."\" that contains unknown filter "..filter)
+ 	       end
+-	       goto next_rule
++	       break
+ 	    else
+ 	       error("Rule \""..v['rule'].."\" contains unknown filter "..filter)
+ 	    end
+ 	 end
+       end
+ 
++      if not v['skip-if-unknown-filter'] then
+       if (filter_ast.type == "Rule") then
+ 	 state.n_rules = state.n_rules + 1
+ 
+@@ -722,7 +723,7 @@ function load_rules(sinsp_lua_parser,
+ 	 return false, build_error_with_context(v['context'], "Unexpected type in load_rule: "..filter_ast.type)
+       end
+ 
+-      ::next_rule::
++      end
+    end
+ 
+    if verbose then
