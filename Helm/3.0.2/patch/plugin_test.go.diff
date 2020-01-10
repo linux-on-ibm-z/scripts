@@ -1,0 +1,19 @@
+--- pkg/plugin/plugin_test.go.old	2020-01-03 10:19:24.239101711 +0000
++++ pkg/plugin/plugin_test.go.new	2020-01-03 10:14:03.719793371 +0000
+@@ -87,6 +87,7 @@
+ 			PlatformCommand: []PlatformCommand{
+ 				{OperatingSystem: "linux", Architecture: "i386", Command: "echo -n linux-i386"},
+ 				{OperatingSystem: "linux", Architecture: "amd64", Command: "echo -n linux-amd64"},
++				{OperatingSystem: "linux", Architecture: "s390x", Command: "echo -n linux-s390x"},
+ 				{OperatingSystem: "windows", Architecture: "amd64", Command: "echo -n win-64"},
+ 			},
+ 		},
+@@ -98,6 +99,8 @@
+ 		osStrCmp = "linux-i386"
+ 	} else if os == "linux" && arch == "amd64" {
+ 		osStrCmp = "linux-amd64"
++	} else if os == "linux" && arch == "s390x" {
++		osStrCmp = "linux-s390x"
+ 	} else if os == "windows" && arch == "amd64" {
+ 		osStrCmp = "win-64"
+ 	} else {
