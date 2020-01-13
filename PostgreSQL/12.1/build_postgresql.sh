@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -92,10 +92,14 @@ sudo bash -c "cat > postgresuser_source.sh" <<'EOF'
 	./configure
 	make
 	unset LANG
+	if [ -f "/etc/os-release" ]; then
 	source "/etc/os-release"
 	if [[ "$ID" == "sles" && "$VERSION_ID" == "15.1" ]]; then
 		unset LC_CTYPE
-	fi	
+	fi
+	
+	fi
+		
 	make check
     exit
 EOF
