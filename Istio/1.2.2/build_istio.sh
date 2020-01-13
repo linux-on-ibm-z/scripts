@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -75,7 +75,6 @@ function runTest() {
 function cleanup() {
 
 	rm -rf "${CURDIR}/glide-v0.13.0-linux-s390x.tar.gz"
-	rm -rf "${CURDIR}/linux-s390x"
 	rm -rf "${CURDIR}/src/k8s.io/helm"
 	rm -rf "${CURDIR}/init.sh.diff"
 	rm -rf "${CURDIR}/init_helm.sh.diff"
@@ -237,8 +236,12 @@ done
 
 function printSummary() {
 
-	printf -- "\n* Getting Started * \n"
-	printf -- "\n ISTIO BUILD COMPLETED SUCCESSFULLY !!! \n "
+        printf -- "\n* Getting Started * \n"
+        printf -- "\n ISTIO BUILD COMPLETED SUCCESSFULLY !!! \n "
+        printf -- "\n* To integrate istio with kubernetes, export below variables * \n"
+        printf -- "\n export GOPATH=%s""$GOPATH"
+        printf -- "\n export GOROOT=%s""$GOROOT"
+        printf -- "\n export PATH=\$PATH:\$GOPATH/bin:\$GOPATH/out/linux_s390x/release:\$GOPATH/linux-s390x \n"
 }
 
 logDetails
