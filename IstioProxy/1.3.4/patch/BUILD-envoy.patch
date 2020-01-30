@@ -1,0 +1,22 @@
+--- a/bazel/BUILD
++++ b/bazel/BUILD
+@@ -153,7 +153,7 @@ config_setting(
+     name = "boringssl_fips",
+     constraint_values = [
+         "@bazel_tools//platforms:linux",
+-        "@bazel_tools//platforms:x86_64",
++        "@bazel_tools//platforms:s390x",
+     ],
+     values = {"define": "boringssl=fips"},
+ )
+@@ -194,6 +194,10 @@ config_setting(
+     values = {"cpu": "x64_windows"},
+ )
+
++config_setting(
++    name = "linux_s390x",
++    values = {"cpu": "s390x"},
++)
+ # Configuration settings to make doing selects for Apple vs non-Apple platforms
+ # easier. More details: https://docs.bazel.build/versions/master/configurable-    attributes.html#config_settingaliasing
+ config_setting(
