@@ -1,0 +1,10 @@
+--- a/bazel/foreign_cc/BUILD
++++ b/bazel/foreign_cc/BUILD
+@@ -279,6 +279,7 @@ envoy_cmake_external(
+     name = "zlib",
+     cache_entries = {
+         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
++        "CMAKE_MAKE_PROGRAM": "/$SOURCE_ROOT/ninja/ninja",
+     },
+     copy_pdb = True,
+     lib_source = "@net_zlib//:all",
