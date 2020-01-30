@@ -1,0 +1,13 @@
+--- src/conditions/BUILD.old    2019-11-04 15:28:43.808910546 +0000
++++ src/conditions/BUILD        2019-11-04 15:16:47.670151315 +0000
+@@ -63,3 +63,10 @@
+     values = {"define": "EXECUTOR=remote"},
+     visibility = ["//visibility:public"],
+ )
++
++config_setting(
++    name = "linux_s390x",
++    values = {"cpu": "s390x"},
++    visibility = ["//visibility:public"],
++)
++
