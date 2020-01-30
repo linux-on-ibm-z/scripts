@@ -1,0 +1,20 @@
+--- bazel/src/core/lib/iomgr/ev_epollex_linux.cc.orig   2019-11-21 20:13:57.710907660 +0000
++++ bazel/src/core/lib/iomgr/ev_epollex_linux.cc        2019-11-21 20:15:00.021168085 +0000
+@@ -1102,7 +1102,7 @@
+ }
+
+ #ifndef NDEBUG
+-static long gettid(void) { return syscall(__NR_gettid); }
++static long sys_gettid(void) { return syscall(__NR_gettid); }
+ #endif
+
+ /* pollset->mu lock must be held by the caller before calling this.
+@@ -1122,7 +1122,7 @@
+ #define WORKER_PTR (&worker)
+ #endif
+ #ifndef NDEBUG
+-  WORKER_PTR->originator = gettid();
++  WORKER_PTR->originator = sys_gettid();
+ #endif
+   if (GRPC_TRACE_FLAG_ENABLED(grpc_polling_trace)) {
+     gpr_log(GPR_INFO,    
