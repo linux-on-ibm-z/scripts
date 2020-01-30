@@ -1,0 +1,20 @@
+--- bazel/src/core/lib/gpr/log_linux.cc.orig    2019-11-21 20:14:05.400937681 +0000
++++ bazel/src/core/lib/gpr/log_linux.cc 2019-11-21 20:15:21.761247940 +0000
+@@ -40,7 +40,7 @@
+ #include <time.h>
+ #include <unistd.h>
+
+-static long gettid(void) { return syscall(__NR_gettid); }
++static long sys_gettid(void) { return syscall(__NR_gettid); }
+
+ void gpr_log(const char* file, int line, gpr_log_severity severity,
+              const char* format, ...) {
+@@ -70,7 +70,7 @@
+   gpr_timespec now = gpr_now(GPR_CLOCK_REALTIME);
+   struct tm tm;
+   static __thread long tid = 0;
+-  if (tid == 0) tid = gettid();
++  if (tid == 0) tid = sys_gettid();
+
+   timer = static_cast<time_t>(now.tv_sec);
+   final_slash = strrchr(args->file, '/');
