@@ -1,0 +1,10 @@
+--- third_party/BUILD.old       2019-11-04 15:17:30.320111328 +0000
++++ third_party/BUILD   2019-11-04 15:20:16.169881188 +0000
+@@ -525,6 +525,7 @@
+     # The .so file is an x86 one, so we can just remove it if the CPU is not x86
+     "//src/conditions:arm": "*.so *.jnilib *.dll",
+     "//src/conditions:linux_aarch64": "*.so *.jnilib *.dll",
++    "//src/conditions:linux_s390x": "*.so *.jnilib *.dll",
+     # Play it safe -- better have a big binary than a slow binary
+     # zip -d does require an argument. Supply something bogus.
+     "//conditions:default": "*.bogusextension",
