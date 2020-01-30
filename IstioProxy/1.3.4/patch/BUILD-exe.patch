@@ -1,0 +1,10 @@
+--- source/exe/BUILD.old        2019-11-04 15:43:58.161661624 +0000
++++ source/exe/BUILD    2019-11-04 15:44:39.221791705 +0000
+@@ -44,6 +44,7 @@
+     ] + select({
+         "//bazel:windows_x86_64": envoy_windows_extensions(),
+         "//bazel:linux_ppc": envoy_all_extensions(PPC_SKIP_TARGETS),
++        "//bazel:linux_s390x": envoy_all_extensions(),
+         "//bazel:boringssl_disabled": envoy_all_extensions(NOBORINGSSL_SKIP_TARGETS),
+         "//conditions:default": envoy_all_extensions(),
+     }),
