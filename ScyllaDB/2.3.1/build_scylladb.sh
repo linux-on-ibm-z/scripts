@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -98,6 +98,19 @@ function cleanup() {
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
+		
+	#Install Ant
+	printf -- 'Installing ant 1.10.6 \n'
+	cd "$CURDIR"
+	mkdir ant
+	cd ant
+	wget http://mirrors.estointernet.in/apache/ant/binaries/apache-ant-1.10.6-bin.tar.gz
+	tar -xvf apache-ant-1.10.6-bin.tar.gz
+	cd apache-ant-1.10.6
+	export ANT_HOME=`pwd`
+	cd bin
+	export PATH=$PATH:`pwd`
+	ant -version
 		
 	#Install antlr
 	printf -- 'Installing antlr v3.5.2 \n'
@@ -263,7 +276,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for ScyllaDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
-	sudo apt-get install -y ant openjdk-8-jdk python libgnutls-dev systemtap-sdt-dev lksctp-tools xfsprogs snappy libyaml-dev maven cmake openssl perl libc-ares-dev libevent-dev libmpfr-dev libmpcdec-dev xz-utils automake gcc git make texinfo wget unzip libtool libssl-dev curl libsystemd-dev libhwloc-dev libaio-dev libsctp-dev libsnappy-dev libpciaccess-dev libxml2-dev xfslibs-dev libgnutls28-dev libiconv-hook-dev mpi-default-dev libbz2-dev python-dev libxslt-dev libjsoncpp-dev cmake ragel python3 python3-pyparsing libprotobuf-dev protobuf-compiler liblz4-dev ninja-build libcrypto++-dev |& tee -a "$LOG_FILE"
+	sudo apt-get install -y openjdk-8-jdk python libgnutls-dev systemtap-sdt-dev lksctp-tools xfsprogs snappy libyaml-dev maven cmake openssl perl libc-ares-dev libevent-dev libmpfr-dev libmpcdec-dev xz-utils automake gcc git make texinfo wget unzip libtool libssl-dev curl libsystemd-dev libhwloc-dev libaio-dev libsctp-dev libsnappy-dev libpciaccess-dev libxml2-dev xfslibs-dev libgnutls28-dev libiconv-hook-dev mpi-default-dev libbz2-dev python-dev libxslt-dev libjsoncpp-dev cmake ragel python3 python3-pyparsing libprotobuf-dev protobuf-compiler liblz4-dev ninja-build libcrypto++-dev |& tee -a "$LOG_FILE"
 	
 	#Build GCC 7.4.0
 	printf -- 'Building GCC 7.4.0 \n' |& tee -a "$LOG_FILE"	
@@ -290,7 +303,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for ScyllaDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo subscription-manager repos --enable=rhel-7-server-for-system-z-rhscl-rpms
-	sudo yum install -y ant java-1.8.0-openjdk-devel python-devel gnutls-devel libaio-devel systemtap-sdt-devel lksctp-tools-devel xfsprogs-devel snappy-devel libyaml-devel maven cmake openssl-devel perl-devel libevent-devel libyaml-devel gmp-devel mpfr-devel libmpcdec xz-devel automake gcc git make texinfo protobuf-devel lz4-devel devtoolset-7 rh-python36 wget libatomic libatomic_ops-devel devtoolset-7-libatomic-devel |& tee -a "$LOG_FILE"
+	sudo yum install -y java-1.8.0-openjdk-devel python-devel gnutls-devel libaio-devel systemtap-sdt-devel lksctp-tools-devel xfsprogs-devel snappy-devel libyaml-devel maven cmake openssl-devel perl-devel libevent-devel libyaml-devel gmp-devel mpfr-devel libmpcdec xz-devel automake gcc git make texinfo protobuf-devel lz4-devel devtoolset-7 rh-python36 wget libatomic libatomic_ops-devel devtoolset-7-libatomic-devel |& tee -a "$LOG_FILE"
 	
 	source /opt/rh/rh-python36/enable
 	source /opt/rh/devtoolset-7/enable
