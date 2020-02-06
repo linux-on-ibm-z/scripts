@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2020
+# © Copyright IBM Corporation 2019, 2020
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -24,14 +24,9 @@ if [ ! -d "logs" ]; then
 fi
 
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
+
 if [ -f "/etc/os-release" ]; then
 	source "/etc/os-release"
-else
-  cat /etc/redhat-release >> "${LOG_FILE}"
-	export ID="rhel"
-  export VERSION_ID="6.x"
-  export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
 fi
 
 function checkPrequisites()
@@ -180,13 +175,6 @@ case "$DISTRO" in
   sudo apt-get update > /dev/null
   sudo apt-get install -y  gcc make wget tar bzip2 subversion bison flex openssl libssl-dev |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
-  ;;
-
-"rhel-6.x")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y bison flex openssl-devel libyaml-devel libffi-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite-devel gcc make wget tar bzip2 svn  |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
   
 "rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
