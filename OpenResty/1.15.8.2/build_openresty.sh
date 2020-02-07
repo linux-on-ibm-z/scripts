@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -26,15 +26,6 @@ fi
 # Set the Distro ID
 if [ -f "/etc/os-release" ]; then
 	source "/etc/os-release"
-elif cat /etc/redhat-release | grep -q 6.10; then
-    export ID="rhel"
-    export VERSION_ID="6.10"
-    export PRETTY_NAME="Red Hat Enterprise Linux Server release 6.10 (Santiago)"
-else
-    cat /etc/redhat-release >>"${LOG_FILE}"
-    export ID="rhel"
-    export VERSION_ID="6.x"
-    export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
 fi
 
 	
@@ -150,7 +141,7 @@ function runTest() {
 	
         #Make changes to $SOURCE_ROOT/openresty-1.15.8.2/t/sanity.t 
         case "$DISTRO" in
-        "sles-12.4" | "sles-15" | "sles-15.1" | "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
+        "sles-12.4" | "sles-15.1" | "ubuntu-16.04" | "ubuntu-18.04")
             curl -o "sanity.t.diff"  $CONF_URL/sanity.t.diff
 	    patch -l $SOURCE_ROOT/openresty-1.15.8.2/t/sanity.t sanity.t.diff
             ;;
@@ -168,7 +159,7 @@ function runTest() {
         printf -- 'Updated openresty-1.15.8.2/t/sanity.t \n'
 		
         case "$DISTRO" in
-        "sles-15" | "sles-15.1" | "rhel-8.0" | "ubuntu-18.04" | "ubuntu-19.04") 
+        "sles-15.1" | "rhel-8.0" | "ubuntu-18.04") 
             export PERL5LIB=$SOURCE_ROOT/openresty-1.15.8.2 
             ;;
         esac
@@ -231,7 +222,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
+"ubuntu-16.04" | "ubuntu-18.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -239,7 +230,7 @@ case "$DISTRO" in
     sudo ln -s make /usr/bin/gmake
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-6.10" | "rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git tar wget make gcc gcc-c++ unix2dos hg cpan perl postgresql-devel patch pcre-devel readline-devel openssl openssl-devel glibc-common |& tee -a "$LOG_FILE"
@@ -252,7 +243,7 @@ case "$DISTRO" in
     sudo zypper install -y git tar wget make gcc gcc-c++ dos2unix perl postgresql10-devel patch pcre-devel readline-devel openssl libopenssl-devel aaa_base |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15" | "sles-15.1")
+"sles-15.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y git tar wget make gcc gcc-c++ unix2dos mercurial python-xml python-curses perl postgresql10-devel patch pcre-devel readline-devel openssl openssl-devel aaa_base gzip |& tee -a "$LOG_FILE"
