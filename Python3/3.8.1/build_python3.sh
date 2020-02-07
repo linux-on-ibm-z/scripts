@@ -21,15 +21,8 @@ if [ ! -d "${CURDIR}/logs/" ]; then
         mkdir -p "${CURDIR}/logs/"
 fi
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-        source "/etc/os-release"
-else
-        cat /etc/redhat-release >>"${LOG_FILE}"
-        export ID="rhel"
-        export VERSION_ID="6.x"
-        export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
+
+source "/etc/os-release"
 
 function prepare() {
         printf -- 'Preparing installation \n' |& tee -a "${LOG_FILE}"
@@ -186,35 +179,6 @@ case "$DISTRO" in
         sudo apt-get install -y gcc g++ libbz2-dev libdb-dev libffi-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libssl-dev make tar tk-dev uuid-dev wget xz-utils zlib1g-dev
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-
-"rhel-6.x")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-    sudo yum install -y bzip2-devel db4-devel gcc gcc-c++ gdbm-devel git libtool libffi-devel libuuid-devel make ncurses-devel tar tk-devel wget xz xz-devel zlib-devel
-        cd "${CURDIR}"
-        git clone git://github.com/openssl/openssl.git
-        cd openssl
-        git checkout OpenSSL_1_0_2l
-        ./config --prefix=/usr --openssldir=/usr/local/openssl shared
-        make
-        sudo make install
-        cd "${CURDIR}"
-        wget https://ftp.gnu.org/gnu/readline/readline-6.3.tar.gz
-        tar -xzvf readline-6.3.tar.gz
-       cd readline-6.3
-        ./configure
-        make
-        sudo make install
-        cd "${CURDIR}"
-        wget https://www.sqlite.org/src/tarball/17efb420/SQLite-17efb420.tar.gz
-        tar -xzvf SQLite-17efb420.tar.gz
-        cd SQLite-17efb420
-        mkdir bld && cd bld
-        ../configure
-        make
-        sudo make install
-        export LD_LIBRARY_PATH=/usr/local/lib/
-    configureAndInstall |& tee -a "${LOG_FILE}"
-    ;;
 
 "rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
