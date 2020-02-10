@@ -68,8 +68,8 @@ function cleanup() {
 	sudo rm -rf "$GOPATH/src/github.com/jaegertracing/jaeger/status_linux.go.diff"
 	sudo rm -rf "$GOPATH/src/github.com/jaegertracing/jaeger/Makefile.diff"
 	sudo rm -rf "$CURDIR/go1.13.5.linux-s390x.tar.gz"
-	if [ -f "$CURDIR/node-v10.18.1-linux-s390x.tar.gz" ]; then
-		sudo rm "$CURDIR/node-v10.18.1-linux-s390x.tar.gz"
+	if [ -f "$CURDIR/node-v13.8.0-linux-s390x.tar.gz" ]; then
+		sudo rm "$CURDIR/node-v13.8.0-linux-s390x.tar.gz"
 	fi
     	printf -- "Cleaned up the artifacts\n" >>"$LOG_FILE"
 }
@@ -97,9 +97,9 @@ function configureAndInstall() {
                 printf -- "Installation of nodejs started started for ${DISTRO} \n"
                 #Install Nodejs
                 cd $CURDIR
-                wget https://nodejs.org/dist/latest-v10.x/node-v10.18.1-linux-s390x.tar.gz
-                tar -xvf node-v10.18.1-linux-s390x.tar.gz
-                export PATH=$CURDIR/node-v10.18.1-linux-s390x/bin:$PATH
+                wget https://nodejs.org/dist/v13.8.0/node-v13.8.0-linux-s390x.tar.gz
+                tar -xvf node-v13.8.0-linux-s390x.tar.gz
+                export PATH=$CURDIR/node-v13.8.0-linux-s390x/bin:$PATH
                 #Install Yarn
                 npm install -g yarn |& tee -a "$LOG_FILE"
         fi
