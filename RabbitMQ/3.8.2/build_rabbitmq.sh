@@ -25,14 +25,8 @@ if [ ! -d "logs" ]; then
 	mkdir -p "logs"
 fi
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
 if [ -f "/etc/os-release" ]; then
 	source "/etc/os-release"
-else
-	cat /etc/redhat-release >>"${LOG_FILE}"
-	export ID="rhel"
-	export VERSION_ID="6.x"
-	export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
 fi
 
 function prepare() {
@@ -222,13 +216,6 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar make curl java-1.8.0-ibm java-1.8.0-ibm-devel wget tar make perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel fop |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "${LOG_FILE}"
-	;;
-
-"rhel-6.x")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar make curl java-1.8.0-ibm java-1.8.0-ibm-devel wget tar make perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel libxslt libatomic_ops-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
