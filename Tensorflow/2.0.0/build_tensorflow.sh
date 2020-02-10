@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -27,14 +27,9 @@ if [ ! -d "$CURDIR/logs/" ]; then
    mkdir -p "$CURDIR/logs/"
 fi
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
+
 if [ -f "/etc/os-release" ]; then
 	source "/etc/os-release"
-else
-	cat /etc/redhat-release >>"${LOG_FILE}"
-	export ID="rhel"
-	export VERSION_ID="6.x"
-	export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
 fi
 
 function prepare() {
@@ -82,23 +77,16 @@ function configureAndInstall() {
 	#Install grpcio
 	printf -- "\nInstalling grpcio. . . \n" 
 	export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True
-	
-	if [[ "$DISTRO" == "ubuntu-19.04" ]]; then
-			printf -- "inside ub19.04\n" |& tee -a "$LOG_FILE"
-			sudo -E GRPC_PYTHON_LDFLAGS="" pip3 install grpcio |& tee -a "${LOG_FILE}"
-	else
-	
-			sudo -E pip3 install grpcio |& tee -a "${LOG_FILE}"
-	fi
-		
-		
+	sudo -E pip3 install grpcio |& tee -a "${LOG_FILE}"
+
+				
 	#Install go
 	printf -- "\nInstalling go. . . \n" 
 	cd $SOURCE_ROOT
-    wget https://dl.google.com/go/go1.13.3.linux-s390x.tar.gz  
+        wget https://dl.google.com/go/go1.13.3.linux-s390x.tar.gz  
 	sudo tar -C /usr/local -xzf go1.13.3.linux-s390x.tar.gz  
 	export PATH=/usr/local/go/bin:$PATH  
-    go version   
+        go version   
 	 
 	# Build Bazel
 	printf -- '\nBuilding bazel..... \n' 
@@ -236,8 +224,8 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
-    sudo apt-get install -y pkg-config zip g++ zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl maven python3-pip python3-virtualenv python3-numpy swig python3-dev libcurl3-dev python3-mock python3-scipy bzip2 python3-sklearn libhdf5-dev patch git patch libssl-dev |& tee -a "${LOG_FILE}"
-    sudo pip3 install numpy==1.16.2 future wheel backports.weakref portpicker futures==2.2.0 enum34 keras_preprocessing keras_applications h5py tensorflow_estimator |& tee -a "${LOG_FILE}"
+        sudo apt-get install -y pkg-config zip g++ zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl maven python3-pip python3-virtualenv python3-numpy swig python3-dev libcurl3-dev python3-mock python3-scipy bzip2 python3-sklearn libhdf5-dev patch git patch libssl-dev |& tee -a "${LOG_FILE}"
+        sudo pip3 install numpy==1.16.2 future wheel backports.weakref portpicker futures==2.2.0 enum34 keras_preprocessing keras_applications h5py tensorflow_estimator |& tee -a "${LOG_FILE}"
  	
 	#Install OpenJDK11
 	cd $SOURCE_ROOT
@@ -249,7 +237,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"ubuntu-18.04" | "ubuntu-19.04" )
+"ubuntu-18.04" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
