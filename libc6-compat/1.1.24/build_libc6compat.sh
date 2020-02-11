@@ -22,15 +22,7 @@ if [ ! -d "$SOURCE_ROOT/logs/" ]; then
     mkdir -p "$SOURCE_ROOT/logs/"
 fi
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-    source "/etc/os-release"
-else
-    cat /etc/redhat-release >>"${LOG_FILE}"
-    export ID="rhel"
-    export VERSION_ID="6.x"
-    export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
+source "/etc/os-release"
 
 function prepare() {
     if command -v "sudo" >/dev/null; then
