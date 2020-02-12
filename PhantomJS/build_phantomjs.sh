@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -18,25 +18,16 @@ CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Phanto
 CURDIR="$(pwd)"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 FORCE="false"
-BUILD_DIR="/usr/local"
 TESTS="false"
 
 trap cleanup 1 2 ERR
 
-#Check if directory exists
+# Check if directory exists
 if [ ! -d "$CURDIR/logs/" ]; then
 	mkdir -p "$CURDIR/logs/"
 fi
 
-# Need handling for RHEL 6.10 as it  doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-	source "/etc/os-release"
-else
-	cat /etc/redhat-release >>"${LOG_FILE}"
-	export ID="rhel"
-	export VERSION_ID="6.x"
-	export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
+source "/etc/os-release"
 
 function checkPrequisites() {
 	# Check Sudo exist
@@ -69,51 +60,60 @@ function checkPrequisites() {
 }
 
 function cleanup() {
-	sudo rm -rf "${BUILD_DIR}/openssl"
-	sudo rm -rf "${BUILD_DIR}/curl"
-	sudo rm -rf "${BUILD_DIR}/curl/mk-ca-bundle.pl"
-	sudo rm -rf "${BUILD_DIR}/JSStringRef.h.diff" 
+	sudo rm -rf "${CURDIR}/openssl"
+	sudo rm -rf "${CURDIR}/curl"
+	sudo rm -rf "${CURDIR}/curl/mk-ca-bundle.pl"
+	sudo rm -rf "${CURDIR}/JSStringRef.h.diff" 
 	printf -- 'Cleaned up the artifacts\n'
-
 }
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 
-	#Give permission
-	sudo chown -R "$USER" "$BUILD_DIR"
-
-	if [[ "${VERSION_ID}" == "15" || "${VERSION_ID}" == "15.1" ]]; then
+	# Build OpenSSL 1.0.2 for SLES 15 SP1 and RHEL 8.0
+	if [[ "${DISTRO}" == "sles-15.1" ]] || [[ "${DISTRO}" == "rhel-8.0" ]]; then
 		# Build OpenSSL 1.0.2
-		cd "$BUILD_DIR"
+		cd "$CURDIR"
 
 		#Check if directory exists
-		if [ -d "$BUILD_DIR/openssl/" ]; then
-			sudo rm -rf "$BUILD_DIR/openssl"
+		if [ -d "$CURDIR/openssl/" ]; then
+			rm -rf "$CURDIR/openssl"
 			printf -- 'remove openssl directory success\n' 
 		fi
 		
 		git clone  -b OpenSSL_1_0_2l git://github.com/openssl/openssl.git
 		cd openssl
 		./config --prefix=/usr --openssldir=/usr/local/openssl shared
-		#Give permission
-		sudo chown -R "$USER" "$BUILD_DIR/openssl/"
-
 		make
 		sudo make install
+	fi
 
+	# gperf 3.1 and python alias for RHEL 8.0
+	if [[ "${DISTRO}" == "rhel-8.0" ]]; then
+	    # build and install gperf
+	    cd $CURDIR
+		wget http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz
+		tar xvf gperf-3.1.tar.gz
+		cd gperf-3.1
+		./configure
+		make
+		sudo make install
+		export PATH=/usr/local/bin/:$PATH
+        # link python -> python2
+		sudo ln -sf /usr/bin/python2 /usr/bin/python
+	fi
+
+	# Curl 7.52.1 for SLES 15 SP1
+	if [[ "${VERSION_ID}" == "15.1" ]]; then
 		# Build cURL 7.52.1
-		cd "$BUILD_DIR"
+		cd "$CURDIR"
 		#Check if directory exsists
-		if [ -d "$BUILD_DIR/curl/" ]; then
-			sudo rm -rf "$BUILD_DIR/curl"
+		if [ -d "$CURDIR/curl/" ]; then
+			rm -rf "$CURDIR/curl"
 			printf -- 'remove curl directory success\n' 
 		fi
 
 		git clone  -b curl-7_52_1 git://github.com/curl/curl.git
-		#Give permission
-		sudo chown -R "$USER" "$BUILD_DIR/curl/"
-
 		cd curl
 		./buildconf
 		./configure --prefix=/usr/local --with-ssl --disable-shared
@@ -131,43 +131,45 @@ function configureAndInstall() {
 		SSL_CERT_FILE=$(pwd)/ca-bundle.crt
 		export SSL_CERT_FILE
 
-		sudo rm "$HOME/.curlrc"
+		rm "$HOME/.curlrc"
 
 		printf -- 'Build OpenSSL success\n' 
-
 	fi
 
 	# Install Phantomjs
-	cd "$BUILD_DIR"
+	cd "$CURDIR"
 	#Check if directory exsists
-	if [ -d "$BUILD_DIR/phantomjs/" ]; then
-		sudo rm -rf "$BUILD_DIR/phantomjs"
+	if [ -d "$CURDIR/phantomjs/" ]; then
+		rm -rf "$CURDIR/phantomjs"
 		printf -- 'remove phantomjs directory success\n'
 	fi
 
 	git clone  -b "${PACKAGE_VERSION}" git://github.com/ariya/phantomjs.git
-	#Give permission
-	sudo chown -R "$USER" "$BUILD_DIR/phantomjs/"
-
 	cd phantomjs
 	git submodule init
 	git submodule update
 	printf -- 'Clone Phantomjs repo success\n' 
 	
-	# Download  JSStringRef.h
-	if [[ "${VERSION_ID}" == "15" || "${VERSION_ID}" == "15.1" ]]; then
+	# Download  JSStringRef.h (SLES 15 SP1 and RHEL 8.0 Only)
+	if [[ "${DISTRO}" == "sles-15.1" ]] || [[ "${DISTRO}" == "rhel-8.0" ]]; then
 		# Patch config file
 		curl -o "JSStringRef.h.diff"  $CONF_URL/JSStringRef.h.diff
 		# replace config file
-		sudo patch "${BUILD_DIR}/phantomjs/src/qt/qtwebkit/Source/JavaScriptCore/API/JSStringRef.h" JSStringRef.h.diff
+		patch "${CURDIR}/phantomjs/src/qt/qtwebkit/Source/JavaScriptCore/API/JSStringRef.h" JSStringRef.h.diff
 		printf -- "Updated JSStringRef.h for %s \n" "$ID-$VERSION_ID"
+	fi
+
+	# Modify build.py for RHEL 8.0
+	if [[ "${DISTRO}" == "rhel-8.0" ]]; then
+		sed -i '202s/$/,/;203i\                "-no-pch"' ${CURDIR}/phantomjs/build.py
+		printf -- "Updated build.py for %s \n" "$ID-$VERSION_ID"
 	fi
 
 	# Build Phantomjs
 	python build.py
 	printf -- 'Build Phantomjs success \n'
 	# Add Phantomjs to /usr/bin
-	sudo cp "${BUILD_DIR}/phantomjs/bin/phantomjs" /usr/bin/
+	sudo cp "${CURDIR}/phantomjs/bin/phantomjs" /usr/bin/
 	printf -- 'Add Phantomjs to /usr/bin success \n' 
 
 	# Run Tests
@@ -190,7 +192,7 @@ function runTest() {
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- "TEST Flag is set, continue with running test \n"
 
-		cd "${BUILD_DIR}/phantomjs/test"
+		cd "${CURDIR}/phantomjs/test"
 		python run-tests.py
 
 		printf -- "Tests completed. \n"
@@ -239,12 +241,10 @@ while getopts "h?dyt" opt; do
 done
 
 function gettingStarted() {
-
 	printf -- "\n\nUsage: \n"
 	printf -- "\n\nTo run PhantomJS , run the following command: \n"
-	printf -- "\n\nFor Ubuntu: \n"
-	printf -- "\n\n  export QT_QPA_PLATFORM=offscreen \n"
-	printf -- "    phantomjs &   (Run in background)  \n"
+	printf -- "\n\nFor Ubuntu: export QT_QPA_PLATFORM=offscreen \n"
+	printf -- "\nphantomjs &   (Run in background)  \n"
 	printf -- '\n'
 }
 
@@ -264,34 +264,40 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.04")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo apt-get  update 
+	sudo apt-get update 
 
 	printf -- 'Installing the PhantomJS from repository \n' |& tee -a "$LOG_FILE"
-	sudo sudo apt-get install -y  phantomjs  |& tee -a "$LOG_FILE"
+	sudo apt-get install -y phantomjs  |& tee -a "$LOG_FILE"
 	verify_repo_install |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum -y  install gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel libXfont.s390x libXfont-devel.s390x xorg-x11-utils.s390x xorg-x11-font-utils.s390x tzdata.noarch tzdata-java.noarch xorg-x11-fonts-Type1.noarch xorg-x11-font-utils.s390x python python-setuptools git wget tar |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.4" | "sles-15" | "sles-15.1")
+"rhel-8.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum -y install gcc gcc-c++ make flex bison ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel xorg-x11-utils.s390x xorg-x11-font-utils.s390x tzdata.noarch tzdata-java.noarch xorg-x11-fonts-Type1.noarch xorg-x11-font-utils.s390x python2 python2-setuptools git wget tar patch |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
 
-	if [[ "${VERSION_ID}" == "12.4" ]]; then
-		sudo zypper install -y gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 python python-setuptools wget |& tee -a "$LOG_FILE"
-		printf -- 'Install dependencies for sles-12.4 success \n' |& tee -a "$LOG_FILE"
-	else
-		sudo zypper install -y gcc gcc-c++ make flex bison gperf ruby freetype2-devel fontconfig-devel libicu-devel sqlite3-devel libpng16-compat-devel libjpeg8-devel python2 python2-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 autoconf automake libtool patch wget |& tee -a "$LOG_FILE"
-		printf -- "Install dependencies for %s success \n" "$DISTRO" |& tee -a "$LOG_FILE"
-	fi
+"sles-12.4")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
+    sudo zypper install -y gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 python python-setuptools |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
 
+"sles-15.1")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for PhantomJS from repository \n' |& tee -a "$LOG_FILE"
+    sudo zypper install -y gcc gcc-c++ make flex bison gperf ruby freetype2-devel fontconfig-devel libicu-devel sqlite3-devel libpng16-compat-devel libjpeg8-devel python2 python2-setuptools git xorg-x11-devel xorg-x11-essentials xorg-x11-fonts xorg-x11 xorg-x11-util-devel libXfont-devel libXfont1 autoconf automake libtool wget patch |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
