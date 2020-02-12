@@ -66,7 +66,7 @@ function install_go() {
 	
 	printf -- "\n Installing go \n" |& tee -a "$LOG_FILE"    
 	cd $SOURCE_ROOT
-	wget "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.13/build_go.sh" |& tee -a "$LOG_FILE" 
+	wget "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.13.5/build_go.sh" |& tee -a "$LOG_FILE" 
     	chmod +x build_go.sh
     	bash build_go.sh -v 1.12.7 |& tee -a "$LOG_FILE"
 
@@ -161,7 +161,7 @@ case "$DISTRO" in
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
     	sudo apt-get update
-	sudo apt-get install -y git gcc make |& tee -a "$LOG_FILE"
+	sudo apt-get install -y git gcc make curl wget |& tee -a "$LOG_FILE"
 	install_go 
 	export GOPATH=$SOURCE_ROOT
 	export PATH=$GOPATH/bin:$PATH
@@ -170,7 +170,7 @@ case "$DISTRO" in
 "rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y git gcc make wget |& tee -a "$LOG_FILE"
+	sudo yum install -y git gcc make wget curl |& tee -a "$LOG_FILE"
     	install_go 
 	export GOPATH=$SOURCE_ROOT
 	export PATH=$GOPATH/bin:$PATH
@@ -179,7 +179,7 @@ case "$DISTRO" in
 "sles-12.4" | "sles-15.1")
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y git gcc make wget |& tee -a "$LOG_FILE"
+	sudo zypper install -y git gcc make wget curl |& tee -a "$LOG_FILE"
 	install_go 
 	export GOPATH=$SOURCE_ROOT
 	export PATH=$GOPATH/bin:$PATH
