@@ -23,15 +23,7 @@ if [ ! -d "$SOURCE_ROOT/logs/" ]; then
     mkdir -p "$SOURCE_ROOT/logs/"
 fi
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-    source "/etc/os-release"
-else
-    cat /etc/redhat-release >>"${LOG_FILE}"
-    export ID="rhel"
-    export VERSION_ID="6.x"
-    export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
+source "/etc/os-release"
 
 function prepare() {
     if command -v "sudo" >/dev/null; then
@@ -193,7 +185,7 @@ function gettingStarted() {
     printf -- " sudo bin/mysqld --initialize --user=mysql \n"
     printf -- " sudo bin/mysqld_safe --user=mysql & \n"
     printf -- "           You have successfully started MySQL Server.\n"
-    printf -- " Note: In case of RHEL (6.10, 7.x), Env variables can be set by running command source $HOME/setenv.sh \n"
+    printf -- " Note: In case of RHEL (7.x), Env variables can be set by running command source $HOME/setenv.sh \n"
     printf -- '**********************************************************************************************************\n'
 }
 
@@ -209,7 +201,7 @@ case "$DISTRO" in
     	sudo apt-get install -y bison cmake gcc g++ git hostname libncurses-dev libssl-dev make openssl pkg-config doxygen |& tee -a "$LOG_FILE"
     	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-6.x" | "rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
     	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar wget zlib-devel doxygen |& tee -a "$LOG_FILE"
@@ -225,18 +217,6 @@ case "$DISTRO" in
 	./bootstrap
 	make
 	sudo make install -e LD_LIBRARY_PATH=/usr/local/lib64/
-	
-	#Build OpenSSL_1_0_2
-	if [ "$VERSION_ID" == "6.x" ]; then
-	
-		cd $SOURCE_ROOT
-		git clone git://github.com/openssl/openssl.git
-		cd openssl
-		git checkout OpenSSL_1_0_2l
-		./config --prefix=/usr --openssldir=/usr/local/openssl shared
-		make
-		sudo make install
-	fi
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 "rhel-8.0")
