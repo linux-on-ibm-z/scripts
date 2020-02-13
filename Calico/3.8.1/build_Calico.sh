@@ -1,10 +1,10 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 ################################################################################################################################################################
 #Script     :   build_Calico.sh
-#Description:   The script builds Calico version v3.8.1 on Linux on IBM Z for Rhel(7.5, 7.6), Ubuntu(16.04, 18.04) and SLES(12SP4, 15, 15 SP1).
+#Description:   The script builds Calico version v3.8.1 on Linux on IBM Z for Rhel(7.5, 7.6), Ubuntu(16.04, 18.04) and SLES(12SP4, 15 SP1).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource) 
 #Info/Notes :   Please refer to the instructions first for Building Calico mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Calico-3.x ).
 #               This script doesn't handle Docker installation. Install docker first before proceeding.
@@ -78,14 +78,7 @@ GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/
 GO_DEFAULT="$HOME/go"
 GO_FLAG="DEFAULT"
 
-if [ -f "/etc/os-release" ]; then
-    source "/etc/os-release"
-else
-    cat /etc/redhat-release >>"${CONF_LOG}"
-    ID="rhel"
-    VERSION_ID="6.x"
-    PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
+source "/etc/os-release"
 
 if command -v "sudo" >/dev/null; then
     printf -- 'Sudo : Yes\n' >>"$CONF_LOG"
@@ -119,7 +112,7 @@ case "$DISTRO" in
 	export CC=gcc
 	;;
 
-"sles-12.4" | "sles-15" | "sles-15.1")
+"sles-12.4" | "sles-15.1")
 	printf -- "Installing %s %s for %s \n" "$NAME_PACKAGE" "$VERSION_PACKAGE" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies . . .  it may take some time.\n"
     sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch 2>&1 | tee -a "$CONF_LOG"
