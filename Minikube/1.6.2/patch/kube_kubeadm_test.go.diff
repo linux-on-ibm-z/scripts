@@ -1,0 +1,13 @@
+diff --git a/pkg/minikube/bootstrapper/kubeadm/kubeadm_test.go b/pkg/minikube/bootstrapper/kubeadm/kubeadm_test.go
+index a387d7193..aef1b71b6 100644
+--- a/pkg/minikube/bootstrapper/kubeadm/kubeadm_test.go
++++ b/pkg/minikube/bootstrapper/kubeadm/kubeadm_test.go
+@@ -128,7 +128,7 @@ Wants=docker.socket
+ 
+ [Service]
+ ExecStart=
+-ExecStart=/var/lib/minikube/binaries/v1.17.0/kubelet --authorization-mode=Webhook --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --cgroup-driver=cgroupfs --client-ca-file=/var/lib/minikube/certs/ca.crt --cluster-dns=10.96.0.10 --cluster-domain=cluster.local --config=/var/lib/kubelet/config.yaml --container-runtime=docker --fail-swap-on=false --hostname-override=minikube --kubeconfig=/etc/kubernetes/kubelet.conf --node-ip=192.168.1.100 --pod-infra-container-image=docker-proxy-image.io/google_containers/pause:3.1 --pod-manifest-path=/etc/kubernetes/manifests
++ExecStart=/var/lib/minikube/binaries/v1.17.0/kubelet --authorization-mode=Webhook --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --cgroup-driver=cgroupfs --client-ca-file=/var/lib/minikube/certs/ca.crt --cluster-dns=10.96.0.10 --cluster-domain=cluster.local --config=/var/lib/kubelet/config.yaml --container-runtime=docker --fail-swap-on=false --hostname-override=minikube --kubeconfig=/etc/kubernetes/kubelet.conf --node-ip=192.168.1.100 --pod-infra-container-image=docker-proxy-image.io/google_containers/pause-s390x:3.1 --pod-manifest-path=/etc/kubernetes/manifests
+ 
+ [Install]
+ `,
