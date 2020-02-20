@@ -98,7 +98,7 @@ function configureAndInstall() {
 	
 	cd $SOURCE_ROOT
 	mkdir build && cd build	 
-	sed -i 's,http://mirror.netinch.com/pub/apache/avro/stable/c,https://www.apache.org/dist/avro/stable/c/,g'  ../MaxScale/BUILD/install_build_deps.sh
+	sed -i 's,https://www-eu.apache.org/dist/avro/stable/c,https://downloads.apache.org/avro/stable/c/,g'  ../MaxScale/BUILD/install_build_deps.sh
 	../MaxScale/BUILD/install_build_deps.sh
 	
 	cd $SOURCE_ROOT/MaxScale/pcre2
