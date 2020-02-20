@@ -1,0 +1,13 @@
+diff --git a/src/dev/register_git_hook/register_git_hook.js b/src/dev/register_git_hook/register_git_hook.js
+index a619220..bdb3e2d 100644
+--- a/src/dev/register_git_hook/register_git_hook.js
++++ b/src/dev/register_git_hook/register_git_hook.js
+@@ -37,7 +37,7 @@ const writeFileAsync = promisify(writeFile);
+ async function getPrecommitGitHookScriptPath(rootPath) {
+   // Retrieves the correct location for the .git dir for
+   // every git setup (including git worktree)
+-  const gitDirPath = (await gitRevParseAsync(['--git-common-dir'])).trim();
++  const gitDirPath = (await gitRevParseAsync(['--git-dir'])).trim();
+
+   return resolve(rootPath, gitDirPath, 'hooks/pre-commit');
+ }
