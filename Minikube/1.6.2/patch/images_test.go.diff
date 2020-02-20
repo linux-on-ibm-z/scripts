@@ -1,0 +1,34 @@
+diff --git a/pkg/minikube/bootstrapper/images/images_test.go b/pkg/minikube/bootstrapper/images/images_test.go
+index 31a487e4c..4ecb51db3 100644
+--- a/pkg/minikube/bootstrapper/images/images_test.go
++++ b/pkg/minikube/bootstrapper/images/images_test.go
+@@ -24,10 +24,10 @@ import (
+ 
+ func TestAuxiliary(t *testing.T) {
+ 	want := []string{
+-		"k8s.gcr.io/kube-addon-manager:v9.0.2",
+-		"gcr.io/k8s-minikube/storage-provisioner:v1.8.1",
+-		"kubernetesui/dashboard:v2.0.0-beta8",
+-		"kubernetesui/metrics-scraper:v1.0.2",
++		"k8s.gcr.io/kube-addon-manager-s390x:v9.0.2",
++		"gcr.io/k8s-minikube/storage-provisioner-s390x:v1.8.1",
++		"kubernetesui/dashboard-s390x:v2.0.0-beta8",
++		"kubernetesui/metrics-scraper-s390x:v1.0.2",
+ 	}
+ 	got := Auxiliary("")
+ 	if diff := cmp.Diff(want, got); diff != "" {
+@@ -37,10 +37,10 @@ func TestAuxiliary(t *testing.T) {
+ 
+ func TestAuxiliaryMirror(t *testing.T) {
+ 	want := []string{
+-		"test.mirror/kube-addon-manager:v9.0.2",
+-		"test.mirror/storage-provisioner:v1.8.1",
+-		"test.mirror/dashboard:v2.0.0-beta8",
+-		"test.mirror/metrics-scraper:v1.0.2",
++		"test.mirror/kube-addon-manager-s390x:v9.0.2",
++		"test.mirror/storage-provisioner-s390x:v1.8.1",
++		"test.mirror/dashboard-s390x:v2.0.0-beta8",
++		"test.mirror/metrics-scraper-s390x:v1.0.2",
+ 	}
+ 	got := Auxiliary("test.mirror")
+ 	if diff := cmp.Diff(want, got); diff != "" {
