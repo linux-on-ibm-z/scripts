@@ -1,0 +1,118 @@
+diff --git a/Makefile b/Makefile
+index b669f0312..a4be1b8f4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -27,7 +27,7 @@ endif
+ SHELL = /bin/bash
+ 
+ # Use the 0.0 tag for testing, it shouldn't clobber any release builds
+-TAG ?= master
++TAG ?= 0.27.0
+ DOCKER ?= docker
+ 
+ # Use docker to run makefile tasks
+@@ -54,7 +54,7 @@ GIT_COMMIT ?= git-$(shell git rev-parse --short HEAD)
+ 
+ PKG = k8s.io/ingress-nginx
+ 
+-ALL_ARCH = amd64 arm arm64
++ALL_ARCH = amd64 arm arm64 s390x
+ 
+ BUSTED_ARGS =-v --pattern=_test
+ 
+@@ -86,6 +86,9 @@ endif
+ ifeq ($(ARCH),arm64)
+ 	QEMUARCH=aarch64
+ endif
++ifeq ($(ARCH),s390x)
++	QEMUARCH=s390x
++endif
+ 
+ TEMP_DIR := $(shell mktemp -d)
+ DOCKERFILE := $(TEMP_DIR)/rootfs/Dockerfile
+@@ -121,7 +124,7 @@ container: clean-container .container-$(ARCH) ## Build image for a particular ar
+ 	cp bin/$(ARCH)/wait-shutdown $(TEMP_DIR)/rootfs/wait-shutdown
+ 
+ 	cp -RP ./* $(TEMP_DIR)
+-	$(SED_I) "s|BASEIMAGE|$(BASEIMAGE)|g" $(DOCKERFILE)
++	$(SED_I) "s|BASEIMAGE|quay.io/kubernetes-ingress-controller/nginx-$(ARCH):0.95|g" $(DOCKERFILE)
+ 	$(SED_I) "s|QEMUARCH|$(QEMUARCH)|g" $(DOCKERFILE)
+ 	$(SED_I) "s|VERSION|$(TAG)|g" $(DOCKERFILE)
+ 
+@@ -135,7 +138,7 @@ else
+ endif
+ 
+ 	echo "Building docker image..."
+-	$(DOCKER) build --no-cache --pull -t $(MULTI_ARCH_IMAGE):$(TAG) $(TEMP_DIR)/rootfs
++	$(DOCKER) build --no-cache  -t $(MULTI_ARCH_IMAGE):$(TAG) $(TEMP_DIR)/rootfs
+ 
+ .PHONY: clean-container
+ clean-container: ## Removes local image
+@@ -155,7 +158,7 @@ push: .push-$(ARCH) ## Publish image for a particular arch.
+ 
+ .PHONY: build
+ build: check-go-version ## Build ingress controller, debug tool and pre-stop hook.
+-ifeq ($(USE_DOCKER), true)
++ifeq ($(USE_DOCKER), false)
+ 	@build/run-in-docker.sh \
+ 		PKG=$(PKG) \
+ 		ARCH=$(ARCH) \
+@@ -198,7 +201,7 @@ endif
+ 
+ .PHONY: test
+ test: check-go-version ## Run go unit tests.
+-ifeq ($(USE_DOCKER), true)
++ifeq ($(USE_DOCKER), false)
+ 	@build/run-in-docker.sh \
+ 		PKG=$(PKG) \
+ 		ARCH=$(ARCH) \
+diff --git a/deploy/static/mandatory.yaml b/deploy/static/mandatory.yaml
+index ccdd12ed9..0cd8c4c96 100644
+--- a/deploy/static/mandatory.yaml
++++ b/deploy/static/mandatory.yaml
+@@ -217,7 +217,7 @@ spec:
+         kubernetes.io/os: linux
+       containers:
+         - name: nginx-ingress-controller
+-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:master
++          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller-s390x:0.27.0
+           args:
+             - /nginx-ingress-controller
+             - --configmap=$(POD_NAMESPACE)/nginx-configuration
+diff --git a/deploy/static/with-rbac.yaml b/deploy/static/with-rbac.yaml
+index d45ef4154..0192b665e 100644
+--- a/deploy/static/with-rbac.yaml
++++ b/deploy/static/with-rbac.yaml
+@@ -28,7 +28,7 @@ spec:
+         kubernetes.io/os: linux
+       containers:
+         - name: nginx-ingress-controller
+-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:master
++          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller-s390x:0.27.0
+           args:
+             - /nginx-ingress-controller
+             - --configmap=$(POD_NAMESPACE)/nginx-configuration
+diff --git a/images/nginx/Makefile b/images/nginx/Makefile
+index e52e8bf88..7bdff4852 100644
+--- a/images/nginx/Makefile
++++ b/images/nginx/Makefile
+@@ -18,7 +18,7 @@ REGISTRY ?= quay.io/kubernetes-ingress-controller
+ ARCH ?= $(shell go env GOARCH)
+ DOCKER ?= docker
+ 
+-ALL_ARCH = amd64 arm arm64
++ALL_ARCH = amd64 arm arm64 s390x
+ SED_I?=sed -i
+ GOHOSTOS ?= $(shell go env GOHOSTOS)
+ 
+@@ -38,7 +38,9 @@ endif
+ ifeq ($(ARCH),arm64)
+ 	QEMUARCH=aarch64
+ endif
+-
++ifeq ($(ARCH),s390x)
++	QEMUARCH=s390x
++endif
+ TEMP_DIR := $(shell mktemp -d)
+ 
+ all: all-container
