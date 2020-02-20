@@ -1,0 +1,20 @@
+diff --git a/pkg/minikube/bootstrapper/images/images.go b/pkg/minikube/bootstrapper/images/images.go
+index b80e17f37..0b0a57a74 100644
+--- a/pkg/minikube/bootstrapper/images/images.go
++++ b/pkg/minikube/bootstrapper/images/images.go
+@@ -63,7 +63,7 @@ func dashboardFrontend(repo string) string {
+ 		repo = "kubernetesui"
+ 	}
+ 	// See 'kubernetes-dashboard' in deploy/addons/dashboard/dashboard-dp.yaml
+-	return path.Join(repo, "dashboard:v2.0.0-beta8")
++	return path.Join(repo, "dashboard-s390x:v2.0.0-beta8")
+ }
+ 
+ // dashboardMetrics returns the image used for the dashboard metrics scraper
+@@ -72,5 +72,5 @@ func dashboardMetrics(repo string) string {
+ 		repo = "kubernetesui"
+ 	}
+ 	// See 'dashboard-metrics-scraper' in deploy/addons/dashboard/dashboard-dp.yaml
+-	return path.Join(repo, "metrics-scraper:v1.0.2")
++	return path.Join(repo, "metrics-scraper-s390x:v1.0.2")
+ }
