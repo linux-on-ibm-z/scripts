@@ -3,17 +3,16 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Protobuf/3.11.2/build_protobuf.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Protobuf/3.11.3/build_protobuf.sh
 # Execute build script: bash build_protobuf.sh    (provide -h for help)
 #
 set -e -o pipefail
 
 PACKAGE_NAME="protobuf"
-PACKAGE_VERSION="3.11.2"
+PACKAGE_VERSION="3.11.3"
 CURDIR="$(pwd)"
 FORCE="false"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-BUILD_DIR="$HOME"
 TESTS="false"
 
 trap cleanup 0 1 2 ERR
@@ -57,14 +56,9 @@ function prepare() {
 
 function cleanup() {
 
-	# Check if Protobuf directory exists
-	if [ -d "$BUILD_DIR/protobuf" ]; then
-		sudo rm -rf "$BUILD_DIR/protobuf"
-	fi
-
 	# Check if file exists
-	if [ -f "$BUILD_DIR/gcc-4.9.4.tar.gz" ]; then
-		sudo rm -rf "$BUILD_DIR/gcc-4.9.4*"
+	if [ -f "$CURDIR/gcc-4.9.4.tar.gz" ]; then
+		sudo rm -rf "$CURDIR/gcc-4.9.4*"
 	fi
 
 	printf -- 'Cleaned up the artifacts\n'
@@ -78,14 +72,9 @@ function configureAndInstall() {
 
 	# Protobuf installation
 
-	if [[ "$ID-$VERSION_ID" == "rhel-8.0" || "$ID-$VERSION_ID" == "sles-15.1" || "$ID-$VERSION_ID" == "ubuntu-19.10" ]]; then
+	if [[ "$ID-$VERSION_ID" == "rhel-8.0" || "$ID-$VERSION_ID" == "rhel-8.1" || "$ID-$VERSION_ID" == "sles-15.1" || "$ID-$VERSION_ID" == "ubuntu-19.10" ]]; then
 
-		cd "$BUILD_DIR"
-		#Check if gcc directory exists
-		if [ -d "$BUILD_DIR/gcc-4.9.4" ]; then
-			sudo rm -rf "$BUILD_DIR/gcc-4.9.4"
-		fi
-
+		cd "$CURDIR"
         wget http://ftp.gnu.org/gnu/gcc/gcc-4.9.4/gcc-4.9.4.tar.gz
         tar xzf gcc-4.9.4.tar.gz
         cd gcc-4.9.4/
@@ -100,13 +89,11 @@ function configureAndInstall() {
 		printf -- 'GCC successfully built \n'
 	fi
 
-	#Give permission
-	sudo chown -R "$USER" "$BUILD_DIR"
 
-	cd "$BUILD_DIR"
+	cd "$CURDIR"
 	#Check if protobuf directory exists
-	if [ -d "$BUILD_DIR/protobuf" ]; then
-		sudo rm -rf "$BUILD_DIR/protobuf"
+	if [ -d "$CURDIR/protobuf" ]; then
+		sudo rm -rf "$CURDIR/protobuf"
 	fi
 
     git clone -b v"${PACKAGE_VERSION}" https://github.com/protocolbuffers/protobuf.git
@@ -115,20 +102,25 @@ function configureAndInstall() {
 	./autogen.sh
 	./configure
 	make
-
-	# Run Tests
-	runTest
-
 	sudo make install
 	sudo ldconfig
 	printf -- 'Build protobuf success \n'
+
+	# Run Tests
+	runTest
 
 	#Cleanup
 	cleanup
 
 	#Verify protobuf installation
+	printf -- 'Validating Protobuf installation. \n'
 	if command -v "protoc" >/dev/null; then
-		printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME"
+		if [[ $(protoc --version | grep ${PACKAGE_VERSION}) ]]; then
+				printf -- "%s installation completed. Please check the Usage to start the service.\n" "$PACKAGE_NAME"
+		else
+				printf -- "Error: Could not detect expected %s version in the system. Exiting with 127 \n" "$PACKAGE_NAME"
+				exit 127
+		fi
 	else
 		printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
 		exit 127
@@ -218,11 +210,11 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0" | "rhel-8.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 
-	if [[ "$DISTRO" == "rhel-8.0" ]]; then
-		sudo yum install -y  autoconf automake bzip2 gcc-c++ git gzip libtool make tar wget zlib-devel |& tee -a "$LOG_FILE"
+	if [[ "$DISTRO" == "rhel-8.0" || "$DISTRO" == "rhel-8.1" ]]; then
+		sudo yum install -y  autoconf automake bzip2 diffutils gcc-c++ git gzip libtool make tar wget zlib-devel |& tee -a "$LOG_FILE"
 	else
 		sudo yum install -y  autoconf automake gcc-c++ git gzip libtool make |& tee -a "$LOG_FILE"
 	fi
