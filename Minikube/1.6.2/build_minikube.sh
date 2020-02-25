@@ -119,6 +119,7 @@ function configureAndInstall() {
     patch "$GOPATH/src/k8s.io/minikube/Makefile" Makefile.diff
     printf -- 'Updated Makefile : success\n'
 
+    cd "$GOPATH/src/k8s.io/minikube"
     
     curl -o "images_test.go.diff" "$PATCH_URL/images_test.go.diff"
     git apply --ignore-space-change --ignore-whitespace  images_test.go.diff
