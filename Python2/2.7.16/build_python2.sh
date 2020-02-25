@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019.
+# © Copyright IBM Corporation 2019, 2020.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 #Instructions
@@ -21,16 +21,8 @@ if [ ! -d "${CURDIR}/logs/" ]; then
 fi
 
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-	source "/etc/os-release"
-else
-	cat /etc/redhat-release >>"${LOG_FILE}"
-	export ID="rhel"
-	export VERSION_ID="6.x"
-	export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
-
+source "/etc/os-release"
+	
 function prepare() {
 	if command -v "sudo" >/dev/null; then
 		printf -- 'Sudo : Yes\n'
@@ -162,13 +154,7 @@ case "$DISTRO" in
     	configureAndInstall
     	;;
 
-"rhel-6.10")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	sudo yum install -y gcc gcc-c++ make wget tar bzip2-devel zlib-devel xz xz-devel readline-devel sqlite-devel tk-devel ncurses-devel gdbm-devel openssl-devel db4-devel gdb bzip2 
-	configureAndInstall
-	;;
-
-"rhel-7.4" | "rhel-7.5" | "rhel-7.6")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo yum install -y gcc gcc-c++ make wget tar bzip2-devel zlib-devel xz xz-devel readline-devel sqlite-devel tk-devel ncurses-devel gdbm-devel openssl-devel libdb-devel gdb bzip2
 	configureAndInstall
@@ -177,12 +163,6 @@ case "$DISTRO" in
 "sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo zypper install -y gcc gcc-c++ make wget tar zlib-devel xz readline-devel sqlite3-devel tk-devel ncurses-devel gdbm-devel libopenssl-devel libdb-4_8-devel gdb gawk netcfg libbz2-devel glibc-locale
-	configureAndInstall
-	;;
-
-"sles-15")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	sudo zypper install -y gcc gcc-c++ make wget tar zlib-devel xz readline-devel sqlite-devel tk-devel ncurses-devel gdbm-devel libopenssl-1_1-devel libdb-4_8-devel gdb gawk netcfg libbz2-devel glibc-locale libnsl-devel
 	configureAndInstall
 	;;
 
