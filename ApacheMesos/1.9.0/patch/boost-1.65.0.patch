@@ -1,0 +1,34 @@
+diff --git a/boost/mpl/assert.hpp b/boost/mpl/assert.hpp
+index 1af1b05..e41b583 100644
+--- a/boost/mpl/assert.hpp
++++ b/boost/mpl/assert.hpp
+@@ -184,16 +184,27 @@
+     typedef typename assert_arg_pred_impl<p>::type type;
+ };
+ 
++#if defined(BOOST_GCC) && BOOST_GCC >= 80000
++#define BOOST_MPL_IGNORE_PARENTHESES_WARNING
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wparentheses"
++#endif
++
+ template< typename Pred >
+-failed ************ (Pred::************ 
++failed ************ (Pred::************
+       assert_arg( void (*)(Pred), typename assert_arg_pred<Pred>::type )
+     );
+ 
+ template< typename Pred >
+-failed ************ (boost::mpl::not_<Pred>::************ 
++failed ************ (boost::mpl::not_<Pred>::************
+       assert_not_arg( void (*)(Pred), typename assert_arg_pred_not<Pred>::type )
+     );
+ 
++#ifdef BOOST_MPL_IGNORE_PARENTHESES_WARNING
++#undef BOOST_MPL_IGNORE_PARENTHESES_WARNING
++#pragma GCC diagnostic pop
++#endif
++
+ template< typename Pred >
+ AUX778076_ASSERT_ARG(assert<false>)
+ assert_arg( void (*)(Pred), typename assert_arg_pred_not<Pred>::type );
