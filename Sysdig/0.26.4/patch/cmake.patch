@@ -1,0 +1,20 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d7020493..1151a753 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -469,6 +469,7 @@ if(NOT WIN32 AND NOT APPLE)
+ 		URL "http://download.sysdig.com/dependencies/protobuf-cpp-3.5.0.tar.gz"
+ 		URL_MD5 "e4ba8284a407712168593e79e6555eb2"
+ 		# TODO what if using system zlib?
++		PATCH_COMMAND cp $ENV{SOURCE_ROOT}/protobuf-3.5.0.patch . && patch -p0 -i protobuf-3.5.0.patch
+ 		CONFIGURE_COMMAND /usr/bin/env CPPFLAGS=-I${ZLIB_INCLUDE} LDFLAGS=-L${ZLIB_SRC} ./configure --with-zlib --prefix=${PROTOBUF_SRC}/target
+ 		BUILD_COMMAND ${CMD_MAKE}
+ 		BUILD_IN_SOURCE 1
+@@ -524,6 +525,7 @@ if(NOT WIN32 AND NOT APPLE)
+ 		BUILD_BYPRODUCTS ${GRPC_LIB} ${GRPCPP_LIB}
+ 		# TODO s390x support
+ 		# TODO what if using system zlib
++		PATCH_COMMAND cp $ENV{SOURCE_ROOT}/grpc.patch . && patch -p0 < grpc.patch &&
+ 		PATCH_COMMAND rm -rf third_party/zlib && ln -s ${ZLIB_SRC} third_party/zlib && wget https://download.sysdig.com/dependencies/grpc-1.8.1-Makefile.patch && patch < grpc-1.8.1-Makefile.patch
+ 		INSTALL_COMMAND "")
+ 	endif()
