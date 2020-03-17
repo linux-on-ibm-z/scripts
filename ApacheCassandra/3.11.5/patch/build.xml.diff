@@ -1,0 +1,38 @@
+--- build.xml.orig      2019-05-15 11:33:38.754417439 +0000
++++ build.xml   2019-05-15 12:33:09.354417439 +0000
+@@ -98,7 +98,7 @@
+     <property name="maven-repository-url" value="https://repository.apache.org/content/repositories/snapshots"/>
+     <property name="maven-repository-id" value="apache.snapshots.https"/>
+
+-    <property name="test.timeout" value="240000" />
++    <property name="test.timeout" value="900000" />
+     <property name="test.long.timeout" value="600000" />
+     <property name="test.burn.timeout" value="60000000" />
+     <property name="test.distributed.timeout" value="600000" />
+@@ -1260,7 +1260,7 @@
+         <jvmarg line="-javaagent:${basedir}/lib/jamm-0.3.0.jar ${additionalagent}" />
+         <jvmarg value="-ea"/>
+         <jvmarg value="-Dcassandra.debugrefcount=true"/>
+-        <jvmarg value="-Xss256k"/>
++        <jvmarg value="-Xss32m"/>
+         <!-- When we do classloader manipulation SoftReferences can cause memory leaks
+              that can OOM our test runs. The next two settings informs our GC
+              algorithm to limit the metaspace size and clean up SoftReferences
+@@ -1495,7 +1495,7 @@
+         <jvmarg value="-Djava.awt.headless=true"/>
+         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
+         <jvmarg value="-ea"/>
+-        <jvmarg value="-Xss256k"/>
++        <jvmarg value="-Xss32m"/>
+         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
+         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
+         <jvmarg value="-Dcassandra.skip_sync=true" />
+@@ -1537,7 +1537,7 @@
+         <jvmarg value="-Djava.awt.headless=true"/>
+         <jvmarg value="-javaagent:${basedir}/lib/jamm-0.3.0.jar" />
+         <jvmarg value="-ea"/>
+-        <jvmarg value="-Xss256k"/>
++        <jvmarg value="-Xss32m"/>
+         <jvmarg value="-Dcassandra.test.use_prepared=${cassandra.test.use_prepared}"/>
+         <jvmarg value="-Dcassandra.memtable_row_overhead_computation_step=100"/>
+         <jvmarg value="-Dcassandra.skip_sync=true" />
