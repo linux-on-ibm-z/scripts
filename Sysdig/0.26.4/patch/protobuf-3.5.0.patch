@@ -1,0 +1,17 @@
+--- src/google/protobuf/stubs/atomicops_internals_generic_gcc.h     2019-06-06 18:20:59.506309314 +0000
++++ src/google/protobuf/stubs/atomicops_internals_generic_gcc.h     2019-06-05 19:19:01.626309314 +0000
+@@ -146,6 +146,14 @@
+   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
+ }
+
++inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
++                                       Atomic64 old_value,
++                                       Atomic64 new_value) {
++  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
++                              __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
++  return old_value;
++}
++
+ #endif // defined(__LP64__)
+
+ }  // namespace internal
