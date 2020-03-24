@@ -16,7 +16,7 @@ GO_DEFAULT="$HOME/go"
 TESTS="false"
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.13.5/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.14/build_go.sh"
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/NGINX-ingress-controller/0.27.0/patch"
 
 trap cleanup 0 1 2 ERR
