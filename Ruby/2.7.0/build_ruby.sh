@@ -184,7 +184,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"sles-12.4")
+"sles-12.4" | "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y bison flex libopenssl-devel libyaml-devel libffi48-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite3-devel gcc make wget tar |& tee -a "${LOG_FILE}" 
