@@ -138,9 +138,9 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
 	
 	if [[ "$DISTRO" == "rhel-8.0" ]]; then
-		sudo yum install -y automake which cmake autoconf libtool pkgconfig gcc-c++ libstdc++-static git wget tar make patch curl java-1.8.0-openjdk java-1.8.0-openjdk-devel |& tee -a "$LOG_FILE"
-        	export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-    	else
+		sudo yum install -y automake which cmake autoconf libtool pkgconfig gcc-c++-8.2.1 libstdc++-static-8.2.1 git wget tar make patch curl java-1.8.0-openjdk java-1.8.0-openjdk-devel |& tee -a "$LOG_FILE"
+        export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+    else
 		sudo yum install -y  automake which autoconf libtool pkgconfig gcc-c++ libstdc++-static git wget tar make patch curl java-1.8.0-ibm.s390x java-1.8.0-ibm-devel.s390x |& tee -a "$LOG_FILE"
 		export JAVA_HOME=/etc/alternatives/java_sdk_ibm
 
