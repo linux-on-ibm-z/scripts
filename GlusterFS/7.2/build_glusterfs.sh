@@ -13,7 +13,7 @@ PACKAGE_NAME="glusterfs"
 PACKAGE_VERSION="7.2"
 CURDIR="$(pwd)"
 BUILD_DIR="/usr/local"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/7.2/patch/"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/7.2/patch"
 
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 TEST_USER="$(whoami)"
