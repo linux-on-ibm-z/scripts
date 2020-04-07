@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Htop/2.2.0/build_htop.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Htop/2.2.0/build_htop.sh
 # Execute build script: bash build_htop.sh    (provide -h for help)
 
 set -e -o pipefail
@@ -149,7 +149,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
-"rhel-8.0")
+"rhel-8.0" | "rhel-8.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y ncurses ncurses-devel gcc make wget tar python2 |& tee -a "$LOG_FILE"
@@ -157,7 +157,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.4" | "sles-15.1")
+"sles-12.4" | "sles-12.5" | "sles-15.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y ncurses ncurses-devel gcc make wget tar python awk |& tee -a "$LOG_FILE"
