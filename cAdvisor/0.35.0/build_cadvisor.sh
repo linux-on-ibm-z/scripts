@@ -31,8 +31,7 @@ if [ ! -d "$CURDIR/logs/" ]; then
    mkdir -p "$CURDIR/logs/"
 fi
 
-if [ -f "/etc/os-release" ]; then
-	source "/etc/os-release"
+source "/etc/os-release"
 
 
 function prepare() {
