@@ -1,0 +1,38 @@
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -32,22 +32,30 @@
+     actual = "//external:ssl",
+ )
+ 
++local_repository(
++     name = "boringssl",
++     path = "$SOURCE_ROOT/boringssl",
++)
++bind(
++     name = "ssl",
++     actual = "@boringssl//:ssl",
++)
++
++
+ # When updating envoy sha manually please update the sha in istio.deps file also
+ #
+ # Determine SHA256 `wget https://github.com/istio/envoy/archive/$COMMIT.tar.gz && sha256sum $COMMIT.tar.gz`
+ # envoy commit date: 11/21/2019
+ # bazel version: 0.28.1
+-ENVOY_SHA = "57d5df8e871f6451d9f24249c5fc8cdbbc3f45ae"
++#ENVOY_SHA = "57d5df8e871f6451d9f24249c5fc8cdbbc3f45ae"
+ 
+ ENVOY_SHA256 = "79c13ed6bde021915b2bb50f487f51354ca16296a03fc7142b78aef1395bd58b"
+ 
+ LOCAL_ENVOY_PROJECT = "/PATH/TO/ENVOY"
+ 
+-http_archive(
++local_repository(
+     name = "envoy",
+-    sha256 = ENVOY_SHA256,
+-    strip_prefix = "envoy-" + ENVOY_SHA,
+-    url = "https://github.com/istio/envoy/archive/" + ENVOY_SHA + ".tar.gz",
++    path = "$SOURCE_ROOT/envoy"
+ )
+ 
+ # TODO(silentdai) Use bazel args to select envoy between local or http
