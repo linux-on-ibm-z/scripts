@@ -118,7 +118,7 @@ function runTest() {
             echo $DISTRO
             PERL_MM_USE_DEFAULT=1 sudo  cpan Cwd IO::Socket::SSL IPC::Run3 Test::Base Test::LongString || true
             ;;
-        "rhel"* | "sles-12.4")
+        "rhel"* | "sles-12.4" | "sles-12.5")
             PERL_MM_USE_DEFAULT=1 sudo  cpan Cwd IO::Socket::SSL IPC::Run3 Test::Base Test::LongString || true 
             ;;
         "sles-15"*)
@@ -141,7 +141,7 @@ function runTest() {
 	
         #Make changes to $SOURCE_ROOT/openresty-1.15.8.2/t/sanity.t 
         case "$DISTRO" in
-        "sles-12.4" | "sles-15.1" | "ubuntu-16.04" | "ubuntu-18.04")
+        "sles-12.4" | "sles-12.5" | "sles-15.1" | "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
             curl -o "sanity.t.diff"  $CONF_URL/sanity.t.diff
 	    patch -l $SOURCE_ROOT/openresty-1.15.8.2/t/sanity.t sanity.t.diff
             ;;
@@ -159,7 +159,7 @@ function runTest() {
         printf -- 'Updated openresty-1.15.8.2/t/sanity.t \n'
 		
         case "$DISTRO" in
-        "sles-15.1" | "rhel-8.0" | "ubuntu-18.04") 
+        "sles-15.1" | "rhel-8.0" | "rhel-8.1" | "ubuntu-18.04" | "ubuntu-19.10") 
             export PERL5LIB=$SOURCE_ROOT/openresty-1.15.8.2 
             ;;
         esac
@@ -230,14 +230,22 @@ case "$DISTRO" in
     sudo ln -s make /usr/bin/gmake
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
+"ubuntu-19.10")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo apt-get update
+    sudo apt-get install -y git tar wget make gcc dos2unix libreadline-dev patch libpcre3-dev libpcre3 libcurl4-openssl-dev libncursesada*-dev postgresql libpq-dev openssl libssl-dev perl zlib1g zlib1g-dev |& tee -a "$LOG_FILE"
+    sudo ln -s make /usr/bin/gmake
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.0" | "rhel-8.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git tar wget make gcc gcc-c++ unix2dos hg cpan perl postgresql-devel patch pcre-devel readline-devel openssl openssl-devel glibc-common |& tee -a "$LOG_FILE"
     export PATH=$PATH:/sbin
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.4")
+"sles-12.4" | "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y git tar wget make gcc gcc-c++ dos2unix perl postgresql10-devel patch pcre-devel readline-devel openssl libopenssl-devel aaa_base |& tee -a "$LOG_FILE"
