@@ -1,0 +1,8 @@
+--- a/src/istio/utils/logger_test.cc
++++ b/src/istio/utils/logger_test.cc
+@@ -49,6 +49,7 @@ class CountingLogger : public Logger {
+       case Level::ERROR_:
+         return true;
+     }
++    return false;
+   }
