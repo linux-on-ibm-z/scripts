@@ -1,0 +1,28 @@
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -616,6 +616,9 @@ def _com_github_grpc_grpc():
+             "@envoy//bazel:grpc-protoinfo-2.patch",
+             # Pre-integration of https://github.com/grpc/grpc/pull/19860
+             "@envoy//bazel:grpc-protoinfo-3.patch",
++           "@envoy//bazel:l1_epo.patch",
++           "@envoy//bazel:l1_lin.patch",
++           "@envoy//bazel:l1_pos.patch",
+         ],
+         patch_args = ["-p1"],
+     )
+@@ -689,7 +692,7 @@ def _com_github_gperftools_gperftools():
+     http_archive(
+         name = "com_github_gperftools_gperftools",
+         build_file_content = BUILD_ALL_CONTENT,
+-        patch_cmds = ["./autogen.sh"],
++        #patch_cmds = ["./autogen.sh"],
+         **location
+     )
+
+@@ -753,3 +756,6 @@ def _is_linux_ppc(ctxt):
+
+ def _is_linux_x86_64(ctxt):
+     return _is_linux(ctxt) and _is_arch(ctxt, "x86_64")
++
++def _is_linux_s390x(ctxt):
++    return _is_linux(ctxt) and _is_arch(ctxt, "s390x")
