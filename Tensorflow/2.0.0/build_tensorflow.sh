@@ -71,7 +71,7 @@ function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 	
 	printf -- "Create symlink for python 3 only environment\n" |& tee -a "$LOG_FILE"
-	sudo ln -s /usr/bin/python3 /usr/bin/python || true
+	sudo ln -sf /usr/bin/python3 /usr/bin/python || true
 	
 	
 	#Install grpcio
@@ -225,6 +225,7 @@ case "$DISTRO" in
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
         sudo apt-get install -y pkg-config zip g++ zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl maven python3-pip python3-virtualenv python3-numpy swig python3-dev libcurl3-dev python3-mock python3-scipy bzip2 python3-sklearn libhdf5-dev patch git patch libssl-dev |& tee -a "${LOG_FILE}"
+	sudo pip3 install cython
         sudo pip3 install numpy==1.16.2 future wheel backports.weakref portpicker futures==2.2.0 enum34 keras_preprocessing keras_applications h5py tensorflow_estimator |& tee -a "${LOG_FILE}"
  	
 	#Install OpenJDK11
@@ -242,6 +243,7 @@ case "$DISTRO" in
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
 	sudo apt-get install -y pkg-config zip g++ zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl maven openjdk-11-jdk python3-pip python3-virtualenv python3-numpy swig python3-dev libcurl3-dev python3-mock python3-scipy bzip2 python3-sklearn libhdf5-dev patch git patch libssl-dev |& tee -a "${LOG_FILE}"
+	sudo pip3 install cython
 	sudo pip3 install numpy==1.16.2 future wheel backports.weakref portpicker futures enum34 keras_preprocessing keras_applications h5py tensorflow_estimator |& tee -a "${LOG_FILE}"
 	
 	configureAndInstall |& tee -a "${LOG_FILE}"
