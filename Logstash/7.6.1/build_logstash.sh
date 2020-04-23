@@ -192,7 +192,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum install -y ant gcc gzip java-1.8.0-openjdk make tar unzip wget zip |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
