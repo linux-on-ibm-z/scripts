@@ -258,7 +258,7 @@ case "$DISTRO" in
         installClient |& tee -a "$LOG_FILE"
         ;;
 
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y curl git gzip tar wget patch |& tee -a "$LOG_FILE"
