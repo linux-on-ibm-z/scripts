@@ -42,7 +42,7 @@ function checkPrequisites()
   then
     printf -- "Go : Yes" >>  "$LOG_FILE"
 
-    if go version | grep -q "$PACKAGE_VERSION" 
+    if go version | grep -wq "go$PACKAGE_VERSION" 
     then
       printf -- "Version : %s (Satisfied) \n" "${PACKAGE_VERSION}" |& tee -a  "$LOG_FILE"
       printf -- "No update required for Go \n" |& tee -a  "$LOG_FILE"
