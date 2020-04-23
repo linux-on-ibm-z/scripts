@@ -122,7 +122,7 @@ function apply_patch()
 
 # Patch EventTimeWatermarkSuite.diff
     curl -SL -o "EventTimeWatermarkSuite.diff"  $PATCH_DIR/EventTimeWatermarkSuite.diff
-    patch "${CURDIR}/spark/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala" EventTimeWatermarkSuite.diff
+    patch -p0 -d spark < EventTimeWatermarkSuite.diff
     printf -- 'Patched EventTimeWatermarkSuite \n'  >> "$LOG_FILE"
 }
 
@@ -169,13 +169,13 @@ function ignore_irrelevant_test()
 
 function cleanup() {
 # Remove artifacts
-    rm -rf "${CURDIR}/Platform.diff"
-    rm -rf "${CURDIR}/OffHeapColumnVector.diff"
-    rm -rf "${CURDIR}/OnHeapColumnVector.diff"
-    rm -rf "${CURDIR}/StatsdSinkSuite.diff"
-    rm -rf "${CURDIR}/UnsafeMapSuite.diff"
-    rm -rf "${CURDIR}/Murmur3_x86_32Suite.diff"
-    rm -rf "${CURDIR}/EventTimeWatermarkSuite.diff"
+    rm -rfv "${CURDIR}/Platform.diff"
+    rm -rfv "${CURDIR}/OffHeapColumnVector.diff"
+    rm -rfv "${CURDIR}/OnHeapColumnVector.diff"
+    rm -rfv "${CURDIR}/StatsdSinkSuite.diff"
+    rm -rfv "${CURDIR}/UnsafeMapSuite.diff"
+    rm -rfv "${CURDIR}/Murmur3_x86_32Suite.diff"
+    rm -rfv "${CURDIR}/EventTimeWatermarkSuite.diff"
 
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
 }
@@ -213,23 +213,24 @@ function configureAndInstall() {
         cd "$CURDIR"
 
         # installation fails if java exists already, check it here
+        # This assumes that jdk will be installed on /opt/ibm/java which is hard in installer.properties
         # TODO : Can we avoid the hardcoding
-        # TODO : make it interactive
         if [ -x /opt/ibm/java/bin/java ]
         then
             err "IBM java sdk is installed, uninstall it to proceed\n"
             exit 1
         fi
 
-        curl -SLO http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.6.0/linux/s390x/ibm-java-s390x-sdk-8.0-6.0.bin
-        chmod +x ibm-java-s390x-sdk-8.0-6.0.bin
+        curl -SLO http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.6.7/linux/s390x/ibm-java-s390x-sdk-8.0-6.7.bin
+        chmod +x ibm-java-s390x-sdk-8.0-6.7.bin
 
         wget https://raw.githubusercontent.com/zos-spark/scala-workbench/master/files/installer.properties.java
         tail -n +3 installer.properties.java | tee installer.properties
         cat installer.properties
+        echo "File Present are ..."
+        ls
 
-
-        sudo ./ibm-java-s390x-sdk-8.0-6.0.bin -r installer.properties
+        sudo ./ibm-java-s390x-sdk-8.0-6.7.bin -r installer.properties
 
         export JAVA_HOME=/opt/ibm/java
         export HADOOP_USER_NAME="hadoop"
@@ -278,7 +279,7 @@ function configureAndInstall() {
     printf -- 'export C_INCLUDE_PATH=${LIBRARY_PATH}\n'  >> "$BUILD_ENV"
     printf -- 'export CPLUS_INCLUDE_PATH=${LIBRARY_PATH}\n'  >> "$BUILD_ENV"
     printf -- "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:%s/leveldbjni/META-INF/native/linux64/s390x\n" "$CURDIR" >> "$BUILD_ENV"
-        printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
 
     #Build ZSTD JNI
     if [[ "$ID" == "rhel" ]]; then
