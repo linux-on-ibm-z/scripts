@@ -13,7 +13,7 @@ PACKAGE_VERSION="0.26.4"
 
 export SOURCE_ROOT="$(pwd)"
 
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Sysdig/0.26.4/patch/"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Sysdig/0.26.4/patch"
 
 TEST_USER="$(whoami)"
 FORCE="false"
@@ -62,29 +62,60 @@ function configureAndInstall() {
     printf -- 'User responded with Yes. \n'
 
     cd "${SOURCE_ROOT}"
+    curl -o protobuf-3.5.0.patch $PATCH_URL/protobuf-3.5.0.patch
+    curl -SLO $PATCH_URL/cmake.patch
+    curl -SLO $PATCH_URL/grpc.patch
     git clone https://github.com/draios/sysdig.git
     cd sysdig
     git checkout "$PACKAGE_VERSION"
+    
+    if [[ $ID == *"ubuntu"* ]]; then
+        if [[ $VERSION_ID == *"16.04"* ]]; then
+                sudo mkdir -p /lib/modules/$(uname -r)
+                version=4.4.0-142
+                echo linux-headers-$version-generic
+                sudo ln -s /usr/src/linux-headers-$version-generic /lib/modules/$(uname -r)/build
+        elif [[ $VERSION_ID == *"18.04"* ]]; then
+                sudo mkdir -p /lib/modules/$(uname -r)
+                version=4.15.0-52
+                echo linux-headers-$version-generic
+                sudo ln -s /usr/src/linux-headers-$version-generic /lib/modules/$(uname -r)/build
+        else
+                sudo mkdir -p /lib/modules/$(uname -r)
+                version=5.3.0-29
+                echo linux-headers-$version-generic
+                sudo ln -s /usr/src/linux-headers-$version-generic /lib/modules/$(uname -r)/build
+        fi
+    fi
+    
+    if [[ $ID == *"sles"* ]]; then
+            sudo mkdir -p /lib/modules/$(uname -r)
+            trim=$(sudo zypper info kernel-default-devel | grep Version | cut -d ':' -f 2-)
+            version=$(echo $trim | sed 's/..$//')
+            echo linux-$version-obj
+            sudo ln -s /usr/src/linux-$version-obj/s390x/default /lib/modules/$(uname -r)/build
+    fi
+    
+    patch -p1 < $SOURCE_ROOT/cmake.patch
     mkdir build
-
-    # Apply the required patches
-    cd "${SOURCE_ROOT}"
-    curl -SLO $PATCH_URL/cmake.patch
-    curl -SLO $PATCH_URL/grpc.patch
-    curl -SLO $PATCH_URL/protobuf-3.5.0.patch
-    cd sysdig
-    git apply "$SOURCE_ROOT"/cmake.patch
-
-    cd $SOURCE_ROOT/sysdig/build
+    cd build
+    if [[ $ID == *"rhel"* ]]; then
+            sudo mkdir -p /lib/modules/$(uname -r)
+            version=$(sudo yum info kernel-devel | grep Version | awk '{print $3}')
+            release=$(sudo yum info kernel-devel | grep Release | awk '{print $3}')
+            echo $version-$release.s390x
+            sudo ln -s /usr/src/kernels/$version-$release.s390x /lib/modules/$(uname -r)/build
+    fi
+    
+    
     cmake -DUSE_BUNDLED_LUAJIT=OFF ..
     make
     sudo make install
-
-    cd $SOURCE_ROOT/sysdig/build/driver/
-    sudo env PATH=/sbin:$PATH insmod sysdig-probe.ko
-
-    # Run Tests
-    runTest
+    
+    cd driver
+    sudo insmod sysdig-probe.ko
+    
+    
 }
 
 function logDetails() {
@@ -169,16 +200,14 @@ case "$DISTRO" in
 "rhel-7.5" | "rhel-7.6" | "rhel-7.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo yum install -y wget tar git gcc cmake gcc-c++ make lua-devel.s390x kernel-devel-$(uname -r) patch \
-        elfutils-libelf-devel.s390x elfutils-libelf-devel-static.s390x glibc-static libstdc++-static
+    sudo yum install -y wget git tar curl gcc cmake gcc-c++ make lua-devel.s390x kernel-devel patch elfutils-libelf-devel.s390x elfutils-libelf-devel-static.s390x glibc-static libstdc++-static patch
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
 "sles-12.4" | "sles-15.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo zypper install -y gawk wget tar git-core gcc which cmake make gcc-c++ lua51 lua51-devel kernel-default-devel patch \
-        libelf-devel glibc-devel-static
+    sudo zypper install -y gawk wget tar git-core gcc which cmake make gcc-c++ lua51 lua51-devel kernel-default-devel patch libelf-devel glibc-devel-static
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
