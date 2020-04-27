@@ -93,7 +93,7 @@ index d45ef4154..0192b665e 100644
              - /nginx-ingress-controller
              - --configmap=$(POD_NAMESPACE)/nginx-configuration
 diff --git a/images/nginx/Makefile b/images/nginx/Makefile
-index e52e8bf88..7bdff4852 100644
+index e52e8bf88..4e9a6662e 100644
 --- a/images/nginx/Makefile
 +++ b/images/nginx/Makefile
 @@ -18,7 +18,7 @@ REGISTRY ?= quay.io/kubernetes-ingress-controller
@@ -116,3 +116,11 @@ index e52e8bf88..7bdff4852 100644
  TEMP_DIR := $(shell mktemp -d)
  
  all: all-container
+@@ -70,6 +72,7 @@ else
+ 	cd $(TEMP_DIR) && $(SED_I) "s/CROSS_BUILD_//g" Dockerfile
+ endif
+ 
++	sed -i '54d' $(TEMP_DIR)/Dockerfile
+ 	$(DOCKER) build --no-cache -t $(MULTI_ARCH_IMG):$(TAG) $(TEMP_DIR)
+ 
+ ifeq ($(ARCH), amd64)
