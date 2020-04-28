@@ -1,0 +1,20 @@
+diff --git a/Makefile b/Makefile
+index 0e1f946..cbeb71a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ PACKAGE_NAME?=github.com/projectcalico/typha
+-GO_BUILD_VER=v0.34
++GO_BUILD_VER=v0.31
+ 
+ # This needs to be evaluated before the common makefile is included.
+ # This var contains some default values that the common makefile may append to.
+@@ -120,7 +120,7 @@ $(BUILD_IMAGE): bin/calico-typha-$(ARCH) register
+ 	rm -rf docker-image/bin
+ 	mkdir -p docker-image/bin
+ 	cp bin/calico-typha-$(ARCH) docker-image/bin/
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image
+ ifeq ($(ARCH),amd64)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
