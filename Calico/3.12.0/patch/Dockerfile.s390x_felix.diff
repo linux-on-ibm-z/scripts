@@ -1,0 +1,46 @@
+--- Dockerfile.s390x_felix	2020-03-04 09:44:56.597708333 +0000
++++ Dockerfile.s390x	2020-03-04 09:49:28.677536311 +0000
+@@ -1,33 +1,8 @@
+ ARG QEMU_IMAGE=calico/go-build:latest
+ FROM ${QEMU_IMAGE} as qemu
+ 
+-FROM s390x/debian:buster-slim as bpftool-build
++FROM calico/bpftool:v5.3-s390x as bpftool
+ 
+-COPY --from=qemu /usr/bin/qemu-s390x-static /usr/bin/
+-
+-RUN apt-get update && \
+-apt-get upgrade -y && \
+-apt-get install -y --no-install-recommends \
+-    gpg gpg-agent libelf-dev libmnl-dev libc-dev iptables libgcc-8-dev \
+-    bash-completion binutils binutils-dev ca-certificates make git curl \
+-    xz-utils gcc pkg-config bison flex build-essential && \
+-apt-get purge --auto-remove && \
+-apt-get clean
+-
+-WORKDIR /tmp
+-
+-RUN \
+-git clone --depth 1 -b master git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git && \
+-cd linux/tools/bpf/bpftool/ && \
+-sed -i '/CFLAGS += -O2/a CFLAGS += -static' Makefile && \
+-sed -i 's/LIBS = -lelf $(LIBBPF)/LIBS = -lelf -lz $(LIBBPF)/g' Makefile && \
+-printf 'feature-libbfd=0\nfeature-libelf=1\nfeature-bpf=1\nfeature-libelf-mmap=1' >> FEATURES_DUMP.bpftool && \
+-FEATURES_DUMP=`pwd`/FEATURES_DUMP.bpftool make -j `getconf _NPROCESSORS_ONLN` && \
+-strip bpftool && \
+-ldd bpftool 2>&1 | grep -q -e "Not a valid dynamic program" \
+-	-e "not a dynamic executable" || \
+-	( echo "Error: bpftool is not statically linked"; false ) && \
+-mv bpftool /usr/bin && rm -rf /tmp/linux
+ 
+ FROM s390x/alpine:3.8 as base
+ MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
+@@ -49,7 +24,7 @@
+ # to more easily extract the Felix build artefacts from the container.
+ ADD bin/calico-felix-s390x /code/calico-felix
+ RUN ln -s /code/calico-felix /usr/bin
+-COPY --from=bpftool-build /usr/bin/bpftool /usr/bin
++COPY --from=bpftool /bpftool /usr/bin
+ WORKDIR /code
+ 
+ # Since our binary isn't designed to run as PID 1, run it via the tini init daemon.
