@@ -1,0 +1,15 @@
+--- /root/etcd-dockerfile_release.old	2020-01-06 11:00:11.485025244 +0000
++++ Dockerfile-release	2020-01-06 11:02:27.745005189 +0000
+@@ -1,7 +1,9 @@
+-FROM alpine:latest
++FROM s390x/alpine:3.8
++
++ADD /bin/etcd /usr/local/bin/
++ADD /bin/etcdctl /usr/local/bin/
++ENV ETCD_UNSUPPORTED_ARCH=s390x
+ 
+-ADD etcd /usr/local/bin/
+-ADD etcdctl /usr/local/bin/
+ RUN mkdir -p /var/etcd/
+ RUN mkdir -p /var/lib/etcd/
+ 
