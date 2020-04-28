@@ -1,0 +1,11 @@
+--- Makefile_old	2020-03-04 09:08:56.387588732 +0000
++++ Makefile	2020-03-04 09:09:18.607588732 +0000
+@@ -68,7 +68,7 @@
+ $(DEFAULTORG)/bpftool: register
+ 	# Make sure we re-pull the base image to pick up security fixes.
+ 	# Limit the build to use only one CPU, This helps to work around qemu bugs such as https://bugs.launchpad.net/qemu/+bug/1098729
+-	docker build $(DOCKER_BUILD_ARGS) --build-arg KERNEL_REF=$(KERNELREF) --build-arg KERNEL_REPO=$(KERNELREPO) --cpuset-cpus 0 --pull -t $(ARCHIMAGE) -f $(DOCKERFILE) .
++	docker build $(DOCKER_BUILD_ARGS) --build-arg KERNEL_REF=$(KERNELREF) --build-arg KERNEL_REPO=$(KERNELREPO) --cpuset-cpus 0 -t $(ARCHIMAGE) -f $(DOCKERFILE) .
+ 
+ image-all: $(addprefix sub-image-,$(ARCHES))
+ sub-image-%:
