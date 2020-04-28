@@ -1,0 +1,11 @@
+diff --git a/Makefile b/Makefile
+index 1d4fd38..064459a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ PACKAGE_NAME?=github.com/projectcalico/pod2daemon
+-GO_BUILD_VER?=v0.28
++GO_BUILD_VER?=v0.31
+ 
+ ###############################################################################
+ # Download and include Makefile.common before anything else
