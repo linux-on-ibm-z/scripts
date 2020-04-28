@@ -1,0 +1,11 @@
+diff --git a/Makefile b/Makefile
+index 8e1a4d1..bc4f749 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ PACKAGE_NAME=github.com/projectcalico/cni-plugin
+-GO_BUILD_VER=v0.34
++GO_BUILD_VER=v0.31
+ 
+ # This needs to be evaluated before the common makefile is included.
+ # This var contains some default values that the common makefile may append to.
