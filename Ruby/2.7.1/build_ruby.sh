@@ -170,14 +170,14 @@ checkPrequisites  #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10" )
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04" )
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
   sudo apt-get install -y  gcc make wget tar bzip2 subversion bison flex openssl libssl-dev |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
   
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.0" | "rhel-8.1")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel libyaml-devel libffi-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite-devel gcc make wget tar  |& tee -a "${LOG_FILE}"
