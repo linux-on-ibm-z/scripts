@@ -1,0 +1,134 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
+index 091b9a1020..5b2c0f6bc7 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
+@@ -218,67 +218,67 @@ class EventTimeWatermarkSuite extends StreamTest with BeforeAndAfter with Matche
+       assertEventStats(min = 50, max = 50, avg = 50, wtrmark = 40))
+   }
+ 
+-  test("recovery from Spark ver 2.3.1 commit log without commit metadata (SPARK-24699)") {
+-    // All event time metrics where watermarking is set
+-    val inputData = MemoryStream[Int]
+-    val aggWithWatermark = inputData.toDF()
+-        .withColumn("eventTime", $"value".cast("timestamp"))
+-        .withWatermark("eventTime", "10 seconds")
+-        .groupBy(window($"eventTime", "5 seconds") as 'window)
+-        .agg(count("*") as 'count)
+-        .select($"window".getField("start").cast("long").as[Long], $"count".as[Long])
+-
+-
+-    val resourceUri = this.getClass.getResource(
+-      "/structured-streaming/checkpoint-version-2.3.1-without-commit-log-metadata/").toURI
+-
+-    val checkpointDir = Utils.createTempDir().getCanonicalFile
+-    // Copy the checkpoint to a temp dir to prevent changes to the original.
+-    // Not doing this will lead to the test passing on the first run, but fail subsequent runs.
+-    FileUtils.copyDirectory(new File(resourceUri), checkpointDir)
+-
+-    inputData.addData(15)
+-    inputData.addData(10, 12, 14)
+-
+-    testStream(aggWithWatermark)(
+-      /*
+-
+-      Note: The checkpoint was generated using the following input in Spark version 2.3.1
+-
+-      StartStream(checkpointLocation = "./sql/core/src/test/resources/structured-streaming/" +
+-        "checkpoint-version-2.3.1-without-commit-log-metadata/")),
+-      AddData(inputData, 15),  // watermark should be updated to 15 - 10 = 5
+-      CheckAnswer(),
+-      AddData(inputData, 10, 12, 14),  // watermark should stay at 5
+-      CheckAnswer(),
+-      StopStream,
+-
+-      // Offset log should have watermark recorded as 5.
+-      */
+-
+-      StartStream(Trigger.Once),
+-      awaitTermination(),
+-
+-      AddData(inputData, 25),
+-      StartStream(Trigger.Once, checkpointLocation = checkpointDir.getAbsolutePath),
+-      awaitTermination(),
+-      CheckNewAnswer(),
+-      assertEventStats(min = 25, max = 25, avg = 25, wtrmark = 5),
+-      // watermark should be updated to 25 - 10 = 15
+-
+-      AddData(inputData, 50),
+-      StartStream(Trigger.Once, checkpointLocation = checkpointDir.getAbsolutePath),
+-      awaitTermination(),
+-      CheckNewAnswer((10, 3)),   // watermark = 15 is used to generate this
+-      assertEventStats(min = 50, max = 50, avg = 50, wtrmark = 15),
+-      // watermark should be updated to 50 - 10 = 40
+-
+-      AddData(inputData, 50),
+-      StartStream(Trigger.Once, checkpointLocation = checkpointDir.getAbsolutePath),
+-      awaitTermination(),
+-      CheckNewAnswer((15, 1), (25, 1)), // watermark = 40 is used to generate this
+-      assertEventStats(min = 50, max = 50, avg = 50, wtrmark = 40))
+-  }
++//  test("recovery from Spark ver 2.3.1 commit log without commit metadata (SPARK-24699)") {
++//    // All event time metrics where watermarking is set
++//    val inputData = MemoryStream[Int]
++//    val aggWithWatermark = inputData.toDF()
++//        .withColumn("eventTime", $"value".cast("timestamp"))
++//        .withWatermark("eventTime", "10 seconds")
++//        .groupBy(window($"eventTime", "5 seconds") as 'window)
++//        .agg(count("*") as 'count)
++//        .select($"window".getField("start").cast("long").as[Long], $"count".as[Long])
++//
++//
++//    val resourceUri = this.getClass.getResource(
++//      "/structured-streaming/checkpoint-version-2.3.1-without-commit-log-metadata/").toURI
++//
++//    val checkpointDir = Utils.createTempDir().getCanonicalFile
++//    // Copy the checkpoint to a temp dir to prevent changes to the original.
++//    // Not doing this will lead to the test passing on the first run, but fail subsequent runs.
++//    FileUtils.copyDirectory(new File(resourceUri), checkpointDir)
++//
++//    inputData.addData(15)
++//    inputData.addData(10, 12, 14)
++//
++//    testStream(aggWithWatermark)(
++//      /*
++//
++//      Note: The checkpoint was generated using the following input in Spark version 2.3.1
++//
++//      StartStream(checkpointLocation = "./sql/core/src/test/resources/structured-streaming/" +
++//        "checkpoint-version-2.3.1-without-commit-log-metadata/")),
++//      AddData(inputData, 15),  // watermark should be updated to 15 - 10 = 5
++//      CheckAnswer(),
++//      AddData(inputData, 10, 12, 14),  // watermark should stay at 5
++//      CheckAnswer(),
++//      StopStream,
++//
++//      // Offset log should have watermark recorded as 5.
++//      */
++//
++//      StartStream(Trigger.Once),
++//      awaitTermination(),
++//
++//      AddData(inputData, 25),
++//      StartStream(Trigger.Once, checkpointLocation = checkpointDir.getAbsolutePath),
++//      awaitTermination(),
++//      CheckNewAnswer(),
++//      assertEventStats(min = 25, max = 25, avg = 25, wtrmark = 5),
++//      // watermark should be updated to 25 - 10 = 15
++//
++//      AddData(inputData, 50),
++//      StartStream(Trigger.Once, checkpointLocation = checkpointDir.getAbsolutePath),
++//      awaitTermination(),
++//      CheckNewAnswer((10, 3)),   // watermark = 15 is used to generate this
++//      assertEventStats(min = 50, max = 50, avg = 50, wtrmark = 15),
++//      // watermark should be updated to 50 - 10 = 40
++//
++//      AddData(inputData, 50),
++//      StartStream(Trigger.Once, checkpointLocation = checkpointDir.getAbsolutePath),
++//      awaitTermination(),
++//      CheckNewAnswer((15, 1), (25, 1)), // watermark = 40 is used to generate this
++//      assertEventStats(min = 50, max = 50, avg = 50, wtrmark = 40))
++//  }
+ 
+   test("append mode") {
+     val inputData = MemoryStream[Int]
+     
