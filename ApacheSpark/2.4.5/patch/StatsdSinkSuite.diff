@@ -1,0 +1,14 @@
+diff --git a/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala b/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala
+index 0e21a36071..98243ab3b0 100644
+--- a/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala
++++ b/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala
+@@ -36,7 +36,7 @@ class StatsdSinkSuite extends SparkFunSuite {
+     STATSD_KEY_HOST -> "127.0.0.1"
+   )
+   private val socketTimeout = 30000 // milliseconds
+-  private val socketBufferSize = 8192
++  private val socketBufferSize = 10000
+ 
+   private def withSocketAndSink(testCode: (DatagramSocket, StatsdSink) => Any): Unit = {
+     val socket = new DatagramSocket
+     
