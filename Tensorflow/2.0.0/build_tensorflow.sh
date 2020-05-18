@@ -105,6 +105,17 @@ function configureAndInstall() {
 	export PATH=$PATH:$SOURCE_ROOT/bazel/output/ 
 	echo $PATH
 	
+	#Patch Bazel Tools
+	cd $SOURCE_ROOT/bazel
+	bazel --host_jvm_args="-Xms1024m" --host_jvm_args="-Xmx2048m" build --host_javabase="@local_jdk//:jdk" //:bazel-distfile
+
+	PATCH="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Tensorflow/2.0.0/patch"
+
+	JTOOLS=$SOURCE_ROOT/remote_java_tools_linux
+	mkdir -p $JTOOLS && cd $JTOOLS
+	unzip $SOURCE_ROOT/bazel/derived/distdir/java_tools_javac10_linux-v3.2.zip
+	curl -sSL $PATCH/tools.diff | patch -p1 || echo "Error: Patch Bazel tools"
+		
 	# Build TensorFlow
 	printf -- '\nDownload Tensorflow source code..... \n' 
 	cd $SOURCE_ROOT
@@ -143,7 +154,7 @@ function runTest() {
 		printf -- "TEST Flag is set , Continue with running test \n" 
 		
 		if [[ "$DISTRO" == "ubuntu-16.04" ]]; then
-			printf -- "Upgrade setuptools to resolve test failures with an error '_NamespacePath' object has no attribute 'sort' \n" |& tee -a "$LOG_FILE"
+			printf -- "Upgrade setuptools to resolve test failures with an error '_NamespacePath' object has no attribute 'sort' \n" |& tee -a "$LOG_FILE"
 			sudo pip3 install --upgrade setuptools
 	    fi
 		
@@ -245,7 +256,8 @@ case "$DISTRO" in
 	sudo apt-get install -y pkg-config zip g++ zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl maven openjdk-11-jdk python3-pip python3-virtualenv python3-numpy swig python3-dev libcurl3-dev python3-mock python3-scipy bzip2 python3-sklearn libhdf5-dev patch git patch libssl-dev |& tee -a "${LOG_FILE}"
 	sudo pip3 install cython
 	sudo pip3 install numpy==1.16.2 future wheel backports.weakref portpicker futures enum34 keras_preprocessing keras_applications h5py tensorflow_estimator |& tee -a "${LOG_FILE}"
-	
+	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x/
+	export PATH=$JAVA_HOME/bin:$PATH
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
