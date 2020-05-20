@@ -101,7 +101,7 @@ function configureAndInstall() {
 	fi
 
 	#Install maven (for SLES , RHEL  only)
-	if [[ "$VERSION_ID" == "7.5" || "$VERSION_ID" == "7.6" || "$VERSION_ID" == "7.7" || "$ID" == "sles" ]]  ;then
+	if [[ "$VERSION_ID" == "7.8" || "$VERSION_ID" == "7.6" || "$VERSION_ID" == "7.7" || "$ID" == "sles" ]]  ;then
 		printf -- "\nInstalling maven . . . \n"
 		cd $SOURCE_ROOT
 		wget http://www.eu.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
@@ -121,7 +121,7 @@ function configureAndInstall() {
 	fi
 
 	#Install cmake 3.7 (RHEL 7.x  only)
-	if [[ "$VERSION_ID" == "7.5" || "$VERSION_ID" == "7.6" || "$VERSION_ID" == "7.7" ]]  ;then
+	if [[ "$VERSION_ID" == "7.8" || "$VERSION_ID" == "7.6" || "$VERSION_ID" == "7.7" ]]  ;then
 		cd $SOURCE_ROOT
 		wget https://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
 		tar xzf cmake-3.7.2.tar.gz
@@ -205,14 +205,14 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update -y
 	sudo apt-get install -y ninja-build cmake perl golang libssl-dev libapr1-dev autoconf automake libtool make tar git openjdk-8-jdk maven patch |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.8" | "rhel-7.6" | "rhel-7.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo subscription-manager repos --enable=rhel-7-server-for-system-z-rhscl-rpms
@@ -220,7 +220,7 @@ case "$DISTRO" in
     source /opt/rh/devtoolset-7/enable
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-8.0" | "rhel-8.1")
+"rhel-8.2" | "rhel-8.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y cmake perl gcc gcc-c++ openssl-devel apr-devel autoconf automake libtool make tar git java-1.8.0-openjdk-devel wget python2 bzip2 zlib zlib-devel git xz diffutils  maven golang patch |& tee -a "${LOG_FILE}"
