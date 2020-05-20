@@ -152,19 +152,23 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-
+	
+	if [[ "$VERSION_ID" == "20.04" ]]; then
+		sudo apt-get install -y postgresql-12
+	else
 	sudo apt-get update >/dev/null
 	sudo apt-get install -y bison flex wget build-essential git gcc make zlib1g-dev libreadline-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
+	fi	
 	;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8"| "rhel-8.0" | "rhel-8.1")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8"| "rhel-8.1" |"rhel-8.2" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
 
-	if [[ "$VERSION_ID" == "8.0" || "$VERSION_ID" == "8.1" ]]; then	
+	if [[ "$VERSION_ID" == "8.1" || "$VERSION_ID" == "8.2" ]]; then	
 	sudo yum install -y git wget gcc gcc-c++ make readline-devel zlib-devel bison flex glibc-langpack-en procps-ng diffutils |& tee -a "$LOG_FILE"
 	else
 	sudo yum install -y git wget build-essential gcc gcc-c++ make readline-devel zlib-devel bison flex |& tee -a "$LOG_FILE"
