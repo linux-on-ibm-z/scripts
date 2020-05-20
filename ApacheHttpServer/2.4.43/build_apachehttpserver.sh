@@ -62,7 +62,7 @@ function cleanup() {
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
-	 if [[ "$ID-$VERSION_ID" == "rhel-8.0" ]] || [[ "$ID-$VERSION_ID" == "rhel-8.1" ]]; then
+	 if [[ "$ID-$VERSION_ID" == "rhel-8.1" ]] || [[ "$ID-$VERSION_ID" == "rhel-8.2" ]]; then
          sudo alternatives --set python /usr/bin/python2
          fi
 	#Download the source code
@@ -142,7 +142,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
 	sudo apt-get install -y git python openssl gcc autoconf make libtool-bin libpcre3-dev libxml2 libexpat1 libexpat1-dev wget tar |& tee -a "$LOG_FILE"
@@ -156,7 +156,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.0" | "rhel-8.1")
+"rhel-8.1" | "rhel-8.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
         sudo yum install -y --skip-broken git openssl openssl-devel python2 gcc libtool autoconf make pcre pcre-devel libxml2 libxml2-devel expat-devel which wget tar procps |& tee -a "$LOG_FILE"
