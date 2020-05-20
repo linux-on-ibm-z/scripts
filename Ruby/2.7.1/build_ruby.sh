@@ -177,7 +177,7 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
   
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel libyaml-devel libffi-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite-devel gcc make wget tar  |& tee -a "${LOG_FILE}"
