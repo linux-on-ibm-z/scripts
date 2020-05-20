@@ -164,14 +164,14 @@ checkPrequisites  #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10" | "ubuntu-20.04")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
   sudo apt-get install -y  wget tar gcc |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.0" | "rhel-8.1")
+"rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.0" | "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y  tar wget gcc  |& tee -a "${LOG_FILE}"
