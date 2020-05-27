@@ -101,7 +101,7 @@ function configureAndInstall() {
         # Applying patches
         cd "${CURDIR}/elasticsearch"
         # patch config file
-        curl -o patch_gradle.diff $REPO_URL/patch_gradle.diff
+        curl -o patch_gradle.diff $PATCH_URL/patch_gradle.diff
         patch ${CURDIR}/elasticsearch/distribution/archives/build.gradle patch_gradle.diff
         
         # Building Elasticsearch
