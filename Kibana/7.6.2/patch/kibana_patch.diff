@@ -1,0 +1,44 @@
+diff --git a/bin/kibana b/bin/kibana
+index 558facb9da..8da4393438 100755
+--- a/bin/kibana
++++ b/bin/kibana
+@@ -14,7 +14,7 @@ while [ -h "$SCRIPT" ] ; do
+ done
+
+ DIR="$(dirname "${SCRIPT}")/.."
+-NODE="${DIR}/node/bin/node"
++NODE="/usr/bin/node"
+ test -x "$NODE"
+ if [ ! -x "$NODE" ]; then
+   echo "unable to find usable node.js executable."
+diff --git a/package.json b/package.json
+index 70402b16bb..2d75864903 100644
+--- a/package.json
++++ b/package.json
+@@ -307,7 +307,7 @@
+     "@types/boom": "^7.2.0",
+     "@types/chance": "^1.0.0",
+     "@types/cheerio": "^0.22.10",
+-    "@types/chromedriver": "^2.38.0",
++    "@types/chromedriver": "^2.33.2",
+     "@types/classnames": "^2.2.9",
+     "@types/color": "^3.0.0",
+     "@types/d3": "^3.5.43",
+@@ -383,7 +383,7 @@
+     "chai": "3.5.0",
+     "chance": "1.0.18",
+     "cheerio": "0.22.0",
+-    "chromedriver": "^80.0.1",
++    "chromedriver": "2.33.2",
+     "classnames": "2.2.6",
+     "dedent": "^0.7.0",
+     "delete-empty": "^2.0.0",
+@@ -473,7 +473,7 @@
+     "zlib": "^1.0.5"
+   },
+   "engines": {
+-    "node": "10.19.0",
++    "node": "10.15.2",
+     "yarn": "^1.21.1"
+   }
+ }
