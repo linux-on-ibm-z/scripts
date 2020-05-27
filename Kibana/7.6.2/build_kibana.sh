@@ -105,11 +105,11 @@ function configureAndInstall() {
     cd kibana
 
     # Applying patch
-    wget $REPO_URL/kibana_patch.diff
+    wget $PATCH_URL/kibana_patch.diff
     git apply kibana_patch.diff
     
     if [[ "$ID" == "rhel" ]]; then
-    wget $REPO_URL/register_git_hook.diff
+    wget $PATCH_URL/register_git_hook.diff
     git apply register_git_hook.diff
     fi
 
