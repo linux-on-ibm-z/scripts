@@ -1,0 +1,10 @@
+--- a/distribution/archives/build.gradle
++++ b/distribution/archives/build.gradle
+@@ -180,7 +180,7 @@ task buildLinuxTar(type: SymbolicLinkPreservingTar) {
+
+ task buildOssLinuxTar(type: SymbolicLinkPreservingTar) {
+   configure(commonTarConfig)
+-  archiveClassifier = 'linux-x86_64'
++  archiveClassifier = 'linux-s390x'
+   with archiveFiles(modulesFiles(true, 'linux'), 'tar', 'linux', true, true)
+ }
