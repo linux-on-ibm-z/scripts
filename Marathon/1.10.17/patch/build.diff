@@ -1,0 +1,36 @@
+diff --git a/build.sbt b/build.sbt
+index 27d6c48..cf8b33d 100644
+--- a/build.sbt
++++ b/build.sbt
+@@ -5,6 +5,7 @@ import com.typesafe.sbt.packager.docker.Cmd
+ import mesosphere.maven.MavenSettings.{loadM2Credentials, loadM2Resolvers}
+ import mesosphere.raml.RamlGeneratorPlugin
+ import sbtprotobuf.ProtobufPlugin
++import scala.sys.process.Process
+ import scalariform.formatter.preferences._
+
+ credentials ++= loadM2Credentials(streams.value.log)
+@@ -73,7 +74,7 @@ lazy val integrationTestSettings = Seq(
+ val pbSettings = ProtobufPlugin.projectSettings ++ Seq(
+   (version in ProtobufConfig) := "3.3.0",
+   (includeFilter in ProtobufConfig) := "marathon.proto",
+-  (protobufRunProtoc in ProtobufConfig) := (args => com.github.os72.protocjar.Protoc.runProtoc("-v330" +: args.toArray))
++  PB.runProtoc in Compile := (args => Process("protoc", args)!)
+ )
+
+ lazy val commonSettings = Seq(
+diff --git a/project/plugins.sbt b/project/plugins.sbt
+index 20a1193..01178fa 100644
+--- a/project/plugins.sbt
++++ b/project/plugins.sbt
+@@ -26,8 +26,8 @@ libraryDependencies ++= Seq(
+   "org.raml" % "raml-parser-2" % "1.0.3",
+   "com.eed3si9n" %% "treehugger" % "0.4.3",
+   "org.slf4j" % "slf4j-nop" % "1.7.25",
+-  "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.6",
+-  "com.github.os72" % "protoc-jar" % "3.8.0"
++  "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.6"
++//  "com.github.os72" % "protoc-jar" % "3.8.0"
+ )
+
+ sbtPlugin := true
