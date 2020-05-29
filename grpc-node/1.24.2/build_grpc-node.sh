@@ -13,15 +13,14 @@ PACKAGE_NAME="grpc-node"
 PACKAGE_VERSION="grpc@1.24.2"
 
 FORCE=false
-WORKDIR="/usr/local"
-CURDIR="$(pwd)"
-LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+WORKDIR="$(pwd)"
+LOG_FILE="${WORKDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 
 trap cleanup 1 2 ERR
 
 #Check if directory exists
-if [ ! -d "$CURDIR/logs/" ]; then
-	mkdir -p "$CURDIR/logs/"
+if [ ! -d "$WORKDIR/logs/" ]; then
+	mkdir -p "$WORKDIR/logs/"
 fi
 
 # Need handling for RHEL 6.10 as it doesn't have os-release file
@@ -87,19 +86,6 @@ function runTest() {
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 
-	# Install Python 2.7.16 (for RHEL 8.0)
-	if [[ "${VERSION_ID}" == "8.0" ]]; then
-		cd "${WORKDIR}"
-		wget https://www.python.org/ftp/python/2.7.16/Python-2.7.16.tar.xz
-		tar -xvf Python-2.7.16.tar.xz
-		cd Python-2.7.16
-		./configure --prefix=/usr/local --exec-prefix=/usr/local
-		make
-		sudo make install		
-		python -V
-		printf -- 'Installed Python successfully for Rhel 8.0 \n'
-	fi
-
 	#Install node
 	cd "${WORKDIR}"
 	wget https://nodejs.org/dist/v13.3.0/node-v13.3.0-linux-s390x.tar.xz
@@ -122,6 +108,9 @@ function configureAndInstall() {
 		npm install --save-dev electron-mocha@8.1.2
 	fi
 	
+	#Run tests
+	runTest
+
 	#Cleanup
 	cleanup
 }
@@ -168,7 +157,9 @@ done
 function gettingStarted() {
 	printf -- '\n********************************************************************************************************\n'
 	printf -- "\n* grpc-node installed successfully. * \n"
-	printf -- '**********************************************************************************************************\n'
+	printf -- "\n  Set the enviromnemnt variables as below : \n    export PATH=\$PATH:/usr/local/node-v13.3.0-linux-s390x/bin"
+	printf -- "\n  More information on grpc-node can be found at : https://grpc.io/docs/quickstart/node/ "
+	printf -- '\n**********************************************************************************************************\n'
 }
 
 ###############################################################################################################
@@ -191,15 +182,9 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"rhel-8.0")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	sudo yum install -y gcc-c++ git make wget curl |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "${LOG_FILE}"
-	;;
-	
 "sles-12.4" | "sles-15.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-	sudo zypper install gcc-c++ git-core make wget curl python |& tee -a "${LOG_FILE}"
+	sudo zypper install gcc-c++ git-core make wget curl python tar xz gawk gzip |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
