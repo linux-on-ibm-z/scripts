@@ -1,0 +1,50 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index bc947ee..7bef725 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -22,6 +22,8 @@
+ 
+ cmake_minimum_required (VERSION 3.5)
+ 
++set(CMAKE_CXX_STANDARD 17)
++
+ list (APPEND CMAKE_MODULE_PATH
+   ${CMAKE_CURRENT_SOURCE_DIR}/cmake
+   ${CMAKE_CURRENT_BINARY_DIR})
+diff --git a/src/net/dns.cc b/src/net/dns.cc
+index fa1ea87..f4fe7f3 100644
+--- a/src/net/dns.cc
++++ b/src/net/dns.cc
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include <arpa/nameser.h>
++#include <sys/socket.h>
+ #include <chrono>
+ 
+ #include <ares.h>
+diff --git a/src/net/inet_address.cc b/src/net/inet_address.cc
+index 28bc5a2..d55c537 100644
+--- a/src/net/inet_address.cc
++++ b/src/net/inet_address.cc
+@@ -142,7 +142,7 @@ bool seastar::net::inet_address::operator==(const inet_address& o) const {
+ seastar::net::inet_address::operator ::in6_addr() const {
+     if (_in_family == family::INET) {
+         in6_addr in6 = IN6ADDR_ANY_INIT;
+-        in6.s6_addr32[2] = ::htonl(0xffff);
++        in6.s6_addr32[2] = htonl(0xffff);
+         in6.s6_addr32[3] = _in.s_addr;
+         return in6;
+     }
+diff --git a/src/net/posix-stack.cc b/src/net/posix-stack.cc
+index bb5ef41..81363e4 100644
+--- a/src/net/posix-stack.cc
++++ b/src/net/posix-stack.cc
+@@ -21,6 +21,7 @@
+ 
+ #include <random>
+ 
++#include <sys/socket.h>
+ #include <linux/if.h>
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
