@@ -1,0 +1,70 @@
+diff --git a/alternator/auth.cc b/alternator/auth.cc
+index a2607e33d..41901969d 100644
+--- a/alternator/auth.cc
++++ b/alternator/auth.cc
+@@ -23,6 +23,7 @@
+ #include "log.hh"
+ #include <string>
+ #include <string_view>
++#include <gnutls/gnutls.h>
+ #include <gnutls/crypto.h>
+ #include <seastar/util/defer.hh>
+ #include "hashers.hh"
+diff --git a/build_id.cc b/build_id.cc
+index 431d3c4bb..0388ddc0b 100644
+--- a/build_id.cc
++++ b/build_id.cc
+@@ -7,6 +7,7 @@
+ #include <link.h>
+ #include <seastar/core/align.hh>
+ #include <sstream>
++#include <cassert>
+ 
+ using namespace seastar;
+ 
+diff --git a/bytes.hh b/bytes.hh
+index 9d1a0689b..4781e6237 100644
+--- a/bytes.hh
++++ b/bytes.hh
+@@ -86,7 +86,7 @@ struct appending_hash<bytes_view> {
+ inline int32_t compare_unsigned(bytes_view v1, bytes_view v2) {
+     auto n = memcmp(v1.begin(), v2.begin(), std::min(v1.size(), v2.size()));
+     if (n) {
+-        return n;
++        return n > 0 ? 1 : -1;
+     }
+     return (int32_t) (v1.size() - v2.size());
+ }
+diff --git a/test/boost/sstable_mutation_test.cc b/test/boost/sstable_mutation_test.cc
+index a1698a320..0df1db70f 100644
+--- a/test/boost/sstable_mutation_test.cc
++++ b/test/boost/sstable_mutation_test.cc
+@@ -1449,7 +1449,7 @@ SEASTAR_TEST_CASE(test_key_count_estimation) {
+                 BOOST_REQUIRE_EQUAL(est, sst->get_estimated_key_count());
+             }
+ 
+-            for (int size : {1, 64, 256, 512, 1024, 4096, count}) {
++            for (int size : {1, 64, 256, 512, 1024, 4000, count}) {
+                 auto r = dht::token_range::make(pks[0].token(), pks[size - 1].token());
+                 auto est = sst->estimated_keys_for_range(r);
+                 BOOST_TEST_MESSAGE(format("est([0; {}] = {}", size - 1, est));
+diff --git a/vint-serialization.cc b/vint-serialization.cc
+index adf099a9b..df54e8d59 100644
+--- a/vint-serialization.cc
++++ b/vint-serialization.cc
+@@ -137,7 +137,6 @@ vint_size_type unsigned_vint::serialized_size(uint64_t value) noexcept {
+ 
+ uint64_t unsigned_vint::deserialize(bytes_view v) {
+     auto src = v.data();
+-    auto len = v.size();
+     const int8_t first_byte = *src;
+ 
+     // No additional bytes, since the most significant bit is not set.
+@@ -152,6 +151,7 @@ uint64_t unsigned_vint::deserialize(bytes_view v) {
+ 
+ #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+     uint64_t value;
++    auto len = v.size();
+     // If we can overread do that. It is cheaper to have a single 64-bit read and
+     // then mask out the unneeded part than to do 8x 1 byte reads.
+     if (__builtin_expect(len >= sizeof(uint64_t) + 1, true)) {
