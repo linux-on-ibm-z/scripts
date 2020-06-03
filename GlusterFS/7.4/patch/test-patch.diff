@@ -1,0 +1,266 @@
+diff --git a/tests/basic/distribute/dir-heal.t b/tests/basic/distribute/dir-heal.t
+index 851f765b2..23e107096 100644
+--- a/tests/basic/distribute/dir-heal.t
++++ b/tests/basic/distribute/dir-heal.t
+@@ -30,8 +30,8 @@ TEST glusterfs --entry-timeout=0 --attribute-timeout=0 -s $H0 --volfile-id $V0 $
+ ls $M0/
+ cd $M0
+
+-TEST kill_brick $V0 $H0 $B0/$V0-1
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-1
++TEST kill_brick $V0 $H0 $B0/$V0-2
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-2
+
+ TEST mkdir dir{1..4}
+
+@@ -51,7 +51,7 @@ TEST setfattr -n "user.test" -v "test" $M0/dir4
+ # Start all bricks
+
+ TEST $CLI volume start $V0 force
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-1
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-2
+
+ #$CLI volume status
+
+@@ -62,18 +62,18 @@ stat $M0/dir* > /dev/null
+
+ # Check that directories have been created on the brick that was killed
+
+-TEST ls $B0/$V0-1/dir1
++TEST ls $B0/$V0-2/dir1
+
+-TEST ls $B0/$V0-1/dir2
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir2
++TEST ls $B0/$V0-2/dir2
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir2
+
+-TEST ls $B0/$V0-1/dir3
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir3
++TEST ls $B0/$V0-2/dir3
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir3
+
+
+-TEST ls $B0/$V0-1/dir4
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir4
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir4
++TEST ls $B0/$V0-2/dir4
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir4
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir4
+
+
+ TEST rm -rf $M0/*
+@@ -97,8 +97,8 @@ ls $M0/
+ cd $M0
+ TEST mkdir dir{1..4}
+
+-TEST kill_brick $V0 $H0 $B0/$V0-1
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-1
++TEST kill_brick $V0 $H0 $B0/$V0-2
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-2
+
+ # No change for dir1
+ # Change permissions for dir2
+@@ -116,7 +116,7 @@ TEST setfattr -n "user.test" -v "test" $M0/dir4
+ # Start all bricks
+
+ TEST $CLI volume start $V0 force
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-1
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-2
+
+ #$CLI volume status
+
+@@ -127,16 +127,16 @@ stat $M0/dir* > /dev/null
+
+ # Check directories on the brick that was killed
+
+-TEST ls $B0/$V0-1/dir2
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir2
++TEST ls $B0/$V0-2/dir2
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir2
+
+-TEST ls $B0/$V0-1/dir3
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir3
++TEST ls $B0/$V0-2/dir3
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir3
+
+
+-TEST ls $B0/$V0-1/dir4
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir4
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir4
++TEST ls $B0/$V0-2/dir4
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir4
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir4
+ cd
+
+
+diff --git a/tests/volume.rc b/tests/volume.rc
+index 9f2356aa4..64c3db0ae 100644
+--- a/tests/volume.rc
++++ b/tests/volume.rc
+@@ -955,7 +955,11 @@ function shd_count {
+
+ function number_healer_threads_shd {
+    local pid=$(get_shd_mux_pid $1)
+-   pstack $pid | grep $2 | wc -l
++   if command -v pstack 2>&1 /dev/null; then
++        pstack $pid | grep $2 | wc -l
++   else
++        gstack $pid | grep $2 | wc -l
++   fi
+ }
+
+ function get_mtime {
+diff --git a/tests/bugs/shard/bug-1251824.t b/tests/bugs/shard/bug-1251824.t
+index d81685d01..fef2b8795 100644
+--- a/tests/bugs/shard/bug-1251824.t
++++ b/tests/bugs/shard/bug-1251824.t
+@@ -14,7 +14,7 @@ TEST $CLI volume set $V0 features.shard-block-size 4MB
+ TEST $CLI volume start $V0
+
+ TEST glusterfs --volfile-id=$V0 --volfile-server=$H0 $M0
+-TEST useradd -M test_user 2>/dev/null
++TEST useradd -UM test_user 2>/dev/null
+
+ # Create 3 files as root.
+ TEST touch $M0/foo
+@@ -102,6 +102,7 @@ md5sum_foo=$(md5sum $M0/foo | awk '{print $1}')
+ EXPECT "$md5sum_foo" echo `md5sum $M0/dir/quux | awk '{print $1}'`
+
+ userdel test_user
++groupdel test_user
+
+ TEST $CLI volume stop $V0
+ TEST $CLI volume delete $V0
+diff --git a/tests/bugs/shard/bug-1468483.t b/tests/bugs/shard/bug-1468483.t
+index e462b8d54..0ace31aa0 100644
+--- a/tests/bugs/shard/bug-1468483.t
++++ b/tests/bugs/shard/bug-1468483.t
+@@ -35,7 +35,7 @@ TEST stat $B0/${V0}0/.shard/$gfid_foo.6
+
+ EXPECT "7" echo `$CLI volume profile $V0 info incremental | grep -w FSYNC | awk '{print $8}'`
+
+-useradd -M test_user 2>/dev/null
++useradd -UM test_user 2>/dev/null
+
+ TEST touch $M0/bar
+
+@@ -52,6 +52,7 @@ EXPECT "7" echo `$CLI volume profile $V0 info incremental | grep -w FSYNC | awk
+
+ EXPECT_WITHIN $UMOUNT_TIMEOUT "Y" force_umount $M0
+ userdel test_user
++groupdel test_user
+ TEST $CLI volume stop $V0
+ TEST $CLI volume delete $V0
+
+diff --git a/tests/bugs/glusterd/bug-1699339.t b/tests/bugs/glusterd/bug-1699339.t
+index bb8d4f46e..2fd5d2887 100644
+--- a/tests/bugs/glusterd/bug-1699339.t
++++ b/tests/bugs/glusterd/bug-1699339.t
+@@ -50,17 +50,17 @@ for i in $(seq 1 $NUM_VOLS); do
+        create_volume $i
+ done
+
+-TEST kill_glusterd 1
++TEST kill_glusterd 2
+
+ TESTS_EXPECTED_IN_LOOP=4
+ for i in `seq 1 3 15`
+ do
+ vol1=$(printf "%s-vol%02d" $V0 $i)
+-TEST $CLI_2 volume set $vol1 performance.readdir-ahead on
++TEST $CLI_1 volume set $vol1 performance.readdir-ahead on
+ done
+
+-# Bring back 1st glusterd
+-TEST $glusterd_1
++# Bring back 2nd glusterd
++TEST $glusterd_2
+ EXPECT_WITHIN $PROBE_TIMEOUT 2 peer_count
+
+ TESTS_EXPECTED_IN_LOOP=4
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf4f..1cc3cac5d 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+ }
+
+ #Determine number of cores
+-cores=$(cat /proc/cpuinfo | grep processor | wc -l)
++cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
+ if [ "$cores" == "" ]; then
+         echo "Could not get number of cores available"
+ fi
+diff --git a/tests/bugs/nfs/bug-847622.t b/tests/bugs/nfs/bug-847622.t
+index 5ccee722e..20d5ec532 100755
+--- a/tests/bugs/nfs/bug-847622.t
++++ b/tests/bugs/nfs/bug-847622.t
+@@ -30,7 +30,7 @@ cd $N0
+
+ # simple getfacl setfacl commands
+ TEST touch testfile
+-TEST setfacl -m u:14:r testfile
++TEST setfacl -m u:14:r $B0/brick0/testfile
+ TEST getfacl testfile
+
+ cd
+diff --git a/tests/basic/posix/shared-statfs.t b/tests/basic/posix/shared-statfs.t
+index 33439562e..a1887bae0 100644
+--- a/tests/basic/posix/shared-statfs.t
++++ b/tests/basic/posix/shared-statfs.t
+@@ -28,7 +28,7 @@ TEST $GFS --volfile-server=$H0 --volfile-id=$V0 $M0
+ total_space=$(df -P $M0 | tail -1 | awk '{ print $2}')
+ # Keeping the size less than 200M mainly because XFS will use
+ # some storage in brick to keep its own metadata.
+-TEST [ $total_space -gt 194000 -a $total_space -lt 200000 ]
++TEST [ $total_space -gt 193000 -a $total_space -lt 200000 ]
+
+
+ TEST force_umount $M0
+@@ -42,7 +42,7 @@ TEST $CLI volume start $V0
+ EXPECT_WITHIN $PROCESS_UP_TIMEOUT "6" online_brick_count
+ TEST $GFS --volfile-server=$H0 --volfile-id=$V0 $M0
+ total_space=$(df -P $M0 | tail -1 | awk '{ print $2}')
+-TEST [ $total_space -gt 194000 -a $total_space -lt 200000 ]
++TEST [ $total_space -gt 193000 -a $total_space -lt 200000 ]
+
+ TEST force_umount $M0
+ TEST $CLI volume stop $V0
+diff --git a/tests/bugs/quota/bug-1293601.t b/tests/bugs/quota/bug-1293601.t
+index 741758b73..688299f78 100644
+--- a/tests/bugs/quota/bug-1293601.t
++++ b/tests/bugs/quota/bug-1293601.t
+@@ -28,6 +28,6 @@ EXPECT_WITHIN $MARKER_UPDATE_TIMEOUT "1.0MB" quotausage "/"
+ TEST $CLI volume quota $V0 disable
+ TEST $CLI volume quota $V0 enable
+
+-EXPECT_WITHIN 60 "1.0MB" quotausage "/"
++EXPECT_WITHIN 180 "1.0MB" quotausage "/"
+
+ cleanup;
+diff --git a/tests/basic/ec/gfapi-ec-open-truncate.c b/tests/basic/ec/gfapi-ec-open-truncate.c
+index 22f17f436..ac8d24e5b 100644
+--- a/tests/basic/ec/gfapi-ec-open-truncate.c
++++ b/tests/basic/ec/gfapi-ec-open-truncate.c
+@@ -114,8 +114,8 @@ main(int argc, char *argv[])
+     /*CHILD_UP_TIMEOUT is 20 seconds*/
+     for (i = 0; i < 20; i++) {
+         ret = system(
+-            "[ $(gluster --mode=script volume status patchy | "
+-            "grep \" Y \" | awk '{print $(NF-1)}' | wc -l) == 3 ]");
++            "bash -c \"[ $(gluster --mode=script volume status patchy | "
++            "grep \" Y \" | awk '{print $(NF-1)}' | wc -l) == 3 ]\"");
+         if (WIFEXITED(ret) && WEXITSTATUS(ret)) {
+             printf("Ret value of system: %d\n, ifexited: %d, exitstatus: %d",
+                    ret, WIFEXITED(ret), WEXITSTATUS(ret));
+@@ -149,8 +149,8 @@ main(int argc, char *argv[])
+     /*Check reopen happened by checking for open-fds on the brick*/
+     for (i = 0; i < 20; i++) {
+         ret = system(
+-            "[ $(for i in $(pgrep glusterfsd); do ls -l /proc/$i/fd | grep "
+-            "\"[.]glusterfs\" | grep -v health_check; done | wc -l) == 3 ]");
++            "bash -c \"[ $(for i in $(pgrep glusterfsd); do ls -l /proc/$i/fd | grep "
++            "\"[.]glusterfs\" | grep -v health_check; done | wc -l) == 3 ]\"");
+         if (WIFEXITED(ret) && WEXITSTATUS(ret)) {
+             printf("Ret value of system: %d\n, ifexited: %d, exitstatus: %d",
+                    ret, WIFEXITED(ret), WEXITSTATUS(ret));
