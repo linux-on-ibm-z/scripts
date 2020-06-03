@@ -67,7 +67,21 @@ function cleanup() {
 }
 
 function configureAndInstall() {
+
     printf -- "Configuration and Installation started \n"
+    
+    if [[ "${DISTRO}" == "ubuntu-20.04" ]]; then
+		cd $SOURCE_ROOT
+		wget https://www.openssl.org/source/old/1.1.1/openssl-1.1.1d.tar.gz
+		tar xvf openssl-1.1.1d.tar.gz
+		cd openssl-1.1.1d
+		./config --prefix=/usr/local --openssldir=/usr/local
+		make
+		sudo make install
+		sudo ldconfig /usr/local/lib64
+		echo ca-certificate=/etc/ssl/certs/ca-certificates.crt >> $HOME/.wgetrc
+		export PATH=/usr/local/bin:$PATH
+    fi
     #Download Source code
     export PATH=$PATH:/sbin
     cd $SOURCE_ROOT
@@ -141,7 +155,7 @@ function runTest() {
 	
         #Make changes to $SOURCE_ROOT/openresty-1.15.8.3/t/sanity.t 
         case "$DISTRO" in
-        sles-12* | "sles-15.1" | "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+        sles-12* | "sles-15.1" | "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
             curl -o "sanity.t.diff"  $CONF_URL/sanity.t.diff
 	    patch -l $SOURCE_ROOT/openresty-1.15.8.3/t/sanity.t sanity.t.diff
             ;;
@@ -159,7 +173,7 @@ function runTest() {
         printf -- 'Updated openresty-1.15.8.3/t/sanity.t \n'
 		
         case "$DISTRO" in
-        "sles-15.1" | rhel-8* | "ubuntu-18.04" | "ubuntu-19.10") 
+        "sles-15.1" | rhel-8* | "ubuntu-18.04" | "ubuntu-20.04") 
             export PERL5LIB=$SOURCE_ROOT/openresty-1.15.8.3 
             ;;
         esac
@@ -222,7 +236,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -230,7 +244,7 @@ case "$DISTRO" in
     sudo ln -s make /usr/bin/gmake
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.6" | "rhel-7.7" | "rhel-8.0" | "rhel-8.1")
+"rhel-7.6" | "rhel-7.7" | "rhel-8.1" | "rhel-8.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y curl tar wget make gcc gcc-c++ unix2dos cpan perl postgresql-devel patch pcre-devel readline-devel openssl openssl-devel glibc-common |& tee -a "$LOG_FILE"
