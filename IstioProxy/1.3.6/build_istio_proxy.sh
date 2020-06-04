@@ -134,10 +134,6 @@ function buildGCC() {
 	wget https://ftpmirror.gnu.org/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz
 	tar -xf gcc-7.3.0.tar.xz
 	cd gcc-7.3.0/
-	if [ "${VERSION_ID}" == "8.0" ]; then
-	 curl -o gcc_rhel8_patch.diff $REPO_URL/gcc_rhel8_patch.diff
-	 patch "${CURDIR}/gcc-7.3.0/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc" gcc_rhel8_patch.diff
-	fi
 	./contrib/download_prerequisites
 	mkdir gcc_build
 	cd gcc_build/
@@ -186,7 +182,7 @@ function buildGO() {
 function installDependency() {
 	printf -- 'Installing dependencies\n' |& tee -a "$LOG_FILE"
 	#only for rhel
-	if [ "${VERSION_ID}" == "7.5" ] || [ "${VERSION_ID}" == "7.6" ] || [ "${VERSION_ID}" == "7.7" ]; then
+	if [ "${VERSION_ID}" == "7.6" ] || [ "${VERSION_ID}" == "7.7" ]; then
 		cd "${CURDIR}"
 		wget https://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
 		tar xzf cmake-3.7.2.tar.gz
@@ -242,15 +238,7 @@ function installDependency() {
 		cd "${CURDIR}"
 		curl -o patch_cond.diff $REPO_URL/patch_cond.diff
                 patch "${CURDIR}/bazel/src/conditions/BUILD" patch_cond.diff  
-        	if [ "${VERSION_ID}" == "19.10" ]; then
-                	curl -o l1_epo.patch $REPO_URL/l1_epo.patch
-                	curl -o l1_lin.patch $REPO_URL/l1_lin.patch
-                	curl -o l1_pos.patch $REPO_URL/l1_pos.patch
-			patch "${CURDIR}/bazel/third_party/grpc/src/core/lib/iomgr/ev_epollex_linux.cc" l1_epo.patch
-			patch "${CURDIR}/bazel/third_party/grpc/src/core/lib/gpr/log_linux.cc" l1_lin.patch
-			patch "${CURDIR}/bazel/third_party/grpc/src/core/lib/gpr/log_posix.cc" l1_pos.patch
-		fi
-		cd ${CURDIR}/bazel
+        	cd ${CURDIR}/bazel
 		env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
 		export PATH=${CURDIR}/bazel/output/:$PATH
 		bazel version |& tee -a "$LOG_FILE"
@@ -314,16 +302,8 @@ function configureAndInstall() {
 	curl -o luajit-patch.patch $REPO_URL/luajit-patch.patch
 	patch "${CURDIR}/envoy/bazel/foreign_cc/luajit.patch" luajit-patch.patch
 
-        if [ "${VERSION_ID}" == "19.10" ]; then
-		curl -o "${CURDIR}/envoy/bazel/l1_epo.patch" $REPO_URL/l1_epo.patch
-		curl -o "${CURDIR}/envoy/bazel/l1_lin.patch" $REPO_URL/l1_lin.patch
-		curl -o "${CURDIR}/envoy/bazel/l1_pos.patch" $REPO_URL/l1_pos.patch
-		curl -o repositories-envoy.bzl.ub1910.patch $REPO_URL/repositories-envoy.bzl.ub1910.patch
-		patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.ub1910.patch 
-        else
-        	curl -o repositories-envoy.bzl.patch $REPO_URL/repositories-envoy.bzl.patch
-        	patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.patch
-        fi
+        curl -o repositories-envoy.bzl.patch $REPO_URL/repositories-envoy.bzl.patch
+        patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.patch
 
         if [ "${ID}" == "rhel" ]; then
 		curl -o patch_rhel_foreign.patch $REPO_URL/patch_rhel_foreign.patch
@@ -523,21 +503,7 @@ case "$DISTRO" in
 
 	;;
 
-"ubuntu-19.10")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update
-	sudo apt-get install -y git pkg-config zip zlib1g-dev unzip python3 libtool automake cmake curl wget build-essential rsync clang gcc-7 g++-7 libgtk2.0-0 ninja-build clang-format-8 
-	sudo rm -rf /usr/bin/gcc /usr/bin/g++ /usr/bin/cc
-	sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
-	sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
-	sudo ln -sf /usr/bin/gcc /usr/bin/cc
-	installDependency
-	configureAndInstall |& tee -a "$LOG_FILE"
-
-	;;
-
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.6" | "rhel-7.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y hostname git tar zip gcc-c++ unzip python3 libtool automake cmake curl wget gcc vim patch binutils-devel bzip2 make tcl gettext | tee -a "${LOG_FILE}"
@@ -546,17 +512,7 @@ case "$DISTRO" in
 	installDependency
 	configureAndInstall | tee -a "${LOG_FILE}"
 	;;
-	
-"rhel-8.0")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y diffutils hostname git tar zip gcc gcc-c++ unzip python2 python3 libtool automake cmake curl wget xz gcc vim patch binutils-devel bzip2 make tcl gettext | tee -a "${LOG_FILE}"
-	sudo ln -sf /usr/bin/python2 /usr/bin/python
-	buildGCC
-	buildGO |& tee -a "$LOG_FILE"
-	installDependency
-	configureAndInstall | tee -a "${LOG_FILE}"
-	;;	
+		
 
 "sles-12.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
