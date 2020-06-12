@@ -97,7 +97,7 @@ function configureAndInstall() {
         # install Java 8 and build jffi
 
 	if [[ "$ID" == "sles" ]]; then
-		sudo zypper install java-1_8_0-openjdk-devel
+		sudo zypper install -y java-1_8_0-openjdk-devel
 		export JAVA_HOME=/usr/lib64/jvm/java-1.8.0-openjdk
 		export PATH=$JAVA_HOME/bin:$PATH
 	else	
@@ -299,13 +299,14 @@ case "$DISTRO" in
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
 	if [ "$USEAS" = "server" ]; then
-		sudo apt-get install -y g++ tar make git wget libsqlite3-dev libc6-dev cron locales locales-all unzip libyaml-dev zlibc zlib1g-dev zlib1g libxml2-dev libgdbm-dev ruby ruby-dev ant zip  |& tee -a "$LOG_FILE"
+		sudo apt-get install -y g++ tar make git wget libsqlite3-dev libc6-dev cron locales locales-all unzip libyaml-dev zlibc zlib1g-dev zlib1g libxml2-dev libgdbm-dev libffi7 ruby ruby-dev ant zip  |& tee -a "$LOG_FILE"
 	elif [ "$USEAS" = "agent" ]; then
-		sudo apt-get install -y g++ tar make wget ruby ruby-dev |& tee -a "$LOG_FILE"
+		sudo apt-get install -y g++ tar make wget ruby ruby-dev libffi7 |& tee -a "$LOG_FILE"
 	else
 		printf -- "please enter the argument (server/agent) with option -s "
 		exit
 	fi
+	sudo ln -s /usr/lib/s390x-linux-gnu/libffi.so.7 /usr/lib/s390x-linux-gnu/libffi.so.6
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
@@ -327,9 +328,9 @@ case "$DISTRO" in
 	fi
 
 	if [ "$USEAS" = "server" ]; then
-		sudo yum install -y gcc-c++ readline-devel tar openssl unzip libyaml-devel PackageKit-cron openssl-devel make git wget sqlite-devel glibc-common hostname zip ant |& tee -a "$LOG_FILE"
+		sudo yum install -y gcc-c++ readline-devel gawk tar unzip libyaml-devel PackageKit-cron openssl-devel make git wget sqlite-devel glibc-common hostname zip ant |& tee -a "$LOG_FILE"
 	elif [ "$USEAS" = "agent" ]; then
-		sudo yum install -y gcc-c++ tar openssl openssl-devel make wget glibc-common hostname |& tee -a "$LOG_FILE"
+		sudo yum install -y gcc-c++ tar openssl-devel make wget gawk hostname |& tee -a "$LOG_FILE"
 	else
 		printf -- "please enter the argument (server/agent) with option -s "
 		exit
@@ -343,9 +344,9 @@ case "$DISTRO" in
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 
 	if [ "$USEAS" = "server" ]; then
-		sudo zypper install -y wget tar make gcc-c++ openssl-devel git ant zip unzip hostname |& tee -a "$LOG_FILE"
+		sudo zypper install -y wget tar make gcc-c++ gawk openssl-devel git ant zip unzip hostname gzip |& tee -a "$LOG_FILE"
 	elif [ "$USEAS" = "agent" ]; then
-		sudo zypper install -y gcc-c++ tar openssl openssl-devel make wget glibc-common hostname |& tee -a "$LOG_FILE"
+		sudo zypper install -y gcc-c++ tar openssl-devel make wget gawk hostname gzip |& tee -a "$LOG_FILE"
 	else
 		exit
 	fi
