@@ -14,7 +14,6 @@ PACKAGE_VERSION="0.22.1"
 export SOURCE_ROOT="$(pwd)"
 
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Falco/${PACKAGE_VERSION}/patch/"
-
 TEST_USER="$(whoami)"
 FORCE="false"
 FORCE_LUAJIT="false"
@@ -110,7 +109,7 @@ function configureAndInstall() {
 
     # RHEL does not ship all the bundled dependencies
     if [[ "${ID}" == "rhel" ]] || [[ "${DISTRO}" == "ubuntu-16.04" ]]; then
-        cmake -DFALCO_ETC_DIR=/etc/falco -DUSE_BUNDLED_OPENSSL=On -DUSE_BUNDLED_DEPS=On ../../
+        cmake -DUSE_BUNDLED_OPENSSL=On -DUSE_BUNDLED_DEPS=On ../../
     else
         cmake ../../
     fi
@@ -123,8 +122,9 @@ function configureAndInstall() {
     printf -- '\nInserting Falco kernel module. \n'
     sudo rmmod falco_probe || true
 
+    # We return true anyway to be more forgiving for running on container for case like CICD
     cd $SOURCE_ROOT/falco/build/release
-    sudo insmod driver/falco-probe.ko
+    sudo insmod driver/falco-probe.ko || true
     printf -- '\nInserted falco kernel module successfully. \n'
 
     # Run Tests
@@ -207,7 +207,8 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update
-    sudo apt-get install -y git cmake autoconf automake build-essential curl wget rpm pkg-config patch sudo kmod
+    sudo apt-get install -y git cmake autoconf automake build-essential curl wget rpm pkg-config patch sudo kmod  \
+        linux-headers-$(uname -r)
 
     if [[ "${DISTRO}" != "ubuntu-16.04" ]]; then
         sudo apt-get install -y libssl-dev libyaml-dev libncurses-dev libc-ares-dev libprotobuf-dev \
@@ -215,17 +216,17 @@ case "$DISTRO" in
             libcurl4-openssl-dev libelf-dev
     else
         sudo apt-get install -y libssl-dev libyaml-dev libncurses-dev libc-ares-dev libcurl4-openssl-dev libelf-dev \
-            elfutils libtool linux-headers-$(uname -r)
+            elfutils libtool
     fi
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.7" | "rhel-8.1")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc gcc-c++ git make autoconf automake pkg-config patch wget
+    sudo yum install -y gcc gcc-c++ git make autoconf automake pkg-config patch wget rpm-build
     sudo yum install libcurl-devel zlib-devel libyaml-devel c-ares-devel ncurses-devel libtool glibc-static \
             libstdc++-static elfutils-libelf-devel kernel-devel-$(uname -r) -y
 
