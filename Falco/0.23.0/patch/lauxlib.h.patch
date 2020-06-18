@@ -1,0 +1,14 @@
+diff --git a/src/lauxlib.h b/src/lauxlib.h
+index a44f027..185a31d 100644
+--- a/src/lauxlib.h
++++ b/src/lauxlib.h
+@@ -7,7 +7,8 @@
+
+ #ifndef lauxlib_h
+ #define lauxlib_h
+-
++#define luaL_reg luaL_Reg
++#define luaL_getn lua_objlen
+
+ #include <stddef.h>
+ #include <stdio.h>
