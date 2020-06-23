@@ -1,0 +1,39 @@
+--- jsval.h	2019-01-09 09:10:18.745656025 +0000
++++ jsval.h.1	2019-01-09 09:20:37.372866739 +0000
+@@ -306,11 +306,11 @@
+             int32          i32;
+             uint32         u32;
+             JSWhyMagic     why;
+-            jsuword        word;
+         } payload;
+     } s;
+     double asDouble;
+     void *asPtr;
++    jsuword asWord;
+ } jsval_layout;
+ # endif  /* JS_BITS_PER_WORD */
+ #else   /* defined(IS_LITTLE_ENDIAN) */
+@@ -320,6 +320,7 @@
+     uint64 asBits;
+     struct {
+         JSValueTag tag;
++	uint32 padding;
+         union {
+             int32          i32;
+             uint32         u32;
+@@ -343,6 +344,7 @@
+         uint64             payload47 : 47;
+     } debugView;
+     struct {
++	uint32 padding;
+         union {
+             int32          i32;
+             uint32         u32;
+@@ -351,6 +353,7 @@
+     } s;
+     double asDouble;
+     void *asPtr;
++    jsuword asWord;
+ } jsval_layout;
+ # endif /* JS_BITS_PER_WORD */
+ #endif  /* defined(IS_LITTLE_ENDIAN) */
