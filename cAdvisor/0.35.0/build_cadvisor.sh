@@ -243,23 +243,23 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"ubuntu-19.10")
+"ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
-	sudo apt-get install -y wget git curl patch golang-1.12 |& tee -a "${LOG_FILE}"
-	export PATH=/usr/lib/go-1.12/bin/:$PATH
+	sudo apt-get install -y wget git curl patch golang-1.14 |& tee -a "${LOG_FILE}"
+	export PATH=/usr/lib/go-1.14/bin/:$PATH
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y  wget git patch golang gcc |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 	
-"rhel-8.0" | "rhel-8.1")
+"rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y curl git golang patch |& tee -a "${LOG_FILE}"
