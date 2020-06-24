@@ -119,7 +119,7 @@ function cleanup() {
 	rm -rf "${CURDIR}/l1_epo.patch"
 	rm -rf "${CURDIR}/l1_pos.patch"
 	rm -rf "${CURDIR}/l1_lin.patch"
-	rm -rf "${CURDIR}/repositories-envoy.bzl.ub1910.patch"
+	rm -rf "${CURDIR}/repositories-envoy.bzl.ub2004.patch"
 	rm -rf "${CURDIR}/patch_wee8.patch"
 	rm -rf "${CURDIR}/patch_logger.patch"
 	rm -rf "${CURDIR}/http_integration.patch"
@@ -318,8 +318,8 @@ function configureAndInstall() {
 		curl -o "${CURDIR}/envoy/bazel/l1_epo.patch" $REPO_URL/l1_epo.patch
 		curl -o "${CURDIR}/envoy/bazel/l1_lin.patch" $REPO_URL/l1_lin.patch
 		curl -o "${CURDIR}/envoy/bazel/l1_pos.patch" $REPO_URL/l1_pos.patch
-		curl -o repositories-envoy.bzl.ub1910.patch $REPO_URL/repositories-envoy.bzl.ub1910.patch
-		patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.ub1910.patch 
+		curl -o repositories-envoy.bzl.ub2004.patch $REPO_URL/repositories-envoy.bzl.ub2004.patch
+		patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.ub2004.patch 
         fi
         curl -o repositories-envoy.bzl.patch $REPO_URL/repositories-envoy.bzl.patch
         patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.patch
