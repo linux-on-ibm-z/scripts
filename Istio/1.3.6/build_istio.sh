@@ -251,7 +251,7 @@ prepare |& tee -a "$LOG_FILE"
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04")
+"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
@@ -261,7 +261,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.6" | "rhel-7.7")
+"rhel-7.6" | "rhel-7.7" | "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y wget tar make zip unzip git vim binutils-devel bzip2 which automake autoconf libtool zlib pkgconfig zlib-devel curl bison libcurl-devel mercurial 
