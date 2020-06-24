@@ -9,7 +9,7 @@
 
 set -e -o pipefail
 
-PACKAGE_NAME="Istio Proxy"
+PACKAGE_NAME="Istio-Proxy"
 PACKAGE_VERSION="1.3.6"
 CURDIR="$(pwd)"
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/IstioProxy/1.3.6/patch"
@@ -134,6 +134,10 @@ function buildGCC() {
 	wget https://ftpmirror.gnu.org/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz
 	tar -xf gcc-7.3.0.tar.xz
 	cd gcc-7.3.0/
+	if [[ "${VERSION_ID}" == "8.1" || "${VERSION_ID}" == "8.2" ]]; then
+	 curl -o gcc_rhel8_patch.diff $REPO_URL/gcc_rhel8_patch.diff
+	 patch "${CURDIR}/gcc-7.3.0/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc" gcc_rhel8_patch.diff
+	fi
 	./contrib/download_prerequisites
 	mkdir gcc_build
 	cd gcc_build/
@@ -228,17 +232,26 @@ function installDependency() {
 		chmod -R +w .
 		export CC=/usr/bin/gcc
 		export CXX=/usr/bin/g++
-
+		
 		cd "${CURDIR}"
 		curl -o compile.sh.diff $REPO_URL/compile.sh.diff
 		patch "${CURDIR}/bazel/scripts/bootstrap/compile.sh" compile.sh.diff
 		cd "${CURDIR}"
 		curl -o patch_BUILD.diff $REPO_URL/patch_BUILD.diff
-                patch "${CURDIR}/bazel/third_party/BUILD" patch_BUILD.diff
+        patch "${CURDIR}/bazel/third_party/BUILD" patch_BUILD.diff
 		cd "${CURDIR}"
 		curl -o patch_cond.diff $REPO_URL/patch_cond.diff
-                patch "${CURDIR}/bazel/src/conditions/BUILD" patch_cond.diff  
-        	cd ${CURDIR}/bazel
+        patch "${CURDIR}/bazel/src/conditions/BUILD" patch_cond.diff  
+		cd ${CURDIR}/bazel
+		if [ "${VERSION_ID}" == "20.04" ]; then
+		        sudo ln -sf /usr/bin/python2 /usr/bin/python
+                	curl -o l1_epo.patch $REPO_URL/l1_epo.patch
+                	curl -o l1_lin.patch $REPO_URL/l1_lin.patch
+                	curl -o l1_pos.patch $REPO_URL/l1_pos.patch
+			patch "${CURDIR}/bazel/third_party/grpc/src/core/lib/iomgr/ev_epollex_linux.cc" l1_epo.patch
+			patch "${CURDIR}/bazel/third_party/grpc/src/core/lib/gpr/log_linux.cc" l1_lin.patch
+			patch "${CURDIR}/bazel/third_party/grpc/src/core/lib/gpr/log_posix.cc" l1_pos.patch
+		fi
 		env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
 		export PATH=${CURDIR}/bazel/output/:$PATH
 		bazel version |& tee -a "$LOG_FILE"
@@ -301,10 +314,16 @@ function configureAndInstall() {
 
 	curl -o luajit-patch.patch $REPO_URL/luajit-patch.patch
 	patch "${CURDIR}/envoy/bazel/foreign_cc/luajit.patch" luajit-patch.patch
-
+	if [ "${VERSION_ID}" == "20.04" ]; then
+		curl -o "${CURDIR}/envoy/bazel/l1_epo.patch" $REPO_URL/l1_epo.patch
+		curl -o "${CURDIR}/envoy/bazel/l1_lin.patch" $REPO_URL/l1_lin.patch
+		curl -o "${CURDIR}/envoy/bazel/l1_pos.patch" $REPO_URL/l1_pos.patch
+		curl -o repositories-envoy.bzl.ub1910.patch $REPO_URL/repositories-envoy.bzl.ub1910.patch
+		patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.ub1910.patch 
+        fi
         curl -o repositories-envoy.bzl.patch $REPO_URL/repositories-envoy.bzl.patch
         patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.patch
-
+	
         if [ "${ID}" == "rhel" ]; then
 		curl -o patch_rhel_foreign.patch $REPO_URL/patch_rhel_foreign.patch
 		sed -i "s|\$SOURCE_ROOT|${CURDIR}|" patch_rhel_foreign.patch
@@ -488,11 +507,11 @@ case "$DISTRO" in
 
 	;;
 
-"ubuntu-18.04")
+"ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git pkg-config zip zlib1g-dev unzip python3 libtool automake cmake curl wget build-essential rsync clang gcc-7 g++-7 libgtk2.0-0 ninja-build clang-format-5.0 
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git pkg-config zip zlib1g-dev unzip python3 libtool automake cmake curl wget build-essential rsync clang gcc-7 g++-7 libgtk2.0-0 ninja-build clang-format-6.0 python
 	sudo rm -rf /usr/bin/gcc /usr/bin/g++ /usr/bin/cc
 	sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
 	sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
@@ -503,6 +522,17 @@ case "$DISTRO" in
 
 	;;
 
+"rhel-8.1" | "rhel-8.2")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y diffutils hostname git tar zip gcc gcc-c++ unzip python2 python3 libtool automake cmake curl wget xz gcc vim patch binutils-devel bzip2 make tcl gettext | tee -a "${LOG_FILE}"
+	sudo ln -sf /usr/bin/python2 /usr/bin/python
+	buildGCC
+	buildGO |& tee -a "$LOG_FILE"
+	installDependency
+	configureAndInstall | tee -a "${LOG_FILE}"
+	;;
+	
 "rhel-7.6" | "rhel-7.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
