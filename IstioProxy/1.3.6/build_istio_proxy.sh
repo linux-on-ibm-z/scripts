@@ -320,10 +320,10 @@ function configureAndInstall() {
 		curl -o "${CURDIR}/envoy/bazel/l1_pos.patch" $REPO_URL/l1_pos.patch
 		curl -o repositories-envoy.bzl.ub2004.patch $REPO_URL/repositories-envoy.bzl.ub2004.patch
 		patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.ub2004.patch 
-        fi
+    else
         curl -o repositories-envoy.bzl.patch $REPO_URL/repositories-envoy.bzl.patch
         patch "${CURDIR}/envoy/bazel/repositories.bzl" repositories-envoy.bzl.patch
-	
+	fi
         if [ "${ID}" == "rhel" ]; then
 		curl -o patch_rhel_foreign.patch $REPO_URL/patch_rhel_foreign.patch
 		sed -i "s|\$SOURCE_ROOT|${CURDIR}|" patch_rhel_foreign.patch
