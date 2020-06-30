@@ -72,17 +72,30 @@ function cleanup() {
     fi
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
 }
+function configureAndInstallPython() {
+	printf -- 'Configuration and Installation for Python started \n'
+
+	#Install Python 2.7.16
+	cd $CURDIR
+	rm -rf Python*
+	wget https://www.python.org/ftp/python/2.7.16/Python-2.7.16.tar.xz 	
+	tar -xvf Python-2.7.16.tar.xz
+	cd Python-2.7.16
+	./configure --prefix=/usr/local --exec-prefix=/usr/local
+	make
+	sudo make install
+	export PATH=/usr/local/bin:$PATH
+	#Copying python headers required location
+	sudo cp /usr/local/include/python2.7/* /usr/include/python2.7/
+	
+}
 
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
         #Install python for rhel distro
-        if [[ "${DISTRO}" == "rhel-7.5" || "${DISTRO}" == "rhel-7.6" || "${DISTRO}" == "rhel-7.7" ]]; then
+        if [[ "${DISTRO}" == "rhel-7.6" || "${DISTRO}" == "rhel-7.7" || "${DISTRO}" == "rhel-7.8" ]]; then
                 cd $CURDIR
-                # Pyhton install
-                wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/2.7.16/build_python2.sh
-                bash build_python2.sh -y
-                #Copying python headers required location
-                sudo cp /usr/local/include/python2.7/* /usr/include/python2.7/
+		configureAndInstallPython
                 # mercurial install
                 cd $CURDIR
                 wget https://www.mercurial-scm.org/release/mercurial-5.1.tar.gz
@@ -177,11 +190,11 @@ function runTest() {
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- "TEST Flag is set, continue with running test \n"  >> "$LOG_FILE"
 		
-		if [[ "${DISTRO}" == "rhel-8.0" ]]; then
+		if [[ "${DISTRO}" == "rhel-8.1" || "${DISTRO}" == "rhel-8.2" ]]; then
 			cd "$GOPATH/src/github.com/heketi/heketi"
 			make test 2>&1| tee -a test.log
-			printf -- "Tests completed for RHEL 8.0 \n"
-			printf -- "NOTE: The "./tests/300-db-import-export.sh" test fails for RHEL 8.0 on s390x and x86 as well. \n"
+			printf -- "Tests completed for RHEL 8.x \n"
+			printf -- "NOTE: The "./tests/300-db-import-export.sh" test fails for RHEL 8.x on s390x and x86 as well. \n"
 			count_of_failures=`grep "FAIL" test.log | wc -l`
 			if [[ $count_of_failures == 1 ]]; then
 				#Check if the failure that has occured is as expected.
@@ -269,20 +282,28 @@ case "$DISTRO" in
         sudo apt-get install -y git golang-1.10 make mercurial tar wget |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+	"ubuntu-20.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y git golang make tar wget patch python-docutils |& tee -a "$LOG_FILE"
+        sudo apt-get update
+        sudo apt-get install -y git golang-1.14 make mercurial tar wget |& tee -a "$LOG_FILE"
+	export PATH=/usr/lib/go-1.14/bin:$PATH
+        configureAndInstall |& tee -a "$LOG_FILE"
+		;;
+    "rhel-7.6" | "rhel-7.7" | "rhel-7.8")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo yum install -y git golang make tar wget patch python-docutils gcc gcc-c++ make wget tar bzip2-devel zlib-devel xz xz-devel readline-devel sqlite-devel tk-devel ncurses-devel gdbm-devel openssl-devel libdb-devel gdb bzip2 |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-8.0")
+    "rhel-8.1" | "rhel-8.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y git golang make tar wget patch python2 mercurial |& tee -a "$LOG_FILE"
 	sudo ln -s /usr/bin/python2 /usr/bin/python
         configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-    "sles-12.4")
+    "sles-12.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y gcc git gzip make python python-devel python-setuptools tar wget patch curl |& tee -a "$LOG_FILE"
