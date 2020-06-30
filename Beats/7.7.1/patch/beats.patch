@@ -1,0 +1,44 @@
+diff --git a/libbeat/scripts/Makefile b/libbeat/scripts/Makefile
+index 5676553f0..7f530ec59 100755
+--- a/libbeat/scripts/Makefile
++++ b/libbeat/scripts/Makefile
+@@ -72,7 +72,7 @@ TESTIFY_TOOL_REPO?=github.com/stretchr/testify/assert
+ NOW=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+ GOBUILD_FLAGS?=-ldflags "-X github.com/elastic/beats/libbeat/version.buildTime=$(NOW) -X github.com/elastic/beats/libbeat/version.commit=$(COMMIT_ID)"
+ GOIMPORTS=goimports
+-GOIMPORTS_REPO?=github.com/elastic/beats/vendor/golang.org/x/tools/cmd/goimports
++GOIMPORTS_REPO?=golang.org/x/tools/cmd/goimports
+ GOIMPORTS_LOCAL_PREFIX?=github.com/elastic
+ GOLINT=golint
+ GOLINT_REPO?=golang.org/x/lint/golint
+diff --git a/libbeat/tests/system/beat/beat.py b/libbeat/tests/system/beat/beat.py
+index fa8e0ad3c..3959c374d 100644
+--- a/libbeat/tests/system/beat/beat.py
++++ b/libbeat/tests/system/beat/beat.py
+@@ -358,6 +358,7 @@ class TestCase(unittest.TestCase, ComposeMixin):
+         If the max_timeout is reached before cond() returns
+         true, an exception is raised.
+         """
++        max_timeout=10
+         start = datetime.now()
+         while not cond():
+             if datetime.now() - start > timedelta(seconds=max_timeout):
+diff --git a/packetbeat/sniffer/sniffer.go b/packetbeat/sniffer/sniffer.go
+index bfe720c7b..11819f890 100644
+--- a/packetbeat/sniffer/sniffer.go
++++ b/packetbeat/sniffer/sniffer.go
+@@ -310,11 +310,12 @@ func openAFPacket(filter string, cfg *config.InterfacesConfig) (snifferHandle, e
+ 		return nil, err
+ 	}
+ 
+-	err = h.SetBPFFilter(filter)
++	/*s390x perform JIT compilation from eBPF instruction set.*/
++	/*err = h.SetBPFFilter(filter)
+ 	if err != nil {
+ 		h.Close()
+ 		return nil, err
+-	}
++	}*/
+ 
+ 	return h, nil
+ }
