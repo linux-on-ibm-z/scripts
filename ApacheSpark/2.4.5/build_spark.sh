@@ -205,14 +205,14 @@ function configureAndInstall() {
             exit 1
         fi
 
-        curl -SLO http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.6.7/linux/s390x/ibm-java-s390x-sdk-8.0-6.7.bin	
-		chmod +x ibm-java-s390x-sdk-8.0-6.7.bin
+        curl -SL -o ibm-jdk.bin http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.6.11/linux/s390x/ibm-java-s390x-sdk-8.0-6.11.bin
+		chmod +x ibm-jdk.bin
 
         wget https://raw.githubusercontent.com/zos-spark/scala-workbench/master/files/installer.properties.java
         tail -n +3 installer.properties.java | tee installer.properties
         cat installer.properties
 
-        sudo ./ibm-java-s390x-sdk-8.0-6.7.bin -r installer.properties
+        sudo ./ibm-jdk.bin -r installer.properties
 
         export JAVA_HOME=/opt/ibm/java
         export HADOOP_USER_NAME="hadoop"
