@@ -23,16 +23,7 @@ if [ ! -d "$CURDIR/logs/" ]; then
    mkdir -p "$CURDIR/logs/"
 fi
 
-# Need handling for RHEL 6.10 as it doesn't have os-release file
-if [ -f "/etc/os-release" ]; then
-    source "/etc/os-release"
-else
-    cat /etc/redhat-release >> "${LOG_FILE}"
-    export ID="rhel"
-    export VERSION_ID="6.x"
-    export PRETTY_NAME="Red Hat Enterprise Linux 6.x"
-fi
-
+source "/etc/os-release"
 
 function prepare() {
     if  command -v "sudo" > /dev/null ;
@@ -154,20 +145,20 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-    "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+    "ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
         sudo apt-get install -y gcc gzip make tar wget |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-7.5" | "rhel-7.6" | "rhel-7.7" | "rhel-8.0")
+    "rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1" | "rhel-8.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y gcc gzip make tar wget |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "sles-12.4" | "sles-15.1")
+    "sles-12.5" | "sles-15.1")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y  gcc gzip make tar wget |& tee -a "$LOG_FILE"
