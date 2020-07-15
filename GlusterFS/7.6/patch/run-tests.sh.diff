@@ -1,0 +1,34 @@
+diff --git a/run-tests.sh b/run-tests.sh
+index 5683b2164..89655586e 100755
+--- a/run-tests.sh
++++ b/run-tests.sh
+@@ -128,10 +128,10 @@ function check_dependencies()
+     fi
+
+     # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
++    #env netstat --version > /dev/null 2>&1
++    #if [ $? -ne 0 ]; then
++    #    MISSING="$MISSING netstat"
++    #fi
+
+     # Check for the Perl Test Harness
+     env prove --version > /dev/null 2>&1
+@@ -165,10 +165,10 @@ function check_dependencies()
+     fi
+
+     # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
++    #env netstat --version > /dev/null 2>&1
++    #if [ $? -ne 0 ]; then
++    #    MISSING="$MISSING netstat"
++    #fi
+
+     # check for psutil python package
+     test `uname -s` == "Darwin" || test `uname -s` == "FreeBSD" && {
