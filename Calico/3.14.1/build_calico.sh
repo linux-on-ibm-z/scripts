@@ -76,7 +76,7 @@ export LOGDIR=${WORKDIR}/logs
 export CONF_LOG="${LOGDIR}/configuration-$(date +"%F-%T").log"
 touch $CONF_LOG
 
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/calico/${CALICO_VERSION}/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Calico/3.14.1/patch"
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/${GOLANG_VERSION}/build_go.sh"
 GO_DEFAULT="$HOME/go"
 GO_FLAG="DEFAULT"
