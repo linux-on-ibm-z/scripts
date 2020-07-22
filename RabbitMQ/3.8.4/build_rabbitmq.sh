@@ -52,7 +52,7 @@ function prepare() {
 function cleanup() {
 	printf -- 'Started cleanup\n'
 	rm -rf "${CURDIR}/rabbitmq-server-$PACKAGE_VERSION.tar.xz"
-	rm -rf "${CURDIR}/otp_src_22.0.tar.gz"
+	rm -rf "${CURDIR}/otp_src_22.2.tar.gz"
 	printf -- 'Cleaned up successfull\n'
 }
 function configureAndInstall() {
@@ -60,7 +60,8 @@ function configureAndInstall() {
 	if [[ "${OVERRIDE}" == "true" ]]; then
 		printf -- 'Rabbitmq exists on the system. Override flag is set to true hence updating the same\n '
 	fi
-	if [[ "${ID}" == "rhel" ]]; then
+	
+	if [[ "${DISTRO}" == "rhel-7."* ]]; then
 		     printf -- "\nBuilding make 4.x \n"
 	             cd "${CURDIR}"
 		     wget https://ftp.gnu.org/gnu/make/make-4.2.tar.gz
@@ -72,15 +73,12 @@ function configureAndInstall() {
 		     printf -- 'Installed make successfully \n'
 	fi
 	cd "${CURDIR}"
+	# Install Erlang
 	printf -- "\nBuilding Erlang \n"
-	wget http://www.erlang.org/download/otp_src_22.0.tar.gz
-	tar zxf otp_src_22.0.tar.gz
-	cd otp_src_22.0
-	export ERL_TOP="${CURDIR}/otp_src_22.0"
-	./configure --prefix=/usr
-	make
-	sudo make install
-        printf -- 'Installed erlang successfully \n'
+	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/22.2/build_erlang.sh
+	sudo bash build_erlang.sh -y
+	printf -- 'Installed erlang successfully \n'
+	export ERL_TOP=/usr/local/erlang
 	export PATH=$PATH:$ERL_TOP/bin 
 	sudo localedef -c -f UTF-8 -i en_US en_US.UTF-8
 	export LC_ALL=en_US.UTF-8
@@ -195,7 +193,7 @@ case "$DISTRO" in
 "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant xz xz-devel git wget tar make curl java-1.8.0-openjdk java-1.8.0-openjdk-devel perl gcc openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel glibc-locale-source glibc-langpack-en python2 rsync |& tee -a "${LOG_FILE}"
+	sudo yum install -y sed  make glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant xz xz-devel git wget tar make curl java-1.8.0-openjdk java-1.8.0-openjdk-devel perl gcc openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel glibc-locale-source glibc-langpack-en python2 rsync |& tee -a "${LOG_FILE}"
 	sudo alternatives --set python /usr/bin/python2
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
