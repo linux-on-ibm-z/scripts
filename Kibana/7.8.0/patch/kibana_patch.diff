@@ -1,0 +1,34 @@
+diff --git a/package.json b/package.json
+index de7c45a9d2..bc4b51f15c 100644
+--- a/package.json
++++ b/package.json
+@@ -316,7 +316,7 @@
+     "@types/browserslist-useragent": "^3.0.0",
+     "@types/chance": "^1.0.0",
+     "@types/cheerio": "^0.22.10",
+-    "@types/chromedriver": "^2.38.0",
++    "@types/chromedriver": "^2.33.2",
+     "@types/classnames": "^2.2.9",
+     "@types/color": "^3.0.0",
+     "@types/d3": "^3.5.43",
+@@ -400,7 +400,7 @@
+     "chai": "3.5.0",
+     "chance": "1.0.18",
+     "cheerio": "0.22.0",
+-    "chromedriver": "^83.0.0",
++    "chromedriver": "2.33.2",
+     "classnames": "2.2.6",
+     "dedent": "^0.7.0",
+     "delete-empty": "^2.0.0",
+diff --git a/src/dev/build/tasks/bin/scripts/kibana b/src/dev/build/tasks/bin/scripts/kibana
+index 558facb9da..89f72f3e0f 100755
+--- a/src/dev/build/tasks/bin/scripts/kibana
++++ b/src/dev/build/tasks/bin/scripts/kibana
+@@ -15,6 +15,7 @@ done
+ 
+ DIR="$(dirname "${SCRIPT}")/.."
+ NODE="${DIR}/node/bin/node"
++NODE="/usr/bin/node"
+ test -x "$NODE"
+ if [ ! -x "$NODE" ]; then
+   echo "unable to find usable node.js executable."
