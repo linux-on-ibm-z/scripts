@@ -114,20 +114,17 @@ function configureAndInstall() {
     cd kibana
 
     # Applying patch
-    #wget $PATCH_URL/kibana_patch.diff
-    wget -O kibana_patch.diff https://raw.github.ibm.com/srajmane/opensource-porting-s390x/srajmane_Kibana/Kibana/scripts/7.8.0/patch/kibana_patch.diff?token=AABGASAINFQED5JQNM75FB27EQEI2
+    wget $PATCH_URL/kibana_patch.diff
     git apply kibana_patch.diff
     
     if [[ "${DISTRO}" == "rhel-7.6" ]] || [[ "${DISTRO}" == "rhel-7.7" ]] || [[ "${DISTRO}" == "rhel-7.8" ]]; then
-    #wget $PATCH_URL/register_git_hook.diff
-    wget -O register_git_hook.diff https://raw.github.ibm.com/srajmane/opensource-porting-s390x/srajmane_Kibana/Kibana/scripts/7.8.0/patch/register_git_hook.diff?token=AABGASCKEROLA5JX5JJXRZ27EQEFG
+    wget $PATCH_URL/register_git_hook.diff
     git apply register_git_hook.diff
     fi
 
 
     if [[ "${DISTRO}" == "rhel-7.6" ]] || [[ "${DISTRO}" == "rhel-7.7" ]]; then
-    #wget $PATCH_URL/nodejs_patch.diff
-    wget -O nodejs_patch.diff https://raw.github.ibm.com/srajmane/opensource-porting-s390x/srajmane_Kibana/Kibana/scripts/7.8.0/patch/nodejs_patch.diff?token=AABGASBSTVVTP5QCZWZ3WNC7EQD22
+    wget $PATCH_URL/nodejs_patch.diff
     git apply nodejs_patch.diff
     fi
 
