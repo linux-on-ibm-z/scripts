@@ -148,7 +148,7 @@ function configureAndInstall() {
     cd ..
     tar zcf grpc-1.11.0.tar.gz --exclude .git grpc-1.11.0
     rm -rf grpc-1.11.0
-    if [ "$DISTRO" == "ubuntu-19.10" ]; then
+    if [ "$DISTRO" == "ubuntu-20.04" ]; then
         curl -o "grpc-1.11.0.patch"  $REPO_URL/grpc-1.11.0.patch
     fi
 
@@ -169,7 +169,7 @@ function configureAndInstall() {
     rm protobuf-3.5.0.patch
 
     # Patching boost-1.65.0.patch file
-    if [ "$DISTRO" == "ubuntu-19.10" ] || [ "$DISTRO" == "rhel-8.0" ] || [ "$DISTRO" == "rhel-8.1" ]; then
+    if [ "$DISTRO" == "ubuntu-20.04" ] || [ "$DISTRO" == "rhel-8.1" ] || [ "$DISTRO" == "rhel-8.2" ]; then
         printf -- "Patching boost-1.65.0.patch file\n"
 	    curl -o "boost-1.65.0.patch"  $REPO_URL/boost-1.65.0.patch
         cat boost-1.65.0.patch >> 3rdparty/boost-1.65.0.patch
@@ -249,7 +249,7 @@ prepare # Check Prerequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-19.10")
+"ubuntu-18.04" | "ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -262,7 +262,7 @@ case "$DISTRO" in
 	fi
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.5" | "rhel-7.6" | "rhel-7.7")
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	if [[ "$JAVA_FLAV" == "openjdk" ]]; then
@@ -274,7 +274,7 @@ case "$DISTRO" in
 	fi
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.0" | "rhel-8.1")
+"rhel-8.1" | "rhel-8.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	printf -- "\nOpenJDK dependencies\n" |& tee -a "$LOG_FILE"
@@ -282,7 +282,7 @@ case "$DISTRO" in
 	sudo yum install -y apr-devel autoconf bzip2 curl cyrus-sasl-devel cyrus-sasl-md5 gcc gcc-c++ git java-1.8.0-openjdk-devel libcurl-devel libtool make maven openssl-devel patch python2-devel python2-six subversion-devel tar wget zlib-devel |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.4")
+"sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	if [[ "$JAVA_FLAV" == "openjdk" ]]; then
