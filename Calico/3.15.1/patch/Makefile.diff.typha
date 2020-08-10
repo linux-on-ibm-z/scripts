@@ -1,0 +1,14 @@
+diff --git a/Makefile b/Makefile
+index f97ca49..8b84957 100644
+--- a/Makefile
++++ b/Makefile
+@@ -121,7 +121,7 @@ $(BUILD_IMAGE): bin/calico-typha-$(ARCH) register
+ 	mkdir -p docker-image/bin
+ 	cp bin/calico-typha-$(ARCH) docker-image/bin/
+ 	cp LICENSE docker-image/
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) --file ./docker-image/Dockerfile.$(ARCH) docker-image
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image
+ ifeq ($(ARCH),amd64)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
+ 
