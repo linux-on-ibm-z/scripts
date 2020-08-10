@@ -1,0 +1,13 @@
+diff --git a/Makefile b/Makefile
+index b052ac4..03380c5 100644
+--- a/Makefile
++++ b/Makefile
+@@ -231,7 +231,7 @@ $(BUILD_IMAGE)-$(ARCH): bin/calico-felix-$(ARCH) \
+ 	mkdir -p docker-image/bpf/bin
+ 	# Copy only the files we're explicitly expecting (in case we have left overs after switching branch).
+ 	cp $(ALL_BPF_PROGS) docker-image/bpf/bin
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image;
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image;
+ ifeq ($(ARCH),amd64)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
