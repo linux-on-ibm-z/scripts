@@ -1,0 +1,24 @@
+diff --git a/bpf-gpl/Makefile b/bpf-gpl/Makefile
+index 8601c42..ed42d43 100644
+--- a/bpf-gpl/Makefile
++++ b/bpf-gpl/Makefile
+@@ -23,8 +23,9 @@
+ # that can only really be built with the kernel build system.  For now, just force-include
+ # exactly the files that we need and let the rest be pulled from the system's standard include
+ # directories.
++
+ LINUX_COMMON=$(wildcard /usr/src/linux-headers-*-common)
+-LINUX_AMD64=$(wildcard /usr/src/linux-headers-*-amd64)
++LINUX_ARCH=$(wildcard /usr/src/linux-headers-*-$(GOARCH))
+ 
+ CFLAGS +=  \
+ 	-x c \
+@@ -41,7 +42,7 @@ CFLAGS +=  \
+ 	-O2 \
+ 	-emit-llvm \
+ 	--include=$(LINUX_COMMON)/include/uapi/linux/bpf.h \
+-	--include=$(LINUX_AMD64)/include/generated/uapi/linux/version.h
++	--include=$(LINUX_ARCH)/include/generated/uapi/linux/version.h
+ 
+ CC := clang
+ LD := llc
