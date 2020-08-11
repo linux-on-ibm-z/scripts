@@ -1,0 +1,11 @@
+--- go.mod      2020-07-23 05:47:03.916416913 +0000
++++ go_new.mod  2020-07-23 08:03:10.784652513 +0000
+@@ -46,7 +46,7 @@
+        github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
+        github.com/karrick/godirwalk v1.7.5
+        github.com/kevinburke/go-bindata v3.17.0+incompatible // indirect
+-       github.com/klauspost/crc32 v0.0.0-20151223135126-a3b15ae34567 // indirect
++       github.com/klauspost/crc32 v1.2.0 // indirect
+        github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+        github.com/kr/pretty v0.0.0-20140723054909-088c856450c0
+        github.com/kr/text v0.0.0-20130911015532-6807e777504f // indirect
