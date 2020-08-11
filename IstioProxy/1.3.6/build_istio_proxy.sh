@@ -115,7 +115,7 @@ function cleanup() {
 	rm -rf "${CURDIR}/BUILD-api.patch"
 	rm -rf "${CURDIR}/patch_BUILD.diff"
 	rm -rf "${CURDIR}/patch_cond.diff"
-	rm -rf "${CURDIR}/gcc-7.3.0.tar.xz"
+	rm -rf "${CURDIR}/gcc-7.3.0.tar.gz"
 	rm -rf "${CURDIR}/l1_epo.patch"
 	rm -rf "${CURDIR}/l1_pos.patch"
 	rm -rf "${CURDIR}/l1_lin.patch"
@@ -131,8 +131,8 @@ function buildGCC() {
 
 	printf -- 'Building GCC \n' |& tee -a "$LOG_FILE"
 	cd "${CURDIR}"
-	wget https://ftpmirror.gnu.org/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz
-	tar -xf gcc-7.3.0.tar.xz
+	wget https://ftp.gnu.org/gnu/gcc/gcc-7.3.0/gcc-7.3.0.tar.gz
+	tar -xf gcc-7.3.0.tar.gz
 	cd gcc-7.3.0/
 	if [[ "${VERSION_ID}" == "8.1" || "${VERSION_ID}" == "8.2" ]]; then
 	 curl -o gcc_rhel8_patch.diff $REPO_URL/gcc_rhel8_patch.diff
