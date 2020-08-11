@@ -72,9 +72,9 @@ function configureAndInstall() {
     if [[ "$ID" == "ubuntu" && "$JAVA_FLAV" == "ibmsdk" ]]  ;then
     	printf -- "Installing IBM SDK 8 for Ubuntu \n"
         cd "$CURDIR"
-        wget http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.5.41/linux/s390x/ibm-java-s390x-sdk-8.0-5.41.bin
+        wget http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.6.15/linux/s390x/ibm-java-s390x-sdk-8.0-6.15.bin
         echo -en 'INSTALLER_UI=silent\nUSER_INSTALL_DIR=/opt/java-1.8.0-ibm\nLICENSE_ACCEPTED=TRUE' > installer.properties
-        sudo bash ibm-java-s390x-sdk-8.0-5.41.bin -i silent -f installer.properties
+        sudo bash ibm-java-s390x-sdk-8.0-6.15.bin -i silent -f installer.properties
     fi
 
     # Installing Maven
