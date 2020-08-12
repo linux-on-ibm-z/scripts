@@ -75,8 +75,9 @@ function configureAndInstall() {
     sudo cp -Rf erlang "$BUILD_DIR"/erlang
     printf -- "Download erlang success\n"
 
-    # Give permission to user
-    sudo chown -R "$USER" "$BUILD_DIR/erlang"
+   # Give permission to user
+    CURRENT_USER=$('whoami')
+    sudo chown -R "$CURRENT_USER" "$BUILD_DIR/erlang"
 
     # Build and install erlang
     cd "$BUILD_DIR"/erlang
