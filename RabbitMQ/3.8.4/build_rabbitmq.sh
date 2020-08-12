@@ -76,7 +76,8 @@ function configureAndInstall() {
 	# Install Erlang
 	printf -- "\nBuilding Erlang \n"
 	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/22.2/build_erlang.sh
-	sudo bash build_erlang.sh -y
+	chmod +x build_erlang.sh
+	bash build_erlang.sh -y
 	printf -- 'Installed erlang successfully \n'
 	export ERL_TOP=/usr/local/erlang
 	export PATH=$PATH:$ERL_TOP/bin 
@@ -88,7 +89,7 @@ function configureAndInstall() {
 	git clone git://github.com/elixir-lang/elixir
 	cd elixir && git checkout v${ELIXIR_VERSION}
 	make
-	sudo make install
+	sudo env PATH=$PATH make install
 	export PATH=/usr/local/bin:$PATH
 	elixir --version
 	printf -- 'Installed elixir successfully \n'
