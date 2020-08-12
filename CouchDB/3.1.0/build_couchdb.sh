@@ -275,18 +275,6 @@ prepare |& tee -a "$LOG_FILE"
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update
-	sudo apt-get install -y build-essential pkg-config gcc curl git patch wget tar make autoconf automake g++ libmozjs185-dev libicu-dev libcurl4-openssl-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-dev openjdk-8-jdk xsltproc fop libxml2-utils |& tee -a "$LOG_FILE"
-  # For Python
-  sudo apt-get remove -y python3
-	sudo apt-get install -y libbz2-dev libdb-dev libffi-dev libgdbm-dev liblzma-dev libreadline-dev libsqlite3-dev tk-dev uuid-dev xz-utils zlib1g-dev |& tee -a "$LOG_FILE"
-	installPython
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
 "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
@@ -318,8 +306,13 @@ case "$DISTRO" in
 	installPython
 	configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
-
-"rhel-8.1" | "rhel-8.2")
+"rhel-8.1")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
+        sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python36-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
+        configureAndInstall |&  tee -a "$LOG_FILE"
+	;;
+"rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python38 python38-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
