@@ -220,7 +220,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"sles-15.1")
+"sles-15.1" | "sles-15.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo zypper install -y gawk gcc gcc-c++ gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libnsl-devel libopenssl-devel libuuid-devel make ncurses-devel readline-devel sqlite3-devel tar tk-devel wget xz-devel zlib-devel gzip
         configureAndInstall |& tee -a "${LOG_FILE}"
