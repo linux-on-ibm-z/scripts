@@ -170,7 +170,7 @@ checkPrequisites  #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04" )
+"ubuntu-18.04" | "ubuntu-20.04" )
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
   sudo apt-get install -y  gcc make wget tar bzip2 subversion bison flex openssl libssl-dev |& tee -a "${LOG_FILE}"
@@ -184,14 +184,14 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"sles-12.4" | "sles-12.5")
+ "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Ruby from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y bison flex libopenssl-devel libyaml-devel libffi48-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite3-devel gcc make wget tar |& tee -a "${LOG_FILE}" 
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-  "sles-15.1")
+  "sles-15.1" | "sles-15.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper  install -y  bison flex libopenssl-devel libyaml-devel libffi-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel sqlite3-devel gcc make wget tar gawk gzip |& tee -a "${LOG_FILE}" 
