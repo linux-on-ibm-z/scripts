@@ -145,7 +145,7 @@ function runTest() {
         printf -- 'Updated openresty-${PACKAGE_VERSION}/t/000-sanity.t \n'
 		
         case "$DISTRO" in
-        "sles-15.1" | rhel-8* | "ubuntu-18.04" | "ubuntu-20.04") 
+        "sles-15"* | rhel-8* | "ubuntu-18.04" | "ubuntu-20.04") 
             export PERL5LIB=$SOURCE_ROOT/openresty-${PACKAGE_VERSION}
             ;;
         esac
@@ -242,10 +242,10 @@ case "$DISTRO" in
     sudo zypper install -y curl tar wget make gcc gcc-c++ dos2unix perl postgresql10-devel patch pcre-devel readline-devel openssl libopenssl-devel aaa_base |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.1")
+"sles-15.1" | "sles-15.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y curl tar wget make gcc gcc-c++ unix2dos python-xml python-curses perl postgresql10-devel patch pcre-devel readline-devel openssl openssl-devel aaa_base gzip |& tee -a "$LOG_FILE"
+    sudo zypper install -y curl tar wget make gcc gcc-c++ dos2unix python3-lxml python3-curses perl postgresql10-devel patch pcre-devel readline-devel openssl openssl-devel aaa_base gzip |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
