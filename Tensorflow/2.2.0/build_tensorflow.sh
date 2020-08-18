@@ -143,11 +143,6 @@ function runTest() {
 	set +e
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- "TEST Flag is set , Continue with running test \n" 
-		
-		if [[ "$DISTRO" == "ubuntu-16.04" ]]; then
-			printf -- "Upgrade setuptools to resolve test failures with an error '_NamespacePath' object has no attribute 'sort' \n" |& tee -a "$LOG_FILE"
-			sudo pip3 install --upgrade setuptools
-	    	fi
 		JTOOLS=$SOURCE_ROOT/remote_java_tools_linux	
 		cd $SOURCE_ROOT/tensorflow
 		bazel --host_jvm_args="-Xms1024m" --host_jvm_args="-Xmx2048m" test --define=tensorflow_mkldnn_contraction_kernel=0 --host_javabase="@local_jdk//:jdk" --override_repository=remote_java_tools_linux=$JTOOLS --test_tag_filters=-gpu,-benchmark-test,-v1only -k   --test_timeout 300,450,1200,3600 --build_tests_only --test_output=errors -- //tensorflow/... -//tensorflow/compiler/... -//tensorflow/lite/... -//tensorflow/core/platform/cloud/...
@@ -221,26 +216,6 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" )
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- "Installing dependencies... it may take some time.\n"
-	sudo apt-get update 
-	sudo apt-get install -y pkg-config zip g++ zlib1g-dev unzip git vim tar wget automake autoconf libtool make curl maven python3-pip python3-virtualenv python3-numpy swig python3-dev libcurl3-dev python3-mock bzip2 libhdf5-dev patch git patch libssl-dev libblas3 liblapack3 liblapack-dev libblas-dev |& tee -a "${LOG_FILE}"
-	sudo pip3 install cython |& tee -a "${LOG_FILE}"
-	sudo pip3 install pip setuptools --upgrade |& tee -a "${LOG_FILE}"
-	sudo pip3 install numpy==1.16.2 future wheel scipy backports.weakref portpicker futures==2.2.0 enum34 keras_preprocessing keras_applications h5py tensorflow_estimator setuptools pillow absl-py |& tee -a "${LOG_FILE}"
-	sudo pip3 install sklearn |& tee -a "${LOG_FILE}"
-
-	#Install OpenJDK11
-	cd $SOURCE_ROOT
-	wget https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.7%2B10/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz
-	tar -xvf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz
-	export JAVA_HOME=$SOURCE_ROOT/jdk-11.0.7+10
-	export PATH=$JAVA_HOME/bin:$PATH
-	
-	configureAndInstall |& tee -a "${LOG_FILE}"
-	;;
-
 "ubuntu-18.04" | "ubuntu-20.04" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
