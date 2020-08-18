@@ -152,7 +152,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
+"ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
 	sudo apt-get install -y bison flex wget build-essential git gcc make zlib1g-dev libreadline-dev |& tee -a "$LOG_FILE"
@@ -172,7 +172,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.4" | "sles-12.5" | "sles-15.1")
+"sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y git gcc gcc-c++ make readline-devel zlib-devel bison flex gawk |& tee -a "$LOG_FILE"
