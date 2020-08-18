@@ -87,7 +87,7 @@ function configureAndInstall() {
 	printf -- "Java version is :\n"
 	java -version
 
-	#Install ninja (for SLES 12 SP4, SLES 12 SP5 and RHEL )
+	#Install ninja (for SLES 12 SP5 and RHEL )
 	if [[ "$ID" == "rhel" || "$VERSION_ID" == "12.5" ]]  ;then
 
 		printf -- "\nInstalling ninja . . . \n"
@@ -202,7 +202,7 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
+"ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update -y
@@ -230,7 +230,7 @@ case "$DISTRO" in
 	sudo zypper install -y cmake perl libopenssl-devel libapr1-devel autoconf automake libtool make tar git java-1_8_0-openjdk-devel gcc-c++ wget  which patch |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"sles-15.1")
+"sles-15.1" | "sles-15.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper install -y awk ninja cmake perl  libopenssl-devel autoconf automake libtool make tar git java-1_8_0-openjdk-devel wget apr-devel zlib-devel gcc gcc-c++ patch gzip |& tee -a "${LOG_FILE}"
