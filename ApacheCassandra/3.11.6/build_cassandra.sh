@@ -290,7 +290,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04" | "ubuntu-20.04")
+"ubuntu-18.04" | "ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -318,7 +318,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-15.1")
+"sles-15.1" | "sles-15.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y ant junit ant-junit gzip curl git which make wget tar zip unzip gcc-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo python |& tee -a "$LOG_FILE"
