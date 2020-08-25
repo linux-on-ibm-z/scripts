@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="elasticsearch"
 PACKAGE_VERSION="7.8.1"
 CURDIR="$(pwd)"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/7.8.1/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
 
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -98,7 +98,9 @@ function configureAndInstall() {
         cd "${CURDIR}"
         # Download and configure ElasticSearch
         printf -- 'Downloading Elasticsearch. Please wait.\n'
-        git clone -b v$PACKAGE_VERSION $ES_REPO_URL
+        git clone $ES_REPO_URL
+        cd "${CURDIR}/elasticsearch"
+        git checkout v$PACKAGE_VERSION
 
         # Download required files and apply patch
         cd "${CURDIR}/elasticsearch"
