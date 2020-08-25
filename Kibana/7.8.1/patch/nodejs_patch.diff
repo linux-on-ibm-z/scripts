@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index de7c45a9d2..bc4b51f15c 100644
+--- a/package.json
++++ b/package.json
+@@ -497,7 +497,7 @@
+     "zlib": "^1.0.5"
+   },
+   "engines": {
+-    "node": "10.21.0",
++    "node": "12.18.2",
+     "yarn": "^1.21.1"
+   }
+ }
