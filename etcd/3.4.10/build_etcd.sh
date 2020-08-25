@@ -66,7 +66,7 @@ function cleanup() {
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
 	
-	  if [[ "$DISTRO" != "ubuntu-20.04" && "$DISTRO" != "rhel-8"* ]]; then
+	  if [[ "$DISTRO" != "ubuntu-20.04" && "$DISTRO" != "rhel-8.2" ]]; then
 	    #GO Installation
         printf -- "\n\n Installing Go \n"
         cd $HOME
@@ -107,7 +107,6 @@ function configureAndInstall() {
     fi
 
     printf -- "export GOPATH=%s\n" "$GOPATH" >> "$BUILD_ENV"
-    printf -- "export ETCD_DATA_DIR=%s\n" "$ETCD_DATA_DIR" >> "$BUILD_ENV"
     printf -- "export PATH=%s\n" "$PATH" >> "$BUILD_ENV"
 
     # Checkout the code from repository
@@ -254,7 +253,7 @@ case "$DISTRO" in
         sudo yum install -y curl git wget tar gcc which golang |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-    "sles-12.5" | "sles-15.1")
+    "sles-12.5" | "sles-15.1" | "sles-15.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y  curl git wget tar gcc which gzip |& tee -a "${LOG_FILE}"
