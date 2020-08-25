@@ -1,0 +1,78 @@
+diff -ur a/go-libaudit@v0.4.0/audit.go b/go-libaudit@v0.4.0/audit.go
+--- a/go-libaudit@v0.4.0/audit.go	2020-06-12 14:37:07.372682735 +0000
++++ b/go-libaudit@v0.4.0/audit.go	2020-06-12 14:41:05.392555393 +0000
+@@ -34,6 +34,10 @@
+ 	"github.com/elastic/go-libaudit/auparse"
+ )
+ 
++var (
++        byteOrder = GetEndian()
++)
++
+ const (
+ 	// AuditMessageMaxLength is the maximum length of an audit message (data
+ 	// portion of a NetlinkMessage).
+@@ -537,7 +541,7 @@
+ 
+ 	r := bytes.NewReader(buf)
+ 	m := syscall.NetlinkMessage{}
+-	if err := binary.Read(r, binary.LittleEndian, &m.Header); err != nil {
++	if err := binary.Read(r, byteOrder, &m.Header); err != nil {
+ 		return nil, err
+ 	}
+ 	m.Data = buf[syscall.NLMSG_HDRLEN:]
+@@ -596,7 +600,7 @@
+ func (s AuditStatus) toWireFormat() []byte {
+ 	buf := bytes.NewBuffer(make([]byte, sizeofAuditStatus))
+ 	buf.Reset()
+-	if err := binary.Write(buf, binary.LittleEndian, s); err != nil {
++	if err := binary.Write(buf, byteOrder, s); err != nil {
+ 		// This never returns an error.
+ 		panic(err)
+ 	}
+@@ -631,7 +635,7 @@
+ 			return nil
+ 		}
+ 
+-		if err := binary.Read(r, binary.LittleEndian, f); err != nil {
++		if err := binary.Read(r, byteOrder, f); err != nil {
+ 			return err
+ 		}
+ 	}
+diff -ur a/go-libaudit@v0.4.0/netlink.go b/go-libaudit@v0.4.0/netlink.go
+--- a/go-libaudit@v0.4.0/netlink.go	2020-06-12 14:37:07.372682735 +0000
++++ b/go-libaudit@v0.4.0/netlink.go	2020-06-12 14:41:31.682635208 +0000
+@@ -20,7 +20,6 @@
+ package libaudit
+ 
+ import (
+-	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -142,11 +141,11 @@
+ func serialize(msg syscall.NetlinkMessage) []byte {
+ 	msg.Header.Len = uint32(syscall.SizeofNlMsghdr + len(msg.Data))
+ 	b := make([]byte, msg.Header.Len)
+-	binary.LittleEndian.PutUint32(b[0:4], msg.Header.Len)
+-	binary.LittleEndian.PutUint16(b[4:6], msg.Header.Type)
+-	binary.LittleEndian.PutUint16(b[6:8], msg.Header.Flags)
+-	binary.LittleEndian.PutUint32(b[8:12], msg.Header.Seq)
+-	binary.LittleEndian.PutUint32(b[12:16], msg.Header.Pid)
++	byteOrder.PutUint32(b[0:4], msg.Header.Len)
++	byteOrder.PutUint16(b[4:6], msg.Header.Type)
++	byteOrder.PutUint16(b[6:8], msg.Header.Flags)
++	byteOrder.PutUint32(b[8:12], msg.Header.Seq)
++	byteOrder.PutUint32(b[12:16], msg.Header.Pid)
+ 	copy(b[16:], msg.Data)
+ 	return b
+ }
+@@ -205,7 +204,7 @@
+ // describing the problem will be returned.
+ func ParseNetlinkError(netlinkData []byte) error {
+ 	if len(netlinkData) >= 4 {
+-		errno := -binary.LittleEndian.Uint32(netlinkData[:4])
++		errno := -GetEndian().Uint32(netlinkData[:4])
+ 		if errno == 0 {
+ 			return nil
+ 		}
