@@ -249,7 +249,7 @@ function configureAndInstall() {
 	#Cleanup
 	cleanup
 
-	printf -- "\n Installation of %s %s was sucessfull \n\n" $PACKAGE_NAME $PACKAGE_VERSION
+	printf -- "\n Installation of %s %s was successful \n\n" $PACKAGE_NAME $PACKAGE_VERSION
 }
 
 function fileChanges(){
@@ -293,41 +293,41 @@ function runTest() {
 		cd $GOPATH/src/github.com/elastic/beats/filebeat
 		make unit
 		make system-tests
-		printf -- "\nTesting Filebeat Completed Sucessfully\n"
+		printf -- "\nTesting Filebeat Completed successfully\n"
 
 		#PACKETBEAT
 		printf -- "\nTesting Packetbeat\n"
 		cd $GOPATH/src/github.com/elastic/beats/packetbeat
 		make unit
 		make system-tests
-		printf -- "\nTesting Packetbeat completed Sucessfully\n"
+		printf -- "\nTesting Packetbeat completed Successfully\n"
 
 		#METRICBEAT
 		printf -- "\nTesting Metricbeat\n"
 		cd $GOPATH/src/github.com/elastic/beats/metricbeat
 		mage test
-		printf -- "\nTesting Metricbeat Completed Sucessfully\n"
+		printf -- "\nTesting Metricbeat Completed Successfully\n"
 
 		#LIBBEAT
 		printf -- "\nTesting Libbeat\n"
 		cd $GOPATH/src/github.com/elastic/beats/libbeat
 		make unit
 		make system-tests
-		printf -- "\nTesting Libbeat Completed Sucessfully\n"
+		printf -- "\nTesting Libbeat Completed Successfully\n"
 
 		#HEARTBEAT
 		printf -- "\nTesting Heartbeat\n"
 		cd $GOPATH/src/github.com/elastic/beats/heartbeat
 		make unit
 		make system-tests
-		printf -- "\nTesting Heartbeat Completed Sucessfully\n"
+		printf -- "\nTesting Heartbeat Completed Successfully\n"
 
 		#JOURNALBEAT
 		printf -- "\nTesting journalbeat\n"
 		cd $GOPATH/src/github.com/elastic/beats/journalbeat
 		make unit
 		make system-tests
-		printf -- "\nTesting journalbeat Completed Sucessfully\n"
+		printf -- "\nTesting journalbeat Completed Successfully\n"
 
 		#AUDIBEAT
 		printf -- "\nTesting Auditbeat\n"
@@ -446,7 +446,7 @@ case "$DISTRO" in
 "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y git curl gawk make wget tar gcc libpcap1 libpcap-devel git libopenssl-devel libffi48-devel libsystemd0 systemd-devel==228-157.9.1 acl patch libjpeg62-devel  |& tee -a "${LOG_FILE}"
+	sudo zypper install -y git curl gawk make wget tar gcc libpcap1 libpcap-devel git libopenssl-devel libffi48-devel libsystemd0 systemd-devel acl patch libjpeg62-devel  |& tee -a "${LOG_FILE}"
 	#Installing Python 3.8.3
 	sudo zypper install -y gawk gcc gcc-c++ gdbm-devel libbz2-devel libdb-4_8-devel libffi48-devel libopenssl-devel libuuid-devel make ncurses-devel readline-devel sqlite3-devel tar tk-devel wget xz-devel zlib-devel
 	configureAndInstallPython |& tee -a "${LOG_FILE}"
