@@ -65,11 +65,12 @@ function configureAndInstall() {
 
 	# Download and unpack the htop 2.2.0 source code
 	cd /"$CURDIR"/
-	wget http://hisham.hm/htop/releases/2.2.0/htop-2.2.0.tar.gz
-	tar xvzf htop-2.2.0.tar.gz
+	wget https://github.com/hishamhm/htop/archive/2.2.0.tar.gz
+	tar xvzf 2.2.0.tar.gz
 
 	# Configure and build htop-2.2.0
 	cd /"$CURDIR"/htop-2.2.0
+	bash autogen.sh
 	./configure
 	make
 
@@ -138,21 +139,21 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
     sudo apt-get update -y >/dev/null
-	sudo apt-get -y install gcc make wget tar libncursesw5 libcunit1-ncurses libncursesw5-dev python |& tee -a "$LOG_FILE"
+	sudo apt-get -y install gcc make wget tar libncursesw5 libcunit1-ncurses libncursesw5-dev python automake |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "rhel-7.6" | "rhel-7.7" | "rhel-7.8")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y ncurses ncurses-devel gcc make wget tar python |& tee -a "$LOG_FILE"
+	sudo yum install -y ncurses ncurses-devel gcc make wget tar python automake |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
 "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y ncurses ncurses-devel gcc make wget tar python2 |& tee -a "$LOG_FILE"
+	sudo yum install -y ncurses ncurses-devel gcc make wget tar python2 automake |& tee -a "$LOG_FILE"
 	sudo ln -s /usr/bin/python2 /usr/bin/python |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
@@ -160,7 +161,7 @@ case "$DISTRO" in
 "sles-12.5" | "sles-15.1" | "sles-15.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-	sudo zypper install -y ncurses ncurses-devel gcc make wget tar python awk |& tee -a "$LOG_FILE"
+	sudo zypper install -y ncurses ncurses-devel gcc make wget tar python awk automake |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
