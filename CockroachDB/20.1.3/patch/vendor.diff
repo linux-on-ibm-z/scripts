@@ -1,0 +1,196 @@
+diff --git a/github.com/apache/arrow/go/arrow/memory/memory.go b/github.com/apache/arrow/go/arrow/memory/memory.go
+index de2a3a663..43627f5ed 100644
+--- a/github.com/apache/arrow/go/arrow/memory/memory.go
++++ b/github.com/apache/arrow/go/arrow/memory/memory.go
+@@ -17,7 +17,7 @@
+ package memory
+ 
+ var (
+-	memset func(b []byte, c byte)
++	memset func(b []byte, c byte) = memory_memset_go
+ )
+ 
+ // Set assigns the value c to every element of the slice buf.
+diff --git a/github.com/apache/arrow/go/arrow/type_traits_numeric.gen.go b/github.com/apache/arrow/go/arrow/type_traits_numeric.gen.go
+index 14fafbc57..6f7666c5a 100644
+--- a/github.com/apache/arrow/go/arrow/type_traits_numeric.gen.go
++++ b/github.com/apache/arrow/go/arrow/type_traits_numeric.gen.go
+@@ -21,7 +21,9 @@ package arrow
+ import (
+ 	"encoding/binary"
+ 	"reflect"
++	"math"
+ 	"unsafe"
++	"runtime"
+ )
+ 
+ var (
+@@ -56,7 +58,11 @@ func (int64Traits) BytesRequired(n int) int { return Int64SizeBytes * n }
+ 
+ // PutValue
+ func (int64Traits) PutValue(b []byte, v int64) {
+-	binary.LittleEndian.PutUint64(b, uint64(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint64(b, uint64(v))
++	} else {
++		binary.LittleEndian.PutUint64(b, uint64(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type int64.
+@@ -104,7 +110,11 @@ func (uint64Traits) BytesRequired(n int) int { return Uint64SizeBytes * n }
+ 
+ // PutValue
+ func (uint64Traits) PutValue(b []byte, v uint64) {
+-	binary.LittleEndian.PutUint64(b, uint64(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint64(b, uint64(v))
++	} else {
++		binary.LittleEndian.PutUint64(b, uint64(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type uint64.
+@@ -152,7 +162,11 @@ func (float64Traits) BytesRequired(n int) int { return Float64SizeBytes * n }
+ 
+ // PutValue
+ func (float64Traits) PutValue(b []byte, v float64) {
+-	binary.LittleEndian.PutUint64(b, uint64(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint64(b, math.Float64bits(v))
++	} else {
++		binary.LittleEndian.PutUint64(b, math.Float64bits(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type float64.
+@@ -200,7 +214,11 @@ func (int32Traits) BytesRequired(n int) int { return Int32SizeBytes * n }
+ 
+ // PutValue
+ func (int32Traits) PutValue(b []byte, v int32) {
+-	binary.LittleEndian.PutUint32(b, uint32(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint32(b, uint32(v))
++	} else {
++		binary.LittleEndian.PutUint32(b, uint32(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type int32.
+@@ -248,7 +266,11 @@ func (uint32Traits) BytesRequired(n int) int { return Uint32SizeBytes * n }
+ 
+ // PutValue
+ func (uint32Traits) PutValue(b []byte, v uint32) {
+-	binary.LittleEndian.PutUint32(b, uint32(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint32(b, uint32(v))
++	} else {
++		binary.LittleEndian.PutUint32(b, uint32(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type uint32.
+@@ -344,7 +366,11 @@ func (int16Traits) BytesRequired(n int) int { return Int16SizeBytes * n }
+ 
+ // PutValue
+ func (int16Traits) PutValue(b []byte, v int16) {
+-	binary.LittleEndian.PutUint16(b, uint16(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint16(b, uint16(v))
++	} else {
++		binary.LittleEndian.PutUint16(b, uint16(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type int16.
+@@ -392,7 +418,11 @@ func (uint16Traits) BytesRequired(n int) int { return Uint16SizeBytes * n }
+ 
+ // PutValue
+ func (uint16Traits) PutValue(b []byte, v uint16) {
+-	binary.LittleEndian.PutUint16(b, uint16(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint16(b, uint16(v))
++	} else {
++		binary.LittleEndian.PutUint16(b, uint16(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type uint16.
+@@ -536,7 +566,11 @@ func (timestampTraits) BytesRequired(n int) int { return TimestampSizeBytes * n
+ 
+ // PutValue
+ func (timestampTraits) PutValue(b []byte, v Timestamp) {
+-	binary.LittleEndian.PutUint64(b, uint64(v))
++        if runtime.GOARCH == "s390x" {
++                binary.BigEndian.PutUint64(b, uint64(v))
++        } else {
++		binary.LittleEndian.PutUint64(b, uint64(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type Timestamp.
+@@ -584,7 +618,11 @@ func (time32Traits) BytesRequired(n int) int { return Time32SizeBytes * n }
+ 
+ // PutValue
+ func (time32Traits) PutValue(b []byte, v Time32) {
+-	binary.LittleEndian.PutUint32(b, uint32(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint32(b, uint32(v))
++	} else {
++		binary.LittleEndian.PutUint32(b, uint32(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type Time32.
+@@ -632,7 +670,11 @@ func (time64Traits) BytesRequired(n int) int { return Time64SizeBytes * n }
+ 
+ // PutValue
+ func (time64Traits) PutValue(b []byte, v Time64) {
+-	binary.LittleEndian.PutUint64(b, uint64(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint64(b, uint64(v))
++	} else {
++		binary.LittleEndian.PutUint64(b, uint64(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type Time64.
+@@ -680,7 +722,11 @@ func (date32Traits) BytesRequired(n int) int { return Date32SizeBytes * n }
+ 
+ // PutValue
+ func (date32Traits) PutValue(b []byte, v Date32) {
+-	binary.LittleEndian.PutUint32(b, uint32(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint32(b, uint32(v))
++	} else {
++		binary.LittleEndian.PutUint32(b, uint32(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type Date32.
+@@ -728,7 +774,11 @@ func (date64Traits) BytesRequired(n int) int { return Date64SizeBytes * n }
+ 
+ // PutValue
+ func (date64Traits) PutValue(b []byte, v Date64) {
+-	binary.LittleEndian.PutUint64(b, uint64(v))
++	if runtime.GOARCH == "s390x" {
++		binary.BigEndian.PutUint64(b, uint64(v))
++	} else {
++		binary.LittleEndian.PutUint64(b, uint64(v))
++	}
+ }
+ 
+ // CastFromBytes reinterprets the slice b to a slice of type Date64.
+diff --git a/github.com/ianlancetaylor/cgosymbolizer/config.h b/github.com/ianlancetaylor/cgosymbolizer/config.h
+index a4868a34f..1eddf84e9 100644
+--- a/github.com/ianlancetaylor/cgosymbolizer/config.h
++++ b/github.com/ianlancetaylor/cgosymbolizer/config.h
+@@ -1,7 +1,7 @@
+ /* Hand written config.h suitable for a modern GNU/Linux system.  */
+ 
+ /* ELF size: 32 or 64 */
+-#if defined(__x86_64__) || defined(__aarch64__) || defined(__mips64) || defined(_ARCH_PPC64)
++#if defined(__x86_64__) || defined(__aarch64__) || defined(__mips64) || defined(_ARCH_PPC64) || defined(__s390x__)
+ #define BACKTRACE_ELF_SIZE 64
+ #elif defined(__i386__) || defined(__arm__) || defined(__mips__) || defined(_ARCH_PPC)
+ #define BACKTRACE_ELF_SIZE 32
