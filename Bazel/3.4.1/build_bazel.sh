@@ -13,7 +13,7 @@ PACKAGE_VERSION="3.4.1"
 CURDIR="$(pwd)"
 SOURCE_ROOT="$(pwd)"
 USER="$(whoami)"
-
+PATCH="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/3.4.1/patch"
 
 FORCE="false"
 TESTS="false"
@@ -23,9 +23,8 @@ trap cleanup 0 1 2 ERR
 
 #Check if directory exists
 if [ ! -d "$CURDIR/logs/" ]; then
-   mkdir -p "$CURDIR/logs/"
+	mkdir -p "$CURDIR/logs/"
 fi
-
 
 if [ -f "/etc/os-release" ]; then
 	source "/etc/os-release"
@@ -60,13 +59,40 @@ function prepare() {
 }
 
 function cleanup() {
-    # Remove artifacts
+	# Remove artifacts
 	rm -rf $SOURCE_ROOT/bazel
-    rm -rf $SOURCE_ROOT/bazel-fork
+	rm -rf $SOURCE_ROOT/bazel-fork
+	rm -rf $SOURCE_ROOT/netty
+	rm -rf $SOURCE_ROOT/netty-tcnative
 	
-    printf -- "Cleaned up the artifacts\n" | tee -a "$LOG_FILE"
-
+	printf -- "Cleaned up the artifacts\n" | tee -a "$LOG_FILE"
 }
+
+function buildNetty() {
+	# Install netty-tcnative 2.0.24
+	printf -- '\nBuild netty-tcnative 2.0.24 from source...... \n' 
+	sudo apt-get update
+	sudo apt-get install -y ninja-build cmake perl golang libssl-dev libapr1-dev autoconf automake libtool make tar git maven patch
+
+	cd $SOURCE_ROOT
+	git clone https://github.com/netty/netty-tcnative.git
+	cd netty-tcnative
+	git checkout netty-tcnative-parent-2.0.24.Final
+
+	curl -sSL $PATCH/netty-tcnative.patch | git apply || echo "Error: Patch netty tcnative"
+	mvn install
+
+	# Install netty 4.1.34 Final
+	printf -- '\nBuild netty 4.1.34 from source...... \n'
+	cd $SOURCE_ROOT
+	git clone https://github.com/netty/netty.git
+	cd netty
+	git checkout netty-4.1.34.Final
+
+	curl -sSL $PATCH/netty.patch | git apply || echo "Error: Patch netty"
+	./mvnw clean install -DskipTests
+}
+
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 	
@@ -74,36 +100,54 @@ function configureAndInstall() {
 	sudo ln -sf /usr/bin/python3 /usr/bin/python || true
 	
 	# Download Bazel 3.4.1 distribution archive 
-    printf -- '\nDownload Bazel 3.4.1 distribution archive..... \n' 
-    cd $SOURCE_ROOT   
-    mkdir bazel && cd bazel  
-    wget https://github.com/bazelbuild/bazel/releases/download/3.4.1/bazel-3.4.1-dist.zip
-    unzip bazel-3.4.1-dist.zip 
-    chmod -R +w .
+	printf -- '\nDownload Bazel 3.4.1 distribution archive..... \n' 
+	cd $SOURCE_ROOT   
+	mkdir bazel && cd bazel  
+	wget https://github.com/bazelbuild/bazel/releases/download/3.4.1/bazel-3.4.1-dist.zip
+	unzip bazel-3.4.1-dist.zip 
+	chmod -R +w .
 
-    # Bootstrap Bazel
-    printf -- '\nBootstrap Bazel.... \n' 
-    env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
-    export PATH=$PATH:$SOURCE_ROOT/bazel/output/
+	# Bootstrap Bazel
+	printf -- '\nBootstrap Bazel.... \n'
+	curl -o compile.patch $PATCH/compile.patch
+	patch --ignore-whitespace $SOURCE_ROOT/bazel/scripts/bootstrap/compile.sh < compile.patch
+	env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
+	export PATH=$PATH:$SOURCE_ROOT/bazel/output/
 
-    # Install Bazel
-    printf -- '\nInstall Bazel, build a distribution archive......\n'
-    cd $SOURCE_ROOT
-    mkdir bazel-fork && cd bazel-fork
-    git clone https://github.com/linux-on-ibm-z/bazel.git
-    cd bazel
-    git checkout v3.4.1-s390x
-    bazel build --host_javabase=@local_jdk//:jdk //:bazel-distfile
+	# Install Bazel
+	printf -- '\nInstall Bazel, build a distribution archive......\n'
+	cd $SOURCE_ROOT
+	mkdir bazel-fork && cd bazel-fork
+	git clone https://github.com/linux-on-ibm-z/bazel.git
+	cd bazel
+	git checkout v3.4.1-s390x
 
-    # Compile the bazel binary
-    printf -- '\nCompile the bazel binary.......\n'
-    cd $SOURCE_ROOT
-    mkdir bazel-s390x && cd bazel-s390x
-    unzip $SOURCE_ROOT/bazel-fork/bazel/bazel-bin/bazel-distfile.zip
-    env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
-    export PATH=$SOURCE_ROOT/bazel-s390x/output:$PATH
+	buildNetty
 
-    # Run Tests
+	# Copy netty and netty-tcnative jar to respective bazel directory and apply a patch to use them
+	printf -- '\nCopy netty and netty-tcnative jar to respective bazel directory and apply a patch to use them......\n'
+	cp $SOURCE_ROOT/netty-tcnative/boringssl-static/target/netty-tcnative-boringssl-static-2.0.24.Final-linux-s390_64.jar $SOURCE_ROOT/bazel-fork/bazel/third_party/netty_tcnative/netty-tcnative-boringssl-static-2.0.24.Final.jar
+	cp $SOURCE_ROOT/netty/all/target/netty-all-4.1.34.Final.jar $SOURCE_ROOT/bazel-fork/bazel/third_party/netty/
+
+	cd $SOURCE_ROOT/bazel-fork/bazel
+	curl -sSL $PATCH/bazel-netty.patch | git apply || echo "Error: Patch Bazel netty"
+
+	printf -- '\nBuild a distribution archive......\n'
+	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
+	export PATH=$JAVA_HOME/bin:$PATH
+	bazel build --host_javabase=@local_jdk//:jdk //:bazel-distfile
+
+	# Compile the bazel binary
+	printf -- '\nCompile the bazel binary.......\n'
+	cd $SOURCE_ROOT
+	mkdir bazel-s390x && cd bazel-s390x
+	unzip $SOURCE_ROOT/bazel-fork/bazel/bazel-bin/bazel-distfile.zip
+	curl -o compile.patch $PATCH/compile.patch
+	patch --ignore-whitespace $SOURCE_ROOT/bazel-s390x/scripts/bootstrap/compile.sh < compile.patch
+	env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
+	export PATH=$SOURCE_ROOT/bazel-s390x/output:$PATH
+
+	# Run Tests
 	runTest
 
 	#Cleanup
@@ -166,14 +210,14 @@ done
 function gettingStarted() {
 	printf -- '\n***********************************************************************************************\n'
 	printf -- "Getting Started: \n"
-    printf -- "Make sure bazel binary is in your path\n"
-    printf -- "export PATH=$SOURCE_ROOT/bazel-s390x/output:'$PATH'\n"
-    printf -- "Check the version of Bazel, it should be something like the following:\n"
-    printf -- "  $ bazel --version\n"
-    printf -- "    bazel 3.4.1- (@non-git)\n"
-    printf -- "The bazel location should be something like the following:\n"
-    printf -- "  $ which bazel\n" 
-    printf -- "    $SOURCE_ROOT/bazel-s390x/output/bazel\n"
+	printf -- "Make sure bazel binary is in your path\n"
+	printf -- "export PATH=$SOURCE_ROOT/bazel-s390x/output:'$PATH'\n"
+	printf -- "Check the version of Bazel, it should be something like the following:\n"
+	printf -- "  $ bazel --version\n"
+	printf -- "    bazel 3.4.1- (@non-git)\n"
+	printf -- "The bazel location should be something like the following:\n"
+	printf -- "  $ which bazel\n" 
+	printf -- "    $SOURCE_ROOT/bazel-s390x/output/bazel\n"
 }
 
 ###############################################################################################################
@@ -188,7 +232,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
-    sudo apt-get install wget curl openjdk-11-jdk unzip patch build-essential zip python3 git libapr1 -y|& tee -a "${LOG_FILE}"	
+	sudo apt-get install wget curl openjdk-11-jdk unzip patch build-essential zip python3 git libapr1 -y|& tee -a "${LOG_FILE}"	
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
