@@ -1,0 +1,285 @@
+diff --git a/all/pom.xml b/all/pom.xml
+index c66f8dde80..102bb3a969 100644
+--- a/all/pom.xml
++++ b/all/pom.xml
+@@ -112,6 +112,14 @@
+           <scope>compile</scope>
+           <optional>true</optional>
+         </dependency>
++        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
++        <dependency>
++          <groupId>${project.groupId}</groupId>
++          <artifactId>netty-transport-native-kqueue</artifactId>
++          <version>${project.version}</version>
++          <scope>compile</scope>
++          <optional>true</optional>
++        </dependency>
+       </dependencies>
+     </profile>
+     <!-- The mac, openbsd and freebsd  profile will only include the native jar for epol to the all jar.
+@@ -134,6 +142,14 @@
+           <scope>compile</scope>
+           <optional>true</optional>
+         </dependency>
++        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
++        <dependency>
++          <groupId>${project.groupId}</groupId>
++          <artifactId>netty-transport-native-epoll</artifactId>
++          <version>${project.version}</version>
++          <scope>compile</scope>
++          <optional>true</optional>
++        </dependency>
+       </dependencies>
+     </profile>
+     <profile>
+@@ -154,6 +170,14 @@
+           <scope>compile</scope>
+           <optional>true</optional>
+         </dependency>
++        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
++        <dependency>
++          <groupId>${project.groupId}</groupId>
++          <artifactId>netty-transport-native-epoll</artifactId>
++          <version>${project.version}</version>
++          <scope>compile</scope>
++          <optional>true</optional>
++        </dependency>
+       </dependencies>
+     </profile>
+     <profile>
+@@ -174,6 +198,14 @@
+           <scope>compile</scope>
+           <optional>true</optional>
+         </dependency>
++        <!-- Just include the classes for the other platform so these are at least present in the netty-all artifact -->
++        <dependency>
++          <groupId>${project.groupId}</groupId>
++          <artifactId>netty-transport-native-epoll</artifactId>
++          <version>${project.version}</version>
++          <scope>compile</scope>
++          <optional>true</optional>
++        </dependency>
+       </dependencies>
+     </profile>
+ 
+diff --git a/handler/src/main/java/io/netty/handler/ssl/Conscrypt.java b/handler/src/main/java/io/netty/handler/ssl/Conscrypt.java
+index 4d7ec058f4..9c9e2bba62 100644
+--- a/handler/src/main/java/io/netty/handler/ssl/Conscrypt.java
++++ b/handler/src/main/java/io/netty/handler/ssl/Conscrypt.java
+@@ -28,6 +28,7 @@ final class Conscrypt {
+     // This class exists to avoid loading other conscrypt related classes using features only available in JDK8+,
+     // because we need to maintain JDK6+ runtime compatibility.
+     private static final Method IS_CONSCRYPT_SSLENGINE = loadIsConscryptEngine();
++    private static final boolean CAN_INSTANCE_PROVIDER = canInstanceProvider();
+ 
+     private static Method loadIsConscryptEngine() {
+         try {
+@@ -40,11 +41,22 @@ final class Conscrypt {
+         }
+     }
+ 
++    private static boolean canInstanceProvider() {
++        try {
++            Class<?> providerClass = Class.forName("org.conscrypt.OpenSSLProvider", true,
++                    ConscryptAlpnSslEngine.class.getClassLoader());
++            providerClass.newInstance();
++            return true;
++        } catch (Throwable ignore) {
++            return false;
++        }
++    }
++
+     /**
+      * Indicates whether or not conscrypt is available on the current system.
+      */
+     static boolean isAvailable() {
+-        return IS_CONSCRYPT_SSLENGINE != null && PlatformDependent.javaVersion() >= 8;
++        return CAN_INSTANCE_PROVIDER && IS_CONSCRYPT_SSLENGINE != null && PlatformDependent.javaVersion() >= 8;
+     }
+ 
+     static boolean isEngineSupported(SSLEngine engine) {
+diff --git a/pom.xml b/pom.xml
+index 6b23abef53..b2d8ed3492 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -68,6 +68,36 @@
+   </developers>
+ 
+   <profiles>
++    <profile>
++      <id>not_x86_64</id>
++      <activation>
++        <property>
++          <name>os.detected.arch</name>
++          <value>!x86_64</value>
++        </property>
++      </activation>
++      <properties>
++        <!-- Use no classifier as we only support x86_64 atm-->
++        <tcnative.classifier />
++        <skipShadingTestsuite>true</skipShadingTestsuite>
++      </properties>
++    </profile>
++
++    <!-- Detect if we use GraalVM and if so enable the native image testsuite -->
++    <profile>
++      <id>graal</id>
++      <activation>
++        <file>
++          <!-- GraalVM Component Updater should exists when using GraalVM-->
++          <exists>${java.home}/bin/gu</exists>
++        </file>
++      </activation>
++      <properties>
++        <skipNativeImageTestsuite>false</skipNativeImageTestsuite>
++        <forbiddenapis.skip>true</forbiddenapis.skip>
++        <testJvm />
++      </properties>
++    </profile>
+     <!-- JDK13 -->
+     <profile>
+       <id>java13</id>
+@@ -290,6 +320,10 @@
+     <skipAutobahnTestsuite>false</skipAutobahnTestsuite>
+     <skipHttp2Testsuite>false</skipHttp2Testsuite>
+     <skipJapicmp>false</skipJapicmp>
++    <graalvm.version>19.0.0</graalvm.version>
++    <!-- By default skip native testsuite as it requires a custom environment with graalvm installed -->
++    <skipNativeImageTestsuite>true</skipNativeImageTestsuite>
++    <skipShadingTestsuite>false</skipShadingTestsuite>
+   </properties>
+ 
+   <modules>
+@@ -721,10 +755,10 @@
+                 </requireMavenVersion>
+                 <requireProperty>
+                   <regexMessage>
+-                    x86_64/AARCH64 JDK must be used.
++		     x86_64/AARCH64/PPCLE64/s390x_64 JDK must be used.
+                   </regexMessage>
+                   <property>os.detected.arch</property>
+-                  <regex>^(x86_64|aarch_64)$</regex>
++                  <regex>^(x86_64|aarch_64|ppcle_64|s390_64)$</regex>
+                 </requireProperty>
+               </rules>
+             </configuration>
+diff --git a/testsuite-shading/pom.xml b/testsuite-shading/pom.xml
+index 9958ea993e..fc311788dd 100644
+--- a/testsuite-shading/pom.xml
++++ b/testsuite-shading/pom.xml
+@@ -66,6 +66,17 @@
+     </dependency>
+   </dependencies>
+   <profiles>
++    <profile>
++      <id>skipTests</id>
++      <activation>
++        <property>
++          <name>skipTests</name>
++        </property>
++      </activation>
++      <properties>
++        <skipShadingTestsuite>true</skipShadingTestsuite>
++      </properties>
++    </profile>
+     <profile>
+       <id>windows</id>
+       <activation>
+@@ -193,6 +204,7 @@
+                   <goal>run</goal>
+                 </goals>
+                 <configuration>
++                  <skip>${skipShadingTestsuite}</skip>
+                   <target>
+                     <unzip dest="${classesShadedDir}/">
+                       <fileset dir="${project.build.directory}/">
+@@ -222,6 +234,7 @@
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-failsafe-plugin</artifactId>
+             <configuration>
++              <skip>${skipShadingTestsuite}</skip>
+               <systemPropertyVariables>
+                 <shadingPrefix>${shadingPrefix}</shadingPrefix>
+                 <shadingPrefix2>${shadingPrefix2}</shadingPrefix2>
+@@ -337,6 +350,7 @@
+                   <goal>run</goal>
+                 </goals>
+                 <configuration>
++                  <skip>${skipShadingTestsuite}</skip>
+                   <target>
+                     <unzip dest="${classesShadedDir}/">
+                       <fileset dir="${project.build.directory}/">
+@@ -366,6 +380,7 @@
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-failsafe-plugin</artifactId>
+             <configuration>
++              <skip>${skipShadingTestsuite}</skip>
+               <systemPropertyVariables>
+                 <shadingPrefix>${shadingPrefix}</shadingPrefix>
+                 <shadingPrefix2>${shadingPrefix2}</shadingPrefix2>
+diff --git a/testsuite/src/main/java/io/netty/testsuite/transport/udt/UDTClientServerConnectionTest.java b/testsuite/src/main/java/io/netty/testsuite/transport/udt/UDTClientServerConnectionTest.java
+index c6af2124e8..67aae95f79 100644
+--- a/testsuite/src/main/java/io/netty/testsuite/transport/udt/UDTClientServerConnectionTest.java
++++ b/testsuite/src/main/java/io/netty/testsuite/transport/udt/UDTClientServerConnectionTest.java
+@@ -37,6 +37,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
+ import io.netty.util.concurrent.GlobalEventExecutor;
+ import io.netty.util.internal.PlatformDependent;
+ import org.junit.Assume;
++import org.junit.BeforeClass;
+ import org.junit.Test;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -335,13 +336,27 @@ public class UDTClientServerConnectionTest {
+     static final int WAIT_COUNT = 50;
+     static final int WAIT_SLEEP = 100;
+ 
++    @BeforeClass
++    public static void assumeUdt() {
++        Assume.assumeTrue("com.barchart.udt.SocketUDT can not be loaded and initialized", canLoadAndInit());
++        Assume.assumeFalse("Not supported on J9 JVM", PlatformDependent.isJ9Jvm());
++    }
++
++    private static boolean canLoadAndInit() {
++        try {
++            Class.forName("com.barchart.udt.SocketUDT", true,
++                    UDTClientServerConnectionTest.class.getClassLoader());
++            return true;
++        } catch (Throwable e) {
++            return false;
++        }
++    }
++
+     /**
+      * Verify UDT client/server connect and disconnect.
+      */
+     @Test
+     public void connection() throws Exception {
+-        Assume.assumeFalse("Not supported on J9 JVM", PlatformDependent.isJ9Jvm());
+-
+         log.info("Starting server.");
+         // Using LOCALHOST4 as UDT transport does not support IPV6 :(
+         final Server server = new Server(new InetSocketAddress(NetUtil.LOCALHOST4, 0));
+diff --git a/transport-native-unix-common/src/main/c/netty_unix_socket.c b/transport-native-unix-common/src/main/c/netty_unix_socket.c
+index b3133d672b..b31b9e3e0f 100644
+--- a/transport-native-unix-common/src/main/c/netty_unix_socket.c
++++ b/transport-native-unix-common/src/main/c/netty_unix_socket.c
+@@ -505,6 +505,7 @@ static jint netty_unix_socket_disconnect(JNIEnv* env, jclass clazz, jint fd) {
+ static jint netty_unix_socket_accept(JNIEnv* env, jclass clazz, jint fd, jbyteArray acceptedAddress) {
+     jint socketFd;
+     jsize len;
++    jbyte len_b;
+     int err;
+     struct sockaddr_storage addr;
+     socklen_t address_len = sizeof(addr);
+@@ -529,9 +530,10 @@ static jint netty_unix_socket_accept(JNIEnv* env, jclass clazz, jint fd, jbyteAr
+     }
+ 
+     len = addressLength(&addr);
++    len_b = (jbyte) len;
+ 
+     // Fill in remote address details
+-    (*env)->SetByteArrayRegion(env, acceptedAddress, 0, 4, (jbyte*) &len);
++    (*env)->SetByteArrayRegion(env, acceptedAddress, 0, 1, (jbyte*) &len_b);
+     initInetSocketAddressArray(env, &addr, acceptedAddress, 1, len);
+ 
+     if (accept4)  {
