@@ -1,0 +1,10 @@
+--- tmp/scripts/bootstrap/compile.sh    1980-01-01 00:00:00.000000000 +0000
++++ scripts/bootstrap/compile.sh        2020-06-12 19:55:13.763310907 +0000
+@@ -144,7 +144,7 @@
+   # Useful if your system chooses too small of a max heap for javac.
+   # We intentionally rely on shell word splitting to allow multiple
+   # additional arguments to be passed to javac.
+-  run "${JAVAC}" -classpath "${classpath}" -sourcepath "${sourcepath}" \
++  run "${JAVAC}" -J-Xms1g -J-Xmx1g -classpath "${classpath}" -sourcepath "${sourcepath}" \
+      -d "${output}/classes" -source "$JAVA_VERSION" -target "$JAVA_VERSION" \
+      -encoding UTF-8 ${BAZEL_JAVAC_OPTS} "@${paramfile}"
