@@ -11,13 +11,12 @@ set -e -o pipefail
 
 PACKAGE_NAME="istio"
 PACKAGE_VERSION="1.3.6"
-HELM_VERSION="2.9.1"
+HELM_VERSION="2.16.10"
 CURDIR="$(pwd)"
 REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Istio/1.3.6/patch"
 
 PROXY_REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/IstioProxy/1.3.6/build_istio_proxy.sh"
 
-HELM_REPO_URL="https://github.com/kubernetes/helm.git"
 ISTIO_REPO_URL="https://github.com/istio/istio.git"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 FORCE="false"
@@ -45,7 +44,7 @@ function prepare() {
 		if [[ "${ID}" != "ubuntu" ]]; then
 			printf -- '\nFollowing packages are needed before going ahead\n'
 			printf -- 'Istio Proxy version: $PACKAGE_VERSION\n'
-			printf -- 'Helm version: 2.9.1  \n'
+			printf -- 'Helm version: 2.16.10  \n'
 			printf -- '\nBuild might take some time, please have patience . \n'
 			while true; do
 				read -r -p "Do you want to continue (y/n) ? :  " yn
@@ -74,9 +73,7 @@ function runTest() {
 }
 
 function cleanup() {
-
 	rm -rf "${CURDIR}/glide-v0.13.0-linux-s390x.tar.gz"
-	rm -rf "${CURDIR}/src/k8s.io/helm"
 	rm -rf "${CURDIR}/init.sh.diff"
 	rm -rf "${CURDIR}/init_helm.sh.diff"
 	printf -- '\nCleaned up the artifacts\n' >>"$LOG_FILE"
@@ -95,22 +92,15 @@ function buildHelm() {
 		wget https://github.com/Masterminds/glide/releases/download/v0.13.0/glide-v0.13.0-linux-s390x.tar.gz
 		tar -xzf glide-v0.13.0-linux-s390x.tar.gz
 		export PATH=$GOPATH/linux-s390x:$PATH
-
+           
 		# Download and configure helm
 		printf -- 'Downloading helm. Please wait.\n'
-		mkdir -p $GOPATH/src/k8s.io
-		cd $GOPATH/src/k8s.io
-		git clone -b v$HELM_VERSION $HELM_REPO_URL
-		sleep 2
-
-		#Build helm
-		printf -- 'Building helm \n'
-		printf -- 'Build might take some time.Sit back and relax\n'
-		cd $GOPATH/src/k8s.io/helm
-		make bootstrap build
-
+		cd $GOPATH
+		wget https://get.helm.sh/helm-v2.16.10-linux-s390x.tar.gz
+		tar -xvzf helm-v2.16.10-linux-s390x.tar.gz
+		
 		#Copy binaries to /usr/bin
-		sudo cp $GOPATH/src/k8s.io/helm/bin/* /usr/bin
+		sudo cp $GOPATH/linux-s390x/* /usr/bin
 
 		printf -- '\nCopied binaries in /usr/bin\n'
 		printf -- 'helm installed\n' |& tee -a "$LOG_FILE"
