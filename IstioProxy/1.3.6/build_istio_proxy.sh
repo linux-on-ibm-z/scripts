@@ -283,6 +283,8 @@ function configureAndInstall() {
         cd "${CURDIR}"
         git clone https://gn.googlesource.com/gn
         cd gn
+		git checkout c5f5cb2
+	    sed -i -e 's/-Wl,--icf=all//g' ./build/gen.py
         python build/gen.py
         ninja -C out
 
