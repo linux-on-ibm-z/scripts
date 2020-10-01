@@ -1,0 +1,157 @@
+diff --git a/pkg/sql/colexec/routers_test.go b/pkg/sql/colexec/routers_test.go
+index 5cde022c0e..8d138cc609 100644
+--- a/pkg/sql/colexec/routers_test.go
++++ b/pkg/sql/colexec/routers_test.go
+@@ -561,7 +561,7 @@ func TestHashRouterComputesDestination(t *testing.T) {
+ 		// corresponding index in outputs receives. This should not change between
+ 		// runs of tests unless the underlying hash algorithm changes. If it does,
+ 		// distributed hash routing will not produce correct results.
+-		expectedNumVals = []int{273, 252, 287, 212}
++		expectedNumVals = []int{238, 260, 259, 267}
+ 		numOutputs      = 4
+ 		valsPushed      = make([]int, numOutputs)
+ 	)
+diff --git a/pkg/sql/logictest/testdata/logic_test/builtin_function b/pkg/sql/logictest/testdata/logic_test/builtin_function
+index 9fafb6c349..196a3b566d 100644
+--- a/pkg/sql/logictest/testdata/logic_test/builtin_function
++++ b/pkg/sql/logictest/testdata/logic_test/builtin_function
+@@ -645,7 +645,7 @@ SELECT atan(-0.5), atan(0.5)
+ query RR
+ SELECT atan2(-10.0, 5.0), atan2(10.0, 5.0)
+ ----
+--1.1071487177940904  1.1071487177940904
++-1.1071487177940906  1.1071487177940906
+ 
+ query RRR
+ SELECT cbrt(-1.0::float), round(cbrt(27.0::float), 15), cbrt(19.3::decimal)
+diff --git a/pkg/sql/logictest/testdata/logic_test/dist_vectorize b/pkg/sql/logictest/testdata/logic_test/dist_vectorize
+index 82ee9fe59f..50368f4cfe 100644
+--- a/pkg/sql/logictest/testdata/logic_test/dist_vectorize
++++ b/pkg/sql/logictest/testdata/logic_test/dist_vectorize
+@@ -56,7 +56,7 @@ https://cockroachdb.github.io/distsqlplan/decode.html#eJzMld9r4k4Uxd-_f8Vwn_TLuP
+ query T
+ SELECT url FROM [EXPLAIN ANALYZE SELECT * FROM kv JOIN kw ON kv.k = kw.k]
+ ----
+-https://cockroachdb.github.io/distsqlplan/decode.html#eJzUl99P6kgUx9_3r5icJ10H2-kPlCYmmF02wSC44sPuGh4qnYWG2nbbKWoM__um9N54KTCnZXJJeZN2PjPne_xMcvoJ6X8BODDuDXq_PZEsCcgfj6N78tz762Fw2x-S2-Ht4O9_euTs9_74afzn4Jx8W_prsXCxJHej_pAs3shoSBbLywW5IYu3y8UEKISRx4fuK0_BeQYGFAygYAIFCyjYMKEQJ9GUp2mU5Es-10DfewdHp-CHcSbyxxMK0yjh4HyC8EXAwYEn9yXgj9z1eKLpQMHjwvWD9TFx4r-6yUd3sQQK49gNU4e0tPzgF1dM5zwlUSbiTDgkL0hkcVB6lPKAT4W_9MWHQ_RLPd8_FW4QEOG_cofoKUxWFAqkKPt7WS8fZO6m882Cugwmq8l6jxkHh63oYTnbe3K-feXUWJOSGnuTfu0TJR5PuFfe5yI_uNKqHU2758mM30V-yBONlewI-L_irMsuzm8SfzYv_gQKo7wlXUa7Bu2atGup9ZC_82km_Cjc18evHpkVepSFu_LvjD6MWlGsMXszdDmKvR3FVo9ibURh1cVm-AXWjJZmNkZsdmjSqwpXuFFJjb1Jj3iF2SldYaO6DUYF782Wppjkp3lfI-l1Be8bldTYm_SI3hun5L1Z3QazgvdWS7MbYwM7NGmngveNSmrsTXpE781T8t6qboNVwXu71RgX2KE5bdz6lsaIG3qEkUjMedKYzMbezEf03zol_5EP2EeexlGY8tKny-6d9bw13JvxouFplCVT_pBE0_Uxxc_RmlvPoh5PRfHWKH70w-JVXmB1uK0Cd1RgplQ3s-U0q9Eyox7cVoE7KjBTqrvUsi3aKNP6j7Qp77cphdlmz_QybakILocRweUwIrgcxgRHaERwW0VwOYwILocRweUwJjhCI4K3VQS_UlFUDiOKymFEUTmMKYrQiKLXKorKYURROYwoKocxRREaUbSjoihTmhMQGpEUoRFLERrTFMOxWUFtWFCbFtTGBcV5QW1gYEoTA9saGWrZKqcxW-U0ZqucRm1FcMzWOsPS9v-szrRUl8ZsrTUv1cYxW7eGB6mtk9Uv_wcAAP__2fbfeA==
++https://cockroachdb.github.io/distsqlplan/decode.html#eJzUl11v-jYUh-_3Kaxz1a6mifNCS6RKVBuTqCh0pRfbKi5S4kFEmmSJQ1tVfPcpZFP_BPBJcIvSO5L4sf07PI5O3iH9JwAHxr1B75cHkiUB-e1-dEsee3_cDa77Q3I9vB78-VePnPzaHz-Mfx-ckv-G_lwMXCzJzag_JIsXMhqSxfJ8Qa7I4uV8MQEKYeTxofvMU3AegQEFAyiYQMECCjZMKMRJNOVpGiX5kPc10PdewdEp-GGcifz2hMI0Sjg47yB8EXBw4MF9Cvg9dz2eaDpQ8Lhw_WC9TJz4z27y1l0sgcI4dsPUIS0tX_jJFdM5T0mUiTgTDsk3JLI4KN1KecCnwl_64s0h-rmez58KNwiI8J-5Q_QUJisKBVJs-_9tPb2RuZvONzfUZTBZTdZzzDg4bEUPy9nek_PlI6fGmpTU2Jv0Y54o8XjCvfI8Z_nClUbtKNotT2b8JvJDnmisZEfA_xYnXXZ2epX4s3nxEyiM8pJ0Ge0atGvSrqVWQ_7Kp5nwo3BfHT9qZFaoURbuyr8z-jBqRbHG7M3Q5SjmdhRbPYq1EYVVF5vhB1gzWprZGLHZoUkvKhzhRiU19iY94hFmX3iEzc8-wkZ1G4wK3pstTfFl9GXe10h6WcH7RiU19iY9ovfGZ3mvb9dQ_2zvzeo2mBW8t1qa3Rgb2KFJOxW8b1RSY2_SI3pvfqeWzapug1XBe7vVGBfYoTlt3PqWxogbeoSRSMx50pjMxt7MR_Tf-k7vfeQD9p6ncRSmvPTpsntmPS8N92a8KHgaZcmU3yXRdL1McTlac-te1OOpKJ4axUU_LB7lG6wOt1XgjgrMlPbNbDnNapTMqAe3VeCOCsyU9l0q2RZtlGn9R9qU19uUwmyzZnqZtlQEl8OI4HIYEVwOY4IjNCK4rSK4HEYEl8OI4HIYExyhEcHbKoJfqCgqhxFF5TCiqBzGFEVoRNFLFUXlMKKoHEYUlcOYogiNKNpRUZQp9QkIjUiK0IilCI1piuFYr6DWLKh1C2rtgmK_oNYwMKWOgW21DLVsldOYrXIas1VOo7YiOGZrnWZp-z-r0y3VpTFba_VLtXHM1q3mQWrrZPXTvwEAAP__jw7fdA==
+ 
+ # Verify execution.
+ statement ok
+diff --git a/pkg/sql/opt/memo/testdata/stats/join b/pkg/sql/opt/memo/testdata/stats/join
+index 4e50f4c66b..8425a8e596 100644
+--- a/pkg/sql/opt/memo/testdata/stats/join
++++ b/pkg/sql/opt/memo/testdata/stats/join
+@@ -1251,7 +1251,7 @@ expr format=show-all colstat=5 colstat=6 colstat=(5, 6) colstat=1 colstat=2 cols
+ inner-join (lookup def)
+  ├── columns: t.public.abc.a:1(int!null) t.public.abc.b:2(int!null) t.public.abc.c:3(int) t.public.def.d:4(int!null) t.public.def.e:5(int!null) t.public.def.f:6(int)
+  ├── key columns: [1 2] = [4 5]
+- ├── stats: [rows=0.01, distinct(1)=0.01, null(1)=0, distinct(2)=0.01, null(2)=0, distinct(3)=0.00999500175, null(3)=0.0001, distinct(4)=0.01, null(4)=0, distinct(5)=0.01, null(5)=0, distinct(6)=0.00999995009, null(6)=0.0001, distinct(5,6)=0.00999999509, null(5,6)=0.0001, distinct(1-3)=0.0099995001, null(1-3)=0.0001]
++ ├── stats: [rows=0.01, distinct(1)=0.01, null(1)=0, distinct(2)=0.01, null(2)=0, distinct(3)=0.00999500177, null(3)=0.0001, distinct(4)=0.01, null(4)=0, distinct(5)=0.01, null(5)=0, distinct(6)=0.0099999501, null(6)=0.0001, distinct(5,6)=0.0099999951, null(5,6)=0.0001, distinct(1-3)=0.00999950012, null(1-3)=0.0001]
+  ├── cost: 2106.0506
+  ├── key: (4,5)
+  ├── fd: (1,2)-->(3), (4,5)-->(6), (1)==(4), (4)==(1), (2)==(5), (5)==(2)
+diff --git a/pkg/sql/opt/memo/testdata/stats/select b/pkg/sql/opt/memo/testdata/stats/select
+index 80b4c2eb97..37f0fbd8fc 100644
+--- a/pkg/sql/opt/memo/testdata/stats/select
++++ b/pkg/sql/opt/memo/testdata/stats/select
+@@ -1477,7 +1477,7 @@ SELECT * FROM t38375 WHERE x = 1
+ ----
+ select
+  ├── columns: x:1(int!null) y:2(int)
+- ├── stats: [rows=2, distinct(1)=1, null(1)=0, distinct(2)=1.81269262, null(2)=0]
++ ├── stats: [rows=2, distinct(1)=1, null(1)=0, distinct(2)=1.8126926, null(2)=0]
+  ├── fd: ()-->(1)
+  ├── scan t38375
+  │    ├── columns: x:1(int) y:2(int)
+@@ -1485,6 +1485,7 @@ select
+  └── filters
+       └── x:1 = 1 [type=bool, outer=(1), constraints=(/1: [/1 - /1]; tight), fd=()-->(1)]
+ 
++
+ # Support OR constraints.
+ exec-ddl
+ CREATE TABLE nation
+diff --git a/pkg/sql/opt/memo/testdata/stats_quality/tpch/q09 b/pkg/sql/opt/memo/testdata/stats_quality/tpch/q09
+index d83550d557..c50f40aa2e 100644
+--- a/pkg/sql/opt/memo/testdata/stats_quality/tpch/q09
++++ b/pkg/sql/opt/memo/testdata/stats_quality/tpch/q09
+@@ -90,19 +90,19 @@ sort
+       │    │    │    ├── inner-join (cross)
+       │    │    │    │    ├── save-table-name: q9_inner_join_6
+       │    │    │    │    ├── columns: l_orderkey:17(int!null) l_partkey:18(int!null) l_suppkey:19(int!null) l_quantity:21(float!null) l_extendedprice:22(float!null) l_discount:23(float!null) ps_partkey:33(int!null) ps_suppkey:34(int!null) ps_supplycost:36(float!null) o_orderkey:38(int!null) o_orderdate:42(date!null) n_nationkey:47(int!null) n_name:48(char!null)
+-      │    │    │    │    ├── stats: [rows=59642.2797, distinct(17)=59642.2797, null(17)=0, distinct(18)=59642.2797, null(18)=0, distinct(19)=9920, null(19)=0, distinct(21)=50, null(21)=0, distinct(22)=58063.808, null(22)=0, distinct(23)=11, null(23)=0, distinct(33)=59642.2797, null(33)=0, distinct(34)=9920, null(34)=0, distinct(36)=45145.1912, null(36)=0, distinct(38)=59642.2797, null(38)=0, distinct(42)=2406, null(42)=0, distinct(47)=25, null(47)=0, distinct(48)=25, null(48)=0, distinct(42,48)=37953.5881, null(42,48)=0, distinct(21-23,36)=59642.2797, null(21-23,36)=0]
++      │    │    │    │    ├── stats: [rows=59642.2797, distinct(17)=59642.2797, null(17)=0, distinct(18)=59642.2797, null(18)=0, distinct(19)=9920, null(19)=0, distinct(21)=50, null(21)=0, distinct(22)=58063.8075, null(22)=0, distinct(23)=11, null(23)=0, distinct(33)=59642.2797, null(33)=0, distinct(34)=9920, null(34)=0, distinct(36)=45145.191, null(36)=0, distinct(38)=59642.2797, null(38)=0, distinct(42)=2406, null(42)=0, distinct(47)=25, null(47)=0, distinct(48)=25, null(48)=0, distinct(42,48)=37953.5879, null(42,48)=0, distinct(21-23,36)=59642.2797, null(21-23,36)=0]
+       │    │    │    │    ├── fd: (33,34)-->(36), (38)-->(42), (47)-->(48), (19)==(34), (34)==(19), (18)==(33), (33)==(18), (17)==(38), (38)==(17)
+       │    │    │    │    ├── inner-join (lookup orders)
+       │    │    │    │    │    ├── save-table-name: q9_lookup_join_7
+       │    │    │    │    │    ├── columns: l_orderkey:17(int!null) l_partkey:18(int!null) l_suppkey:19(int!null) l_quantity:21(float!null) l_extendedprice:22(float!null) l_discount:23(float!null) ps_partkey:33(int!null) ps_suppkey:34(int!null) ps_supplycost:36(float!null) o_orderkey:38(int!null) o_orderdate:42(date!null)
+       │    │    │    │    │    ├── key columns: [17] = [38]
+       │    │    │    │    │    ├── lookup columns are key
+-      │    │    │    │    │    ├── stats: [rows=2385.69119, distinct(17)=2385.69119, null(17)=0, distinct(18)=2385.69119, null(18)=0, distinct(19)=2385.69119, null(19)=0, distinct(21)=50, null(21)=0, distinct(22)=2385.69119, null(22)=0, distinct(23)=11, null(23)=0, distinct(33)=2385.69119, null(33)=0, distinct(34)=2385.69119, null(34)=0, distinct(36)=2370.13724, null(36)=0, distinct(38)=2385.69119, null(38)=0, distinct(42)=1518.14352, null(42)=0]
++      │    │    │    │    │    ├── stats: [rows=2385.69119, distinct(17)=2385.69119, null(17)=0, distinct(18)=2385.69119, null(18)=0, distinct(19)=2385.69119, null(19)=0, distinct(21)=50, null(21)=0, distinct(22)=2385.69119, null(22)=0, distinct(23)=11, null(23)=0, distinct(33)=2385.69119, null(33)=0, distinct(34)=2385.69119, null(34)=0, distinct(36)=2370.13723, null(36)=0, distinct(38)=2385.69119, null(38)=0, distinct(42)=1518.14352, null(42)=0]
+       │    │    │    │    │    ├── fd: (38)-->(42), (33,34)-->(36), (19)==(34), (34)==(19), (18)==(33), (33)==(18), (17)==(38), (38)==(17)
+       │    │    │    │    │    ├── inner-join (hash)
+       │    │    │    │    │    │    ├── save-table-name: q9_inner_join_8
+       │    │    │    │    │    │    ├── columns: l_orderkey:17(int!null) l_partkey:18(int!null) l_suppkey:19(int!null) l_quantity:21(float!null) l_extendedprice:22(float!null) l_discount:23(float!null) ps_partkey:33(int!null) ps_suppkey:34(int!null) ps_supplycost:36(float!null)
+-      │    │    │    │    │    │    ├── stats: [rows=2429.06305, distinct(17)=2427.13263, null(17)=0, distinct(18)=2429.06305, null(18)=0, distinct(19)=2429.06305, null(19)=0, distinct(21)=50, null(21)=0, distinct(22)=2425.87997, null(22)=0, distinct(23)=11, null(23)=0, distinct(33)=2429.06305, null(33)=0, distinct(34)=2429.06305, null(34)=0, distinct(36)=2399.90856, null(36)=0]
++      │    │    │    │    │    │    ├── stats: [rows=2429.06305, distinct(17)=2427.13262, null(17)=0, distinct(18)=2429.06305, null(18)=0, distinct(19)=2429.06305, null(19)=0, distinct(21)=50, null(21)=0, distinct(22)=2425.87996, null(22)=0, distinct(23)=11, null(23)=0, distinct(33)=2429.06305, null(33)=0, distinct(34)=2429.06305, null(34)=0, distinct(36)=2399.90856, null(36)=0]
+       │    │    │    │    │    │    ├── fd: (33,34)-->(36), (19)==(34), (34)==(19), (18)==(33), (33)==(18)
+       │    │    │    │    │    │    ├── scan lineitem
+       │    │    │    │    │    │    │    ├── save-table-name: q9_scan_9
+diff --git a/pkg/sql/opt/memo/testdata/stats_quality/tpch/q19 b/pkg/sql/opt/memo/testdata/stats_quality/tpch/q19
+index d57a1f5054..f5b8fd2ea5 100644
+--- a/pkg/sql/opt/memo/testdata/stats_quality/tpch/q19
++++ b/pkg/sql/opt/memo/testdata/stats_quality/tpch/q19
+@@ -63,11 +63,11 @@ scalar-group-by
+  ├── project
+  │    ├── save-table-name: q19_project_2
+  │    ├── columns: column26:26(float!null)
+- │    ├── stats: [rows=71.4087386, distinct(26)=71.402791, null(26)=0]
++ │    ├── stats: [rows=71.4087386, distinct(26)=71.4027909, null(26)=0]
+  │    ├── inner-join (hash)
+  │    │    ├── save-table-name: q19_inner_join_3
+  │    │    ├── columns: l_partkey:2(int!null) l_quantity:5(float!null) l_extendedprice:6(float!null) l_discount:7(float!null) l_shipinstruct:14(char!null) l_shipmode:15(char!null) p_partkey:17(int!null) p_brand:20(char!null) p_size:22(int!null) p_container:23(char!null)
+- │    │    ├── stats: [rows=71.4087386, distinct(2)=71.4087386, null(2)=0, distinct(5)=5.55555556, null(5)=0, distinct(6)=71.4015197, null(6)=0, distinct(7)=10.9833244, null(7)=0, distinct(14)=1, null(14)=0, distinct(15)=2, null(15)=0, distinct(17)=71.4087386, null(17)=0, distinct(20)=3, null(20)=0, distinct(22)=5.55555556, null(22)=0, distinct(23)=12, null(23)=0, distinct(6,7)=71.402791, null(6,7)=0]
++ │    │    ├── stats: [rows=71.4087386, distinct(2)=71.4087386, null(2)=0, distinct(5)=5.55555556, null(5)=0, distinct(6)=71.4015195, null(6)=0, distinct(7)=10.9833244, null(7)=0, distinct(14)=1, null(14)=0, distinct(15)=2, null(15)=0, distinct(17)=71.4087386, null(17)=0, distinct(20)=3, null(20)=0, distinct(22)=5.55555556, null(22)=0, distinct(23)=12, null(23)=0, distinct(6,7)=71.4027909, null(6,7)=0]
+  │    │    ├── fd: ()-->(14), (17)-->(20,22,23), (2)==(17), (17)==(2)
+  │    │    ├── select
+  │    │    │    ├── save-table-name: q19_select_4
+diff --git a/pkg/sql/opt/xform/testdata/external/trading b/pkg/sql/opt/xform/testdata/external/trading
+index 29def4b6c4..dc33dd3a34 100644
+--- a/pkg/sql/opt/xform/testdata/external/trading
++++ b/pkg/sql/opt/xform/testdata/external/trading
+@@ -846,7 +846,7 @@ group-by
+  │         │    │    └── fd: ()-->(22)
+  │         │    ├── inner-join (hash)
+  │         │    │    ├── columns: transactiondetails.dealerid:1!null transactiondetails.isbuy:2!null transactiondate:3!null transactiondetails.cardid:4!null quantity:5!null transactiondetails.sellprice:6!null transactiondetails.buyprice:7!null transactions.dealerid:9!null transactions.isbuy:10!null date:11!null accountname:12!null customername:13!null id:16!null
+- │         │    │    ├── stats: [rows=12345.679, distinct(1)=1, null(1)=0, distinct(2)=1, null(2)=0, distinct(3)=12345.679, null(3)=0, distinct(4)=12345.679, null(4)=0, distinct(5)=12267.872, null(5)=0, distinct(6)=12267.872, null(6)=0, distinct(7)=12267.872, null(7)=0, distinct(9)=1, null(9)=0, distinct(10)=1, null(10)=0, distinct(11)=12345.679, null(11)=0, distinct(12)=7803.95639, null(12)=0, distinct(13)=7803.95639, null(13)=0, distinct(16)=12345.679, null(16)=0]
++ │         │    │    ├── stats: [rows=12345.679, distinct(1)=1, null(1)=0, distinct(2)=1, null(2)=0, distinct(3)=12345.679, null(3)=0, distinct(4)=12345.679, null(4)=0, distinct(5)=12267.872, null(5)=0, distinct(6)=12267.872, null(6)=0, distinct(7)=12267.872, null(7)=0, distinct(9)=1, null(9)=0, distinct(10)=1, null(10)=0, distinct(11)=12345.679, null(11)=0, distinct(12)=7803.95638, null(12)=0, distinct(13)=7803.95638, null(13)=0, distinct(16)=12345.679, null(16)=0]
+  │         │    │    ├── key: (5,11,16)
+  │         │    │    ├── fd: ()-->(1,2,9,10), (11)-->(12,13), (3-5)-->(6,7), (3)==(11), (11)==(3), (4)==(16), (16)==(4)
+  │         │    │    ├── scan cards@cardsnamesetnumber
+diff --git a/pkg/sql/opt/xform/testdata/external/trading-mutation b/pkg/sql/opt/xform/testdata/external/trading-mutation
+index 97bd823180..aca9c01983 100644
+--- a/pkg/sql/opt/xform/testdata/external/trading-mutation
++++ b/pkg/sql/opt/xform/testdata/external/trading-mutation
+@@ -951,7 +951,7 @@ group-by
+  │         │    │    └── fd: ()-->(26)
+  │         │    ├── inner-join (hash)
+  │         │    │    ├── columns: transactiondetails.dealerid:1!null transactiondetails.isbuy:2!null transactiondate:3!null transactiondetails.cardid:4!null quantity:5!null transactiondetails.sellprice:6!null transactiondetails.buyprice:7!null transactions.dealerid:11!null transactions.isbuy:12!null date:13!null accountname:14!null customername:15!null id:20!null
+- │         │    │    ├── stats: [rows=12345.679, distinct(1)=1, null(1)=0, distinct(2)=1, null(2)=0, distinct(3)=12345.679, null(3)=0, distinct(4)=12345.679, null(4)=0, distinct(5)=12267.872, null(5)=0, distinct(6)=12267.872, null(6)=0, distinct(7)=12267.872, null(7)=0, distinct(11)=1, null(11)=0, distinct(12)=1, null(12)=0, distinct(13)=12345.679, null(13)=0, distinct(14)=7803.95639, null(14)=0, distinct(15)=7803.95639, null(15)=0, distinct(20)=12345.679, null(20)=0]
++ │         │    │    ├── stats: [rows=12345.679, distinct(1)=1, null(1)=0, distinct(2)=1, null(2)=0, distinct(3)=12345.679, null(3)=0, distinct(4)=12345.679, null(4)=0, distinct(5)=12267.872, null(5)=0, distinct(6)=12267.872, null(6)=0, distinct(7)=12267.872, null(7)=0, distinct(11)=1, null(11)=0, distinct(12)=1, null(12)=0, distinct(13)=12345.679, null(13)=0, distinct(14)=7803.95638, null(14)=0, distinct(15)=7803.95638, null(15)=0, distinct(20)=12345.679, null(20)=0]
+  │         │    │    ├── key: (5,13,20)
+  │         │    │    ├── fd: ()-->(1,2,11,12), (13)-->(14,15), (3-5)-->(6,7), (3)==(13), (13)==(3), (4)==(20), (20)==(4)
+  │         │    │    ├── scan cards@cardsnamesetnumber
+diff --git a/pkg/workload/tpch/generate.go b/pkg/workload/tpch/generate.go
+index 631fe87269..c52d470019 100644
+--- a/pkg/workload/tpch/generate.go
++++ b/pkg/workload/tpch/generate.go
+@@ -403,7 +403,7 @@ func (w *tpch) tpchOrdersInitialRowBatch(
+ 		totalPrice := float32(0)
+ 		for j := 0; j < l.orderData.nOrders; j++ {
+ 			ep := l.orderData.quantities[j] * makeRetailPriceFromPartKey(l.orderData.partKeys[j])
+-			totalPrice += ep * (1 + l.orderData.tax[j]) * (1 - l.orderData.discount[j])
++			totalPrice += float32(ep * (1 + l.orderData.tax[j]) * (1 - l.orderData.discount[j]))
+ 		}
+ 		// O_TOTALPRICE computed as:
+ 		// sum (L_EXTENDEDPRICE * (1+L_TAX) * (1-L_DISCOUNT)) for all LINEITEM of
