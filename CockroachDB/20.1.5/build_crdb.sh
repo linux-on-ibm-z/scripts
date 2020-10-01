@@ -56,12 +56,45 @@ function checkPrequisites() {
 function cleanup() {
 	sudo rm -rf ${CURDIR}/go1.13.11.linux-s390x.tar.gz
 	sudo rm -rf ${CURDIR}/node-v12.18.2-linux-s390x.tar.xz
-	printf -- 'Cleaned up the artifacts\n' >>"$LOG_FILE"	
+	printf -- 'Cleaned up the artifacts\n' >>"$LOG_FILE"
 }
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
-	
+
+	# for rhel 7.x
+	if [[ ${DISTRO} =~ rhel-7\.* ]]; then
+		# Install cmake
+		printf -- 'Installing CMake...\n'
+		cd ${CURDIR}
+		wget https://github.com/Kitware/CMake/releases/download/v3.13.4/cmake-3.13.4.tar.gz
+		tar -xvzf cmake-3.13.4.tar.gz
+		cd cmake-3.13.4
+		./bootstrap
+		make
+		sudo make install
+		cmake --version
+
+		# Install gcc 7.5
+		printf -- 'Installing gcc 7.5...\n'
+		cd ${CURDIR}
+		wget https://ftpmirror.gnu.org/gcc/gcc-7.5.0/gcc-7.5.0.tar.xz
+		tar -xf gcc-7.5.0.tar.xz
+		cd gcc-7.5.0
+		./contrib/download_prerequisites
+		mkdir objdir
+		cd objdir/
+		../configure --prefix=/opt/gcc --enable-languages=c,c++ --build=s390x-linux-gnu --host=s390x-linux-gnu --target=s390x-linux-gnu --enable-threads=posix --with-system-zlib --disable-multilib
+		make
+		sudo make install
+		sudo ln -sf /opt/gcc/bin/gcc /usr/bin/gcc
+		sudo ln -sf /opt/gcc/bin/g++ /usr/bin/g++
+		sudo ln -sf /opt/gcc/bin/g++ /usr/bin/c++
+		export PATH=/opt/gcc/bin:"$PATH"
+		export LD_LIBRARY_PATH=/opt/gcc/lib64:"$LD_LIBRARY_PATH"
+		gcc -v
+	fi
+
 	# Install go
 	printf -- 'Installing Go...\n'
 	cd ${CURDIR}
@@ -79,32 +112,49 @@ function configureAndInstall() {
 	sudo tar -C /usr/local -xf node-v12.18.2-linux-s390x.tar.xz
 	export PATH=$PATH:/usr/local/node-v12.18.2-linux-s390x/bin
 	node -v
-	sudo env PATH=$PATH npm install -g yarn
 
-	# Change the ownership of .config
-	printf -- 'Change the .config ownership...\n'
-	cd
-	mkdir -p .config
-	sudo chown -R $(whoami):$(whoami) .config
+	if [[ "${ID}" == "sles" ]]; then
+		sudo chmod ugo+w -R /usr/local/node-v12.18.2-linux-s390x
+		env PATH=$PATH npm install -g yarn
+	else
+		sudo env PATH=$PATH npm install -g yarn
+	fi
+
+	# Change .config ownership only on ubuntu
+	if [[ "${ID}" == "ubuntu" ]]; then
+		# Change the ownership of .config
+		printf -- 'Change the .config ownership...\n'
+		cd
+		mkdir -p .config # Create one in case if the folder does not exist
+		sudo chown -R $(whoami):$(whoami) .config
+	fi
 
 	# Download and configure CockroachDB
 	printf -- 'Downloading CockroachDB source code. Please wait.\n'
 	export GOPATH=${CURDIR}
 	cd ${CURDIR}
 	mkdir -p $(go env GOPATH)/src/github.com/cockroachdb
-	cd $(go env GOPATH)/src/github.com/cockroachdb 
-	git clone https://github.com/cockroachdb/cockroach 
+	cd $(go env GOPATH)/src/github.com/cockroachdb
+	git clone https://github.com/cockroachdb/cockroach
 	cd cockroach
 	git checkout v$PACKAGE_VERSION
 	git submodule update --init --recursive
 	sleep 2
-	
+
 	# Applying patches
 	printf -- 'Apply patches....\n'
+	cd ${CURDIR}/src/github.com/cockroachdb/cockroach
+	curl -sSL $PATCH_URL/cockroach.diff | git apply ||  echo "Error: Patch Cockroach code files"
+	cd ${CURDIR}/src/github.com/cockroachdb/cockroach
+	curl -sSL $PATCH_URL/storage.diff | git apply || echo "Error: Patch Cockroach storage files"
 	cd ${CURDIR}/src/github.com/cockroachdb/cockroach/vendor
 	curl -sSL $PATCH_URL/vendor.diff | git apply || echo "Error: Patch Cockroach vendor files"
+	if [[ ${DISTRO} =~ rhel-7\.* ]]; then
+		cd ${CURDIR}/src/github.com/cockroachdb/cockroach/
+		curl -sSL $PATCH_URL/rocksdb.diff | git apply || echo "Error: Patch Cockroach rocksdb files"
+	fi
 
-	#Build CockroachDB
+	# Build CockroachDB
 	printf -- 'Building CockroachDB.... \n'
 	printf -- 'Build might take some time. Sit back and relax\n'
 	cd ${CURDIR}/src/github.com/cockroachdb/cockroach
@@ -186,13 +236,48 @@ DISTRO="$ID-$VERSION_ID"
 checkPrequisites #Check Prequisites
 
 case "$DISTRO" in
-"ubuntu-18.04")
+"ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
-    sudo apt-get install -y autoconf automake cmake wget libncurses5-dev bison xz-utils patch g++ curl git |& tee -a "$LOG_FILE"
+	sudo apt-get install -y autoconf automake cmake wget libncurses5-dev bison xz-utils patch g++ curl git |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
+
+"sles-12.5")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
+	sudo zypper install -y autoconf automake wget ncurses-devel bison patch tar gzip cmake gawk xz python gcc7-c++ zlib-devel bzip2 curl git  |& tee -a "$LOG_FILE"
+	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 100
+	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 100
+	sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 100
+	sudo ln -s /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+
+"sles-15.1" | "sles-15.2")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
+	sudo zypper install -y autoconf automake wget ncurses-devel bison patch tar gzip cmake gawk xz gcc-c++ git python curl |& tee -a "$LOG_FILE"
+	sudo ln -s /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+
+"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
+  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+  printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
+	sudo yum install -y git autoconf automake wget ncurses-devel bison patch tar gzip xz make bzip2 zlib-devel gcc-c++ curl diffutils |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+  ;;
+
+"rhel-8.1" | "rhel-8.2")
+  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+  printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
+	sudo yum install -y gcc-c++ autoconf cmake git wget make ncurses-devel curl xz diffutils bison |& tee -a "$LOG_FILE"
+	sudo ln -s /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+  configureAndInstall |& tee -a "$LOG_FILE"
+  ;;
+
 *)
 	printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
 	exit 1
