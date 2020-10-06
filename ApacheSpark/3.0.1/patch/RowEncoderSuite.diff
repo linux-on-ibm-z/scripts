@@ -1,0 +1,13 @@
+diff --git a/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/encoders/RowEncoderSuite.scala b/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/encoders/RowEncoderSuite.scala
+index fd24f058f3..d20a9ba3f0 100644
+--- a/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/encoders/RowEncoderSuite.scala
++++ b/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/encoders/RowEncoderSuite.scala
+@@ -336,7 +336,7 @@ class RowEncoderSuite extends CodegenInterpretedPlanTest {
+       val encoder = RowEncoder(schema).resolveAndBind()
+       val localDate = java.time.LocalDate.parse("2019-02-27")
+       val row = toRow(encoder, Row(localDate))
+-      assert(row.getLong(0) === DateTimeUtils.localDateToDays(localDate))
++      assert(row.getInt(0) === DateTimeUtils.localDateToDays(localDate))
+       val readback = fromRow(encoder, row)
+       assert(readback.get(0).equals(localDate))
+     }
