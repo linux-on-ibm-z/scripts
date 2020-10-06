@@ -1,0 +1,142 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala
+index 5256043289..3f9be40608 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala
+@@ -89,71 +89,72 @@ class JsonReadSchemaSuite
+   override val format: String = "json"
+ }
+ 
+-class OrcReadSchemaSuite
+-  extends ReadSchemaSuite
+-  with AddColumnIntoTheMiddleTest
+-  with HideColumnInTheMiddleTest
+-  with AddNestedColumnTest
+-  with HideNestedColumnTest
+-  with ChangePositionTest {
+-
+-  override val format: String = "orc"
+-
+-  override def beforeAll(): Unit = {
+-    super.beforeAll()
+-    originalConf = spark.conf.get(SQLConf.ORC_VECTORIZED_READER_ENABLED)
+-    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "false")
+-  }
+-
+-  override def afterAll(): Unit = {
+-    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, originalConf)
+-    super.afterAll()
+-  }
+-}
+-
+-class VectorizedOrcReadSchemaSuite
+-  extends ReadSchemaSuite
+-  with AddColumnIntoTheMiddleTest
+-  with HideColumnInTheMiddleTest
+-  with AddNestedColumnTest
+-  with HideNestedColumnTest
+-  with ChangePositionTest
+-  with BooleanTypeTest
+-  with IntegralTypeTest
+-  with ToDoubleTypeTest {
+-
+-  override val format: String = "orc"
+-
+-  override def beforeAll(): Unit = {
+-    super.beforeAll()
+-    originalConf = spark.conf.get(SQLConf.ORC_VECTORIZED_READER_ENABLED)
+-    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "true")
+-  }
+-
+-  override def afterAll(): Unit = {
+-    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, originalConf)
+-    super.afterAll()
+-  }
+-}
+-
+-class MergedOrcReadSchemaSuite
+-  extends ReadSchemaSuite
+-  with AddColumnIntoTheMiddleTest
+-  with HideColumnInTheMiddleTest
+-  with AddNestedColumnTest
+-  with HideNestedColumnTest
+-  with ChangePositionTest
+-  with BooleanTypeTest
+-  with IntegralTypeTest
+-  with ToDoubleTypeTest {
+-
+-  override val format: String = "orc"
+-
+-  override protected def sparkConf: SparkConf =
+-    super
+-      .sparkConf
+-      .set(SQLConf.ORC_SCHEMA_MERGING_ENABLED.key, "true")
+-}
++// FIXME: Orc does not currently support big-endian systems.
++//class OrcReadSchemaSuite
++//  extends ReadSchemaSuite
++//  with AddColumnIntoTheMiddleTest
++//  with HideColumnInTheMiddleTest
++//  with AddNestedColumnTest
++//  with HideNestedColumnTest
++//  with ChangePositionTest {
++//
++//  override val format: String = "orc"
++//
++//  override def beforeAll(): Unit = {
++//    super.beforeAll()
++//    originalConf = spark.conf.get(SQLConf.ORC_VECTORIZED_READER_ENABLED)
++//    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "false")
++//  }
++//
++//  override def afterAll(): Unit = {
++//    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, originalConf)
++//    super.afterAll()
++//  }
++//}
++//
++//class VectorizedOrcReadSchemaSuite
++//  extends ReadSchemaSuite
++//  with AddColumnIntoTheMiddleTest
++//  with HideColumnInTheMiddleTest
++//  with AddNestedColumnTest
++//  with HideNestedColumnTest
++//  with ChangePositionTest
++//  with BooleanTypeTest
++//  with IntegralTypeTest
++//  with ToDoubleTypeTest {
++//
++//  override val format: String = "orc"
++//
++//  override def beforeAll(): Unit = {
++//    super.beforeAll()
++//    originalConf = spark.conf.get(SQLConf.ORC_VECTORIZED_READER_ENABLED)
++//    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "true")
++//  }
++//
++//  override def afterAll(): Unit = {
++//    spark.conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, originalConf)
++//    super.afterAll()
++//  }
++//}
++//
++//class MergedOrcReadSchemaSuite
++//  extends ReadSchemaSuite
++//  with AddColumnIntoTheMiddleTest
++//  with HideColumnInTheMiddleTest
++//  with AddNestedColumnTest
++//  with HideNestedColumnTest
++//  with ChangePositionTest
++//  with BooleanTypeTest
++//  with IntegralTypeTest
++//  with ToDoubleTypeTest {
++//
++//  override val format: String = "orc"
++//
++//  override protected def sparkConf: SparkConf =
++//    super
++//      .sparkConf
++//      .set(SQLConf.ORC_SCHEMA_MERGING_ENABLED.key, "true")
++//}
+ 
+ class ParquetReadSchemaSuite
+   extends ReadSchemaSuite
