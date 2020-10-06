@@ -1,0 +1,49 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
+index d8d997e176..a63d5c3c49 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.{File, InterruptedIOException, IOException, UncheckedIOException}
++import java.nio.ByteOrder
+ import java.nio.channels.ClosedByInterruptException
+ import java.util.concurrent.{CountDownLatch, ExecutionException, TimeUnit}
+ 
+@@ -45,7 +46,7 @@ import org.apache.spark.sql.functions._
+ import org.apache.spark.sql.internal.SQLConf
+ import org.apache.spark.sql.sources.StreamSourceProvider
+ import org.apache.spark.sql.streaming.util.{BlockOnStopSourceProvider, StreamManualClock}
+-import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
++import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
+ import org.apache.spark.util.Utils
+ 
+ class StreamSuite extends StreamTest {
+@@ -717,6 +718,9 @@ class StreamSuite extends StreamTest {
+   }
+ 
+   testQuietly("recover from a Spark v2.1 checkpoint") {
++    // TODO: provide checkpoint data generated on a big-endian system.
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     var inputData: MemoryStream[Int] = null
+     var query: DataStreamWriter[Row] = null
+ 
+@@ -1265,7 +1269,7 @@ class StreamSuite extends StreamTest {
+ }
+ 
+ abstract class FakeSource extends StreamSourceProvider {
+-  private val fakeSchema = StructType(StructField("a", IntegerType) :: Nil)
++  private val fakeSchema = StructType(StructField("a", LongType) :: Nil)
+ 
+   override def sourceSchema(
+       spark: SQLContext,
+@@ -1287,7 +1291,7 @@ class FakeDefaultSource extends FakeSource {
+     new Source {
+       private var offset = -1L
+ 
+-      override def schema: StructType = StructType(StructField("a", IntegerType) :: Nil)
++      override def schema: StructType = StructType(StructField("a", LongType) :: Nil)
+ 
+       override def getOffset: Option[Offset] = {
+         if (offset >= 10) {
