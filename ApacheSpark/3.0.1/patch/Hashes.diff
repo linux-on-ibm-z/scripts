@@ -1,0 +1,213 @@
+diff --git a/common/sketch/src/main/java/org/apache/spark/util/sketch/Murmur3_x86_32.java b/common/sketch/src/main/java/org/apache/spark/util/sketch/Murmur3_x86_32.java
+index e83b331391..61cd2cec1a 100644
+--- a/common/sketch/src/main/java/org/apache/spark/util/sketch/Murmur3_x86_32.java
++++ b/common/sketch/src/main/java/org/apache/spark/util/sketch/Murmur3_x86_32.java
+@@ -17,12 +17,16 @@
+ 
+ package org.apache.spark.util.sketch;
+ 
++import java.nio.ByteOrder;
++
+ /**
+  * 32-bit Murmur3 hasher.  This is based on Guava's Murmur3_32HashFunction.
+  */
+ // This class is duplicated from `org.apache.spark.unsafe.hash.Murmur3_x86_32` to make sure
+ // spark-sketch has no external dependencies.
+ final class Murmur3_x86_32 {
++  private static final boolean isBigEndian = ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
++
+   private static final int C1 = 0xcc9e2d51;
+   private static final int C2 = 0x1b873593;
+ 
+@@ -92,8 +96,10 @@ final class Murmur3_x86_32 {
+     int h1 = seed;
+     for (int i = 0; i < lengthInBytes; i += 4) {
+       int halfWord = Platform.getInt(base, offset + i);
+-      int k1 = mixK1(halfWord);
+-      h1 = mixH1(h1, k1);
++      if (isBigEndian) {
++        halfWord = Integer.reverseBytes(halfWord);
++      }
++      h1 = mixH1(h1, mixK1(halfWord));
+     }
+     return h1;
+   }
+diff --git a/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java b/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java
+index d239de6083..0b9d9ced31 100644
+--- a/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java
++++ b/common/unsafe/src/main/java/org/apache/spark/unsafe/hash/Murmur3_x86_32.java
+@@ -17,12 +17,16 @@
+ 
+ package org.apache.spark.unsafe.hash;
+ 
++import java.nio.ByteOrder;
++
+ import org.apache.spark.unsafe.Platform;
+ 
+ /**
+  * 32-bit Murmur3 hasher.  This is based on Guava's Murmur3_32HashFunction.
+  */
+ public final class Murmur3_x86_32 {
++  private static final boolean isBigEndian = ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
++
+   private static final int C1 = 0xcc9e2d51;
+   private static final int C2 = 0x1b873593;
+ 
+@@ -92,8 +96,10 @@ public final class Murmur3_x86_32 {
+     int h1 = seed;
+     for (int i = 0; i < lengthInBytes; i += 4) {
+       int halfWord = Platform.getInt(base, offset + i);
+-      int k1 = mixK1(halfWord);
+-      h1 = mixH1(h1, k1);
++      if (isBigEndian) {
++        halfWord = Integer.reverseBytes(halfWord);
++      }
++      h1 = mixH1(h1, mixK1(halfWord));
+     }
+     return h1;
+   }
+diff --git a/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/XXH64.java b/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/XXH64.java
+index eb5051b284..4c35625683 100644
+--- a/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/XXH64.java
++++ b/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/XXH64.java
+@@ -16,6 +16,8 @@
+  */
+ package org.apache.spark.sql.catalyst.expressions;
+ 
++import java.nio.ByteOrder;
++
+ import org.apache.spark.unsafe.Platform;
+ import org.apache.spark.unsafe.types.UTF8String;
+ 
+@@ -31,6 +33,7 @@ import org.apache.spark.unsafe.types.UTF8String;
+  */
+ // scalastyle: on
+ public final class XXH64 {
++  private static final boolean isBigEndian = ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
+ 
+   private static final long PRIME64_1 = 0x9E3779B185EBCA87L;
+   private static final long PRIME64_2 = 0xC2B2AE3D27D4EB4FL;
+@@ -93,7 +96,11 @@ public final class XXH64 {
+     offset += length & -8;
+ 
+     if (offset + 4L <= end) {
+-      hash ^= (Platform.getInt(base, offset) & 0xFFFFFFFFL) * PRIME64_1;
++      int k1 = Platform.getInt(base, offset);
++      if (isBigEndian) {
++        k1 = Integer.reverseBytes(k1);
++      }
++      hash ^= (k1 & 0xFFFFFFFFL) * PRIME64_1;
+       hash = Long.rotateLeft(hash, 23) * PRIME64_2 + PRIME64_3;
+       offset += 4L;
+     }
+@@ -130,21 +137,22 @@ public final class XXH64 {
+       long v4 = seed - PRIME64_1;
+ 
+       do {
+-        v1 += Platform.getLong(base, offset) * PRIME64_2;
+-        v1 = Long.rotateLeft(v1, 31);
+-        v1 *= PRIME64_1;
+-
+-        v2 += Platform.getLong(base, offset + 8) * PRIME64_2;
+-        v2 = Long.rotateLeft(v2, 31);
+-        v2 *= PRIME64_1;
+-
+-        v3 += Platform.getLong(base, offset + 16) * PRIME64_2;
+-        v3 = Long.rotateLeft(v3, 31);
+-        v3 *= PRIME64_1;
+-
+-        v4 += Platform.getLong(base, offset + 24) * PRIME64_2;
+-        v4 = Long.rotateLeft(v4, 31);
+-        v4 *= PRIME64_1;
++        long k1 = Platform.getLong(base, offset);
++        long k2 = Platform.getLong(base, offset + 8);
++        long k3 = Platform.getLong(base, offset + 16);
++        long k4 = Platform.getLong(base, offset + 24);
++
++        if (isBigEndian) {
++          k1 = Long.reverseBytes(k1);
++          k2 = Long.reverseBytes(k2);
++          k3 = Long.reverseBytes(k3);
++          k4 = Long.reverseBytes(k4);
++        }
++
++        v1 = Long.rotateLeft(v1 + (k1 * PRIME64_2), 31) * PRIME64_1;
++        v2 = Long.rotateLeft(v2 + (k2 * PRIME64_2), 31) * PRIME64_1;
++        v3 = Long.rotateLeft(v3 + (k3 * PRIME64_2), 31) * PRIME64_1;
++        v4 = Long.rotateLeft(v4 + (k4 * PRIME64_2), 31) * PRIME64_1;
+ 
+         offset += 32L;
+       } while (offset <= limit);
+@@ -186,6 +194,9 @@ public final class XXH64 {
+     long limit = end - 8;
+     while (offset <= limit) {
+       long k1 = Platform.getLong(base, offset);
++      if (isBigEndian) {
++        k1 = Long.reverseBytes(k1);
++      }
+       hash ^= Long.rotateLeft(k1 * PRIME64_2, 31) * PRIME64_1;
+       hash = Long.rotateLeft(hash, 27) * PRIME64_1 + PRIME64_4;
+       offset += 8L;
+diff --git a/sql/catalyst/src/test/java/org/apache/spark/sql/catalyst/expressions/XXH64Suite.java b/sql/catalyst/src/test/java/org/apache/spark/sql/catalyst/expressions/XXH64Suite.java
+index 1baee91b34..0aab4b04b5 100644
+--- a/sql/catalyst/src/test/java/org/apache/spark/sql/catalyst/expressions/XXH64Suite.java
++++ b/sql/catalyst/src/test/java/org/apache/spark/sql/catalyst/expressions/XXH64Suite.java
+@@ -73,42 +73,22 @@ public class XXH64Suite {
+             hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 1));
+     Assert.assertEquals(0x739840CB819FA723L,
+             XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 1, PRIME));
+-
+-    if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
+-      Assert.assertEquals(0x9256E58AA397AEF1L,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4));
+-      Assert.assertEquals(0x9D5FFDFB928AB4BL,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4, PRIME));
+-      Assert.assertEquals(0xF74CB1451B32B8CFL,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8));
+-      Assert.assertEquals(0x9C44B77FBCC302C5L,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8, PRIME));
+-      Assert.assertEquals(0xCFFA8DB881BC3A3DL,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14));
+-      Assert.assertEquals(0x5B9611585EFCC9CBL,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14, PRIME));
+-      Assert.assertEquals(0x0EAB543384F878ADL,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE));
+-      Assert.assertEquals(0xCAA65939306F1E21L,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE, PRIME));
+-    } else {
+-      Assert.assertEquals(0x7F875412350ADDDCL,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4));
+-      Assert.assertEquals(0x564D279F524D8516L,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4, PRIME));
+-      Assert.assertEquals(0x7D9F07E27E0EB006L,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8));
+-      Assert.assertEquals(0x893CEF564CB7858L,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8, PRIME));
+-      Assert.assertEquals(0xC6198C4C9CC49E17L,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14));
+-      Assert.assertEquals(0x4E21BEF7164D4BBL,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14, PRIME));
+-      Assert.assertEquals(0xBCF5FAEDEE1F2B5AL,
+-              hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE));
+-      Assert.assertEquals(0x6F680C877A358FE5L,
+-              XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE, PRIME));
+-    }
++    Assert.assertEquals(0x9256E58AA397AEF1L,
++            hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4));
++    Assert.assertEquals(0x9D5FFDFB928AB4BL,
++            XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 4, PRIME));
++    Assert.assertEquals(0xF74CB1451B32B8CFL,
++            hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8));
++    Assert.assertEquals(0x9C44B77FBCC302C5L,
++            XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 8, PRIME));
++    Assert.assertEquals(0xCFFA8DB881BC3A3DL,
++            hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14));
++    Assert.assertEquals(0x5B9611585EFCC9CBL,
++            XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, 14, PRIME));
++    Assert.assertEquals(0x0EAB543384F878ADL,
++            hasher.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE));
++    Assert.assertEquals(0xCAA65939306F1E21L,
++            XXH64.hashUnsafeBytes(BUFFER, Platform.BYTE_ARRAY_OFFSET, SIZE, PRIME));
+   }
+ 
+   @Test
