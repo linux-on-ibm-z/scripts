@@ -221,7 +221,7 @@ function configureAndInstall() {
 
     # Install SBT (required for Zstd JNI)
     cd "${SOURCE_ROOT}"
-    wget -O sbt.tgz https://piccolo.link/sbt-1.3.13.tgz
+    wget -O sbt.tgz https://github.com/sbt/sbt/releases/download/v1.3.13/sbt-1.3.13.tgz
     tar -zxvf sbt.tgz
     export PATH="${PATH}:${SOURCE_ROOT}/sbt/bin/"
 
