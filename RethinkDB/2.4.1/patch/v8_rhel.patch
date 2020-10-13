@@ -1,0 +1,16 @@
+63c63
+<     if [[ "$($CXX -dumpmachine)" = "s390x-linux-gnu" ]]; then
+---
+>     if [[ "$($CXX -dumpmachine)" = "s390x-redhat-linux" ]]; then
+66a67
+> 	export CXXFLAGS="-fno-delete-null-pointer-checks"
+68,69c69,70
+<         make dependencies
+<         make s390x -j4 library=static
+---
+>         make dependencies || true
+> 	make s390x -j4 werror=no snapshot=off library=static
+171c172
+< 	 for lib in libv8_{base,libbase,snapshot,libplatform}; do
+---
+> 	 for lib in libv8_{base,libbase,nosnapshot,libplatform}; do
