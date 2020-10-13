@@ -1,0 +1,86 @@
+index 8723574..545332a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -22,6 +22,8 @@
+
+ cmake_minimum_required (VERSION 3.5)
+
++set(CMAKE_CXX_STANDARD 17)
++
+ list (APPEND CMAKE_MODULE_PATH
+   ${CMAKE_CURRENT_SOURCE_DIR}/cmake
+   ${CMAKE_CURRENT_BINARY_DIR})
+diff --git a/src/core/thread.cc b/src/core/thread.cc
+index f13dfce..2a2471e 100644
+--- a/src/core/thread.cc
++++ b/src/core/thread.cc
+@@ -276,7 +276,7 @@ thread_context::main() {
+ #elif defined(__aarch64__)
+     asm(".cfi_undefined x30");
+ #else
+-    #warning "Backtracing from seastar threads may be broken"
++    asm(".cfi_undefined r14");
+ #endif
+     _context.initial_switch_in_completed();
+     if (group() != current_scheduling_group()) {
+diff --git a/src/http/httpd.cc b/src/http/httpd.cc
+index fde1785..83dd7c1 100644
+--- a/src/http/httpd.cc
++++ b/src/http/httpd.cc
+@@ -224,16 +224,14 @@ future<> connection::read_one() {
+         if (_server._credentials) {
+             req->protocol_name = "https";
+         }
+-
+         size_t content_length_limit = _server.get_content_length_limit();
+         sstring length_header = req->get_header("Content-Length");
+         req->content_length = strtol(length_header.c_str(), nullptr, 10);
+
+         if (req->content_length > content_length_limit) {
+-            generate_error_reply_and_close(std::move(req), reply::status_type::payload_too_large,
+-                    format("Content length limit ({}) exceeded: {}",
+-                            content_length_limit, req->content_length));
+-            return make_ready_future<>();
++         auto msg = format("Content length limit ({}) exceeded: {}", content_length_limit, req->content_length);
++        generate_error_reply_and_close(std::move(req), reply::status_type::payload_too_large, std::move(msg));
++        return make_ready_future<>();
+         }
+         return read_request_body(_read_buf, std::move(req)).then([this] (std::unique_ptr<httpd::request> req) {
+             return _replies.not_full().then([req = std::move(req), this] () mutable {
+diff --git a/src/net/dns.cc b/src/net/dns.cc
+index fa1ea87..f4fe7f3 100644
+--- a/src/net/dns.cc
++++ b/src/net/dns.cc
+@@ -20,6 +20,7 @@
+  */
+
+ #include <arpa/nameser.h>
++#include <sys/socket.h>
+ #include <chrono>
+
+ #include <ares.h>
+diff --git a/src/net/inet_address.cc b/src/net/inet_address.cc
+index f6db7ec..7270c17 100644
+--- a/src/net/inet_address.cc
++++ b/src/net/inet_address.cc
+@@ -143,7 +143,7 @@ seastar::net::inet_address::operator ::in_addr() const {
+ seastar::net::inet_address::operator ::in6_addr() const {
+     if (_in_family == family::INET) {
+         in6_addr in6 = IN6ADDR_ANY_INIT;
+-        in6.s6_addr32[2] = ::htonl(0xffff);
++        in6.s6_addr32[2] = htonl(0xffff);
+         in6.s6_addr32[3] = _in.s_addr;
+         return in6;
+     }
+diff --git a/src/net/posix-stack.cc b/src/net/posix-stack.cc
+index c51c945..a64b48e 100644
+--- a/src/net/posix-stack.cc
++++ b/src/net/posix-stack.cc
+@@ -21,6 +21,7 @@
+
+ #include <random>
+
++#include <sys/socket.h>
+ #include <linux/if.h>
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
