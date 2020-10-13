@@ -1,0 +1,13 @@
+diff --git a/packages/kbn-dev-utils/src/precommit_hook/get_git_dir.ts b/packages/kbn-dev-utils/src/precommit_hook/get_git_dir.ts
+index 5ca7d67..d43b8ad 100644
+--- a/packages/kbn-dev-utils/src/precommit_hook/get_git_dir.ts
++++ b/packages/kbn-dev-utils/src/precommit_hook/get_git_dir.ts
+@@ -25,7 +25,7 @@ import { REPO_ROOT } from '../repo_root';
+ // every git setup (including git worktree)
+ export async function getGitDir() {
+   return (
+-    await execa('git', ['rev-parse', '--git-common-dir'], {
++    await execa('git', ['rev-parse', '--git-dir'], {
+       cwd: REPO_ROOT,
+     })
+   ).stdout.trim();
