@@ -1,0 +1,69 @@
+diff --git a/package.json b/package.json
+index 27f9a529a6f..f819e27b711 100644
+--- a/package.json
++++ b/package.json
+@@ -324,7 +324,7 @@
+     "@types/browserslist-useragent": "^3.0.0",
+     "@types/chance": "^1.0.0",
+     "@types/cheerio": "^0.22.10",
+-    "@types/chromedriver": "^81.0.0",
++    "@types/chromedriver": "^2.33.2",
+     "@types/classnames": "^2.2.9",
+     "@types/color": "^3.0.0",
+     "@types/d3": "^3.5.43",
+@@ -413,7 +413,7 @@
+     "chai": "3.5.0",
+     "chance": "1.0.18",
+     "cheerio": "0.22.0",
+-    "chromedriver": "^84.0.0",
++    "chromedriver": "2.33.2",
+     "classnames": "2.2.6",
+     "dedent": "^0.7.0",
+     "delete-empty": "^2.0.0",
+diff --git a/src/dev/build/lib/platform.ts b/src/dev/build/lib/platform.ts
+index f42c7eb7fba..04c7b7bf3e4 100644
+--- a/src/dev/build/lib/platform.ts
++++ b/src/dev/build/lib/platform.ts
+@@ -18,7 +18,7 @@
+  */
+
+ export type PlatformName = 'win32' | 'darwin' | 'linux';
+-export type PlatformArchitecture = 'x64' | 'arm64';
++export type PlatformArchitecture = 'x64' | 'arm64' | 's390x';
+
+ export class Platform {
+   constructor(
+@@ -59,6 +59,7 @@ export class Platform {
+ export const ALL_PLATFORMS = [
+   new Platform('linux', 'x64', 'linux-x86_64'),
+   new Platform('linux', 'arm64', 'linux-aarch64'),
++  new Platform('linux', 's390x', 'linux-s390x'),
+   new Platform('darwin', 'x64', 'darwin-x86_64'),
+   new Platform('win32', 'x64', 'windows-x86_64'),
+ ];
+diff --git a/src/dev/build/tasks/bin/scripts/kibana b/src/dev/build/tasks/bin/scripts/kibana
+index 3283e17008e..6636c1d194e 100755
+--- a/src/dev/build/tasks/bin/scripts/kibana
++++ b/src/dev/build/tasks/bin/scripts/kibana
+@@ -15,7 +15,7 @@ done
+
+ DIR="$(dirname "${SCRIPT}")/.."
+ CONFIG_DIR=${KIBANA_PATH_CONF:-"$DIR/config"}
+-NODE="${DIR}/node/bin/node"
++NODE="/usr/bin/node"
+ test -x "$NODE"
+ if [ ! -x "$NODE" ]; then
+   echo "unable to find usable node.js executable."
+diff --git a/src/dev/build/tasks/nodejs/node_download_info.ts b/src/dev/build/tasks/nodejs/node_download_info.ts
+index b2c62d6667f..fb604acb251 100644
+--- a/src/dev/build/tasks/nodejs/node_download_info.ts
++++ b/src/dev/build/tasks/nodejs/node_download_info.ts
+@@ -29,7 +29,7 @@ export function getNodeDownloadInfo(config: Config, platform: Platform) {
+     ? 'win-x64/node.exe'
+     : `node-v${version}-${arch}.tar.gz`;
+
+-  const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v${version}/${downloadName}`;
++  const url = `https://nodejs.org/dist/v${version}/${downloadName}`;
+   const downloadPath = config.resolveFromRepo('.node_binaries', version, basename(downloadName));
+   const extractDir = config.resolveFromRepo('.node_binaries', version, arch);
+
