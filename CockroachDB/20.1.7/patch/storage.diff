@@ -1,0 +1,15 @@
+Submodule c-deps/snappy contains modified content
+diff --git a/c-deps/snappy/snappy.cc b/c-deps/snappy/snappy.cc
+index fd519e5..9f84144 100644
+--- a/c-deps/snappy/snappy.cc
++++ b/c-deps/snappy/snappy.cc
+@@ -63,6 +63,9 @@ using internal::kMaximumTagLength;
+ // input. Of course, it doesn't hurt if the hash function is reasonably fast
+ // either, as it gets called a lot.
+ static inline uint32 HashBytes(uint32 bytes, int shift) {
++#if defined(SNAPPY_IS_BIG_ENDIAN)
++  bytes = bswap_32(bytes);
++#endif
+   uint32 kMul = 0x1e35a7bd;
+   return (bytes * kMul) >> shift;
+ }
