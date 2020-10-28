@@ -1,0 +1,8 @@
+26c26
+<     res.append('urllib3>=1.24.2,<1.25')
+---
+>     res.append('urllib3==1.24.3')
+28c28
+<     res.append('boto3>=1.9.142')
+---
+>     res.append('boto3==1.15.18')
