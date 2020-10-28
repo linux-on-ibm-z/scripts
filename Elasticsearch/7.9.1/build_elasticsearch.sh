@@ -13,7 +13,6 @@ PACKAGE_VERSION="7.9.1"
 CURDIR="$(pwd)"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/${PACKAGE_VERSION}/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
-
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 NON_ROOT_USER="$(whoami)"
 JAVA_PROVIDED="OpenJDK11"
@@ -246,14 +245,21 @@ function installClient() {
 
         if [[ "${ID}" == "rhel" ]]; then
           sudo yum install -y python3-devel
+	  sudo mkdir /usr/local/lib/python3.6
+	  sudo ln -s /usr/lib/python3.6/site-packages /usr/local/lib/python3.6/
         fi
-
-        if [[ "${ID}" == "sles" ]]; then
-          sudo -H env PATH=$PATH pip3 install elasticsearch-curator
-        else
-          sudo -H pip3 install elasticsearch-curator
-        fi
-	
+        wget https://github.com/elastic/curator/archive/v5.8.1.tar.gz -O elasticsearch-curator.tar.gz
+	tar -xzvf elasticsearch-curator.tar.gz
+	rm -rf elasticsearch-curator.tar.gz
+	cd curator-5.8.1/
+	curl  -o requirements.patch $PATCH_URL/requirements.patch
+	curl  -o setup.py.patch $PATCH_URL/setup.py.patch
+	curl  -o setup.cfg.patch $PATCH_URL/setup.cfg.patch
+	patch requirements.txt < requirements.patch
+	patch setup.py < setup.py.patch
+	patch setup.cfg < setup.cfg.patch
+	sudo python3 setup.py install
+ 	cd ../	
         # Verifying Elasticsearch installation
         if command -v curator >/dev/null; then
                 printf -- "\nInstalled Elasticsearch Curator client successfully\n"
