@@ -1,0 +1,62 @@
+Common subdirectories: curator-5.8.1-a/.github and curator-5.8.1/.github
+Common subdirectories: curator-5.8.1-a/curator and curator-5.8.1/curator
+Common subdirectories: curator-5.8.1-a/docs and curator-5.8.1/docs
+Common subdirectories: curator-5.8.1-a/examples and curator-5.8.1/examples
+diff -u curator-5.8.1-a/requirements.txt curator-5.8.1/requirements.txt
+--- curator-5.8.1-a/requirements.txt	2019-09-25 16:39:55.000000000 +0000
++++ curator-5.8.1/requirements.txt	2020-10-23 07:49:37.055540757 +0000
+@@ -1,8 +1,8 @@
+ voluptuous>=0.9.3
+ elasticsearch>=7.0.4,<8.0.0
+-urllib3>=1.24.2,<1.25
++urllib3==1.24.3
+ requests>=2.20.0
+-boto3>=1.9.142
++boto3==1.15.18
+ requests_aws4auth>=0.9
+ click>=6.7,<7.0
+ pyyaml==3.13
+diff -u curator-5.8.1-a/setup.cfg curator-5.8.1/setup.cfg
+--- curator-5.8.1-a/setup.cfg	2019-09-25 16:39:55.000000000 +0000
++++ curator-5.8.1/setup.cfg	2020-10-23 07:49:53.185550941 +0000
+@@ -22,9 +22,9 @@
+ install_requires = 
+     voluptuous>=0.9.3
+     elasticsearch>=7.0.4,<8.0.0
+-    urllib3>=1.24.2,<1.25
++    urllib3==1.24.3
+     requests>=2.20.0
+-    boto3>=1.9.142
++    boto3==1.15.18
+     requests_aws4auth>=0.9
+     click>=6.7,<7.0
+     pyyaml==3.13
+@@ -34,9 +34,9 @@
+ setup_requires =
+     voluptuous>=0.9.3
+     elasticsearch>=7.0.4,<8.0.0
+-    urllib3>=1.24.2,<1.25
++    urllib3==1.24.3
+     requests>=2.20.0
+-    boto3>=1.9.142
++    boto3==1.15.18
+     requests_aws4auth>=0.9
+     click>=6.7,<7.0
+     pyyaml==3.13
+diff -u curator-5.8.1-a/setup.py curator-5.8.1/setup.py
+--- curator-5.8.1-a/setup.py	2019-09-25 16:39:55.000000000 +0000
++++ curator-5.8.1/setup.py	2020-10-23 07:50:01.335560963 +0000
+@@ -23,9 +23,9 @@
+ 
+ def get_install_requires():
+     res = ['elasticsearch>=7.0.4,<8.0.0' ]
+-    res.append('urllib3>=1.24.2,<1.25')
++    res.append('urllib3==1.24.3')
+     res.append('requests>=2.20.0')
+-    res.append('boto3>=1.9.142')
++    res.append('boto3==1.15.18')
+     res.append('requests_aws4auth>=0.9')
+     res.append('click>=6.7,<7.0')
+     res.append('pyyaml==3.13')
+Common subdirectories: curator-5.8.1-a/test and curator-5.8.1/test
+Common subdirectories: curator-5.8.1-a/unix_packages and curator-5.8.1/unix_packages
