@@ -216,13 +216,25 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" )
+"ubuntu-18.04" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
-    sudo apt-get install sudo vim wget curl libhdf5-dev python3-dev python3-pip pkg-config unzip openjdk-11-jdk zip libssl-dev git python3-numpy libblas-dev  liblapack-dev python3-scipy gfortran swig cython3 -y |& tee -a "${LOG_FILE}"	
+   	sudo apt-get install sudo vim wget curl libhdf5-dev python3-dev python3-pip pkg-config unzip openjdk-11-jdk zip libssl-dev git python3-numpy libblas-dev  liblapack-dev python3-scipy gfortran swig cython3 -y |& tee -a "${LOG_FILE}"	
 	sudo ldconfig
-	sudo pip3 install --no-cache-dir numpy==1.16.2 future wheel backports.weakref portpicker futures enum34 keras_preprocessing keras_applications h5py tensorflow_estimator setuptools pybind11 |& tee -a "${LOG_FILE}"
+	sudo pip3 install --no-cache-dir numpy==1.16.2 future wheel backports.weakref portpicker futures enum34 keras_preprocessing keras_applications h5py==2.10.0  tensorflow_estimator setuptools pybind11 |& tee -a "${LOG_FILE}"
+	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x/
+	export PATH=$JAVA_HOME/bin:$PATH
+	configureAndInstall |& tee -a "${LOG_FILE}"
+	;;
+
+"ubuntu-20.04" )
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- "Installing dependencies... it may take some time.\n"
+	sudo apt-get update
+   	sudo apt-get install sudo vim wget curl libhdf5-dev python3-dev python3-pip pkg-config unzip openjdk-11-jdk zip libssl-dev git python3-numpy libblas-dev  liblapack-dev python3-scipy gfortran swig cython3 -y |& tee -a "${LOG_FILE}"	
+	sudo ldconfig
+	sudo pip3 install --no-cache-dir numpy==1.16.2 future wheel backports.weakref portpicker futures enum34 keras_preprocessing keras_applications h5py  tensorflow_estimator setuptools pybind11 |& tee -a "${LOG_FILE}"
 	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x/
 	export PATH=$JAVA_HOME/bin:$PATH
 	configureAndInstall |& tee -a "${LOG_FILE}"
