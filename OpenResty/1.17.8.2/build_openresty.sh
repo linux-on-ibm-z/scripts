@@ -216,7 +216,7 @@ case "$DISTRO" in
     sudo ln -s make /usr/bin/gmake
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.6" | "rhel-7.7" | "rhel-8.1" | "rhel-8.2")
+"rhel-7.6" | "rhel-7.7" | "rhel-8."?)
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y curl tar wget make gcc gcc-c++ unix2dos cpan perl postgresql-devel patch pcre-devel readline-devel openssl openssl-devel glibc-common |& tee -a "$LOG_FILE"
