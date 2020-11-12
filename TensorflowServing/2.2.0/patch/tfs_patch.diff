@@ -1,0 +1,89 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 7add723..d85b865 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -9,10 +9,24 @@ workspace(name = "tf_serving")
+ #    reliable downloads.
+ load("//tensorflow_serving:repo.bzl", "tensorflow_http_archive")
+ 
+-tensorflow_http_archive(
+-    name = "org_tensorflow",
+-    sha256 = "b3d7829fac84e3a26264d84057367730b6b85b495a0fce15929568f4b55dc144",
+-    git_commit = "2b96f3662bd776e277f86997659e61046b56c315",
++#tensorflow_http_archive(
++#    name = "org_tensorflow",
++#    sha256 = "b3d7829fac84e3a26264d84057367730b6b85b495a0fce15929568f4b55dc144",
++#    git_commit = "2b96f3662bd776e277f86997659e61046b56c315",
++#)
++local_repository(
++     name = "boringssl",
++     path = "/source_root/boringssl",
++)
++
++bind(
++     name = "ssl",
++     actual = "@boringssl//:ssl",
++)
++
++local_repository(
++     name = "org_tensorflow",
++     path = "/source_root/tensorflow",
+ )
+ 
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+diff --git a/tensorflow_serving/servables/tensorflow/testdata/saved_model_half_plus_two.py b/tensorflow_serving/servables/tensorflow/testdata/saved_model_half_plus_two.py
+index ac4f061..60b68ce 100644
+--- a/tensorflow_serving/servables/tensorflow/testdata/saved_model_half_plus_two.py
++++ b/tensorflow_serving/servables/tensorflow/testdata/saved_model_half_plus_two.py
+@@ -54,7 +54,7 @@ import os
+ import sys
+ 
+ # This is a placeholder for a Google-internal import.
+-import tensorflow as tf
++import tensorflow.compat.v1 as tf
+ 
+ from tensorflow.python.lib.io import file_io
+ 
+@@ -166,7 +166,7 @@ def _generate_saved_model_for_half_plus_two(export_dir,
+ 
+       # Create a placeholder for serialized tensorflow.Example messages to be
+       # fed.
+-      serialized_tf_example = tf.placeholder(tf.string, name="tf_example")
++      serialized_tf_example = tf.placeholder(tf.string, name="tf_example", shape=(1))
+ 
+       # Parse the tensorflow.Example looking for a feature named "x" with a
+       # single floating point value.
+diff --git a/tensorflow_serving/tools/pip_package/build_pip_package.sh b/tensorflow_serving/tools/pip_package/build_pip_package.sh
+index efd9b2b..0833f69 100755
+--- a/tensorflow_serving/tools/pip_package/build_pip_package.sh
++++ b/tensorflow_serving/tools/pip_package/build_pip_package.sh
+@@ -41,7 +41,7 @@ function main() {
+   mkdir -p ${TMPDIR}/tensorflow_serving/util
+ 
+   echo "Adding python files"
+-  cp bazel-out/k8-opt/bin/tensorflow_serving/apis/*_pb2.py \
++  cp bazel-out/s390x-opt/bin/tensorflow_serving/apis/*_pb2.py \
+     "${TMPDIR}/tensorflow_serving/apis"
+ 
+   cp ${BAZEL_PROJECT_DIR}/tensorflow_serving/apis/*_pb2.py \
+@@ -50,16 +50,16 @@ function main() {
+   cp ${BAZEL_PROJECT_DIR}/tensorflow_serving/apis/*_grpc.py \
+     "${TMPDIR}/tensorflow_serving/apis"
+ 
+-  cp bazel-out/k8-opt/bin/tensorflow_serving/config/*_pb2.py \
++  cp bazel-out/s390x-opt/bin/tensorflow_serving/config/*_pb2.py \
+     "${TMPDIR}/tensorflow_serving/config"
+ 
+-  cp bazel-out/k8-opt/bin/tensorflow_serving/core/*_pb2.py \
++  cp bazel-out/s390x-opt/bin/tensorflow_serving/core/*_pb2.py \
+     "${TMPDIR}/tensorflow_serving/core"
+ 
+-  cp bazel-out/k8-opt/bin/tensorflow_serving/sources/storage_path/*_pb2.py \
++  cp bazel-out/s390x-opt/bin/tensorflow_serving/sources/storage_path/*_pb2.py \
+     "${TMPDIR}/tensorflow_serving/sources/storage_path"
+ 
+-  cp bazel-out/k8-opt/bin/tensorflow_serving/util/*_pb2.py \
++  cp bazel-out/s390x-opt/bin/tensorflow_serving/util/*_pb2.py \
+     "${TMPDIR}/tensorflow_serving/util"
+ 
+   touch "${TMPDIR}/tensorflow_serving/apis/__init__.py"
