@@ -1,0 +1,13 @@
+diff --git a/xlators/performance/io-threads/src/io-threads.h b/xlators/performance/io-threads/src/io-threads.h
+index f54d2f491..1d9c22e8c 100644
+--- a/xlators/performance/io-threads/src/io-threads.h
++++ b/xlators/performance/io-threads/src/io-threads.h
+@@ -34,7 +34,7 @@ struct iot_conf;
+ #define IOT_DEFAULT_THREADS 16
+ #define IOT_MAX_THREADS 64
+
+-#define IOT_THREAD_STACK_SIZE ((size_t)(256 * 1024))
++#define IOT_THREAD_STACK_SIZE ((size_t)(512 * 1024))
+
+ typedef struct {
+     struct list_head clients;
