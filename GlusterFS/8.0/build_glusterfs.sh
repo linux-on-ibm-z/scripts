@@ -70,7 +70,7 @@ function installGCC() {
 	    cd $SOURCE_ROOT
 	    mkdir gcc
 	    cd gcc
-	    wget https://ftpmirror.gnu.org/gcc/gcc-7.5.0/gcc-7.5.0.tar.xz
+	    wget --no-check-certificate https://ftpmirror.gnu.org/gcc/gcc-7.5.0/gcc-7.5.0.tar.xz
 	    tar -xf gcc-7.5.0.tar.xz
 	    cd gcc-7.5.0
 	    ./contrib/download_prerequisites
@@ -112,7 +112,7 @@ function configureAndInstall() {
 	# Only for RHEL and SLES 12 SP5
 	if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
 		printf -- 'Building URCU\n' 
-		wget https://lttng.org/files/urcu/userspace-rcu-0.10.2.tar.bz2
+		wget --no-check-certificate https://lttng.org/files/urcu/userspace-rcu-0.10.2.tar.bz2
 		tar xvjf userspace-rcu-0.10.2.tar.bz2
 		cd userspace-rcu-0.10.2
 		./configure --prefix=/usr --libdir=/usr/lib64
@@ -124,7 +124,7 @@ function configureAndInstall() {
 	#Only for Ubuntu 18.04, RHEL 7.x, SLES  
 	if [[ "${DISTRO}" == "ubuntu-18.04" ]] || [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${ID}" == "sles" ]]; then
 		cd $SOURCE_ROOT
-		wget https://www.openssl.org/source/old/1.1.1/openssl-1.1.1d.tar.gz
+		wget --no-check-certificate https://www.openssl.org/source/old/1.1.1/openssl-1.1.1d.tar.gz
 		tar xvf openssl-1.1.1d.tar.gz
 		cd openssl-1.1.1d
 		./config --prefix=/usr/local --openssldir=/usr/local no-weak-ssl-ciphers no-tls1 no-tls1-method
@@ -152,12 +152,12 @@ function configureAndInstall() {
     # Only for Ubuntu, SLES, and RHEL 8.x
 	if [[ "${ID}" == "ubuntu" ]] || [[ "${ID}" == "sles" ]] || [[ ${DISTRO} == rhel-8\.[1-2] ]]; then
 		cd "${SOURCE_ROOT}/glusterfs"
-		wget -O - $PATCH_URL/io-threads.h.diff
+		wget --no-check-certificate $PATCH_URL/io-threads.h.diff
 		git apply io-threads.h.diff
 	fi
 
 	cd "${SOURCE_ROOT}/glusterfs"
-	wget -O - $PATCH_URL/bit-rot-stub.c.diff 
+	wget --no-check-certificate $PATCH_URL/bit-rot-stub.c.diff 
 	git apply bit-rot-stub.c.diff
 
 	# Build GlusterFS
@@ -214,125 +214,128 @@ function printHelp() {
 function runTest() {
 	set +e
 		
-		echo "Running Tests: "
+		if [[ "$TESTS" == "true" ]]; then
+    		log "TEST Flag is set, continue with running test "
+			echo "Running Tests: "
 
-		case "$DISTRO" in
-        "ubuntu-18.04" | "ubuntu-20.04")
-        	apt-get install -y acl attr bc dbench dnsutils libxml2-utils net-tools nfs-common psmisc python3-pyxattr python3-prettytable thin-provisioning-tools vim xfsprogs yajl-tools rpm2cpio gdb cpio selinux-utils
-        	;;
-        
-        "rhel-7.8")
-        	yum install -y acl attr bc bind-utils boost-devel docbook-style-xsl expat-devel gcc-c++ gdb net-tools nfs-utils psmisc pyxattr vim xfsprogs yajl popt-devel python3-pip
-        	;;
-        
-        "rhel-8.1" | "rhel-8.2")
-        	yum install -y acl attr bc bind-utils boost-devel docbook-style-xsl expat-devel gcc-c++ gdb net-tools nfs-utils psmisc vim xfsprogs yajl redhat-rpm-config python3-devel python3-pyxattr python3-prettytable perl-Test-Harness popt-devel
-        	;;
-		
-        "sles-12.5")
-        	zypper install -y acl attr bc bind-utils boost-devel gcc-c++ gdb libexpat-devel libxml2-tools net-tools nfs-utils psmisc vim xfsprogs python3-xattr popt-devel python3-pip
-        	;;
-        
-        "sles-15.1")
-        	zypper install -y acl attr bc bind-utils gdb libxml2-tools net-tools-deprecated nfs-utils psmisc thin-provisioning-tools vim xfsprogs python3-xattr python3-PrettyTable libselinux-devel selinux-tools thin-provisioning-tools popt-devel
-        	;;
-        esac
+			case "$DISTRO" in
+			"ubuntu-18.04" | "ubuntu-20.04")
+				apt-get install -y acl attr bc dbench dnsutils libxml2-utils net-tools nfs-common psmisc python3-pyxattr python3-prettytable thin-provisioning-tools vim xfsprogs yajl-tools rpm2cpio gdb cpio selinux-utils
+				;;
 			
-        # Install pstack command for ubuntu
-        if [[ "${ID}" == "ubuntu" ]]; then
-            cd "${SOURCE_ROOT}"
-            wget http://rpmfind.net/linux/opensuse/update/leap/15.1/oss/x86_64/gdb-8.3.1-lp151.4.3.1.x86_64.rpm
-            rpm2cpio gdb-8.3.1-lp151.4.3.1.x86_64.rpm| cpio -idmv
-            mv ./usr/bin/gstack /usr/bin/
-            rm -r ./etc ./usr
-            rm gdb-8.3.1-lp151.4.3.1.x86_64.rpm
-        fi
+			"rhel-7.8")
+				yum install -y acl attr bc bind-utils boost-devel docbook-style-xsl expat-devel gcc-c++ gdb net-tools nfs-utils psmisc pyxattr vim xfsprogs yajl popt-devel python3-pip
+				;;
+			
+			"rhel-8.1" | "rhel-8.2")
+				yum install -y acl attr bc bind-utils boost-devel docbook-style-xsl expat-devel gcc-c++ gdb net-tools nfs-utils psmisc vim xfsprogs yajl redhat-rpm-config python3-devel python3-pyxattr python3-prettytable perl-Test-Harness popt-devel
+				;;
+			
+			"sles-12.5")
+				zypper install -y acl attr bc bind-utils boost-devel gcc-c++ gdb libexpat-devel libxml2-tools net-tools nfs-utils psmisc vim xfsprogs python3-xattr popt-devel python3-pip
+				;;
+			
+			"sles-15.1")
+				zypper install -y acl attr bc bind-utils gdb libxml2-tools net-tools-deprecated nfs-utils psmisc thin-provisioning-tools vim xfsprogs python3-xattr python3-PrettyTable libselinux-devel selinux-tools thin-provisioning-tools popt-devel
+				;;
+			esac
+			
+			# Install pstack command for ubuntu
+			if [[ "${ID}" == "ubuntu" ]]; then
+				cd "${SOURCE_ROOT}"
+				wget --no-check-certificate http://rpmfind.net/linux/opensuse/update/leap/15.1/oss/x86_64/gdb-8.3.1-lp151.4.3.1.x86_64.rpm
+				rpm2cpio gdb-8.3.1-lp151.4.3.1.x86_64.rpm| cpio -idmv
+				mv ./usr/bin/gstack /usr/bin/
+				rm -r ./etc ./usr
+				rm gdb-8.3.1-lp151.4.3.1.x86_64.rpm
+			fi
 
-		# link the gstack command to pstack for ubuntu and sles
-		if [[ "${ID}" == "ubuntu" ]] || [[ "${ID}" == "sles" ]]; then
-			ln -sf `which gstack` /usr/bin/pstack
-		fi
-        
-        # Install prettytable (SLES 12 SP5 and RHEL 7.x)
-        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
-            pip3 install prettytable
-        fi
+			# link the gstack command to pstack for ubuntu and sles
+			if [[ "${ID}" == "ubuntu" ]] || [[ "${ID}" == "sles" ]]; then
+				ln -sf `which gstack` /usr/bin/pstack
+			fi
+			
+			# Install prettytable (SLES 12 SP5 and RHEL 7.x)
+			if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
+				pip3 install prettytable
+			fi
 
-        # Install dbench (RHEL and SLES only)
-        if [[ "${ID}" == "rhel" ]] || [[ "${ID}" == "sles" ]]; then
-            # Install dbench
-            cd "${SOURCE_ROOT}"
-            git clone https://github.com/sahlberg/dbench
-            cd dbench
-            git checkout caa52d347171f96eef5f8c2d6ab04a9152eaf113
-            ./autogen.sh
-            ./configure --datadir=/usr/local/share/doc/loadfiles/
-            make
-            make install
-            export PATH=/usr/local/bin:$PATH
-        fi
+			# Install dbench (RHEL and SLES only)
+			if [[ "${ID}" == "rhel" ]] || [[ "${ID}" == "sles" ]]; then
+				# Install dbench
+				cd "${SOURCE_ROOT}"
+				git clone https://github.com/sahlberg/dbench
+				cd dbench
+				git checkout caa52d347171f96eef5f8c2d6ab04a9152eaf113
+				./autogen.sh
+				./configure --datadir=/usr/local/share/doc/loadfiles/
+				make
+				make install
+				export PATH=/usr/local/bin:$PATH
+			fi
 
-        # Install thin-provisioning-tools (RHEL and SLES 12 SP5 only)
-        if [[ "${ID}" == "rhel" ]] || [[ "$DISTRO" == "sles-12.5" ]]; then
-            cd "${SOURCE_ROOT}"
-            git clone https://github.com/jthornber/thin-provisioning-tools
-            cd thin-provisioning-tools
-            git checkout v0.7.6
-            autoreconf
-            ./configure
-            make
-            make install
-        fi
+			# Install thin-provisioning-tools (RHEL and SLES 12 SP5 only)
+			if [[ "${ID}" == "rhel" ]] || [[ "$DISTRO" == "sles-12.5" ]]; then
+				cd "${SOURCE_ROOT}"
+				git clone https://github.com/jthornber/thin-provisioning-tools
+				cd thin-provisioning-tools
+				git checkout v0.7.6
+				autoreconf
+				./configure
+				make
+				make install
+			fi
 
-        # Install yajl (SLES only)
-        if [[ "${ID}" == "sles" ]]; then
-            cd "${SOURCE_ROOT}"
-            # Install YAJL
-            git clone https://github.com/lloyd/yajl
-            cd yajl
-            git checkout 2.1.0
-            ./configure
-            make install
-        fi
-        
-		# Apply patches
-		cd "${SOURCE_ROOT}/glusterfs"
+			# Install yajl (SLES only)
+			if [[ "${ID}" == "sles" ]]; then
+				cd "${SOURCE_ROOT}"
+				# Install YAJL
+				git clone https://github.com/lloyd/yajl
+				cd yajl
+				git checkout 2.1.0
+				./configure
+				make install
+			fi
+			
+			# Apply patches
+			cd "${SOURCE_ROOT}/glusterfs"
 
-		# Patch test script patch for SLES 12 SP5
-		if [[ "$DISTRO" == "sles-12.5" ]]; then
-			wget -O - $PATCH_URL/run-tests.sh.diff 
-			git apply run-tests.sh.diff 
-			printf -- "Patch run-tests.sh.diff success\n" 
-		fi
+			# Patch test script patch for SLES 12 SP5
+			if [[ "$DISTRO" == "sles-12.5" ]]; then
+				wget --no-check-certificate $PATCH_URL/run-tests.sh.diff 
+				git apply run-tests.sh.diff 
+				printf -- "Patch run-tests.sh.diff success\n" 
+			fi
 
-		# Apply hash test patches
-		wget -O - $PATCH_URL/hash-tests.diff 
-		git apply hash-tests.diff 
-		printf -- "Patch hash-tests.diff success\n" 
-		# Apply system configuration patches
-  		wget -O - $PATCH_URL/test-patch.diff 
-		git apply test-patch.diff 
-		printf -- "Patch test-patch.diff success\n" 
+			# Apply hash test patches
+			wget --no-check-certificate $PATCH_URL/hash-tests.diff 
+			git apply hash-tests.diff 
+			printf -- "Patch hash-tests.diff success\n" 
+			# Apply system configuration patches
+			wget --no-check-certificate $PATCH_URL/test-patch.diff 
+			git apply test-patch.diff 
+			printf -- "Patch test-patch.diff success\n" 
 
-		if [[ "$DISTRO" == "sles-15.1" ]]; then
-			export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
-		fi
+			if [[ "$DISTRO" == "sles-15.1" ]]; then
+				export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+			fi
 
-		ldconfig /usr/local/lib64
-		export PATH=/usr/local/bin:$PATH
-		
-		if [ "$USEAS" = "true" ]; then
-			printf -- 'Running the whole test suite.\n' 
-			sed -i "18s/yes/no/" ${SOURCE_ROOT}/glusterfs/run-tests.sh
-			./run-tests.sh 2>&1| tee -a test_suite.log
-		elif [ "$USEAS" = "false" ]; then
-			printf -- 'Running test cases with exit_on_failure enabled.\n'
-			./run-tests.sh
-		fi
+			ldconfig /usr/local/lib64
+			export PATH=/usr/local/bin:$PATH
+			
+			if [ "$USEAS" = "true" ]; then
+				printf -- 'Running the whole test suite.\n' 
+				sed -i "18s/yes/no/" ${SOURCE_ROOT}/glusterfs/run-tests.sh
+				./run-tests.sh 2>&1| tee -a test_suite.log
+			elif [ "$USEAS" = "false" ]; then
+				printf -- 'Running test cases with exit_on_failure enabled.\n'
+				./run-tests.sh
+			fi
 
-		# Test cases failure
-		if [[ "$(grep -wq 'FAILED' ${LOG_FILE})" ]]; then
-			printf -- 'Test cases failing. Please check the logs. \n\n' 
+			# Test cases failure
+			if [[ "$(grep -wq 'FAILED' ${LOG_FILE})" ]]; then
+				printf -- 'Test cases failing. Please check the logs. \n\n' 
+			fi
 		fi
 
 	set -e
@@ -351,6 +354,7 @@ while getopts "h?dyt:" opt; do
 		FORCE="true"
 		;;
 	t)
+		TESTS="true"
 		export USEAS=$OPTARG
 		;;
 	esac
@@ -415,8 +419,9 @@ case "$DISTRO" in
 "sles-15.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    zypper install -y autoconf automake bison cmake flex fuse-devel gcc git-core glib2-devel libacl-devel libaio-devel librdmacm1 libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 python3-xattr rdma-core-devel readline-devel zlib-devel which
- 	configureAndInstall | tee -a "$LOG_FILE"
+    zypper install -y autoconf automake bison cmake flex fuse-devel gcc git-core glib2-devel libacl-devel libaio-devel librdmacm1 libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 python3-xattr rdma-core-devel readline-devel zlib-devel which gawk
+ 	git config --global http.sslVerify false
+	configureAndInstall | tee -a "$LOG_FILE"
 	;;
 
 *)
