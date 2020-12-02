@@ -148,9 +148,9 @@ function configureAndInstall() {
         git checkout 2.2.0
 
         #Apply Patches
-	export PATCH_URL="https://github.com/linux-on-ibm-z/scripts/blob/master/TensorflowServing/2.2.0/patch/"
+	export PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/TensorflowServing/2.2.0/patch"
         printf -- '\nPatching Tensorflow Serving..... \n'
-        wget -O tfs_patch.diff $PATCH_URL/tfs.patch
+        wget -O tfs_patch.diff $PATCH_URL/tfs_patch.diff
 	sed -i "s?source_root?$SOURCE_ROOT?" tfs_patch.diff
 	git apply tfs_patch.diff
 	cd $SOURCE_ROOT/tensorflow
