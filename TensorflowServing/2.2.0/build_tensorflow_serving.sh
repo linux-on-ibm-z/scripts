@@ -166,7 +166,7 @@ function configureAndInstall() {
 	
 	if [[ "$DISTRO" == "ubuntu-18.04" ]]; then
 	printf -- '\nInside Ubuntu 18.04..... \n'
-	sudo pip3 install --upgrade cython && pip3 uninstall -y enum34
+	sudo pip3 install --upgrade cython && sudo pip3 uninstall -y enum34
 	fi
 	
         sudo pip3 --no-cache-dir install --upgrade  $SOURCE_ROOT/tfs/tensorflow_serving_api-*.whl
