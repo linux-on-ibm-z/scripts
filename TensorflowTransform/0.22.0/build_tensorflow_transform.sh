@@ -12,7 +12,7 @@ PACKAGE_NAME="tensorflow_transform"
 PACKAGE_VERSION="0.22.0"
 CURDIR="$(pwd)"
 
-PATCH_URL="https://github.com/linux-on-ibm-z/scripts/blob/master/TensorflowTransform/0.22.0/patch/tft.patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/TensorflowTransform/0.22.0/patch/tft.patch"
 TENSORFLOW_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Tensorflow/2.2.0/build_tensorflow.sh"
 
 ARROW_VERSION="0.16.0"
