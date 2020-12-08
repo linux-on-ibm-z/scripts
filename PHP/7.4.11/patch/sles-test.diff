@@ -1,0 +1,18 @@
+diff -Naur old/ext/tidy/tests/020.phpt new/ext/tidy/tests/020.phpt
+--- old/ext/tidy/tests/020.phpt	2020-06-03 04:01:35.642901777 -0700
++++ new/ext/tidy/tests/020.phpt	2020-06-03 04:05:06.282861806 -0700
+@@ -11,7 +11,13 @@
+ para testes.</p>
+ EOF;
+ 
+-$tidy->parseString($str, array('output-xhtml'=>1), 'latin1');
++$config = array(
++'output-xhtml' => true,
++'add-xml-decl' => true,
++'output-xml' => true
++);
++
++$tidy->parseString($str, $config, 'latin1');
+ $tidy->cleanRepair();
+ $tidy->diagnose();
+ var_dump(tidy_warning_count($tidy) > 0);
