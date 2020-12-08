@@ -388,7 +388,7 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update -y
-        sudo apt-get install -y git curl make wget tar gcc libcap-dev libpcap0.8-dev openssl libssh-dev acl rsync tzdata patch fdclone libsystemd-dev libjpeg-dev python3.8 python3.8-dev python3.8-venv python3.8-distutils python3-lib2to3 |& tee -a "${LOG_FILE}"
+        sudo apt-get install -y git curl make wget tar gcc libcap-dev libpcap0.8-dev openssl libssh-dev acl rsync tzdata patch fdclone libsystemd-dev libjpeg-dev libffi-dev libpython3-dev python3.8 python3.8-dev python3.8-venv python3.8-distutils python3-lib2to3 |& tee -a "${LOG_FILE}"
         sudo /usr/bin/update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 10
         sudo /usr/bin/update-alternatives --set python3 /usr/bin/python3.8
         sudo /usr/bin/update-alternatives --display python3
@@ -402,7 +402,7 @@ case "$DISTRO" in
         sudo yum install -y git curl make wget tar gcc libpcap libpcap-devel openssl openssl-devel which acl zlib-devel patch  systemd-devel libjpeg-devel|& tee -a "${LOG_FILE}"
 
         #Installing Python 3.8.3
-        sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libuuid-devel make ncurses-devel openssl-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel
+        sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libpcap libpcap-devel libffi-devel libuuid-devel make ncurses-devel openssl-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel
         configureAndInstallPython |& tee -a "${LOG_FILE}"
 
         configureAndInstall |& tee -a "${LOG_FILE}"
@@ -411,7 +411,7 @@ case "$DISTRO" in
 "rhel-8.1" | "rhel-8.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y git curl make wget tar gcc libpcap libpcap-devel openssl openssl-devel which acl zlib-devel patch  systemd-devel libjpeg-devel |& tee -a "${LOG_FILE}"
+        sudo yum install -y git curl make wget tar gcc libpcap-devel openssl openssl-devel which acl zlib-devel patch  systemd-devel libjpeg-devel |& tee -a "${LOG_FILE}"
         #Installing Python 3.8.3
         sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb libffi-devel libuuid make ncurses openssl readline sqlite tar tk wget xz xz zlib-devel glibc-langpack-en
         configureAndInstallPython |& tee -a "${LOG_FILE}"
