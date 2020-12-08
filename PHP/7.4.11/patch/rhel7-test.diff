@@ -1,0 +1,47 @@
+diff -Naur old/ext/sqlite3/tests/sqlite3_38_extended_error.phpt new/ext/sqlite3/tests/sqlite3_38_extended_error.phpt
+--- old/ext/sqlite3/tests/sqlite3_38_extended_error.phpt	2020-06-03 04:02:37.902891749 -0700
++++ new/ext/sqlite3/tests/sqlite3_38_extended_error.phpt	2020-06-03 04:08:43.352821730 -0700
+@@ -27,7 +27,7 @@
+ First Error Code: 0
+ Inserting second time which should fail
+ 
+-Warning: SQLite3::query(): Unable to execute statement: UNIQUE constraint failed: dog.id in %s on line %d
++Warning: SQLite3::query(): Unable to execute statement: PRIMARY KEY must be unique in %s on line %d
+ Second Error Code: 19
+ Second Extended Error Code: 1555
+ Closing database
+diff -Naur old/ext/sqlite3/tests/sqlite3_39_toggleExtended.phpt new/ext/sqlite3/tests/sqlite3_39_toggleExtended.phpt
+--- old/ext/sqlite3/tests/sqlite3_39_toggleExtended.phpt	2020-06-03 04:03:05.652881765 -0700
++++ new/ext/sqlite3/tests/sqlite3_39_toggleExtended.phpt	2020-06-03 04:10:30.772791770 -0700
+@@ -31,11 +31,11 @@
+ First Error Code: 0
+ Inserting second time which should fail
+ 
+-Warning: SQLite3::query(): Unable to execute statement: UNIQUE constraint failed: dog.id in %s on line %d
++Warning: SQLite3::query(): Unable to execute statement: PRIMARY KEY must be unique in %s on line %d
+ Second Error Code: 19
+ Toggling extended error codes and re-inserting a third time
+ 
+-Warning: SQLite3::query(): Unable to execute statement: UNIQUE constraint failed: dog.id in %s on line %d
++Warning: SQLite3::query(): Unable to execute statement: PRIMARY KEY must be unique in %s on line %d
+ Third (Extended) Error Code: 1555
+ Closing database
+ bool(true)
+diff -Naur old/ext/tidy/tests/020.phpt new/ext/tidy/tests/020.phpt
+--- old/ext/tidy/tests/020.phpt	2020-06-03 04:01:35.642901777 -0700
++++ new/ext/tidy/tests/020.phpt	2020-06-03 04:05:06.282861806 -0700
+@@ -11,7 +11,13 @@
+ para testes.</p>
+ EOF;
+ 
+-$tidy->parseString($str, array('output-xhtml'=>1), 'latin1');
++$config = array(
++'output-xhtml' => true,
++'add-xml-decl' => true,
++'output-xml' => true
++);
++
++$tidy->parseString($str, $config, 'latin1');
+ $tidy->cleanRepair();
+ $tidy->diagnose();
+ var_dump(tidy_warning_count($tidy) > 0);
