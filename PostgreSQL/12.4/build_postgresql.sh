@@ -157,18 +157,18 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo apt-get update >/dev/null
         sudo apt-get install -y bison flex wget build-essential git gcc make zlib1g-dev libreadline-dev curl patch |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8"| "rhel-8.1" |"rhel-8.2" )
+ "rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3" )
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
 
-        if [[ "$VERSION_ID" == "8.1" || "$VERSION_ID" == "8.2" ]]; then
+        if [[ "$VERSION_ID" == "8.1" || "$VERSION_ID" == "8.2" || "$VERSION_ID" == "8.3" ]]; then
         sudo yum install -y git wget gcc gcc-c++ make readline-devel zlib-devel bison flex glibc-langpack-en procps-ng diffutils curl patch |& tee -a "$LOG_FILE"
         else
         sudo yum install -y git wget build-essential gcc gcc-c++ make readline-devel zlib-devel bison flex curl patch |& tee -a "$LOG_FILE"
