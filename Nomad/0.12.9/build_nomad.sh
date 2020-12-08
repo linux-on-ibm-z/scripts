@@ -85,7 +85,7 @@ function configureAndInstall() {
     cd nomad
     git checkout v${PACKAGE_VERSION}
     make tools
-    make dev
+    make release
 
     # Create a symlink
     sudo ln -s $GOPATH/bin/nomad /usr/bin/nomad
