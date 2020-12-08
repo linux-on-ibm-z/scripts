@@ -1,0 +1,166 @@
+diff --git a/Zend/Zend.m4 b/Zend/Zend.m4
+index 57a12ac36b..e06658de19 100644
+--- a/Zend/Zend.m4
++++ b/Zend/Zend.m4
+@@ -387,135 +387,6 @@ else
+ fi
+ AC_MSG_RESULT($ZEND_GCC_GLOBAL_REGS)
+ 
+-dnl Check if atof() accepts NAN.
+-AC_CACHE_CHECK(whether atof() accepts NAN, ac_cv_atof_accept_nan,[
+-AC_RUN_IFELSE([AC_LANG_SOURCE([[
+-#include <math.h>
+-#include <stdlib.h>
+-
+-#ifdef HAVE_ISNAN
+-#define zend_isnan(a) isnan(a)
+-#elif defined(HAVE_FPCLASS)
+-#define zend_isnan(a) ((fpclass(a) == FP_SNAN) || (fpclass(a) == FP_QNAN))
+-#else
+-#define zend_isnan(a) 0
+-#endif
+-
+-int main(int argc, char** argv)
+-{
+-	return zend_isnan(atof("NAN")) ? 0 : 1;
+-}
+-]])],[
+-  ac_cv_atof_accept_nan=yes
+-],[
+-  ac_cv_atof_accept_nan=no
+-],[
+-  ac_cv_atof_accept_nan=no
+-])])
+-if test "$ac_cv_atof_accept_nan" = "yes"; then
+-  AC_DEFINE([HAVE_ATOF_ACCEPTS_NAN], 1, [whether atof() accepts NAN])
+-fi
+-
+-dnl Check if atof() accepts INF.
+-AC_CACHE_CHECK(whether atof() accepts INF, ac_cv_atof_accept_inf,[
+-AC_RUN_IFELSE([AC_LANG_SOURCE([[
+-#include <math.h>
+-#include <stdlib.h>
+-
+-#ifdef HAVE_ISINF
+-#define zend_isinf(a) isinf(a)
+-#elif defined(INFINITY)
+-/* Might not work, but is required by ISO C99 */
+-#define zend_isinf(a) (((a)==INFINITY)?1:0)
+-#elif defined(HAVE_FPCLASS)
+-#define zend_isinf(a) ((fpclass(a) == FP_PINF) || (fpclass(a) == FP_NINF))
+-#else
+-#define zend_isinf(a) 0
+-#endif
+-
+-int main(int argc, char** argv)
+-{
+-	return zend_isinf(atof("INF")) && zend_isinf(atof("-INF")) ? 0 : 1;
+-}
+-]])],[
+-  ac_cv_atof_accept_inf=yes
+-],[
+-  ac_cv_atof_accept_inf=no
+-],[
+-  ac_cv_atof_accept_inf=no
+-])])
+-if test "$ac_cv_atof_accept_inf" = "yes"; then
+-  AC_DEFINE([HAVE_ATOF_ACCEPTS_INF], 1, [whether atof() accepts INF])
+-fi
+-
+-dnl Check if HUGE_VAL == INF.
+-AC_CACHE_CHECK(whether HUGE_VAL == INF, ac_cv_huge_val_inf,[
+-AC_RUN_IFELSE([AC_LANG_SOURCE([[
+-#include <math.h>
+-#include <stdlib.h>
+-
+-#ifdef HAVE_ISINF
+-#define zend_isinf(a) isinf(a)
+-#elif defined(INFINITY)
+-/* Might not work, but is required by ISO C99 */
+-#define zend_isinf(a) (((a)==INFINITY)?1:0)
+-#elif defined(HAVE_FPCLASS)
+-#define zend_isinf(a) ((fpclass(a) == FP_PINF) || (fpclass(a) == FP_NINF))
+-#else
+-#define zend_isinf(a) 0
+-#endif
+-
+-int main(int argc, char** argv)
+-{
+-	return zend_isinf(HUGE_VAL) ? 0 : 1;
+-}
+-]])],[
+-  ac_cv_huge_val_inf=yes
+-],[
+-  ac_cv_huge_val_inf=no
+-],[
+-  ac_cv_huge_val_inf=yes
+-])])
+-dnl This is the most probable fallback so we assume yes in case of cross compile.
+-if test "$ac_cv_huge_val_inf" = "yes"; then
+-  AC_DEFINE([HAVE_HUGE_VAL_INF], 1, [whether HUGE_VAL == INF])
+-fi
+-
+-dnl Check if HUGE_VAL + -HUGEVAL == NAN.
+-AC_CACHE_CHECK(whether HUGE_VAL + -HUGEVAL == NAN, ac_cv_huge_val_nan,[
+-AC_RUN_IFELSE([AC_LANG_SOURCE([[
+-#include <math.h>
+-#include <stdlib.h>
+-
+-#ifdef HAVE_ISNAN
+-#define zend_isnan(a) isnan(a)
+-#elif defined(HAVE_FPCLASS)
+-#define zend_isnan(a) ((fpclass(a) == FP_SNAN) || (fpclass(a) == FP_QNAN))
+-#else
+-#define zend_isnan(a) 0
+-#endif
+-
+-int main(int argc, char** argv)
+-{
+-#if defined(__sparc__) && !(__GNUC__ >= 3)
+-	/* prevent bug #27830 */
+-	return 1;
+-#else
+-	return zend_isnan(HUGE_VAL + -HUGE_VAL) ? 0 : 1;
+-#endif
+-}
+-]])],[
+-  ac_cv_huge_val_nan=yes
+-],[
+-  ac_cv_huge_val_nan=no
+-],[
+-  ac_cv_huge_val_nan=yes
+-])])
+-dnl This is the most probable fallback so we assume yes in case of cross compile.
+-if test "$ac_cv_huge_val_nan" = "yes"; then
+-  AC_DEFINE([HAVE_HUGE_VAL_NAN], 1, [whether HUGE_VAL + -HUGEVAL == NAN])
+-fi
+-
+ dnl Check whether __cpuid_count is available.
+ AC_CACHE_CHECK(whether __cpuid_count is available, ac_cv_cpuid_count_available, [
+ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+diff --git a/win32/build/config.w32.h.in b/win32/build/config.w32.h.in
+index ca3a19b5ce..7cd6392078 100644
+--- a/win32/build/config.w32.h.in
++++ b/win32/build/config.w32.h.in
+@@ -118,10 +118,6 @@
+ 
+ #define HAVE_MBLEN
+ 
+-#undef HAVE_ATOF_ACCEPTS_NAN
+-#undef HAVE_ATOF_ACCEPTS_INF
+-#define HAVE_HUGE_VAL_NAN 0
+-
+ /* vs.net 2005 has a 64-bit time_t.  This will likely break
+  * 3rdParty libs that were built with older compilers; switch
+  * back to 32-bit */
+@@ -133,8 +129,6 @@
+ #define HAVE_MBRLEN 1
+ #define HAVE_MBSTATE_T 1
+ 
+-#define HAVE_HUGE_VAL_INF 1
+-
+ #define HAVE_GETRUSAGE
+ 
+ #define HAVE_FTOK 1
+-- 
+2.17.1
