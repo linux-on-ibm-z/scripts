@@ -1,0 +1,11 @@
+diff -Naur old/ext/reflection/php_reflection.c new/ext/reflection/php_reflection.c
+--- old/ext/reflection/php_reflection.c	2020-06-12 06:57:52.356509707 -0700
++++ new/ext/reflection/php_reflection.c	2020-06-12 06:59:18.061695964 -0700
+@@ -1304,7 +1304,7 @@
+ 	zval *argument_ptr, *argument2_ptr;
+ 	zval retval, params[2];
+ 	int result;
+-	int return_output = 0;
++	zend_bool return_output = 0;
+ 	zend_fcall_info fci;
+ 	zend_fcall_info_cache fcc;
