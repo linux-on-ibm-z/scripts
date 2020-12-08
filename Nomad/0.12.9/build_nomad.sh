@@ -88,7 +88,7 @@ function configureAndInstall() {
     make dev
 
     # Create a symlink
-    sudo ln -s $GOPATH/src/github.com/hashicorp/nomad/bin/nomad /usr/bin/nomad
+    sudo ln -s $GOPATH/bin/nomad /usr/bin/nomad
     printf -- "Build and install nomad success\n"
 
     # Run Test
