@@ -92,6 +92,7 @@ function configureAndInstall() {
 		sudo ln -sf /opt/gcc/bin/g++ /usr/bin/c++
 		export PATH=/opt/gcc/bin:"$PATH"
 		export LD_LIBRARY_PATH=/opt/gcc/lib64:"$LD_LIBRARY_PATH"
+		sudo ln -sf /opt/gcc/lib64/libstdc++.so.6.0.24 /lib64/libstdc++.so.6
 		gcc -v
 	fi
 
