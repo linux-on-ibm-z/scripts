@@ -490,7 +490,7 @@ buildRHEL()
   cd "$SOURCE_ROOT"
   mkdir cryptopp
   cd cryptopp
-  curl -sSLO https://www.cryptopp.com/cryptopp565.zip
+  curl -skSLO https://www.cryptopp.com/cryptopp565.zip
   unzip cryptopp565.zip
   CXXFLAGS="-std=c++11 -g -O2" make
   sudo make install
