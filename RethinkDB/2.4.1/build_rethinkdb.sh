@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="rethinkdb"
 PACKAGE_VERSION="2.4.1"
 CURDIR="$(pwd)"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RethinkDB/2.4.1/patch/"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RethinkDB/2.4.1/patch"
 FORCE="false"
 TESTS="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -184,8 +184,6 @@ function configureAndInstall() {
 	cd rethinkdb
 	git checkout v2.4.1
 	
-	#Apply patches
-	export PATCH_URL=https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RethinkDB/2.4.1/patch/
 	# For RHEL
 	if [[ "$ID" == "rhel" ]]; then
 	curl -o v8_rhel.patch $PATCH_URL/v8_rhel.patch 
@@ -232,7 +230,7 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  build_rethinkdb.sh [-d debug]  [-y install-without-confirmation]  [-t build-with-tests]"
+	echo "bash build_rethinkdb.sh [-d debug]  [-y install-without-confirmation]  [-t build-with-tests]"
 	echo
 }
 
@@ -271,7 +269,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
     sudo apt-get update -y >/dev/null
@@ -279,7 +277,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
+"rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo  sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
@@ -287,7 +285,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
-"rhel-8.1" | "rhel-8.2")
+"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
