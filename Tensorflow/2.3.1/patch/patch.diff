@@ -1,0 +1,18 @@
+--- tmp/bazel/src/main/java/com/google/devtools/build/lib/syntax/BUILD     1980-01-01 00:00:00.000000000 +0000
++++ bazel/src/main/java/com/google/devtools/build/lib/syntax/BUILD   2020-10-08 14:05:53.390175672 +0000
+@@ -166,6 +167,7 @@
+         "//src/conditions:linux_x86_64": ["@bazel_tools//tools/jdk:jni_md_header-linux"],
+         "//src/conditions:linux_aarch64": ["@bazel_tools//tools/jdk:jni_md_header-linux"],
+         "//src/conditions:linux_ppc": ["@bazel_tools//tools/jdk:jni_md_header-linux"],
++        "//src/conditions:linux_s390x": ["@bazel_tools//tools/jdk:jni_md_header-linux"],
+         "//src/conditions:darwin": ["@bazel_tools//tools/jdk:jni_md_header-darwin"],
+         "//src/conditions:freebsd": ["@bazel_tools//tools/jdk:jni_md_header-freebsd"],
+         "//src/conditions:openbsd": ["@bazel_tools//tools/jdk:jni_md_header-openbsd"],
+@@ -176,6 +178,7 @@
+         "//src/conditions:linux_x86_64": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/linux"],
+         "//src/conditions:linux_aarch64": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/linux"],
+         "//src/conditions:linux_ppc": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/linux"],
++        "//src/conditions:linux_s390x": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/linux"],
+         "//src/conditions:darwin": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/darwin"],
+         "//src/conditions:freebsd": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/freebsd"],
+         "//src/conditions:openbsd": ["../../../../../../../../../external/bazel_tools/tools/jdk/include/openbsd"],
