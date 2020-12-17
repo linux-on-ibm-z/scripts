@@ -181,7 +181,7 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-16.04" | "ubuntu-18.04")
+"ubuntu-18.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update
@@ -189,14 +189,14 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1")
+"rhel-7.8" | "rhel-8.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo yum install -y wget tar git gcc cmake gcc-c++ make lua-devel.s390x kernel-devel-$(uname -r) hostname patch elfutils-libelf-devel.s390x elfutils-libelf-devel-static.s390x glibc-static libstdc++-static automake
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"sles-12.4" | "sles-12.5" | "sles-15.1")
+"sles-12.5" | "sles-15.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo zypper install -y which gawk wget tar git gcc cmake make gcc-c++ lua51 lua51-devel kernel-default-devel patch libelf-devel glibc-devel-static automake
