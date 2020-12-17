@@ -141,7 +141,6 @@ function configureAndInstall() {
         git checkout v$PACKAGE_VERSION
 
         # Download required files and apply patch
-	export PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/7.9.1/patch"
 	wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/archives/linux-s390x-tar
         wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/archives/oss-linux-s390x-tar
         wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/packages/s390x-deb
