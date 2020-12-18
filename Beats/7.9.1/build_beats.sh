@@ -65,11 +65,11 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
-
 }
+
 function configureAndInstallPython() {
         printf -- 'Configuration and Installation of Python started\n'
-
+        cd $CURDIR
         #Install Python 3.8.3
         rm -rf Python*
         wget https://www.python.org/ftp/python/3.8.3/Python-3.8.3.tgz
@@ -84,6 +84,7 @@ function configureAndInstallPython() {
         then
                 sudo /usr/sbin/update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 10
                 sudo /usr/sbin/update-alternatives --display python3
+                
         else
                 if [[ "${ID}" == "rhel" ]]
                 then
@@ -91,6 +92,7 @@ function configureAndInstallPython() {
                         "7.6" | "7.7" | "7.8")
                                 sudo /usr/sbin/update-alternatives --install /usr/bin/python python3 /usr/local/bin/python3.8 10
                                 sudo /usr/sbin/update-alternatives --display python3
+                       
                                 ;;
                         "8.1" | "8.2")
                                 sudo /usr/sbin/update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 10
@@ -101,12 +103,14 @@ function configureAndInstallPython() {
                 fi
         fi
         python3 -V
+        # install openssl
+        installOpenssl |& tee -a "${LOG_FILE}"
 
 }
 
 function configureAndInstall() {
         printf -- 'Configuration and Installation started \n'
-
+        cd $CURDIR
         # Install go
 
         printf -- "Installing Go... \n"
@@ -251,9 +255,27 @@ function configureAndInstall() {
 
 function fileChanges(){
         cd $GOPATH/src/github.com/elastic/beats
-
         printf -- 'change files with git apply <patch_diff>\n'
-        wget $PATCH_URL/beats.patch?token=AAB4OVOFKTOC4YQO5U2O64C7OHBS6 -O - | git apply
+        wget $PATCH_URL/beats.patch -O - | git apply
+
+}
+
+function installOpenssl(){
+      cd $CURDIR
+      wget https://www.openssl.org/source/openssl-1.1.1h.tar.gz
+      tar -xzvf openssl-1.1.1h.tar.gz
+      cd openssl-1.1.1h
+      ./config --prefix=/usr/local --openssldir=/usr/local
+      make
+      sudo make install
+      sudo ldconfig /usr/local/lib64
+      export PATH=/usr/local/bin:$PATH
+
+      export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
+      export LD_LIBRARY_PATH="/usr/local/lib/ /usr/local/lib64/"
+      export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
+      
+      sudo env PATH=$PATH python3 -m pip install cryptography
 
 }
 
@@ -399,8 +421,8 @@ case "$DISTRO" in
 "rhel-7.6" | "rhel-7.7" | "rhel-7.8")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y git curl make wget tar gcc libpcap libpcap-devel openssl openssl-devel which acl zlib-devel patch  systemd-devel libjpeg-devel|& tee -a "${LOG_FILE}"
-
+        sudo yum install -y git curl make wget tar gcc libpcap libpcap-devel which acl zlib-devel patch  systemd-devel libjpeg-devel|& tee -a "${LOG_FILE}"
+        
         #Installing Python 3.8.3
         sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libpcap libpcap-devel libffi-devel libuuid-devel make ncurses-devel openssl-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel
         configureAndInstallPython |& tee -a "${LOG_FILE}"
@@ -422,7 +444,8 @@ case "$DISTRO" in
 "sles-12.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y git curl gawk make wget tar gcc libpcap1 libpcap-devel git libopenssl-devel libffi48-devel libsystemd0 systemd-devel acl patch libjpeg62-devel  |& tee -a "${LOG_FILE}"
+        sudo zypper install -y git curl gawk make wget tar gcc libpcap1 libpcap-devel git libffi48-devel libsystemd0 systemd-devel acl patch libjpeg62-devel  |& tee -a "${LOG_FILE}"
+       
         #Installing Python 3.8.3
         sudo zypper install -y gawk gcc gcc-c++ gdbm-devel libbz2-devel libdb-4_8-devel libffi48-devel libopenssl-devel libuuid-devel make ncurses-devel readline-devel sqlite3-devel tar tk-devel wget xz-devel zlib-devel
         configureAndInstallPython |& tee -a "${LOG_FILE}"
