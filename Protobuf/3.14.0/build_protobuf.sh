@@ -72,7 +72,7 @@ function configureAndInstall() {
 
 	# Protobuf installation
 
-	if [[ "$ID-$VERSION_ID" == "rhel-8.1" || "$ID-$VERSION_ID" == "rhel-8.2"|| "$ID-$VERSION_ID" == "rhel-8.3" || "$ID-$VERSION_ID" == "sles-15.1" || "$ID-$VERSION_ID" == "ubuntu-20.04"|| "$ID-$VERSION_ID" == "ubuntu-20.10" || "$ID-$VERSION_ID" == "sles-15.2" ]]; then
+	if [[ "$ID-$VERSION_ID" == "rhel-8.1" || "$ID-$VERSION_ID" == "rhel-8.2"|| "$ID-$VERSION_ID" == "rhel-8.3" || "$ID-$VERSION_ID" == "ubuntu-20.04"|| "$ID-$VERSION_ID" == "ubuntu-20.10" || "$ID-$VERSION_ID" == "sles-15.2" ]]; then
         cd "$CURDIR"
         wget http://ftp.gnu.org/gnu/gcc/gcc-4.9.4/gcc-4.9.4.tar.gz
         tar xzf gcc-4.9.4.tar.gz
@@ -220,7 +220,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.5" | "sles-15.1" | "sles-15.2")
+"sles-12.5" | "sles-15.2")
 	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo zypper install -y autoconf automake bzip2 gawk gcc-c++ git gzip libtool make tar wget zlib-devel |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
