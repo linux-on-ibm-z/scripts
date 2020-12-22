@@ -1,0 +1,93 @@
+diff --git a/alternator/auth.cc b/alternator/auth.cc
+index 85b10554a..3a7fedc38 100644
+--- a/alternator/auth.cc
++++ b/alternator/auth.cc
+@@ -23,6 +23,7 @@
+ #include "log.hh"
+ #include <string>
+ #include <string_view>
++#include <gnutls/gnutls.h>
+ #include <gnutls/crypto.h>
+ #include <seastar/util/defer.hh>
+ #include "hashers.hh"
+diff --git a/bytes.hh b/bytes.hh
+index 9d1a0689b..4781e6237 100644
+--- a/bytes.hh
++++ b/bytes.hh
+@@ -86,7 +86,7 @@ struct appending_hash<bytes_view> {
+ inline int32_t compare_unsigned(bytes_view v1, bytes_view v2) {
+     auto n = memcmp(v1.begin(), v2.begin(), std::min(v1.size(), v2.size()));
+     if (n) {
+-        return n;
++        return n > 0 ? 1 : -1;
+     }
+     return (int32_t) (v1.size() - v2.size());
+ }
+diff --git a/vint-serialization.cc b/vint-serialization.cc
+index adf099a9b..df54e8d59 100644
+--- a/vint-serialization.cc
++++ b/vint-serialization.cc
+@@ -137,7 +137,6 @@ vint_size_type unsigned_vint::serialized_size(uint64_t value) noexcept {
+
+ uint64_t unsigned_vint::deserialize(bytes_view v) {
+     auto src = v.data();
+-    auto len = v.size();
+     const int8_t first_byte = *src;
+
+     // No additional bytes, since the most significant bit is not set.
+@@ -152,6 +151,7 @@ uint64_t unsigned_vint::deserialize(bytes_view v) {
+
+ #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+     uint64_t value;
++    auto len = v.size();
+     // If we can overread do that. It is cheaper to have a single 64-bit read and
+     // then mask out the unneeded part than to do 8x 1 byte reads.
+     if (__builtin_expect(len >= sizeof(uint64_t) + 1, true)) {
+diff --git a/configure.py b/configure.py
+index fc5360c9f..b79325a47 100755
+--- a/configure.py
++++ b/configure.py
+@@ -1059,6 +1059,8 @@ warnings = [
+     '-Wno-ignored-attributes',
+     '-Wno-overloaded-virtual',
+     '-Wno-stringop-overflow',
++    '-Wno-array-bounds',
++    '-Wno-unused-value',
+ ]
+
+ warnings = [w
+diff --git a/test/perf/perf_simple_query.cc b/test/perf/perf_simple_query.cc
+index ffda7b7..21652d9 100644
+--- a/test/perf/perf_simple_query.cc
++++ b/test/perf/perf_simple_query.cc
+@@ -19,6 +19,7 @@
+  * along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+  */
+
++#include <fstream>
+ #include <boost/algorithm/string/split.hpp>
+ #include <json/json.h>
+
+diff --git a/test/perf/perf_fast_forward.cc b/test/perf/perf_fast_forward.cc
+index 3c57e5d..39b80f2 100644
+--- a/test/perf/perf_fast_forward.cc
++++ b/test/perf/perf_fast_forward.cc
+@@ -19,6 +19,7 @@
+  * along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+  */
+
++#include <fstream>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/date_time/posix_time/posix_time.hpp>
+ #include <boost/range/irange.hpp>
+ diff --git a/test/tools/cql_repl.cc b/test/tools/cql_repl.cc
+index 3382194..e52f2dc 100644
+--- a/test/tools/cql_repl.cc
++++ b/test/tools/cql_repl.cc
+@@ -18,6 +18,7 @@
+  * You should have received a copy of the GNU General Public License
+  * along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+  */
++#include <fstream>
+ #include <filesystem>
+ #include <regex>
