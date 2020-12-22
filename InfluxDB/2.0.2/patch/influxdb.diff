@@ -1,0 +1,18 @@
+diff --git a/go.mod b/go.mod
+index 4770603b0b..ffda0df01c 100644
+--- a/go.mod
++++ b/go.mod
+@@ -127,3 +127,5 @@ require (
+ replace github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db => github.com/influxdata/arrow/go/arrow v0.0.0-20200917142114-986e413c1705
+
+ replace github.com/nats-io/nats-streaming-server v0.11.2 => github.com/influxdata/nats-streaming-server v0.11.3-0.20201112040610-c277f7560803
++
++replace github.com/apache/arrow/go/arrow v0.0.0-20200923215132-ac86123a3f01 => ../arrow/go/arrow
+diff --git a/query/influxql/testdata/series_agg_7.out.json b/query/influxql/testdata/series_agg_7.out.json
+index 4cf8d3b61b..9ac9bf0862 100644
+--- a/query/influxql/testdata/series_agg_7.out.json
++++ b/query/influxql/testdata/series_agg_7.out.json
+@@ -1 +1 @@
+-{"results":[{"statement_id":0,"series":[{"name":"m","columns":["time","sum"],"values":[["1970-01-01T00:00:00Z",161.9342226725855]]}]}]}
+\ No newline at end of file
++{"results":[{"statement_id":0,"series":[{"name":"m","columns":["time","sum"],"values":[["1970-01-01T00:00:00Z",161.93422267258558]]}]}]}
