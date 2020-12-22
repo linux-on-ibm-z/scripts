@@ -1,0 +1,70 @@
+diff --git a/src/core/thread.cc b/src/core/thread.cc
+index f13dfce..2a2471e 100644
+--- a/src/core/thread.cc
++++ b/src/core/thread.cc
+@@ -276,7 +276,7 @@ thread_context::main() {
+ #elif defined(__aarch64__)
+     asm(".cfi_undefined x30");
+ #else
+-    #warning "Backtracing from seastar threads may be broken"
++    asm(".cfi_undefined r14");
+ #endif
+     _context.initial_switch_in_completed();
+     if (group() != current_scheduling_group()) {
+diff --git a/src/net/dns.cc b/src/net/dns.cc
+index fa1ea87..f4fe7f3 100644
+--- a/src/net/dns.cc
++++ b/src/net/dns.cc
+@@ -20,6 +20,7 @@
+  */
+
+ #include <arpa/nameser.h>
++#include <sys/socket.h>
+ #include <chrono>
+
+ #include <ares.h>
+diff --git a/src/net/inet_address.cc b/src/net/inet_address.cc
+index f6db7ec..7270c17 100644
+--- a/src/net/inet_address.cc
++++ b/src/net/inet_address.cc
+@@ -143,7 +143,7 @@ seastar::net::inet_address::operator ::in_addr() const {
+ seastar::net::inet_address::operator ::in6_addr() const {
+     if (_in_family == family::INET) {
+         in6_addr in6 = IN6ADDR_ANY_INIT;
+-        in6.s6_addr32[2] = ::htonl(0xffff);
++        in6.s6_addr32[2] = htonl(0xffff);
+         in6.s6_addr32[3] = _in.s_addr;
+         return in6;
+     }
+diff --git a/src/net/posix-stack.cc b/src/net/posix-stack.cc
+index c51c945..a64b48e 100644
+--- a/src/net/posix-stack.cc
++++ b/src/net/posix-stack.cc
+@@ -21,6 +21,7 @@
+
+ #include <random>
+
++#include <sys/socket.h>
+ #include <linux/if.h>
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
+diff --git a/src/net/tls.cc b/src/net/tls.cc
+index 15952a8a..ccad6dd1 100644
+--- a/src/net/tls.cc
++++ b/src/net/tls.cc
+@@ -200,12 +200,14 @@ class tls::dh_params::impl : gnutlsobj {
+     operator gnutls_dh_params_t() const {
+         return _params.get();
+     }
++#if GNUTLS_VERSION_NUMBER >= 0x030506
+     std::optional<gnutls_sec_param_t> sec_param() const {
+         return _sec_param;
+     }
++#endif
+ private:
+     dh_ptr _params;
+-#if GNUTLS_VERSION_NUMBER >= 0x030600
++#if GNUTLS_VERSION_NUMBER >= 0x030506
+     std::optional<gnutls_sec_param_t> _sec_param;
+ #endif
+ };
