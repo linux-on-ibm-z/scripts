@@ -52,13 +52,15 @@ function prepare() {
 function cleanup() {
 	printf -- 'Started cleanup\n'
 	rm -rf "${CURDIR}/rabbitmq-server-$PACKAGE_VERSION.tar.xz"
-	rm -rf "${CURDIR}/otp_src_23.0.tar.gz"
+	if [[ "$DISTRO" != "ubuntu-20.10" ]]; then
+           rm -rf "${CURDIR}/otp_src_23.0.tar.gz"
+	fi	
 	printf -- 'Cleaned up successfull\n'
 }
 # Only on RHEL7.x
 function installPython() {
   cd "${CURDIR}"
-  wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.8.5/build_python3.sh
+  wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.0/build_python3.sh
   bash build_python3.sh  -y
 }
 function configureAndInstall() {
@@ -81,12 +83,17 @@ function configureAndInstall() {
 	cd "${CURDIR}"
 	# Install Erlang
 	printf -- "\nBuilding Erlang \n"
-	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/23.0/build_erlang.sh
-	chmod +x build_erlang.sh
-	bash build_erlang.sh -y
+    	if [[ "$DISTRO" == "ubuntu-20.10" ]]; then
+           sudo apt-get install -y erlang
+	else
+	   wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/23.0/build_erlang.sh
+	   chmod +x build_erlang.sh
+	   bash build_erlang.sh -y
+	   export ERL_TOP=/usr/local/erlang
+	   export PATH=$PATH:$ERL_TOP/bin 
+	fi
+	
 	printf -- 'Installed erlang successfully \n'
-	export ERL_TOP=/usr/local/erlang
-	export PATH=$PATH:$ERL_TOP/bin 
 	sudo localedef -c -f UTF-8 -i en_US en_US.UTF-8
 	export LC_ALL=en_US.UTF-8
 	cd "${CURDIR}"
@@ -185,7 +192,7 @@ case "$DISTRO" in
 	sudo ln -sf /usr/bin/python3 /usr/bin/python
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"ubuntu-20.04")
+"ubuntu-20.04" | "ubuntu-20.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
@@ -193,14 +200,14 @@ case "$DISTRO" in
 	sudo ln -sf /usr/bin/python3 /usr/bin/python
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-7.8" )
+"rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant ant-junit xz xz-devel git wget tar make curl java-1.8.0-ibm java-1.8.0-ibm-devel wget tar make perl gcc gcc-c++ openssl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel fop hostname |& tee -a "${LOG_FILE}"
 	installPython
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-8.1" | "rhel-8.2")
+"rhel-8.1" | "rhel-8.2" |"rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y sed  make glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates ant xz xz-devel git wget tar make curl java-1.8.0-openjdk java-1.8.0-openjdk-devel perl gcc openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel glibc-locale-source glibc-langpack-en python3 rsync hostname diffutils |& tee -a "${LOG_FILE}"
