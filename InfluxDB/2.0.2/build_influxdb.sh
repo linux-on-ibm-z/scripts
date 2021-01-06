@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -103,6 +103,7 @@ function configureAndInstall() {
 	    VERSION=v14.8.0
 	    DISTRO=linux-s390x
 	    sudo mkdir -p /usr/local/lib/nodejs
+	    sudo tar -xJf node-$VERSION-$DISTRO.tar.xz -C /usr/local/lib/nodejs
 	    export PATH=/usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin:$PATH
     fi
 
