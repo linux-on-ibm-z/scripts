@@ -20,7 +20,7 @@ FORCE="false"
 FORCE_LUAJIT="false"
 TESTS="false"
 LOG_FILE="$SOURCE_ROOT/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-KERNEL_VERSION=$(uname -r | sed 's/-default//g')
+SLES_KERNEL_VERSION=$(uname -r | sed 's/-default//g')
 
 trap cleanup 0 1 2 ERR
 
@@ -62,8 +62,7 @@ function cleanup() {
         rm -rf "${SOURCE_ROOT}/cmake-3.7.2.tar.gz"
     fi
     if [[ "${DISTRO}" == "sles-12.5" ]]; then
-        sudo mv "/usr/src/linux-$KERNEL_VERSION/Makefile.back" "/usr/src/linux-$KERNEL_VERSION/Makefile"
-        sudo rm "/usr/src/linux-$KERNEL_VERSION/Makefile.back"
+        sudo mv "/usr/src/linux-$SLES_KERNEL_VERSION/Makefile.back" "/usr/src/linux-$SLES_KERNEL_VERSION/Makefile"
     fi
 
     printf -- '\nCleaned up the artifacts\n'
@@ -109,8 +108,8 @@ function configureAndInstall() {
     mkdir -p $SOURCE_ROOT/falco/build
     cd $SOURCE_ROOT/falco/build
     if [[ "${DISTRO}" == "sles-12.5" ]]; then
-        sudo cp "/usr/src/linux-$KERNEL_VERSION/Makefile" "/usr/src/linux-$KERNEL_VERSION/Makefile.back"
-        sudo sed -i 's/-fdump-ipa-clones//g' /usr/src/linux-"$KERNEL_VERSION"/Makefile
+        sudo cp "/usr/src/linux-$SLES_KERNEL_VERSION/Makefile" "/usr/src/linux-$SLES_KERNEL_VERSION/Makefile.back"
+        sudo sed -i 's/-fdump-ipa-clones//g' /usr/src/linux-"$SLES_KERNEL_VERSION"/Makefile
     fi
 
     CMAKE_FLAGS="-DFALCO_ETC_DIR=/etc/falco -DUSE_BUNDLED_OPENSSL=On -DUSE_BUNDLED_DEPS=On -DCMAKE_BUILD_TYPE=Release"
@@ -241,7 +240,7 @@ case "$DISTRO" in
 
     sudo zypper install -y gcc gcc-c++ git-core cmake ncurses-devel libopenssl-devel \
         libcurl-devel protobuf-devel patch which automake autoconf libtool libelf-devel \
-        kernel-default-devel
+        "kernel-default-devel=${SLES_KERNEL_VERSION}"
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
@@ -252,7 +251,7 @@ case "$DISTRO" in
 
     sudo zypper install -y gcc gcc-c++ git-core cmake libjq-devel ncurses-devel yaml-cpp-devel libopenssl-devel \
         libcurl-devel c-ares-devel protobuf-devel patch which automake autoconf libtool libelf-devel \
-        kernel-default-devel
+        "kernel-default-devel=${SLES_KERNEL_VERSION}"
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
