@@ -2,7 +2,7 @@
 # © Copyright IBM Corporation 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/V8JavaScript/8.6/build_v8.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/V8JavaScript/8.7/build_v8.sh
 # Execute build script: bash build_v8.sh    (provide -h for help)
 
 
