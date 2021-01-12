@@ -1,0 +1,26 @@
+diff --git a/boringssl-static/pom.xml b/boringssl-static/pom.xml
+index 0a06c5f..1cce1e1 100644
+--- a/boringssl-static/pom.xml
++++ b/boringssl-static/pom.xml
+@@ -79,7 +79,7 @@
+                 <configuration>
+                   <checkoutDirectory>${boringsslCheckoutDir}</checkoutDirectory>
+                   <connectionType>developerConnection</connectionType>
+-                  <developerConnectionUrl>scm:git:https://boringssl.googlesource.com/boringssl</developerConnectionUrl>
++                  <developerConnectionUrl>scm:git:https://github.com/linux-on-ibm-z/boringssl</developerConnectionUrl>
+                   <scmVersion>${boringsslBranch}</scmVersion>
+                   <scmVersionType>branch</scmVersionType>
+                   <skipCheckoutIfExists>true</skipCheckoutIfExists>
+diff --git a/pom.xml b/pom.xml
+index 33ed681..2c8186d 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -55,7 +55,7 @@
+     <nativeJarWorkdir>${project.build.directory}/native-jar-work</nativeJarWorkdir>
+     <aprVersion>1.6.5</aprVersion>
+     <aprSha256>70dcf9102066a2ff2ffc47e93c289c8e54c95d8dda23b503f9e61bb0cbd2d105</aprSha256>
+-    <boringsslBranch>chromium-stable</boringsslBranch>
++    <boringsslBranch>patch-s390x-Aug2019</boringsslBranch>
+     <libresslVersion>2.8.3</libresslVersion>
+     <!--
+       See https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/SHA256 for the SHA256 signature
