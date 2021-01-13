@@ -1,0 +1,48 @@
+diff --git a/ma_connection.c b/ma_connection.c
+index 9b7fa93..6671e88 100644
+--- a/ma_connection.c
++++ b/ma_connection.c
+@@ -586,7 +586,7 @@ SQLRETURN MADB_DbcConnectDB(MADB_Dbc *Connection,
+     MADB_Dsn *Dsn)
+ {
+   char StmtStr[128];
+-  unsigned ReportDataTruncation= 1;
++  my_bool ReportDataTruncation= 1;
+   unsigned int i;
+   unsigned long client_flags= 0L;
+   my_bool my_reconnect= 1;
+diff --git a/test/basic.c b/test/basic.c
+index 9522b51..2fcb0aa 100644
+--- a/test/basic.c
++++ b/test/basic.c
+@@ -71,7 +71,7 @@ ODBC_TEST(simple_test)
+ {
+   SQLRETURN rc= SQL_SUCCESS;
+ 
+-  SQLINTEGER value=3;
++  SQLSMALLINT value=3;
+   SQLWCHAR Buffer[20];
+ 
+   char buffer[128];
+diff --git a/test/param.c b/test/param.c
+index 53b4a04..3018956 100644
+--- a/test/param.c
++++ b/test/param.c
+@@ -1491,6 +1491,7 @@ ODBC_TEST(odbc45)
+ {
+   SQLSMALLINT i;
+   SQLLEN      len= 0;
++SQLCHAR     value;
+   SQLCHAR     val[][4]=        {"0",            "1"};//, "4", "-1", "0.5", "z"},
+   SQLWCHAR    valw[][4]=       { { '0', '\0' }, { '1', '\0' }, { '4', '\0' }, { '-', '1', '\0' }, { '0', '.', '5', '\0' }, { 'z', '\0' } };
+   SQLRETURN   XpctdRc[]=       {SQL_SUCCESS,    SQL_SUCCESS, SQL_ERROR, SQL_ERROR, SQL_ERROR, SQL_ERROR};
+@@ -1528,7 +1529,8 @@ ODBC_TEST(odbc45)
+   for (i= 0; i<sizeof(XpctdValue); ++i)
+   {
+     CHECK_STMT_RC(Stmt, SQLFetch(Stmt));
+-    is_num(my_fetch_int(Stmt, 1), XpctdValue[i]);
++SQLGetData(Stmt, 1, SQL_C_BIT, &value, sizeof(value), 0);
++is_num(value, XpctdValue[i]);
+   }
+ 
+   CHECK_STMT_RC(Stmt, SQLFreeStmt(Stmt, SQL_CLOSE));
