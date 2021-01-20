@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2020.
+# ©  Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -538,8 +538,10 @@ fi
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   buildCmake |& tee -a "$LOG_FILE"
 
-  export PATH=${PREFIX}/bin${PATH:+:${PATH}}
-
+  PATH=${PREFIX}/bin${PATH:+:${PATH}}
+  PATH+=:${PREFIX}/sbin${PATH:+:${PATH}}
+  export PATH
+  
   PKG_CONFIG_PATH=${PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
   PKG_CONFIG_PATH+=:${PREFIX}/lib64/pkgconfig
   export PKG_CONFIG_PATH
