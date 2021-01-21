@@ -70,7 +70,7 @@ function buildNetty() {
 	# Install netty-tcnative 2.0.24
 	printf -- '\nBuild netty-tcnative 2.0.24 from source...... \n'
 	sudo apt-get update
-	sudo apt-get install -y ninja-build cmake perl golang libssl-dev libapr1-dev autoconf automake libtool make tar git maven patch
+	sudo apt-get install -y ninja-build cmake perl golang libssl-dev autoconf automake libtool make tar maven default-jdk
 
 	cd $SOURCE_ROOT
 	git clone https://github.com/netty/netty-tcnative.git
@@ -94,6 +94,10 @@ function configureAndInstall() {
 
 	printf -- 'Create symlink for python 3 only environment\n'
 	sudo ln -sf /usr/bin/python3 /usr/bin/python || true
+
+	printf -- 'Set JAVA_HOME\n'
+	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
+	export PATH=$JAVA_HOME/bin:$PATH
 
 	# Download Bazel 3.7.2 distribution archive
 	printf -- '\nDownload Bazel 3.7.2 distribution archive..... \n'
@@ -208,7 +212,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
-	sudo apt-get install wget curl openjdk-11-jdk unzip patch build-essential zip python3 git libapr1 -y|& tee -a "${LOG_FILE}"
+	sudo apt-get install wget curl openjdk-11-jdk unzip patch build-essential zip python3 git libapr1-dev -y|& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
