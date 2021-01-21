@@ -1,0 +1,33 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 54d52e25..096d5165 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -9,10 +9,24 @@ workspace(name = "tf_serving")
+ #    reliable downloads.
+ load("//tensorflow_serving:repo.bzl", "tensorflow_http_archive")
+
+-tensorflow_http_archive(
+-    name = "org_tensorflow",
+-    sha256 = "9c94bfec7214853750c7cacebd079348046f246ec0174d01cd36eda375117628",
+-    git_commit = "582c8d236cb079023657287c318ff26adb239002",
++#tensorflow_http_archive(
++#    name = "org_tensorflow",
++#    sha256 = "9c94bfec7214853750c7cacebd079348046f246ec0174d01cd36eda375117628",
++#    git_commit = "582c8d236cb079023657287c318ff26adb239002",
++#)
++local_repository(
++     name = "boringssl",
++     path = "/source_root/boringssl",
++ )
++
++bind(
++     name = "ssl",
++     actual = "@boringssl//:ssl",
++)
++
++local_repository(
++     name = "org_tensorflow",
++     path = "/source_root/tensorflow",
+ )
+
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
