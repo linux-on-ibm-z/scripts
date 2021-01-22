@@ -1,0 +1,17 @@
+diff -Naur old/java_tools/src/tools/singlejar/zip_headers.h new/java_tools/src/tools/singlejar/zip_headers.h
+--- old/java_tools/src/tools/singlejar/zip_headers.h	2020-04-09 07:44:20.569073239 -0700
++++ new/java_tools/src/tools/singlejar/zip_headers.h	2020-04-09 07:46:27.399313372 -0700
+@@ -265,7 +265,7 @@
+   void file_name(const char *filename, uint16_t len) {
+     file_name_length_ = htole16(len);
+     if (len) {
+-      memcpy(file_name_, filename, file_name_length_);
++      memcpy(file_name_, filename, len);
+     }
+   }
+   bool file_name_is(const char *name) const {
+diff -Naur old/WORKSPACE new/WORKSPACE
+--- old/WORKSPACE	1969-12-31 16:00:00.000000000 -0800
++++ new/WORKSPACE	2020-04-09 07:45:28.349203350 -0700
+@@ -0,0 +1 @@
++workspace(name = remote_java_tools_linux)
