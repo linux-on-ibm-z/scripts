@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -349,7 +349,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc git python3-setuptools curl sqlite-devel openldap-devel python3-devel libxslt-devel \
+    sudo yum install -y gcc gcc-c++ git python3-setuptools curl sqlite-devel openldap-devel python3-devel libxslt-devel \
       net-tools libffi-devel which httpd httpd-devel mariadb-server postgresql-devel mariadb-devel bzip2-devel \
       patch python3-pip make redhat-rpm-config wget
 
@@ -373,7 +373,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc git python3-setuptools python3-lxml curl python3-ldap sqlite-devel openldap-devel \
+    sudo yum install -y gcc gcc-c++ git python3-setuptools python3-lxml curl python3-ldap sqlite-devel openldap-devel \
       python3-devel libxslt-devel openssl-devel net-tools libffi-devel which openssl httpd httpd-devel mariadb-server \
       postgresql-devel mariadb-devel bzip2-devel patch python3-pip make redhat-rpm-config
 
@@ -431,7 +431,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo zypper install -y wget tar gzip gcc git-core curl openldap2-devel libffi-devel python3-devel libxslt-devel which apache2 \
+    sudo zypper install -y wget tar gzip gcc gcc-c++ git-core curl openldap2-devel libffi-devel python3-devel libxslt-devel which apache2 \
       apache2-devel mariadb postgresql-devel make cyrus-sasl-devel python3-setuptools python3-lxml openssl \
       openssl-devel net-tools libpcre1 libmariadb-devel gawk patch python3-pip postgresql12-server-devel
 
