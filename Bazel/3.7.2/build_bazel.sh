@@ -13,7 +13,7 @@ PACKAGE_VERSION="3.7.2"
 CURDIR="$(pwd)"
 SOURCE_ROOT="$(pwd)"
 USER="$(whoami)"
-PATCH="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/3.7.2/patch/"
+PATCH="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/3.7.2/patch"
 
 FORCE="false"
 TESTS="false"
