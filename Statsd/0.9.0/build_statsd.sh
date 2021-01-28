@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -71,8 +71,8 @@ function cleanup() {
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 
-	#Install GCC (For RHEL 7.6, 7.7 and 7.8)
-	if [[ "$ID" == "rhel" && "$VERSION_ID" != "8.1" && "$VERSION_ID" != "8.2" ]] ;then
+	#Install GCC (For RHEL 7.8 and 7.9)
+	if [[ "$ID" == "rhel" && "$VERSION_ID" != "8.1" && "$VERSION_ID" != "8.2" && "$VERSION_ID" != "8.3" ]] ;then
 		printf -- 'Installing gcc for RHEL \n'
 		sudo yum install -y wget tar make flex gcc gcc-c++ binutils-devel bzip2
 		cd $SOURCE_ROOT
@@ -104,7 +104,7 @@ function configureAndInstall() {
 	
 	#Install required npm dependencies
 	printf -- 'Install required npm dependencies \n'
-	if [[ "$DISTRO" == "rhel-8.1" || "$DISTRO" == "rhel-8.2" ]] ;then
+	if [[ "$DISTRO" == "rhel-8.1" || "$DISTRO" == "rhel-8.2" || "$DISTRO" == "rhel-8.3" ]] ;then
 		printf -- 'For RHEL 8.x \n'
 		sudo alternatives --set python /usr/bin/python2 
 	fi
@@ -124,7 +124,7 @@ function runTest() {
 	if [[ "$TESTS" == "true" ]]; then
 		printf -- "TEST Flag is set , Continue with running test \n" 
 				
-		if [[ "$ID" == "rhel" && "$VERSION_ID" != "8.1" && "$VERSION_ID" != "8.2" ]]; then
+		if [[ "$ID" == "rhel" && "$VERSION_ID" != "8.1" && "$VERSION_ID" != "8.2" && "$VERSION_ID" != "8.3" ]]; then
 			echo "Inside RHEL7.x"
 	    		export PATH=/opt/gcc-5.4.0/bin:$PATH
     			export LD_LIBRARY_PATH=/opt/gcc-5.4.0/lib64/
@@ -202,7 +202,7 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update -y
@@ -210,13 +210,13 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8" )
+"rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git wget tar unzip hostname make gcc-c++ |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-8.1" | "rhel-8.2" )
+"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git wget tar unzip hostname make gcc-c++ xz gzip python2 nmap procps  |& tee -a "${LOG_FILE}"
