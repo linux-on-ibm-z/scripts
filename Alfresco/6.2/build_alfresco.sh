@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -53,9 +53,9 @@ function prepare() {
 
 function cleanup() {
     # Remove artifacts
-    rm -rf "$SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz"
+    rm -rf "$SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz"
     rm -rf "$SOURCE_ROOT/jffi"
-    rm -rf "$SOURCE_ROOT/jdk-11.0.7+10"
+    rm -rf "$SOURCE_ROOT/jdk-11.0.9+11"
     rm -rf "$SOURCE_ROOT/alfresco-docker-base-java"
     rm -rf "$SOURCE_ROOT/alfresco-docker-base-tomcat"
     rm -rf "$SOURCE_ROOT/apache-maven-3.6.3-bin.tar.gz"
@@ -67,18 +67,18 @@ function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
     printf -- "Download and install Java \n"
     cd $SOURCE_ROOT
-    wget https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.7%2B10/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz
-    tar -xf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz
+    wget https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.9%2B11_openj9-0.23.0/OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz
+    tar -xf OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz
     sudo mkdir -p /usr/lib/jvm
-    sudo cp -r jdk-11.0.7+10 /usr/lib/jvm/
+    sudo cp -r jdk-11.0.9+11 /usr/lib/jvm/
     #Only for RHEL and SLES
     if [[ "${ID}" != "ubuntu" ]]; then
         export PATH=/usr/sbin:$PATH  #Only for RHEL and SLES
     fi
-    sudo update-alternatives --install "/usr/bin/java" "java" "/usr/lib/jvm/jdk-11.0.7+10/bin/java" 0
-    sudo update-alternatives --install "/usr/bin/javac" "javac" "/usr/lib/jvm/jdk-11.0.7+10/bin/javac" 0
-    sudo update-alternatives --set java "/usr/lib/jvm/jdk-11.0.7+10/bin/java"
-    sudo update-alternatives --set javac "/usr/lib/jvm/jdk-11.0.7+10/bin/javac"
+    sudo update-alternatives --install "/usr/bin/java" "java" "/usr/lib/jvm/jdk-11.0.9+11/bin/java" 0
+    sudo update-alternatives --install "/usr/bin/javac" "javac" "/usr/lib/jvm/jdk-11.0.9+11/bin/javac" 0
+    sudo update-alternatives --set java "/usr/lib/jvm/jdk-11.0.9+11/bin/java"
+    sudo update-alternatives --set javac "/usr/lib/jvm/jdk-11.0.9+11/bin/javac"
     export JAVA_HOME="$(readlink -f /etc/alternatives/javac | sed 's:/bin/javac::')"
     printf -- "Java is installed successfully \n"
     
@@ -99,8 +99,8 @@ function configureAndInstall() {
     git clone https://github.com/Alfresco/alfresco-docker-base-java
     cd alfresco-docker-base-java
     sed -i "s/centos/s390x\/clefos/g" Dockerfile
-    cp $SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz .
-    export java_filename='OpenJDK11U-jdk_s390x_linux_hotspot_11.0.7_10.tar.gz'
+    cp $SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz .
+    export java_filename='OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz'
     docker build --build-arg JAVA_PKG="${java_filename}" -t alfresco/alfresco-base-java .
     printf -- "alfresco-base-java image is built successfully\n"
     #Build alfresco-base-tomcat image
@@ -146,8 +146,8 @@ function configureAndInstall() {
     cp target/jffi-1.2.11-native.jar ~/.m2/repository/com/github/jnr/jffi/1.2.11
 
     #Revert to Adoptopenjdk 11
-    sudo update-alternatives --set java "/usr/lib/jvm/jdk-11.0.7+10/bin/java"
-    sudo update-alternatives --set javac "/usr/lib/jvm/jdk-11.0.7+10/bin/javac"
+    sudo update-alternatives --set java "/usr/lib/jvm/jdk-11.0.9+11/bin/java"
+    sudo update-alternatives --set javac "/usr/lib/jvm/jdk-11.0.9+11/bin/javac"
     export JAVA_HOME="$(readlink -f /etc/alternatives/javac | sed 's:/bin/javac::')"
 
     #Fix libc library for SLES 12.x
@@ -218,7 +218,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo " build_alfresco.sh  [-d debug] [-y install-without-confirmation] "
+    echo "  bash build_alfresco.sh  [-d debug] [-y install-without-confirmation] "
     echo
 }
 
@@ -259,7 +259,7 @@ case "$DISTRO" in
     sudo apt-get install -y ant git gcc make sudo wget curl maven openjdk-8-jdk unzip |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
+"rhel-7.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y ant git gcc make sudo wget curl java-1.8.0-openjdk.s390x java-1.8.0-openjdk-devel.s390x unzip |& tee -a "$LOG_FILE"
@@ -271,7 +271,7 @@ case "$DISTRO" in
     sudo yum install -y ant texinfo git gcc make sudo wget curl maven java-1.8.0-openjdk.s390x java-1.8.0-openjdk-devel.s390x unzip |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;  
-"sles-12.5" | "sles-15.1" | "sles-15.2")
+"sles-12.5" | "sles-15.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y awk texinfo ant git gcc make sudo wget curl java-1_8_0-openjdk-devel unzip |& tee -a "$LOG_FILE"
