@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -105,6 +105,38 @@ function configureAndInstall() {
     runTest
 }
 
+function build_gcc() {
+    cd $SOURCE_ROOT
+    wget http://ftp.gnu.org/gnu/gcc/gcc-5.5.0/gcc-5.5.0.tar.gz
+    tar -xzf gcc-5.5.0.tar.gz && cd gcc-5.5.0
+    ./contrib/download_prerequisites
+    mkdir build && cd build/
+    ../configure --disable-multilib --disable-checking --enable-languages=c,c++ --enable-multiarch --enable-shared --enable-threads=posix --without-included-gettext --with-system-zlib --prefix=/usr/local
+    make && sudo make install
+
+    if [[ $ID == "rhel-7.8" ]]; then
+        sudo mv /usr/bin/gcc /usr/bin/gcc-4.8.5
+        sudo mv /usr/bin/g++ /usr/bin/g++-4.8.5
+        sudo mv /usr/bin/c++ /usr/bin/c++-4.8.5
+        sudo rm /usr/bin/cc
+        fi
+
+    sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 40
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/local/bin/gcc 40
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/local/bin/g++ 40
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/local/bin/c++ 40
+    export CC=/usr/local/bin/s390x-ibm-linux-gnu-gcc
+    export CXX=/usr/local/bin/s390x-ibm-linux-gnu-g++
+    sudo /sbin/ldconfig
+    gcc --version
+
+    sudo cp /usr/local/lib64/libstdc* /usr/lib64/
+    export PATH=/usr/local/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+
+    printf -- "GCC build completed.\n"
+}
+
 function logDetails() {
     printf -- 'SYSTEM DETAILS\n' >"$LOG_FILE"
     if [ -f "/etc/os-release" ]; then
@@ -189,14 +221,42 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-7.8" | "rhel-8.1")
+"rhel-7.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo yum install -y wget tar git gcc cmake gcc-c++ make lua-devel.s390x kernel-devel-$(uname -r) hostname patch elfutils-libelf-devel.s390x elfutils-libelf-devel-static.s390x glibc-static libstdc++-static automake
+    sudo yum install -y wget tar gcc git cmake gcc-c++ make lua-devel.s390x bzip2 bzip2-devel kernel-devel-$(uname -r) hostname patch elfutils-libelf-devel.s390x elfutils-libelf-devel-static.s390x glibc-static libstdc++-static automake
+    
+    #Build gcc v5.5.0
+    build_gcc |& tee -a "$LOG_FILE"
+    
+    configureAndInstall | tee -a "$LOG_FILE"
+    ;;
+    
+"rhel-8.1")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+    sudo yum install -y wget tar git gcc cmake gcc-c++ make lua-devel.s390x bzip2 bzip2-devel kernel-devel-$(uname -r) hostname patch elfutils-libelf-devel.s390x elfutils-libelf-devel-static.s390x glibc-static libstdc++-static automake
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"sles-12.5" | "sles-15.1")
+"sles-12.5" )
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+    sudo zypper install -y which gawk wget tar git gcc cmake gcc-c++ make bzip2 libz1 zlib-devel lua51 lua51-devel kernel-default-devel patch libelf-devel glibc-devel-static automake
+    
+    #Build gcc v5.5.0
+    build_gcc |& tee -a "$LOG_FILE"
+    
+    installed_kernel=$(uname -r | cut -d '-' -f1,2 )
+    kernel=$(sudo zypper se -s kernel-default-devel | grep $installed_kernel )
+    if [[ ! $kernel ]]; then
+        trim=$(sudo zypper info kernel-default-devel | grep Version | cut -d ':' -f 2-)
+        sudo zypper install -y --oldpackage kernel-default-devel=$trim
+    fi
+    configureAndInstall | tee -a "$LOG_FILE"
+    ;;
+    
+ "sles-15.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo zypper install -y which gawk wget tar git gcc cmake make gcc-c++ lua51 lua51-devel kernel-default-devel patch libelf-devel glibc-devel-static automake
