@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -11,6 +11,7 @@ PACKAGE_NAME="rabbitmq"
 PACKAGE_VERSION="3.8.9"
 HEX_VERSION="0.20.5"
 ELIXIR_VERSION="1.10.4"
+ERLANG_VERSION="23.2"
 LOG_FILE="logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 OVERRIDE=false
 FORCE="false"
@@ -86,7 +87,7 @@ function configureAndInstall() {
     	if [[ "$DISTRO" == "ubuntu-20.10" ]]; then
            sudo apt-get install -y erlang
 	else
-	   wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/23.0/build_erlang.sh
+	   wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/${ERLANG_VERSION}/build_erlang.sh
 	   chmod +x build_erlang.sh
 	   bash build_erlang.sh -y
 	   export ERL_TOP=/usr/local/erlang
@@ -146,7 +147,7 @@ function logDetails() {
 function printHelp() {
 	echo
 	echo "Usage: "
-	echo "  build_rabbitmq.sh [-d debug] [-y install-without-confirmation] [-v package version] [-o override]"
+	echo "bash build_rabbitmq.sh [-d debug] [-y install-without-confirmation] [-v package version] [-o override]"
 	echo "       default: If no -v specified, latest version will be installed"
 	echo
 }
@@ -214,7 +215,7 @@ case "$DISTRO" in
 	sudo alternatives --set python /usr/bin/python3
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"sles-12.5" | "sles-15.1" | "sles-15.2" )
+"sles-12.5" | "sles-15.2" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y make tar wget gcc gcc-c++ glibc-locale glibc-i18ndata sed curl zip unzip libxslt xmlto patch subversion procps ant ant-junit git-core python3-devel python3-xml java-1_8_0-openjdk  java-1_8_0-openjdk-devel wget tar make perl gcc gcc-c++ libopenssl-devel libssh-devel ncurses-devel unixODBC unixODBC-devel xz gzip gawk net-tools |& tee -a "${LOG_FILE}"
