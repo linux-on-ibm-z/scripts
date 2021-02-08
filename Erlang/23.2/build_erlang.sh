@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="erlang"
 PACKAGE_VERSION="23.2"
 CURDIR="$(pwd)"
-BUILD_DIR="/usr/local"
+
 
 TESTS="false"
 FORCE="false"
@@ -118,14 +118,12 @@ function configureAndInstall() {
     tar zxf otp_src_${PACKAGE_VERSION}.tar.gz
     mv otp_src_${PACKAGE_VERSION} erlang
     sudo chmod -Rf 755 erlang
-    sudo cp -Rf erlang "$BUILD_DIR"/erlang
+ 
     printf -- "Download erlang success\n"
 
-    # Give permission to user
-    sudo chown -R "$USER" "$BUILD_DIR/erlang"
 
     # Build and install erlang
-    cd "$BUILD_DIR"/erlang
+    cd "$CURDIR"/erlang
     export ERL_TOP=$(pwd)
 
     ./configure --prefix=/usr
@@ -158,7 +156,7 @@ function runTest() {
         printf -- 'Environment PATH : $PATH'
 
         printf -- 'Running tests \n\n' |& tee -a "$LOG_FILE"
-        cd "$BUILD_DIR"/erlang
+        cd "$CURDIR"/erlang
         make release_tests
         cd release/tests/test_server
         $ERL_TOP/bin/erl -s ts install -s ts smoke_test batch -s init stop
@@ -183,7 +181,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo " build_erlang.sh  [-d debug] [-y install-without-confirmation] [-t install and run tests] [-j Java to use from {AdoptJDK11, OpenJDK}]"
+    echo "bash build_erlang.sh  [-d debug] [-y install-without-confirmation] [-t install and run tests] [-j Java to use from {AdoptJDK11, OpenJDK}]"
     echo "       default: If no -j specified, OpenJDK will be installed"
     echo
 }
@@ -241,7 +239,7 @@ case "$DISTRO" in
     sudo zypper install -y autoconf flex gawk gcc gcc-c++ gzip libopenssl-devel libxml2-devel libxslt-tools ncurses-devel make tar unixODBC-devel wget xmlgraphics-fop |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.1" | "sles-15.2")
+"sles-15.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y autoconf flex gawk gcc gcc-c++ gzip libopenssl-1_1-devel libxml2-devel libxslt-tools ncurses-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
