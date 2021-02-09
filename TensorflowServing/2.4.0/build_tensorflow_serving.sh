@@ -249,7 +249,7 @@ case "$DISTRO" in
         sudo apt-get install sudo wget git unzip zip python3-dev python3-pip openjdk-11-jdk pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran cython3 -y |& tee -a "${LOG_FILE}"
         sudo ldconfig
         sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
-        sudo pip3 install --no-cache-dir numpy wheel scipy portpicker protobuf==3.13.0 |& tee -a "${LOG_FILE}"
+        sudo pip3 install --no-cache-dir numpy==1.19.5 wheel scipy portpicker protobuf==3.13.0 |& tee -a "${LOG_FILE}"
         sudo pip3 install keras_preprocessing --no-deps |& tee -a "${LOG_FILE}"
         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x/
         export PATH=$JAVA_HOME/bin:$PATH
