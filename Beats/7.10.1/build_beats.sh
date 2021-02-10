@@ -149,7 +149,19 @@ function configureAndInstall() {
         wget https://bootstrap.pypa.io/get-pip.py
         sudo env PATH=$PATH python3 get-pip.py
         rm get-pip.py
-
+	
+	
+	echo "Installing RUST!!!"
+	cd $CURDIR
+	wget -O rustup-init.sh https://sh.rustup.rs
+	bash rustup-init.sh -y
+	export PATH=$PATH:$HOME/.cargo/bin
+	
+        
+         if [["${ID}" == "sles"] || ["${DISTRO}" == "rhel-7."*]]; then 	
+	 python3 -m pip install cryptography
+         fi
+	
         sudo env PATH=$PATH python3 -m pip install appdirs pyparsing packaging setuptools wheel PyYAML termcolor ordereddict nose-timer MarkupSafe virtualenv pillow
 
         # The upgrade of six may fail in certain distros, discard upgrade in such cases
@@ -281,9 +293,7 @@ function installOpenssl(){
       export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
       export LD_LIBRARY_PATH="/usr/local/lib/ /usr/local/lib64/"
       export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
-      
-      sudo env PATH=$PATH python3 -m pip install cryptography
-
+   
 }
 
 function runTest() {
