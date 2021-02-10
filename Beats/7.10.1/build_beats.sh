@@ -158,7 +158,7 @@ function configureAndInstall() {
 	export PATH=$PATH:$HOME/.cargo/bin
 	
         
-         if [["${ID}" == "sles"] || ["${DISTRO}" == "rhel-7."*]]; then 	
+         if  [[ "${ID}" == "sles" || "${DISTRO}" == "rhel-7."* ]]; then
 	 python3 -m pip install cryptography
          fi
 	
