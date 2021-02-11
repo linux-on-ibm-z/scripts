@@ -98,6 +98,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT
     git clone https://github.com/Alfresco/alfresco-docker-base-java
     cd alfresco-docker-base-java
+    git checkout 95a01c3757124936aaa33abda91bb6a8914e66e4
     sed -i "s/centos/s390x\/clefos/g" Dockerfile
     cp $SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz .
     export java_filename='OpenJDK11U-jdk_s390x_linux_openj9_11.0.9_11_openj9-0.23.0.tar.gz'
@@ -107,6 +108,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT
     git clone https://github.com/Alfresco/alfresco-docker-base-tomcat
     cd alfresco-docker-base-tomcat
+    git checkout 78b79bab6dd6f0b96dfa2ecc4afb90af821167c4
     docker build -t alfresco/alfresco-base-tomcat:8.5.43-java-11-openjdk-centos-7 --build-arg ALFRESCO_BASE_JAVA=alfresco/alfresco-base-java:latest .
 
 
@@ -180,6 +182,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT
     git clone https://github.com/Alfresco/alfresco-docker-activemq.git
     cd alfresco-docker-activemq
+    git checkout 0cda3a177857ce379155cfe7421f33cddd2ad2ba
     sed -i "s/FROM.*/FROM alfresco\/alfresco-base-java:latest/g" Dockerfile
     docker build -t alfresco/alfresco-activemq:5.15.8 .
 
