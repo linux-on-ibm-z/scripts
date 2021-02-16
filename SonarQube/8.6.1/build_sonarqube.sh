@@ -4,7 +4,6 @@
 #
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/SonarQube/8.6.1/build_sonarqube.sh
-
 # Execute build script: bash build_sonarqube.sh    (provide -h for help)
 
 set -e -o pipefail
@@ -28,6 +27,8 @@ trap cleanup 0 1 2 ERR
 if [ ! -d "$SOURCE_ROOT/logs/" ]; then
     mkdir -p "$SOURCE_ROOT/logs/"
 fi
+
+source "/etc/os-release"
 
 function prepare() {
     if command -v "sudo" >/dev/null; then
