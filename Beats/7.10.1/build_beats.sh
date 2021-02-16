@@ -156,6 +156,9 @@ function configureAndInstall() {
 	wget -O rustup-init.sh https://sh.rustup.rs
 	bash rustup-init.sh -y
 	export PATH=$PATH:$HOME/.cargo/bin
+	rustup toolchain install 1.49.0
+	rustup default 1.49.0
+ 	rustc --version | grep "1.49.0"
 	
         
          if  [[ "${ID}" == "sles" || "${DISTRO}" == "rhel-7."* ]]; then
