@@ -1,0 +1,106 @@
+diff --git a/alternator/auth.cc b/alternator/auth.cc
+index 98481a4dc..713b31153 100644
+--- a/alternator/auth.cc
++++ b/alternator/auth.cc
+@@ -23,6 +23,7 @@
+ #include "log.hh"
+ #include <string>
+ #include <string_view>
++#include <gnutls/gnutls.h>
+ #include <gnutls/crypto.h>
+ #include <seastar/util/defer.hh>
+ #include "hashers.hh"
+diff --git a/bytes.hh b/bytes.hh
+index 597f02f66..43b907e97 100644
+--- a/bytes.hh
++++ b/bytes.hh
+@@ -99,7 +99,7 @@ inline int32_t compare_unsigned(bytes_view v1, bytes_view v2) {
+   if (size) {
+     auto n = memcmp(v1.begin(), v2.begin(), size);
+     if (n) {
+-        return n;
++        return n > 0 ? 1 : -1;
+     }
+   }
+     return (int32_t) (v1.size() - v2.size());
+diff --git a/configure.py b/configure.py
+index 9a8ef0e11..5d80ec084 100755
+--- a/configure.py
++++ b/configure.py
+@@ -1146,6 +1146,7 @@ warnings = [
+     '-Wno-delete-non-abstract-non-virtual-dtor',
+     '-Wno-unknown-attributes',
+     '-Wno-braced-scalar-init',
++    '-Wno-array-bounds',
+     '-Wno-unused-value',
+     '-Wno-range-loop-construct',
+     '-Wno-unused-function',
+diff --git a/test/perf/perf_fast_forward.cc b/test/perf/perf_fast_forward.cc
+index 92b8072a5..5a92bfe45 100644
+--- a/test/perf/perf_fast_forward.cc
++++ b/test/perf/perf_fast_forward.cc
+@@ -19,6 +19,7 @@
+  * along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include <fstream>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/date_time/posix_time/posix_time.hpp>
+ #include <boost/range/irange.hpp>
+diff --git a/test/perf/perf_simple_query.cc b/test/perf/perf_simple_query.cc
+index 32bb6f849..aa10f7b6a 100644
+--- a/test/perf/perf_simple_query.cc
++++ b/test/perf/perf_simple_query.cc
+@@ -19,6 +19,7 @@
+  * along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include <fstream>
+ #include <boost/algorithm/string/split.hpp>
+ #include <json/json.h>
+ 
+diff --git a/test/tools/cql_repl.cc b/test/tools/cql_repl.cc
+index 484aafb4b..ea8404635 100644
+--- a/test/tools/cql_repl.cc
++++ b/test/tools/cql_repl.cc
+@@ -18,6 +18,7 @@
+  * You should have received a copy of the GNU General Public License
+  * along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+  */
++#include <fstream>
+ #include <filesystem>
+ // use boost::regex instead of std::regex due
+ // to stack overflow in debug mode
+diff --git a/utils/utf8.cc b/utils/utf8.cc
+index d7a0c04a2..85c14b52d 100644
+--- a/utils/utf8.cc
++++ b/utils/utf8.cc
+@@ -540,7 +540,7 @@ internal::validate_partial(const uint8_t *data, size_t len) {
+ #else
+ // No SIMD implementation for this arch, fallback to naive method
+ partial_validation_results
+-validate_partial(const uint8_t *data, size_t len) {
++internal::validate_partial(const uint8_t *data, size_t len) {
+     return validate_partial_naive(data, len);
+ }
+ #endif
+diff --git a/vint-serialization.cc b/vint-serialization.cc
+index adf099a9b..df54e8d59 100644
+--- a/vint-serialization.cc
++++ b/vint-serialization.cc
+@@ -137,7 +137,6 @@ vint_size_type unsigned_vint::serialized_size(uint64_t value) noexcept {
+ 
+ uint64_t unsigned_vint::deserialize(bytes_view v) {
+     auto src = v.data();
+-    auto len = v.size();
+     const int8_t first_byte = *src;
+ 
+     // No additional bytes, since the most significant bit is not set.
+@@ -152,6 +151,7 @@ uint64_t unsigned_vint::deserialize(bytes_view v) {
+ 
+ #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+     uint64_t value;
++    auto len = v.size();
+     // If we can overread do that. It is cheaper to have a single 64-bit read and
+     // then mask out the unneeded part than to do 8x 1 byte reads.
+     if (__builtin_expect(len >= sizeof(uint64_t) + 1, true)) {
