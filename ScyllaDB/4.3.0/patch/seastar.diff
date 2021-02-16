@@ -1,0 +1,38 @@
+diff --git a/src/core/thread.cc b/src/core/thread.cc
+index 20d40836..081f7c2f 100644
+--- a/src/core/thread.cc
++++ b/src/core/thread.cc
+@@ -287,7 +287,7 @@ thread_context::main() {
+ #elif defined(__aarch64__)
+     asm(".cfi_undefined x30");
+ #else
+-    #warning "Backtracing from seastar threads may be broken"
++    asm(".cfi_undefined r14");
+ #endif
+     _context.initial_switch_in_completed();
+     if (group() != current_scheduling_group()) {
+diff --git a/src/net/dns.cc b/src/net/dns.cc
+index 95e20cf8..b0f8e4a9 100644
+--- a/src/net/dns.cc
++++ b/src/net/dns.cc
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include <arpa/nameser.h>
++#include <sys/socket.h>
+ #include <chrono>
+ 
+ #include <ares.h>
+diff --git a/src/net/inet_address.cc b/src/net/inet_address.cc
+index 8ec8ca5c..adcf9148 100644
+--- a/src/net/inet_address.cc
++++ b/src/net/inet_address.cc
+@@ -155,7 +155,7 @@ seastar::net::inet_address::operator ::in_addr() const {
+ seastar::net::inet_address::operator ::in6_addr() const noexcept {
+     if (_in_family == family::INET) {
+         in6_addr in6 = IN6ADDR_ANY_INIT;
+-        in6.s6_addr32[2] = ::htonl(0xffff);
++        in6.s6_addr32[2] = htonl(0xffff);
+         in6.s6_addr32[3] = _in.s_addr;
+         return in6;
+     }
