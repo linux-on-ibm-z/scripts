@@ -38,7 +38,7 @@ function prepare() {
         printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
     else
         printf -- 'Sudo : No \n' >>"$LOG_FILE"
-        printf -- 'You can install the same from installing sudo from repository using apt, yum or zypper based on your distro. \n'
+        printf -- 'Install sudo from repository using apt, yum or zypper based on your distro. \n'
         exit 1
     fi
 
@@ -83,7 +83,7 @@ function configureAndInstall() {
 	
     # Download Boringssl
     cd $CURDIR
-    git clone https://github.com/adpopescu/boringssl.git
+    git clone https://github.com/linux-on-ibm-z/boringssl
     cd boringssl
     git checkout patch-s390x-Jan2021
 
