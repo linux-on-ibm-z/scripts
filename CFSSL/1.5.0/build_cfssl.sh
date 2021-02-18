@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -65,9 +65,16 @@ function install_go() {
 	
 	printf -- "\n Installing go \n" |& tee -a "$LOG_FILE"    
 	cd $SOURCE_ROOT
-	wget "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.15.3/build_go.sh" |& tee -a "$LOG_FILE" 
-    	chmod +x build_go.sh
-    	bash build_go.sh |& tee -a "$LOG_FILE"
+	wget https://golang.org/dl/go1.14.15.linux-s390x.tar.gz
+	sudo tar -C /usr/local -xvzf go1.14.15.linux-s390x.tar.gz
+	export PATH=/usr/local/go/bin:$PATH
+	
+	if [[ "${ID}" != "ubuntu" ]]
+    	then
+        sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+        printf -- 'Symlink done for gcc \n'
+    	fi
+	   
 
     	printf -- "Completed go installation successfully. \n" >>"$LOG_FILE"
 }
@@ -95,6 +102,9 @@ function runTest() {
 		printf -- "\nTEST Flag is set, continue with running test \n"
 		cd $GOPATH/src/github.com/cloudflare/cfssl
 		go get -u golang.org/x/lint/golint
+		go mod vendor
+		cp -r $GOPATH/bin  $GOPATH/src/github.com/cloudflare/cfssl
+		export PATH=$PATH:$GOPATH/bin
 		export GO111MODULE=on
 		./test.sh
         	printf -- "Tests completed. \n" 
@@ -157,7 +167,7 @@ case "$DISTRO" in
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
     	sudo apt-get update
-	sudo apt-get install -y git gcc make curl wget |& tee -a "$LOG_FILE"
+	sudo apt-get install -y git gcc make curl wget tar |& tee -a "$LOG_FILE"
 	install_go 
 	export GOPATH=$SOURCE_ROOT
 	export PATH=$GOPATH/bin:$PATH
@@ -166,16 +176,16 @@ case "$DISTRO" in
 "rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y git gcc make wget curl |& tee -a "$LOG_FILE"
+	sudo yum install -y git gcc make wget curl tar |& tee -a "$LOG_FILE"
     	install_go 
 	export GOPATH=$SOURCE_ROOT
 	export PATH=$GOPATH/bin:$PATH
 	configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.1" | "sles-15.2")
+"sles-12.5" | "sles-15.2")
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y git gcc make wget curl |& tee -a "$LOG_FILE"
+	sudo zypper install -y git gcc make wget curl tar |& tee -a "$LOG_FILE"
 	install_go 
 	export GOPATH=$SOURCE_ROOT
 	export PATH=$GOPATH/bin:$PATH
