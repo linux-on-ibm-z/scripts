@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -13,7 +13,7 @@ PACKAGE_NAME="cadvisor"
 PACKAGE_VERSION="0.37.0"
 CURDIR="$(pwd)"
 
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.15.3/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.15.8/build_go.sh"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/cAdvisor/${PACKAGE_VERSION}/patch"
 
 #Default GOPATH if not present already.
