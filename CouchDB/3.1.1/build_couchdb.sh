@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -67,7 +67,7 @@ function runTest() {
     "ubuntu-20.04")
       ./configure -c --spidermonkey-version 68
       ;;
-    "rhel-8.1" | "rhel-8.2")
+    "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
       ./configure -c --spidermonkey-version 60
       ;;
     *)
@@ -212,7 +212,7 @@ function configureAndInstall() {
 	"ubuntu-20.04")
 	  ./configure --dev --spidermonkey-version 68
 	  ;;
-	"rhel-8.1" | "rhel-8.2")
+	"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
 	  ./configure --dev --spidermonkey-version 60
 	  ;;
 	*)
@@ -279,7 +279,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y build-essential pkg-config ncurses-base g++-5 gcc-5 python python3 python3-pip python3-venv curl git patch wget tar make zip autoconf2.13 automake libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-dev openjdk-8-jdk xsltproc fop libxml2-utils |& tee -a "$LOG_FILE"
+	sudo apt-get install -y build-essential pkg-config ncurses-base g++-5 gcc-5 python python3 python3-pip python3-venv hostname curl git patch wget tar make zip autoconf2.13 automake libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-dev openjdk-8-jdk xsltproc fop libxml2-utils |& tee -a "$LOG_FILE"
 
 	sudo rm -rf /usr/bin/gcc /usr/bin/g++ /usr/bin/cc
 	sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc
@@ -292,12 +292,12 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y build-essential pkg-config ncurses-base g++ gcc python python3 python3-pip python3-venv curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-8-jdk xsltproc fop libxml2-utils libmozjs-68-dev |& tee -a "$LOG_FILE"
+	sudo apt-get install -y build-essential pkg-config ncurses-base g++ gcc python python3 python3-pip python3-venv hostname curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-8-jdk xsltproc fop libxml2-utils libmozjs-68-dev |& tee -a "$LOG_FILE"
 
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8")
+"rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch js-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel fop |&  tee -a "$LOG_FILE"
@@ -312,7 +312,7 @@ case "$DISTRO" in
         sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python36-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
         configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
-"rhel-8.2")
+"rhel-8.2" | "rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python38 python38-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
