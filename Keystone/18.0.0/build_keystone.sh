@@ -65,10 +65,16 @@ function setUpApache2HttpdConf() {
     echo 'LoadModule wsgi_module /usr/local/lib/python3.6/dist-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/apache2/apache2.conf
     ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-7.8" | "rhel-7.9")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'Include /etc/httpd/sites-enabled/' | sudo tee -a /etc/httpd/conf/httpd.conf
-    echo 'LoadModule wsgi_module /usr/local/lib64/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/httpd/conf/httpd.conf
+    echo 'LoadModule wsgi_module /usr/lib64/httpd/modules/mod_wsgi.so' | sudo tee -a /etc/httpd/conf/httpd.conf
+    ;;
+	
+"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+    echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/httpd/conf/httpd.conf
+    echo 'Include /etc/httpd/sites-enabled/' | sudo tee -a /etc/httpd/conf/httpd.conf
+    echo 'LoadModule wsgi_module /usr/lib64/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/httpd/conf/httpd.conf
     ;;
 
 "sles-12.5")
@@ -79,7 +85,7 @@ function setUpApache2HttpdConf() {
     sudo sed -i 's|Include /etc/apache2/sysconfig.d/include.conf|#Include /etc/apache2/sysconfig.d/include.conf|g' /etc/apache2/httpd.conf
     ;;
 
-"sles-15.1" | "sles-15.2")
+"sles-15.2")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/apache2/httpd.conf
     echo 'Include /etc/apache2/sites-enabled/' | sudo tee -a /etc/apache2/httpd.conf
     echo 'LoadModule wsgi_module /usr/lib64/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/apache2/httpd.conf
@@ -137,8 +143,8 @@ function runCheck() {
         export OS_AUTH_URL=http://localhost:35357/v3
         export OS_IDENTITY_API_VERSION=3
 
-        openstack service list 
-        openstack token issue 
+        openstack service list
+        openstack token issue
         printf -- '\n Verification Completed !! \n'
     fi
 
@@ -179,31 +185,38 @@ function configureAndInstall() {
     sudo mysql -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%'"
     sudo mysql -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost'"
 
-    cd "${SOURCE_ROOT}"
-    printf -- '\nDownloading Keystone source. \n'
-    git clone https://github.com/openstack/keystone.git
-    cd keystone/
-    git checkout ${PACKAGE_VERSION}
-    printf -- '\nKeystone download completed successfully. \n'
+    if  [[ "${DISTRO}" == "sles-12."* || "${DISTRO}" == "rhel-7."* ]]; then
+	 printf -- '\nInstalling mod_wsgi. \n'
+	cd $SOURCE_ROOT
+	wget https://github.com/GrahamDumpleton/mod_wsgi/archive/4.7.1.tar.gz
+	tar -xvf 4.7.1.tar.gz
+	cd mod_wsgi-4.7.1/
+		if  [[ "${DISTRO}" == "sles-12."* ]]; then
+		echo "Inside SLES 12.x"
+		./configure --with-apxs=/usr/bin/apxs2 --with-python=/usr/local/bin/python3
+		else
+		echo "Inside RHEL 7.x"
+		./configure --with-apxs=/usr/bin/apxs --with-python=/usr/local/bin/python3
+		fi
+	make
+	sudo make install
+	
+		if  [[ "${DISTRO}" == "sles-12."* ]]; then
+		echo "Inside SLES 12.x"
+		sudo chmod 755 /usr/lib64/apache2/mod_wsgi.so
+		else
+		echo "Inside RHEL 7.x"
+		sudo chmod 755 /usr/lib64/httpd/modules/mod_wsgi.so
+		fi
+	fi
 
-    printf -- '\nStarting Keystone install. \n'
-    sudo pip3 install --ignore-installed -r requirements.txt
-    sudo pip3 install --ignore-installed -r test-requirements.txt
-    sudo python3 setup.py install
-
-    if [[ "${ID}" == "rhel" ]]; then
-      sudo env PATH=$PATH tox -egenconfig
-    else
-      sudo tox -egenconfig
-    fi
 
     printf -- '\nKeystone install completed successfully. \n'
 
     printf -- '\nStarting Keystone configure. \n'
-    sudo cp -r etc/ /etc/keystone
+    sudo mkdir -p /etc/keystone/
     cd /etc/keystone/
-    sudo mv keystone.conf.sample keystone.conf
-    sudo mv logging.conf.sample logging.conf
+    sudo wget -O keystone.conf https://docs.openstack.org/keystone/latest/_static/keystone.conf.sample
     export OS_KEYSTONE_CONFIG_DIR=/etc/keystone
     printf -- '\nKeystone configuration completed successfully. \n'
 
@@ -212,15 +225,20 @@ function configureAndInstall() {
     sudo sed -i "s|#provider = fernet|provider = fernet|g" /etc/keystone/keystone.conf
 
     printf -- '\nPopulating Keystone DB. \n'
+    if  [[ "${DISTRO}" == "sles-12."* || "${DISTRO}" == "rhel-7."* ]]; then
+     sudo env PATH=$PATH keystone-manage db_sync
+    else
     keystone-manage db_sync
+    fi
+
 
     printf -- '\nInitializing fernet key repo. \n'
     sudo groupadd keystone
     sudo useradd -m -g keystone keystone
     sudo mkdir -p /etc/keystone/fernet-keys
-    sudo chown -R keystone:keystone fernet-keys
+    sudo chown -R keystone:keystone /etc/keystone/fernet-keys
 
-    if [[ "${ID}" == "rhel" ]]; then
+    if [[ "${ID}" == "rhel" || "${DISTRO}" == "sles-12."* ]]; then
       sudo env PATH=$PATH keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
       sudo env PATH=$PATH keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
     else
@@ -256,6 +274,8 @@ function configureAndInstall() {
     if [[ "${ID}" == "rhel" ]]; then
       sudo ln -s /usr/local/bin/keystone-wsgi-admin /bin/
       sudo ln -s /usr/local/bin/keystone-wsgi-public /bin/
+	elif [[ "${DISTRO}" == "sles-12."* ]]; then
+	sudo sed -i 's/\/usr\/bin/\/usr\/local\/bin/g' /etc/apache2/sites-available/wsgi-keystone.conf
     fi
 
     # Run Check
@@ -332,15 +352,11 @@ case "$DISTRO" in
 "ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+
     sudo apt-get update
-    sudo apt-get install -y libpq-dev build-essential libncurses-dev libapache2-mod-wsgi-py3 git wget cmake \
-      gcc make tar libpcre3-dev bison scons libboost-dev libboost-program-options-dev openssl dh-autoreconf \
-      libssl-dev python3-setuptools python3-lxml curl python3-ldap python3-dev libxslt-dev net-tools libffi-dev \
-      apache2-dev python3-mysqldb apache2 mysql-server python3-pkgconfig libsasl2-dev zlib1g-dev ed patch python3-pip
-
-    sudo pip3 install --upgrade setuptools
-    sudo pip3 install six tox cryptography mod_wsgi python-memcached python-openstackclient requests pika
-
+    sudo apt-get install -y python3-pip libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev
+    sudo -H pip3 install --upgrade pip
+    sudo pip3 install cryptography==3.3.1 python-openstackclient mysqlclient mod_wsgi keystone
     configureAndInstall | tee -a "$LOG_FILE"
 
     ;;
@@ -349,111 +365,48 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc gcc-c++ git python3-setuptools curl sqlite-devel openldap-devel python3-devel libxslt-devel \
-      net-tools libffi-devel which httpd httpd-devel mariadb-server postgresql-devel mariadb-devel bzip2-devel \
-      patch python3-pip make redhat-rpm-config wget
-
-    cd $SOURCE_ROOT
-    wget --no-check-certificate https://www.openssl.org/source/old/1.1.1/openssl-1.1.1g.tar.gz
-    tar -xzvf openssl-1.1.1g.tar.gz
-    cd openssl-1.1.1g
-    ./config --prefix=/usr --openssldir=/usr
-    make
-    sudo make install
-
-    sudo pip3 install --upgrade setuptools
-    sudo pip3 install --ignore-installed ipaddress wheel
-    sudo pip3 install six==1.11 tox cryptography mod_wsgi python-memcached python-openstackclient requests pika==0.10.0 mysqlclient==2.0.1
-
+    sudo yum install -y gcc gcc-c++ openssl.s390x httpd httpd-devel mariadb-server mariadb-devel sqlite-devel
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.1/build_python3.sh
+    bash build_python3.sh -y
+    export PATH=/usr/local/bin:$PATH
+    sudo -H env PATH=$PATH pip3 install --upgrade pip
+    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 mod_wsgi python-openstackclient mysqlclient keystone
     configureAndInstall | tee -a "$LOG_FILE"
-
     ;;
 
 "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc gcc-c++ git python3-setuptools python3-lxml curl python3-ldap sqlite-devel openldap-devel \
-      python3-devel libxslt-devel openssl-devel net-tools libffi-devel which openssl httpd httpd-devel mariadb-server \
-      postgresql-devel mariadb-devel bzip2-devel patch python3-pip make redhat-rpm-config
-
-    sudo pip3 install --upgrade setuptools
-    sudo pip3 install --ignore-installed ipaddress wheel
-    sudo pip3 install six==1.11 tox cryptography mod_wsgi python-memcached python-openstackclient requests pika==0.10.0 mysqlclient
-
+    sudo yum install -y python3-devel libffi-devel openssl-devel gcc make gcc-c++ python3-mod_wsgi.s390x httpd httpd-devel mariadb-devel  mariadb-server procps sqlite-devel.s390x
+    export PATH=/usr/local/bin:$PATH
+    sudo -H pip3 install --upgrade pip
+    sudo pip3 install cryptography==3.3.1 python-openstackclient keystone mysqlclient
     configureAndInstall | tee -a "$LOG_FILE"
-
     ;;
 
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo zypper install -y gcc gcc-c++ gdbm-devel git-core curl openldap2-devel libbz2-devel libdb-4_8-devel \
-      libffi-devel libffi48-devel libxslt-devel which apache2 apache2-devel libuuid-devel ncurses-devel readline-devel \
-      sqlite3-devel tk-devel xz-devel zlib-devel apache2-mod_wsgi mariadb postgresql-devel make cyrus-sasl-devel \
-      net-tools libpcre1 libmysqlclient-devel gawk patch wget tar
+    sudo zypper install -y apache2-mod_wsgi libopenssl-devel gcc make gawk apache2  apache2-devel mariadb libmariadb3 gcc-c++ libmysqld-devel
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.1/build_python3.sh
+    bash build_python3.sh -y
 
-    cd $SOURCE_ROOT
-    wget --no-check-certificate https://www.openssl.org/source/old/1.1.1/openssl-1.1.1g.tar.gz
-    tar -xzvf openssl-1.1.1g.tar.gz
-    cd openssl-1.1.1g
-    ./config --prefix=/usr --openssldir=/usr
-    make
-    sudo make install
-
-    cd $SOURCE_ROOT
-    wget --no-check-certificate "https://www.python.org/ftp/python/3.8.5/Python-3.8.5.tgz"
-    tar -xzvf "Python-3.8.5.tgz"
-    cd Python-3.8.5/
-    ./configure --prefix=/usr
-    make
-    sudo make install
-
-    cd $SOURCE_ROOT
-    wget --no-check-certificate https://github.com/GrahamDumpleton/mod_wsgi/archive/4.7.1.tar.gz
-    tar -xzvf 4.7.1.tar.gz
-    cd mod_wsgi-4.7.1/
-    ./configure --with-apxs=/usr/bin/apxs2 --with-python=/usr/bin/python3
-    make
-    sudo make install
-
-    sudo ln -fs /usr/lib/libpq.so.5 /usr/lib/libpq.so
-    sudo ln -fs /usr/lib64/libpq.so.5 /usr/lib64/libpq.so
-    sudo pip3 install --upgrade setuptools
-    sudo pip3 install six tox cryptography mod_wsgi python-memcached python-openstackclient requests pika mysqlclient==2.0.1
-
+    export PATH=/usr/local/bin:$PATH
+    sudo -H env PATH=$PATH pip3 install --upgrade pip
+    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 python-openstackclient mysqlclient keystone
     configureAndInstall | tee -a "$LOG_FILE"
-
     ;;
 
-"sles-15.1" | "sles-15.2")
+"sles-15.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo zypper install -y wget tar gzip gcc gcc-c++ git-core curl openldap2-devel libffi-devel python3-devel libxslt-devel which apache2 \
-      apache2-devel mariadb postgresql-devel make cyrus-sasl-devel python3-setuptools python3-lxml openssl \
-      openssl-devel net-tools libpcre1 libmariadb-devel gawk patch python3-pip postgresql12-server-devel
-
-    if [[ "${DISTRO}" == "sles-15.1" ]]; then
-        git config --global http.sslVerify false
-        cd $SOURCE_ROOT
-        wget --no-check-certificate https://www.openssl.org/source/old/1.1.1/openssl-1.1.1g.tar.gz
-        tar -xzvf openssl-1.1.1g.tar.gz
-        cd openssl-1.1.1g
-        ./config --prefix=/usr --openssldir=/usr
-        make
-        sudo make install
-    fi
-
-    sudo ln -fs /usr/lib/libpq.so.5 /usr/lib/libpq.so
-    sudo ln -fs /usr/lib64/libpq.so.5 /usr/lib64/libpq.so
-    sudo pip3 install --upgrade pip
-    sudo pip3 install --upgrade setuptools
-    sudo pip3 install six==1.11 tox cryptography mod_wsgi python-memcached python-openstackclient requests pika==0.10.0 mysqlclient python-ldap
-
+    sudo zypper install -y libopenssl-devel libffi-devel gcc make python3-devel python3-pip gawk apache2  apache2-devel mariadb libmariadb-devel gcc-c++
+    sudo -H pip3 install --upgrade pip
+    sudo pip3 install cryptography==3.3.1  python-openstackclient mysqlclient keystone mod_wsgi
     configureAndInstall | tee -a "$LOG_FILE"
-
     ;;
 *)
     printf -- "%s not supported \n" "$DISTRO" | tee -a "$LOG_FILE"
