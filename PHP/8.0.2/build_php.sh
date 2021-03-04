@@ -468,7 +468,7 @@ case "$DISTRO" in
     libzip-devel pkg-config oniguruma-devel git curl \
     tar sqlite3-devel zlib-devel gcc10 gcc10-c++ \
     libzip5 postgresql12 nginx postgresql12-server-devel \
-    patch make |& tee -a "$LOG_FILE"
+    patch make gzip gawk |& tee -a "$LOG_FILE"
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
