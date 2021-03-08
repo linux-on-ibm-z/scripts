@@ -312,7 +312,7 @@ case "$DISTRO" in
        libssl-dev libcurl4-openssl-dev libxml2-dev \
        libreadline7 libreadline-dev libzip-dev libzip4 \
        nginx openssl pkg-config zlib1g-dev libsqlite3-dev \
-       libonig-dev libpq-dev gcc-10 g++-10 git curl tar \
+       libonig-dev libpq-dev gcc-8 g++-8 git curl tar \
        make patch |& tee -a "$LOG_FILE"
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -321,8 +321,8 @@ case "$DISTRO" in
   PATH=${PREFIX}/bin${PATH:+:${PATH}}
   export PATH
 
-  sudo ln -s /usr/bin/gcc-10 /usr/bin/gcc
-  sudo ln -s /usr/bin/g++-10 /usr/bin/g++
+  sudo ln -s /usr/bin/gcc-8 /usr/bin/gcc
+  sudo ln -s /usr/bin/g++-8 /usr/bin/g++
   sudo ln -s /usr/bin/gcc /usr/bin/cc
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
