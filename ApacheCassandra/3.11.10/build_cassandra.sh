@@ -89,15 +89,17 @@ function setup_java() {
             sudo yum install -y java-1.8.0-openjdk-devel.s390x
         elif [[ "$ID" == "sles" ]]; then
             sudo zypper install -y java-1_8_0-openjdk-devel
-            sudo zypper remove -y java-11-openjdk-devel # Remove java 11 to ensure correct link to be read
         else # Ubuntu
             sudo apt-get install -y openjdk-8-jre openjdk-8-jdk
         fi
 
-        export JAVA_HOME="$(readlink -f /etc/alternatives/javac | sed 's:/bin/javac::')"
+        if [[ "$ID" == "sles" ]]; then
+            export JAVA_HOME=/usr/lib64/jvm/java-1.8.0-openjdk
+        else # Ubuntu and RHEL
+            export JAVA_HOME="$(readlink -f /etc/alternatives/javac | sed 's:/bin/javac::')"
+        fi
         echo "export JAVA_HOME=$JAVA_HOME" >>"$BUILD_ENV"
         printf -- "export JAVA_HOME=$JAVA_HOME for $ID  \n" >>"$LOG_FILE"
-
     fi
 
     export PATH=$JAVA_HOME/bin:$PATH
@@ -277,7 +279,7 @@ function gettingStarted() {
     printf -- "Run following command to get started: \n"
 
     printf -- "source ~/setenv.sh \n"
-    printf -- "export PATH=/usr/local/cassandra/bin:$PATH"
+    printf -- "export PATH=/usr/local/cassandra/bin:$PATH \n"
     printf -- "Start cassandra server: \n"
     printf -- "cassandra  -f\n\n"
 
