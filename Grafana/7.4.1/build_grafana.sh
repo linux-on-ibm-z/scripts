@@ -161,9 +161,6 @@ function configureAndInstall() {
 	cd "$GOPATH/src/github.com/grafana/grafana"
 	# Install node-sass for RHEL 8 and SLES
 	if [[ "$ID" == "sles" || "$DISTRO" == rhel-8.* ]]; then
-		if [[ "$DISTRO" == "sles-15.1" ]]; then
-			sudo sed -i'' -r 's/^( +, uidSupport = ).+$/\1false/' /usr/local/node-v${NODE_JS_VERSION}-linux-s390x/lib/node_modules/npm/node_modules/uid-number/uid-number.js
-		fi
 		sudo chmod ugo+w -R /usr/local/node-v${NODE_JS_VERSION}-linux-s390x/
 		env PATH=$PATH npm install -g yarn node-sass
 	else
