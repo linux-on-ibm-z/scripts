@@ -1,0 +1,19 @@
+--- a/jni/GNUmakefile
++++ b/jni/GNUmakefile
+@@ -68,7 +68,7 @@ WERROR = -Werror
+ ifneq ($(OS),darwin)
+   WFLAGS += -Wundef $(WERROR)
+ endif
+-WFLAGS += -W -Wall -Wno-unused -Wno-parentheses
++WFLAGS += -W -Wall -Wno-unused -Wno-parentheses -Wno-unused-parameter
+ PICFLAGS = -fPIC
+ SOFLAGS = # Filled in for each OS specifically
+ FFI_MMAP_EXEC = -DFFI_MMAP_EXEC_WRIT
+@@ -183,7 +183,7 @@ ifeq ($(OS), darwin)
+ endif
+
+ ifeq ($(OS), linux)
+-  SOFLAGS = -shared -mimpure-text -static-libgcc -Wl,-soname,$(@F) -Wl,-O1
++  SOFLAGS = -shared -static-libgcc -Wl,-soname,$(@F) -Wl,-O1
+   CFLAGS += -pthread
+ endif
