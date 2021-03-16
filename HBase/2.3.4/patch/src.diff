@@ -1,0 +1,27 @@
+diff --git a/src/google/protobuf/stubs/atomicops.h b/src/google/protobuf/stubs/atomicops.h
+index b8581fa..cd339af 100644
+--- a/src/google/protobuf/stubs/atomicops.h
++++ b/src/google/protobuf/stubs/atomicops.h
+@@ -182,6 +182,8 @@ GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+ #include <google/protobuf/stubs/atomicops_internals_arm_qnx.h>
+ #elif defined(GOOGLE_PROTOBUF_ARCH_MIPS)
+ #include <google/protobuf/stubs/atomicops_internals_mips_gcc.h>
++#elif defined(GOOGLE_PROTOBUF_ARCH_S390)
++#include <google/protobuf/stubs/atomicops_internals_generic_gcc.h>
+ #elif defined(__pnacl__)
+ #include <google/protobuf/stubs/atomicops_internals_pnacl.h>
+ #else
+diff --git a/src/google/protobuf/stubs/platform_macros.h b/src/google/protobuf/stubs/platform_macros.h
+index b1df60e..3eada90 100644
+--- a/src/google/protobuf/stubs/platform_macros.h
++++ b/src/google/protobuf/stubs/platform_macros.h
+@@ -57,6 +57,9 @@
+ #elif defined(__ppc__)
+ #define GOOGLE_PROTOBUF_ARCH_PPC 1
+ #define GOOGLE_PROTOBUF_ARCH_32_BIT 1
++#elif defined(__s390x__)
++#define GOOGLE_PROTOBUF_ARCH_S390 1
++#define GOOGLE_PROTOBUF_ARCH_64_BIT 1
+ #else
+ #error Host architecture was not detected as supported by protobuf
+ #endif
