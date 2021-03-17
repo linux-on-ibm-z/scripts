@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -63,13 +63,13 @@ function cleanup() {
    	rm -rf "$SOURCE_ROOT/sbt-1.1.1.tgz"
 	rm -rf "$SOURCE_ROOT/marathon"
 
-    printf -- "Cleaned up the artifacts\n" 
+    printf -- "Cleaned up the artifacts\n"
 }
 
 function configureAndInstall() {
   printf -- "Configuration and Installation started \n"
 
- 	# Installing IBM SDK 8 for Ubuntu 
+ 	# Installing IBM SDK 8 for Ubuntu
 	if [[ "$ID" == "ubuntu" ]]  ;then
 		if [[ "$JAVA_FLAV" == "ibmsdk" ]]  ;then
 			printf -- "Installing IBM SDK 8 for %s \n" "$DISTRO"
@@ -88,35 +88,35 @@ function configureAndInstall() {
 			export JAVA_HOME=/usr/lib/jvm/java-1.8.0-ibm
 		fi
   fi
-	
+
   if [[ "$ID" == "sles"  ]] ;then
 		if [[ "$JAVA_FLAV" == "openjdk" ]]; then
 			export JAVA_HOME=/usr/lib64/jvm/java-1.8.0
 		else
 			export JAVA_HOME=/usr/lib64/jvm/java-1.8.0-ibm
-		fi       
+		fi
   fi
-	
+
   if [[ "$ID" == "ubuntu"  ]] ;then
 		if [[ "$JAVA_FLAV" == "openjdk" ]]; then
 			export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-s390x
 		else
 			export JAVA_HOME=/opt/java-1.8.0-ibm
-		fi  
+		fi
   fi
-	
+
   export JAVA_TOOL_OPTIONS='-Xmx2048M'
 	export PATH=$JAVA_HOME/bin:$PATH
 	export SBT_OPTS="-Xmx2g"
-	
+
 	printf -- "Java version is :\n"
 	java -version
-	
+
 	#Installing sbt
 	printf -- "Installing sbt..\n"
 	cd $SOURCE_ROOT
-	wget https://github.com/sbt/sbt/releases/download/v1.1.1/sbt-1.1.1.tgz
-	tar -zxvf sbt-1.1.1.tgz
+	wget https://github.com/sbt/sbt/releases/download/v1.2.7/sbt-1.2.7.tgz
+	tar -zxvf sbt-1.2.7.tgz
 	sudo cp $SOURCE_ROOT/sbt/bin/* /usr/local/bin
 
    	#Building Marathon
@@ -125,18 +125,13 @@ function configureAndInstall() {
 	git clone https://github.com/mesosphere/marathon.git
 	cd marathon
 	git checkout v1.8.222
-	sed -i -e 's/1.1.0/1.1.1/g' project/build.properties
-	if [[ "$JAVA_FLAV" == "openjdk" ]]; then
-		printf -- "Applying fix for Openjdk :\n"
-		sed -i -e 's/2.12.4/2.12.6/g' build.sbt	
-	fi	
 	sbt stage
-	
-	#Package Marathon into a tarball 
+
+	#Package Marathon into a tarball
     sbt universal:packageZipTarball
-	
+
 	sudo cp -r $SOURCE_ROOT/marathon /usr/share
-	
+
 cd $HOME
 cat << EOF > setenv.sh
 #MARATHON ENV
@@ -226,14 +221,14 @@ case "$DISTRO" in
     ;;
 "rhel-7.6" | "rhel-7.7" | "rhel-7.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"  
+    printf -- "Installing dependencies... it may take some time.\n"
 	if [[ "$JAVA_FLAV" == "openjdk" ]]; then
 		printf -- "\nOpenJDK dependencies\n" |& tee -a "$LOG_FILE"
 		sudo yum install -y git tar wget java-1.8.0-openjdk-devel patch which |& tee -a "$LOG_FILE"
 	else
 		printf -- "\nIBMSDK dependencies\n" |& tee -a "$LOG_FILE"
 		sudo yum -y install git tar wget java-1.8.0-ibm-devel patch which |& tee -a "$LOG_FILE"
-	fi	
+	fi
 	configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "rhel-8.1" | "rhel-8.2")
@@ -252,11 +247,11 @@ case "$DISTRO" in
 	else
 		printf -- "\nIBMSDK dependencies\n" |& tee -a "$LOG_FILE"
 		if [[ "$VERSION_ID" == "12.4" ]]; then
-			sudo zypper install --auto-agree-with-licenses -y git wget tar patch which |& tee -a "$LOG_FILE"		
+			sudo zypper install --auto-agree-with-licenses -y git wget tar patch which |& tee -a "$LOG_FILE"
 		else
 			sudo zypper install --auto-agree-with-licenses -y git wget tar java-1_8_0-ibm-devel patch which |& tee -a "$LOG_FILE"
 		fi
-	fi	
+	fi
 	configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
