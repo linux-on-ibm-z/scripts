@@ -109,6 +109,7 @@ function configureAndInstall() {
     git clone https://github.com/Alfresco/alfresco-docker-base-tomcat
     cd alfresco-docker-base-tomcat
     git checkout 78b79bab6dd6f0b96dfa2ecc4afb90af821167c4
+    sed -i -e '47,47s/apr-1.4.8-5.el7/apr/g' -e '54,54s/gcc-4.8.5-39.el7/gcc/g' Dockerfile
     docker build -t alfresco/alfresco-base-tomcat:8.5.43-java-11-openjdk-centos-7 --build-arg ALFRESCO_BASE_JAVA=alfresco/alfresco-base-java:latest .
 
 
