@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Hbase/2.3.4/build_hbase.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/HBase/2.3.4/build_hbase.sh
 # Execute build script: bash build_hbase.sh    (provide -h for help)
 #
 set -e -o pipefail
@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="hbase"
 PACKAGE_VERSION="2.3.4"
 CURDIR="$(pwd)"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Hbase/${PACKAGE_VERSION}/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/HBase/${PACKAGE_VERSION}/patch"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 JAVA_PROVIDED="AdoptJDK8_openj9"
 FORCE="false"
