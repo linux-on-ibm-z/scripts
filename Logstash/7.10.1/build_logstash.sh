@@ -237,7 +237,7 @@ case "$DISTRO" in
 
 "rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3" )
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo yum install -y ant gcc java-1.8.0-openjdk make tar wget |& tee -a "${LOG_FILE}"
+        sudo yum install -y ant gcc java-1.8.0-openjdk-devel make tar wget |& tee -a "${LOG_FILE}"
         export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk/
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
