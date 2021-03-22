@@ -135,7 +135,7 @@ function configureAndInstall() {
         tar -zxf protobuf-2.5.0.tar.gz
         cd protobuf-2.5.0
         wget https://raw.githubusercontent.com/protocolbuffers/protobuf/v2.6.0/src/google/protobuf/stubs/atomicops_internals_generic_gcc.h -P src/google/protobuf/stubs/
-        curl -sSL $PATCH_URL/src.diff | git apply
+        curl -sSL $PATCH_URL/src.diff | patch -p1
         ./configure
         make
         make check
@@ -175,7 +175,7 @@ function configureAndInstall() {
         ./configure
         make
         mvn install:install-file -DgroupId=com.google.protobuf -DartifactId=protoc -Dversion=3.11.4 -Dclassifier=linux-s390_64 -Dpackaging=exe -Dfile=$CURDIR/protobuf/src/.libs/protoc
-        printf -- "Installation of Protobuf 2.5.0 successful\n" >> "$LOG_FILE"
+        printf -- "Installation of Protobuf 3.11.4 successful\n" >> "$LOG_FILE"
 
         # Add library files to LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CURDIR/protobuf/src/.libs:$CURDIR/protobuf-2.5.0/src/.libs
