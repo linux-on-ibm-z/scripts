@@ -223,7 +223,7 @@ case "$DISTRO" in
 "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-	sudo zypper install -y autoconf automake wget ncurses-devel bison patch tar gzip gawk xz python gcc7-c++ zlib-devel bzip2 curl git  |& tee -a "$LOG_FILE"
+	sudo zypper install -y autoconf automake wget ncurses-devel bison patch tar gzip cmake gawk xz python gcc7-c++ zlib-devel bzip2 curl git  |& tee -a "$LOG_FILE"
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 100
 	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 100
 	sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 100
