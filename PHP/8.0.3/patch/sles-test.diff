@@ -1,0 +1,25 @@
+diff -Naur old/ext/standard/basic_functions.c new/ext/standard/basic_functions.c
+--- old/ext/standard/basic_functions.c	2021-02-16 07:38:04.445381457 -0800
++++ new/ext/standard/basic_functions.c	2021-02-16 07:38:44.035381457 -0800
+@@ -2272,7 +2272,7 @@
+ 
+ /* empty string behaves like NULL on windows implementation of
+    getservbyname. Let be portable instead. */
+-#ifdef PHP_WIN32
++#if defined(PHP_WIN32) || defined(__s390x__)
+ 	if (proto_len == 0) {
+ 		RETURN_FALSE;
+ 	}
+diff -Naur old/ext/pcntl/tests/pcntl_unshare_03.phpt new/ext/pcntl/tests/pcntl_unshare_03.phpt
+--- old/ext/pcntl/tests/pcntl_unshare_03.phpt   2021-02-17 07:48:38.071614716 -0800
++++ new/ext/pcntl/tests/pcntl_unshare_03.phpt   2021-02-17 07:48:17.481614716 -0800
+@@ -11,6 +11,9 @@
+     (pcntl_unshare(CLONE_NEWUSER) == false && pcntl_get_last_error() == PCNTL_EPERM))) {
+     die("skip Insufficient privileges for CLONE_NEWUSER");
+ }
++if (@pcntl_unshare(CLONE_NEWUSER) == false && pcntl_get_last_error() == PCNTL_EPERM) {
++    die("skip Insufficient privileges for CLONE_NEWUSER");
++}
+ if (@pcntl_unshare(CLONE_NEWNET) == false && pcntl_get_last_error() == PCNTL_EPERM) {
+     die("skip Insufficient privileges for CLONE_NEWPID");
+ }
