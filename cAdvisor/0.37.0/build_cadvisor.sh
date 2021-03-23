@@ -13,7 +13,7 @@ PACKAGE_NAME="cadvisor"
 PACKAGE_VERSION="0.37.0"
 CURDIR="$(pwd)"
 
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.15.8/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.16.2/build_go.sh"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/cAdvisor/${PACKAGE_VERSION}/patch"
 
 #Default GOPATH if not present already.
@@ -46,7 +46,7 @@ function prepare() {
 	else
 		# Ask user for prerequisite installation
 		DISTRO="$ID"
-		printf -- "\nAs part of the installation , Go 1.10.5 will be installed, \n"
+		printf -- "\nAs part of the installation , Go 1.16.2 will be installed, \n"
 		while true; do
 			read -r -p "Do you want to continue (y/n) ? :  " yn
 			case $yn in
@@ -219,21 +219,21 @@ case "$DISTRO" in
 "rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y  wget git patch golang gcc make |& tee -a "${LOG_FILE}"
+	sudo yum install -y  wget curl git patch gcc make |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 	
 "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y curl git golang patch make |& tee -a "${LOG_FILE}"
+	sudo yum install -y curl git patch make |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"sles-12.5" | "sles-15.1" | "sles-15.2")
+"sles-12.5" | "sles-15.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper  install -y git wget tar curl gcc patch curl make |& tee -a "${LOG_FILE}"
+	sudo zypper  install -y git wget tar curl gcc patch make |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
