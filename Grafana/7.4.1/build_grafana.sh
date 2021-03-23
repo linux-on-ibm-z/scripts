@@ -14,7 +14,7 @@ CURDIR="$(pwd)"
 
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Grafana/7.4.1/patch/datasource.test.ts.patch"
 
-GO_VERSION="1.15.7"
+GO_VERSION="1.16.2"
 NODE_JS_VERSION="14.15.1"
 
 GO_DEFAULT="$HOME/go"
@@ -97,10 +97,7 @@ function configureAndInstall() {
 
 	# Install go
 	printf -- "Installing Go... \n"
-	wget https://dl.google.com/go/go${GO_VERSION}.linux-s390x.tar.gz
-    chmod ugo+r go${GO_VERSION}.linux-s390x.tar.gz
-    sudo tar -C /usr/local -xf go${GO_VERSION}.linux-s390x.tar.gz
-    export PATH=/usr/local/go/bin:$PATH
+	curl https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/${GO_VERSION}/build_go.sh | bash
   	printf -- 'Extracted the tar in /usr/local and created symlink\n'
 
 	if [[ "${ID}" != "ubuntu" ]]; then
@@ -314,21 +311,21 @@ case "$DISTRO" in
 "ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y python build-essential gcc tar wget git make unzip patch |& tee -a "$LOG_FILE"
+	sudo apt-get install -y python build-essential gcc tar wget git make unzip patch curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "rhel-7.8" | "rhel-7.9")
 	#  Install the package with GCC >= 7
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y make gcc tar wget git unzip scl-utils patch xz devtoolset-7 devtoolset-7-libatomic-devel.s390x |& tee -a "$LOG_FILE"
+	sudo yum install -y make gcc tar wget git unzip scl-utils patch xz devtoolset-7 devtoolset-7-libatomic-devel.s390x curl |& tee -a "$LOG_FILE"
 	source /opt/rh/devtoolset-7/enable
-  configureAndInstall |& tee -a "$LOG_FILE"
+  	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y make gcc gcc-c++ tar wget git unzip scl-utils patch xz which python2 |& tee -a "$LOG_FILE"
+	sudo yum install -y make gcc gcc-c++ tar wget git unzip scl-utils patch xz which python2 curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
