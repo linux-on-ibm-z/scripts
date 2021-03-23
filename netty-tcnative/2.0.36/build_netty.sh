@@ -101,7 +101,7 @@ function configureAndInstall() {
 			sudo yum install -y java-11-openjdk-devel
 			export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
 		elif [[ "${ID}" == "sles" ]]; then
-			sudo zypper install -y java-11-openjdk-devel
+			sudo zypper install -y java-11-openjdk  java-11-openjdk-devel
 			export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
 		fi
 		printf -- "Installation of OpenJDK 11 is successful\n" >> "$LOG_FILE"
