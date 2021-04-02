@@ -4,8 +4,6 @@
 #
 # Usage:
 # bash build_scylladb.sh -h
-
-
 #==============================================================================
 set -e -o pipefail
 
@@ -88,7 +86,7 @@ checkPrequisites()
 #==============================================================================
 cleanup()
 {
-  rm -f $SOURCE_ROOT/cryptopp/cryptopp565.zip
+  rm -f $SOURCE_ROOT/cryptopp/CRYPTOPP_8_2_0.zip
   rm -f $SOURCE_ROOT/v${NINJA_VERSION}.zip
   echo "Cleaned up the artifacts."
 }
@@ -439,8 +437,9 @@ buildCryptopp() {
   cd "$SOURCE_ROOT"
   mkdir cryptopp
   cd cryptopp
-  curl -ksSLO https://www.cryptopp.com/cryptopp820.zip
-  unzip cryptopp820.zip
+  curl -ksSLO https://github.com/weidai11/cryptopp/archive/refs/tags/CRYPTOPP_8_2_0.zip
+  unzip CRYPTOPP_8_2_0.zip
+  cd cryptopp-CRYPTOPP_8_2_0
   CXXFLAGS="-std=c++11 -g -O2" make
   sudo make install
 }
