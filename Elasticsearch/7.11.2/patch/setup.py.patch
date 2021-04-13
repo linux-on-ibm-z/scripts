@@ -1,0 +1,16 @@
+diff --git a/orig/curator-5.8.3/setup.py b/curator-5.8.3/setup.py
+index 92b1d6b..0106147 100644
+--- a/orig/curator-5.8.3/setup.py
++++ b/curator-5.8.3/setup.py
+@@ -23,9 +23,9 @@ def get_version():
+
+ def get_install_requires():
+     res = ['elasticsearch==7.1.0' ]
+-    res.append('urllib3>=1.24.2,<1.26')
++    res.append('urllib3==1.24.3')
+     res.append('requests>=2.20.0')
+-    res.append('boto3>=1.9.142')
++    res.append('boto3==1.15.18')
+     res.append('requests_aws4auth>=0.9')
+     res.append('click>=6.7,<7.0')
+     res.append('pyyaml==3.13')
