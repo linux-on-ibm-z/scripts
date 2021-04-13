@@ -1,0 +1,15 @@
+diff --git a/orig/curator-5.8.3/requirements.txt b/curator-5.8.3/requirements.txt
+index de8e171..7846ce9 100644
+--- a/orig/curator-5.8.3/requirements.txt
++++ b/curator-5.8.3/requirements.txt
+@@ -1,8 +1,8 @@
+ voluptuous>=0.9.3
+ elasticsearch==7.1.0
+-urllib3>=1.24.2,<1.26
++urllib3==1.24.3
+ requests>=2.20.0
+-boto3>=1.9.142
++boto3==1.15.18
+ requests_aws4auth>=0.9
+ click>=6.7,<7.0
+ pyyaml==3.13
