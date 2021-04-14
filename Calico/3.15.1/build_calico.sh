@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 ################################################################################################################################################################
@@ -53,7 +53,7 @@ done
 PACKAGE_NAME="calico"
 CALICO_VERSION="v3.15.1"
 ETCD_VERSION="v3.3.7"
-GOLANG_VERSION="1.14.2"
+GOLANG_VERSION="1.15.10"
 
 cd $HOME
 
@@ -76,7 +76,7 @@ export CONF_LOG="${LOGDIR}/configuration-$(date +"%F-%T").log"
 touch $CONF_LOG
 
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Calico/3.15.1/patch"
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/${GOLANG_VERSION}/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.16.2/build_go.sh"
 GO_DEFAULT="$HOME/go"
 GO_FLAG="DEFAULT"
 
@@ -107,14 +107,14 @@ case "$DISTRO" in
 	sudo apt-get install -y patch git curl tar gcc wget make clang 2>&1 | tee -a "$CONF_LOG"
 	;;
 
-"rhel-7.6" | "rhel-7.7" | "rhel-7.8" | "rhel-8.1" | "rhel-8.2")
+"rhel-7.8" | "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$CALICO_VERSION" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies ... it may take some time.\n"
 	sudo yum install -y curl git wget tar gcc glibc-static.s390x make which patch 2>&1 | tee -a "$CONF_LOG"
 	export CC=gcc
 	;;
 
-"sles-12.5" | "sles-15.1")
+"sles-12.5" | "sles-15.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$CALICO_VERSION" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies ... it may take some time.\n"
     sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch 2>&1 | tee -a "$CONF_LOG"
@@ -196,14 +196,15 @@ git clone -b ${ETCD_VERSION} https://github.com/coreos/etcd 2>&1 | tee -a "$ETCD
 cd etcd
 export ETCD_UNSUPPORTED_ARCH=s390x
 printf -- "\nBuilding ... \n"  2>&1 | tee -a "$ETCD_LOG"
-./build 2>&1 | tee -a "$ETCD_LOG"
-
-# Create tarball
-tar -zcvf etcd-${ETCD_VERSION}-linux-s390x.tar.gz -C bin etcd etcdctl
 
 ## Modify `Dockerfile-release` for s390x
 printf -- "\nDownloading etcd Dockerfile-release.s390x ... \n"  | tee -a "$ETCD_LOG"
+
 curl -o "Dockerfile-release.s390x" $PATCH_URL/Dockerfile-release.s390x
+# Create tarball
+./build 2>&1 | tee -a "$ETCD_LOG"
+
+tar -zcvf etcd-${ETCD_VERSION}-linux-s390x.tar.gz -C bin etcd etcdctl
 
 ## Then build etcd image
 BINARYDIR=./bin TAG=quay.io/coreos/etcd ./scripts/build-docker ${ETCD_VERSION} 2>&1 | tee -a "$ETCD_LOG"
