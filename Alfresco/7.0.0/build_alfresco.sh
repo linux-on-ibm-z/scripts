@@ -198,7 +198,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT
     git clone https://github.com/Alfresco/acs-community-packaging.git
     cd acs-community-packaging
-    git checkout release/7.0.0
+    git checkout 7.0.0
     mvn clean install -PcommunityDocker -Dmaven.javadoc.skip=true -Dimage.tag=7.0.0
     printf -- "acs-community-packaging image is built successfully\n"
 
