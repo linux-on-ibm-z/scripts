@@ -22,6 +22,7 @@ GO_DEFAULT="$HOME/go"
 FORCE="false"
 TESTS="false"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
+BUILD_ENV="${CURDIR}/setenv.sh"
 
 trap cleanup 0 1 2 ERR
 
@@ -80,6 +81,11 @@ function cleanup() {
 }
 function configureAndInstallPython() {
         printf -- 'Configuration and Installation of Python started\n'
+
+        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
+                source "${BUILD_ENV}"
+        fi
+
         cd $CURDIR
         #Install Python 3.x
         sudo rm -rf Python*
@@ -117,6 +123,11 @@ function configureAndInstallPython() {
 
 function configureAndInstall() {
         printf -- 'Configuration and Installation started \n'
+
+        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
+                source "${BUILD_ENV}"
+        fi
+
         cd $CURDIR
         # Install go
         printf -- "Installing Go... \n"
@@ -305,6 +316,10 @@ function installOpenssl(){
       export LD_LIBRARY_PATH="/usr/local/lib/:/usr/local/lib64/"
       export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
 
+      printf -- 'export PATH="/usr/local/bin:${PATH}"\n'  >> "${BUILD_ENV}"
+      printf -- "export LDFLAGS=\"$LDFLAGS\"\n" >> "${BUILD_ENV}"
+      printf -- "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"\n" >> "${BUILD_ENV}"
+      printf -- "export CPPFLAGS=\"$CPPFLAGS\"\n" >> "${BUILD_ENV}"
 }
 
 function runTest() {
