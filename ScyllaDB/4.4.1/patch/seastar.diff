@@ -1,0 +1,83 @@
+diff --git a/apps/memcached/ascii.rl b/apps/memcached/ascii.rl
+index 6d892b6a..90fb6f87 100644
+--- a/apps/memcached/ascii.rl
++++ b/apps/memcached/ascii.rl
+@@ -33,6 +33,10 @@ machine memcache_ascii_protocol;
+ 
+ access _fsm_;
+ 
++#if defined(__s390x__) || defined(__zarch__)
++    alphtype unsigned char;
++#endif
++
+ action mark {
+     g.mark_start(p);
+ }
+diff --git a/src/core/thread.cc b/src/core/thread.cc
+index daa18693..596305f7 100644
+--- a/src/core/thread.cc
++++ b/src/core/thread.cc
+@@ -287,7 +287,7 @@ thread_context::main() {
+ #elif defined(__aarch64__)
+     asm(".cfi_undefined x30");
+ #else
+-    #warning "Backtracing from seastar threads may be broken"
++    asm(".cfi_undefined r14");
+ #endif
+     _context.initial_switch_in_completed();
+     if (group() != current_scheduling_group()) {
+diff --git a/src/http/request_parser.rl b/src/http/request_parser.rl
+index dd34bad6..d936fe2a 100644
+--- a/src/http/request_parser.rl
++++ b/src/http/request_parser.rl
+@@ -36,6 +36,10 @@ using namespace httpd;
+ 
+ access _fsm_;
+ 
++#if defined(__s390x__) || defined(__zarch__)
++    alphtype unsigned char;
++#endif
++
+ action mark {
+     g.mark_start(p);
+ }
+diff --git a/src/http/response_parser.rl b/src/http/response_parser.rl
+index 2e484321..9739315d 100644
+--- a/src/http/response_parser.rl
++++ b/src/http/response_parser.rl
+@@ -36,6 +36,10 @@ struct http_response {
+ 
+ access _fsm_;
+ 
++#if defined(__s390x__) || defined(__zarch__)
++    alphtype unsigned char;
++#endif
++
+ action mark {
+     g.mark_start(p);
+ }
+diff --git a/src/net/dns.cc b/src/net/dns.cc
+index 95e20cf8..b0f8e4a9 100644
+--- a/src/net/dns.cc
++++ b/src/net/dns.cc
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include <arpa/nameser.h>
++#include <sys/socket.h>
+ #include <chrono>
+ 
+ #include <ares.h>
+diff --git a/src/net/inet_address.cc b/src/net/inet_address.cc
+index 8ec8ca5c..adcf9148 100644
+--- a/src/net/inet_address.cc
++++ b/src/net/inet_address.cc
+@@ -155,7 +155,7 @@ seastar::net::inet_address::operator ::in_addr() const {
+ seastar::net::inet_address::operator ::in6_addr() const noexcept {
+     if (_in_family == family::INET) {
+         in6_addr in6 = IN6ADDR_ANY_INIT;
+-        in6.s6_addr32[2] = ::htonl(0xffff);
++        in6.s6_addr32[2] = htonl(0xffff);
+         in6.s6_addr32[3] = _in.s_addr;
+         return in6;
+     }
