@@ -490,13 +490,14 @@ case "$DISTRO" in
     libxml2-devel readline readline-devel libcurl4 \
     libcurl-devel libreadline6 nginx \
     libzip-devel libzip2 pkg-config oniguruma-devel git \
-    curl tar postgresql10-devel postgresql10 \
+    tar postgresql10-devel postgresql10 \
     sqlite3-devel zlib-devel gcc10 gcc10-c++ \
     make patch |& tee -a "$LOG_FILE"
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   setupGCC |& tee -a "$LOG_FILE"
 
+  buildcurl760 |& tee -a "$LOG_FILE"
   buildOpenssl |& tee -a "$LOG_FILE"
 
   PATH=${PREFIX}/bin${PATH:+:${PATH}}
@@ -526,7 +527,7 @@ case "$DISTRO" in
     autoconf curl libtool openssl-devel libxml2 \
     libxml2-devel readline readline-devel \
     libcurl4 libcurl-devel libreadline7 openssl \
-    libzip-devel pkg-config oniguruma-devel git curl \
+    libzip-devel pkg-config oniguruma-devel git \
     tar sqlite3-devel zlib-devel gcc10 gcc10-c++ \
     libzip5 postgresql12 nginx postgresql12-server-devel \
     patch make gzip gawk |& tee -a "$LOG_FILE"
