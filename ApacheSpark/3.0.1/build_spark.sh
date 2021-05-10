@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020
+# © Copyright IBM Corporation 2020, 2021
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -224,11 +224,18 @@ function configureAndInstall() {
     wget -O sbt.tgz https://github.com/sbt/sbt/releases/download/v1.3.13/sbt-1.3.13.tgz
     tar -zxvf sbt.tgz
     export PATH="${PATH}:${SOURCE_ROOT}/sbt/bin/"
-
+    
+    # Build SBT-JNI 
+    cd "${SOURCE_ROOT}"
+    git clone https://github.com/joprice/sbt-jni.git
+    cd sbt-jni/ && git checkout v0.2.0
+    sbt compile package && sbt +publishLocal
+    
     # Build Zstd JNI
     cd "${SOURCE_ROOT}"
     git clone -b v1.4.5-4 https://github.com/luben/zstd-jni.git
     cd zstd-jni
+    wget -O - "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheSpark/3.0.1/patch/ZstdBuild.diff" | git apply
     JAVA_HOME="/opt/openjdk/8/" PATH="/opt/openjdk/8/bin/:${PATH}" sbt compile package
     export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${SOURCE_ROOT}/zstd-jni/target/classes/linux/s390x/"
     printf -- 'export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:%s/zstd-jni/target/classes/linux/s390x/"\n' "${SOURCE_ROOT}" >> "${BUILD_ENV}"
