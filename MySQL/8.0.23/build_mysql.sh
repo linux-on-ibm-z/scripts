@@ -95,23 +95,22 @@ function configureAndInstall() {
 
 	#Configure, build and install MySQL
 	echo "BUILDING DBOOST"
+	wget https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.tar.bz2 -O boost_1_73_0.tar.gz
     	if [[ "$ID" == "rhel" ]]; then
 	        export PATH=/usr/local/bin:$PATH
-		      export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+		export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+		      
 		      if [[ "$DISTRO" == "rhel-8.1" || "$DISTRO" == "rhel-8.2" || "$DISTRO" == "rhel-8.3" ]]; then
-			      cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++	
+			      cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++	
 			      make
 			      sudo make install
 		      else
-			      export PATH=/usr/local/bin:$PATH
-			      export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
-			      wget https://dl.bintray.com/boostorg/release/1.73.0/source/boost_1_73_0.tar.gz
-            cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/usr/local/bin/gcc -DCMAKE_CXX_COMPILER=/usr/local/bin/g++
+			      cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/usr/local/bin/gcc -DCMAKE_CXX_COMPILER=/usr/local/bin/g++
 			      make
 			      sudo make install -e LD_LIBRARY_PATH=/usr/local/lib64/
 		       fi	
    	else	
-		cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=. -DWITH_SSL=system
+		cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system
 		make
 		sudo make install    
     fi
