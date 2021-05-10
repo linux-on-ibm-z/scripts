@@ -113,7 +113,7 @@ function configureAndInstall() {
 	cd "${CURDIR}"
 	# Install rabbitmq
 	printf -- 'Downloading and installing rabbitmq \n'
-	wget https://dl.bintray.com/rabbitmq/all/rabbitmq-server/$PACKAGE_VERSION/rabbitmq-server-$PACKAGE_VERSION.tar.xz
+	wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v$PACKAGE_VERSION/rabbitmq-server-$PACKAGE_VERSION.tar.xz
 	tar -xf rabbitmq-server-$PACKAGE_VERSION.tar.xz
 	cd rabbitmq-server-$PACKAGE_VERSION
 	sudo cp ${CURDIR}/hex/_build/dev/lib/hex/ebin/* deps/.mix/archives/hex-$HEX_VERSION/hex-$HEX_VERSION/ebin/
