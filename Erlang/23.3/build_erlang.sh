@@ -98,7 +98,7 @@ function configureAndInstall() {
             export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
             printf -- 'export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk\n'  >> "$BUILD_ENV"
         else
-            if [[ "$VERSION_ID" == "20.04" || "$VERSION_ID" == "18.04"  || "$VERSION_ID" == "20.10" ]]; then
+            if [[ "$VERSION_ID" == "20.04" || "$VERSION_ID" == "18.04"  || "$VERSION_ID" == "21.04" ]]; then
                 sudo apt-get install -y openjdk-11-jdk
                 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
                 printf -- 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x\n'  >> "$BUILD_ENV"
@@ -220,7 +220,7 @@ prepare # Check Prerequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
