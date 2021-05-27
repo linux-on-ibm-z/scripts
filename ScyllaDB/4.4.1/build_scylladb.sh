@@ -797,7 +797,7 @@ case "$DISTRO" in
   libffi-devel libpciaccess-devel libxml2-devel \
   libtool diffutils libtool-ltdl-devel trousers-devel \
   libunistring-devel libicu-devel readline-devel \
-  lua-devel patch systemd-devel valgrind-devel |& tee -a "$LOG_FILE"
+  lua-devel patch systemd-devel valgrind-devel net-tools |& tee -a "$LOG_FILE"
  
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   buildBinutils |& tee -a "$LOG_FILE"
