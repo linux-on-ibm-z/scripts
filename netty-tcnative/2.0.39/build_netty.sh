@@ -250,7 +250,7 @@ case "$DISTRO" in
 "rhel-8.3" | "rhel-8.2" | "rhel-8.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y ninja-build cmake perl gcc gcc-c++ openssl-devel apr-devel autoconf automake libtool make tar git wget maven golang |& tee -a "${LOG_FILE}"
+	sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget maven golang |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 "sles-12.5")
@@ -275,3 +275,4 @@ case "$DISTRO" in
 esac
 
 gettingStarted |& tee -a "${LOG_FILE}"
+
