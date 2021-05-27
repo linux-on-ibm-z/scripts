@@ -411,7 +411,7 @@ case "$DISTRO" in
 "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	yum install -y autoconf automake bison bzip2 flex fuse-devel gcc-c++ git glib2-devel libacl-devel libaio-devel libibverbs-devel librdmacm-devel libtool libxml2-devel libuuid-devel lvm2 make openssl-devel pkgconfig python3 readline-devel wget zlib-devel tar gzip libtirpc-devel patch rpcgen userspace-rcu-devel which diffutils
+	yum install -y autoconf automake bison bzip2 flex fuse-devel gcc-c++ git glib2-devel libacl-devel libaio-devel libibverbs-devel librdmacm-devel libtool libxml2-devel libuuid-devel lvm2 make openssl-devel pkgconfig python3 readline-devel wget zlib-devel tar gzip libtirpc-devel patch rpcgen userspace-rcu-devel which diffutils xz
 	installGCC | tee -a "$LOG_FILE"
 	configureAndInstall | tee -a "$LOG_FILE"
 	;;
