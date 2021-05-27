@@ -228,8 +228,8 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo dnf install -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch ncurses-devel libtool \
-        elfutils-libelf-devel diffutils which rpm-build createrepo kernel-devel-$(uname -r)
+    sudo yum install -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch ncurses-devel libtool \
+        elfutils-libelf-devel diffutils which rpm-build createrepo libarchive kernel-devel-$(uname -r)
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
