@@ -254,7 +254,7 @@ case "$DISTRO" in
 "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-	sudo yum install -y gcc-c++ autoconf cmake git wget make ncurses-devel curl xz diffutils bison |& tee -a "$LOG_FILE"
+	sudo yum install -y gcc-c++ autoconf libarchive cmake git wget make ncurses-devel curl xz diffutils bison |& tee -a "$LOG_FILE"
 	sudo ln -f -s /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
     configureAndInstall |& tee -a "$LOG_FILE"
   ;;
