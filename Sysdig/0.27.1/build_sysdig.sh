@@ -199,7 +199,7 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo yum install -y gcc gcc-c++ git make cmake autoconf automake pkg-config libtool wget patch \
-        curl elfutils-libelf-devel kernel-devel-$(uname -r) glibc-static libstdc++-static kmod
+        curl elfutils-libelf-devel kernel-devel-$(uname -r) glibc-static libstdc++-static kmod libarchive
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
