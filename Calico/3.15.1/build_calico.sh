@@ -110,7 +110,7 @@ case "$DISTRO" in
 "rhel-7.8" | "rhel-8.1" | "rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$CALICO_VERSION" "$DISTRO" | tee -a "$CONF_LOG"
 	printf -- "Installing dependencies ... it may take some time.\n"
-	sudo yum install -y curl git wget tar gcc glibc-static.s390x make which patch 2>&1 | tee -a "$CONF_LOG"
+	sudo yum install -y curl git wget tar gcc make which patch 2>&1 | tee -a "$CONF_LOG"
 	export CC=gcc
 	;;
 
