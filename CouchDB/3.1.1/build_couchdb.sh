@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020, 2021.
+# © Copyright IBM Corporation 2020, 2021
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -279,7 +279,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo apt-get install -y build-essential pkg-config ncurses-base g++-5 gcc-5 python python3 python3-pip python3-venv hostname curl git patch wget tar make zip autoconf2.13 automake libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-dev openjdk-8-jdk xsltproc fop libxml2-utils |& tee -a "$LOG_FILE"
+	sudo apt-get install -y build-essential pkg-config ncurses-base g++-5 gcc-5 python python3 python3-pip python3-venv python3-markupsafe hostname curl git patch wget tar make zip autoconf2.13 automake libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-dev openjdk-8-jdk xsltproc fop libxml2-utils |& tee -a "$LOG_FILE"
 
 	sudo rm -rf /usr/bin/gcc /usr/bin/g++ /usr/bin/cc
 	sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc
