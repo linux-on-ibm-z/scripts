@@ -190,13 +190,20 @@ case "$DISTRO" in
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.2")
+"sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y wget gzip awk |& tee -a "$LOG_FILE"
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
+"sles-15.2")
+   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+   printf -- "Installing dependencies... it may take some time.\n"
+   sudo zypper install -y gzip awk zlib-devel
+   install_ruby
+   configureAndInstall |& tee -a "$LOG_FILE"
+   ;;
 *)
     printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
     exit 1
@@ -204,3 +211,4 @@ case "$DISTRO" in
 esac
 
 gettingStarted |& tee -a "$LOG_FILE"
+
