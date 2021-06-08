@@ -136,8 +136,12 @@ function configureAndInstall() {
 	git clone -b v"${PACKAGE_VERSION}" https://github.com/grafana/grafana.git
 
 	printf -- "Created grafana Directory at 1 \n"
-	#Give permission
+
 	cd grafana
+
+	#Fix wrong target version when compiling, Issue: https://github.com/grafana/grafana/issues/34887
+	sudo sed -i 's/7.5.6/7.5.7/g' ./package.json
+
 	make deps-go
 	make build-go
 	printf -- 'Build Grafana success \n'
