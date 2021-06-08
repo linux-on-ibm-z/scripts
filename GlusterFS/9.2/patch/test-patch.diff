@@ -1,0 +1,103 @@
+diff --git a/tests/00-geo-rep/00-georep-verify-non-root-setup.t b/tests/00-geo-rep/00-georep-verify-non-root-setup.t
+index dcb288763..d279d0ec0 100644
+--- a/tests/00-geo-rep/00-georep-verify-non-root-setup.t
++++ b/tests/00-geo-rep/00-georep-verify-non-root-setup.t
+@@ -124,7 +124,7 @@ TEST /usr/sbin/groupadd $grp
+ clean_lock_files
+ ##Del if exists and create non-root user and assign it to newly created group
+ userdel -r -f $usr
+-TEST /usr/sbin/useradd -G $grp $usr
++TEST /usr/sbin/useradd -m -G $grp $usr
+ 
+ ##Modify password for non-root user to have control over distributing ssh-key
+ echo "$usr:pass" | chpasswd
+@@ -187,7 +187,7 @@ export SSH_ASKPASS=${SSH_ASKPASS_SCRIPT}
+ DISPLAY=: setsid ssh-copy-id -o 'PreferredAuthentications=password' -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa.pub $ssh_url
+ 
+ ##Setting up PATH for gluster binaries in case of source installation
+-##ssh -oNumberOfPasswordPrompts=0 -oStrictHostKeyChecking=no $ssh_url "echo "export PATH=$PATH:/usr/local/sbin" >> ~/.bashrc"
++ssh -oNumberOfPasswordPrompts=0 -oStrictHostKeyChecking=no $ssh_url "echo "export PATH=$PATH:/usr/local/sbin" >> ~/.bashrc"
+ 
+ ##Creating secret pem pub file
+ TEST gluster-georep-sshkey generate
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf4f..1cc3cac5d 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+ }
+ 
+ #Determine number of cores
+-cores=$(cat /proc/cpuinfo | grep processor | wc -l)
++cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
+ if [ "$cores" == "" ]; then
+         echo "Could not get number of cores available"
+ fi
+diff --git a/tests/bugs/glusterfs-server/bug-877992.t b/tests/bugs/glusterfs-server/bug-877992.t
+index 300000bcf..4ba1d5039 100755
+--- a/tests/bugs/glusterfs-server/bug-877992.t
++++ b/tests/bugs/glusterfs-server/bug-877992.t
+@@ -48,7 +48,7 @@ EXPECT 'Created' volinfo_field $V0 'Status';
+ EXPECT 'createPre' cat /tmp/pre.out;
+ # Spost.sh comes after S10selinux-label-brick.sh under create post hook script
+ # list. So consider the delay in setting SELinux context on bricks
+-EXPECT_WITHIN 5 'createPost' cat /tmp/post.out;
++EXPECT_WITHIN 10 'createPost' cat /tmp/post.out;
+ hooks_cleanup 'create'
+ 
+ 
+diff --git a/tests/bugs/nfs/bug-847622.t b/tests/bugs/nfs/bug-847622.t
+index 5ccee722e..20d5ec532 100755
+--- a/tests/bugs/nfs/bug-847622.t
++++ b/tests/bugs/nfs/bug-847622.t
+@@ -30,7 +30,7 @@ cd $N0
+ 
+ # simple getfacl setfacl commands
+ TEST touch testfile
+-TEST setfacl -m u:14:r testfile
++TEST setfacl -m u:14:r $B0/brick0/testfile
+ TEST getfacl testfile
+ 
+ cd
+diff --git a/tests/bugs/shard/bug-1251824.t b/tests/bugs/shard/bug-1251824.t
+index d81685d01..fef2b8795 100644
+--- a/tests/bugs/shard/bug-1251824.t
++++ b/tests/bugs/shard/bug-1251824.t
+@@ -14,7 +14,7 @@ TEST $CLI volume set $V0 features.shard-block-size 4MB
+ TEST $CLI volume start $V0
+ 
+ TEST glusterfs --volfile-id=$V0 --volfile-server=$H0 $M0
+-TEST useradd -M test_user 2>/dev/null
++TEST useradd -UM test_user 2>/dev/null
+ 
+ # Create 3 files as root.
+ TEST touch $M0/foo
+@@ -102,6 +102,7 @@ md5sum_foo=$(md5sum $M0/foo | awk '{print $1}')
+ EXPECT "$md5sum_foo" echo `md5sum $M0/dir/quux | awk '{print $1}'`
+ 
+ userdel test_user
++groupdel test_user
+ 
+ TEST $CLI volume stop $V0
+ TEST $CLI volume delete $V0
+diff --git a/tests/bugs/shard/bug-1468483.t b/tests/bugs/shard/bug-1468483.t
+index e462b8d54..0ace31aa0 100644
+--- a/tests/bugs/shard/bug-1468483.t
++++ b/tests/bugs/shard/bug-1468483.t
+@@ -35,7 +35,7 @@ TEST stat $B0/${V0}0/.shard/$gfid_foo.6
+ 
+ EXPECT "7" echo `$CLI volume profile $V0 info incremental | grep -w FSYNC | awk '{print $8}'`
+ 
+-useradd -M test_user 2>/dev/null
++useradd -UM test_user 2>/dev/null
+ 
+ TEST touch $M0/bar
+ 
+@@ -52,6 +52,7 @@ EXPECT "7" echo `$CLI volume profile $V0 info incremental | grep -w FSYNC | awk
+ 
+ EXPECT_WITHIN $UMOUNT_TIMEOUT "Y" force_umount $M0
+ userdel test_user
++groupdel test_user
+ TEST $CLI volume stop $V0
+ TEST $CLI volume delete $V0
+ 
