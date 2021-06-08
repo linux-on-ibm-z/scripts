@@ -1,0 +1,15 @@
+diff --git a/xlators/nfs/server/src/nfs.c b/xlators/nfs/server/src/nfs.c
+index c01e5f01b..af1172a39 100644
+--- a/xlators/nfs/server/src/nfs.c
++++ b/xlators/nfs/server/src/nfs.c
+@@ -1681,8 +1681,8 @@ nfs_start_rpc_poller(struct nfs_state *state)
+  *   - In libtirpc, only one thread can call svc_run() and will serve
+  *     all registered services, from any thread.
+  */
+-#ifdef HAVE_LIBTIRPC
+-    if (uatomic_xchg(&state->svc_running, true)) {
++#ifdef HAVE_LIBTIRPC_OLD
++    if (uatomic_xchg(&state->svc_running,true)) {
+         return;
+     }
+ #endif
