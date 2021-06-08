@@ -224,6 +224,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT/SearchServices/search-services
     mvn clean install -DskipTests=true
     cd packaging/target/docker-resources/
+    sed -i 's/YourKit-JavaProfiler-2019.8-docker/YourKit-JavaProfiler-2021.3-docker/g' Dockerfile
     docker build -t alfresco/alfresco-search-services:2.0.1 .
     printf -- "alfresco-search-services image is built successfully\n"
 
