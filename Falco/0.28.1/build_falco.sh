@@ -238,9 +238,14 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo zypper install -y gcc gcc-c++ git-core cmake ncurses-devel libopenssl-devel \
+    sudo zypper install -y gcc7 gcc7-c++ git-core cmake ncurses-devel libopenssl-devel \
         libcurl-devel protobuf-devel patch which automake autoconf libtool libelf-devel \
         "kernel-default-devel=${SLES_KERNEL_VERSION}"
+	
+    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-7 40
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
