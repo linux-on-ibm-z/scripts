@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020, 2021.
+# © Copyright IBM Corporation 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -67,24 +67,23 @@ function configureAndInstall() {
  
   # Download nginx
   
-  
     cd "$CURDIR"
     wget http://nginx.org/download/nginx-${PACKAGE_VERSION}.tar.gz
     tar xvf nginx-${PACKAGE_VERSION}.tar.gz
-    cd nginx-${NGINX_VERSION}
+    cd nginx-${PACKAGE_VERSION}
     ./configure 
-     make
+    make
     sudo make install
 
     printf -- "Build nginx success\n"
 
-    # Create a symlink
-    sudo ln -sf /usr/local/nginx/sbin/nginx /usr/bin/nginx
+    # Add binary to /usr/sbin
+    sudo cp  /usr/local/nginx/sbin/nginx /usr/sbin/
 
     printf -- "Installation nginx success\n"
 
     # Verify nginx installation
-    if command -v "nginx" >/dev/null; then
+    if command -v "/usr/sbin/nginx" >/dev/null; then
         printf -- " %s Installation verified.\n" "$PACKAGE_NAME"
     else
         printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
@@ -110,7 +109,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo " build_nginx.sh  [-d debug] [-y install-without-confirmation] [-t install and run tests]"
+    echo "bash build_nginx.sh  [-d debug] [-y install-without-confirmation] [-t install and run tests]"
     echo
 }
 
@@ -132,8 +131,11 @@ done
 function gettingStarted() {
     printf -- '\n********************************************************************************************************\n'
     printf -- "\n*Getting Started * \n"
+    printf -- "Note: for suse, run command .\n"
+    printf -- 'export PATH=$PATH:/usr/sbin \n'
     printf -- "Running nginx: \n"
     printf -- "nginx -c nginx.conf \n\n"
+    printf -- "Note that this will normally need to be done as root, NGINX will not have authority to access one or more ports, such as 80 and 8080.\n"
     printf -- "You have successfully started nginx.\n"
     printf -- '**********************************************************************************************************\n'
 }
