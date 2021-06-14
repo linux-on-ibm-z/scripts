@@ -405,7 +405,7 @@ case "$DISTRO" in
 "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-	zypper install -y autoconf automake bison cmake flex fuse-devel gcc7 gcc7-c++ git glib2-devel libacl-devel libaio-devel librdmacm1 libtool libuuid-devel libxml2-devel lvm2 make pkg-config python2 rdma-core-devel readline-devel zlib-devel which patch gawk wget popt-devel
+	zypper install -y autoconf automake bison cmake flex fuse-devel gcc gcc7 gcc7-c++ git glib2-devel libacl-devel libaio-devel librdmacm1 libtool libuuid-devel libxml2-devel lvm2 make pkg-config python2 rdma-core-devel readline-devel zlib-devel which patch gawk wget popt-devel
 	update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
 	update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
 	update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40
