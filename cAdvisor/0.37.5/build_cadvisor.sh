@@ -13,7 +13,7 @@ PACKAGE_NAME="cadvisor"
 PACKAGE_VERSION="0.37.5"
 CURDIR="$(pwd)"
 
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.16.2/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.16.5/build_go.sh"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/cAdvisor/${PACKAGE_VERSION}/patch"
 
 #Default GOPATH if not present already.
@@ -208,7 +208,7 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update 
@@ -223,7 +223,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 	
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y curl git golang patch make |& tee -a "${LOG_FILE}"
