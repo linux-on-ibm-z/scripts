@@ -1,0 +1,29 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala
+index 5256043289..dc7f3f52bc 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/ReadSchemaSuite.scala
+@@ -17,7 +17,6 @@
+ 
+ package org.apache.spark.sql.execution.datasources
+ 
+-import org.apache.spark.SparkConf
+ import org.apache.spark.sql.internal.SQLConf
+ 
+ /**
+@@ -89,6 +88,8 @@ class JsonReadSchemaSuite
+   override val format: String = "json"
+ }
+ 
++// FIXME: Orc does not currently support big-endian systems.
++/*
+ class OrcReadSchemaSuite
+   extends ReadSchemaSuite
+   with AddColumnIntoTheMiddleTest
+@@ -154,6 +155,7 @@ class MergedOrcReadSchemaSuite
+       .sparkConf
+       .set(SQLConf.ORC_SCHEMA_MERGING_ENABLED.key, "true")
+ }
++*/
+ 
+ class ParquetReadSchemaSuite
+   extends ReadSchemaSuite
