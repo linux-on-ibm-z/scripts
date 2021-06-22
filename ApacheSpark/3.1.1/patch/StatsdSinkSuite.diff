@@ -1,0 +1,13 @@
+diff --git a/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala b/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala
+index 3d4b8c868d..81c7406d12 100644
+--- a/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala
++++ b/core/src/test/scala/org/apache/spark/metrics/sink/StatsdSinkSuite.scala
+@@ -43,7 +43,7 @@ class StatsdSinkSuite extends SparkFunSuite {
+   // packets. This includes any kernel and protocol overhead.
+   // This value was determined experimentally and should be
+   // increased if timeouts are seen.
+-  private val socketMinRecvBufferSize = 16384 // bytes
++  private val socketMinRecvBufferSize = 40000 // bytes
+   private val socketTimeout = 30000           // milliseconds
+
+   private def withSocketAndSink(testCode: (DatagramSocket, StatsdSink) => Any): Unit = {
