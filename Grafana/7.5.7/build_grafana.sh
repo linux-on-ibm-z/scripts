@@ -14,7 +14,7 @@ CURDIR="$(pwd)"
 
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Grafana/7.5.7/patch/datasource.test.ts.patch"
 
-GO_VERSION="1.16.3"
+GO_VERSION="1.16.5"
 NODE_JS_VERSION="16.1.0"
 
 GO_DEFAULT="$HOME/go"
