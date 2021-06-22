@@ -1,0 +1,37 @@
+diff --git a/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-joins.sql b/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-joins.sql
+index 2353560137..d370184faf 100644
+--- a/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-joins.sql
++++ b/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-joins.sql
+@@ -13,7 +13,6 @@
+ --CONFIG_DIM2 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
+ --CONFIG_DIM2 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
+
+---CONFIG_DIM3 spark.sql.optimizeNullAwareAntiJoin=true
+ --CONFIG_DIM3 spark.sql.optimizeNullAwareAntiJoin=false
+
+ create temporary view t1 as select * from values
+diff --git a/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-order-by.sql b/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-order-by.sql
+index 568854ebe2..bc975e5b10 100644
+--- a/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-order-by.sql
++++ b/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/in-order-by.sql
+@@ -6,7 +6,6 @@
+ --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
+ --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
+
+---CONFIG_DIM2 spark.sql.optimizeNullAwareAntiJoin=true
+ --CONFIG_DIM2 spark.sql.optimizeNullAwareAntiJoin=false
+
+ create temporary view t1 as select * from values
+diff --git a/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/not-in-group-by.sql b/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/not-in-group-by.sql
+index 54b74534c1..55163e5d0e 100644
+--- a/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/not-in-group-by.sql
++++ b/sql/core/src/test/resources/sql-tests/inputs/subquery/in-subquery/not-in-group-by.sql
+@@ -3,8 +3,6 @@
+
+ -- Test aggregate operator with codegen on and off.
+ --CONFIG_DIM1 spark.sql.codegen.wholeStage=true
+---CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY
+---CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=NO_CODEGEN
+
+ create temporary view t1 as select * from values
+   ("val1a", 6S, 8, 10L, float(15.0), 20D, 20E2, timestamp '2014-04-04 01:00:00.000', date '2014-04-04'),
