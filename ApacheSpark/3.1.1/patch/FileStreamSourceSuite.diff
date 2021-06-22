@@ -1,0 +1,21 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FileStreamSourceSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FileStreamSourceSuite.scala
+index ff00c474e2..6eaa88ec78 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FileStreamSourceSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FileStreamSourceSuite.scala
+@@ -705,6 +705,8 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
+ 
+   // =============== ORC file stream tests ================
+ 
++  // Requires ORC which does not currently support big-endian.
++  /*
+   test("read from orc files") {
+     withTempDirs { case (src, tmp) =>
+       val fileStream = createFileStream("orc", src.getCanonicalPath, Some(valueSchema))
+@@ -755,6 +757,7 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
+       }
+     }
+   }
++  */
+ 
+   // =============== Parquet file stream tests ================
+ 
