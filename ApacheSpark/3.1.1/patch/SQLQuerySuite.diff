@@ -1,0 +1,63 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/SQLQuerySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/SQLQuerySuite.scala
+index e42fb963d5..6e5d6d8367 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/SQLQuerySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/SQLQuerySuite.scala
+@@ -31,7 +31,6 @@ import org.apache.spark.sql.catalyst.plans.logical.Project
+ import org.apache.spark.sql.catalyst.util.StringUtils
+ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+ import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+ import org.apache.spark.sql.execution.command.FunctionsCommand
+ import org.apache.spark.sql.execution.datasources.SchemaColumnConvertNotSupportedException
+ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+@@ -3253,6 +3252,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+     sql("DROP VIEW t1")
+   }
+ 
++  // Requires ORC which does not currently support big-endian.
++  /*
+   test("SPARK-28156: self-join should not miss cached view") {
+     withTable("table1") {
+       withView("table1_vw") {
+@@ -3284,6 +3285,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+     }
+ 
+   }
++  */
+ 
+   test("SPARK-29000: arithmetic computation overflow when don't allow decimal precision loss ") {
+     withSQLConf(SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key -> "false") {
+@@ -3708,6 +3710,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+     }
+   }
+ 
++  // Requires ORC which does not currently support big-endian.
++  /*
+   test("SPARK-33338: GROUP BY using literal map should not fail") {
+     withTempDir { dir =>
+       sql(s"CREATE TABLE t USING ORC LOCATION '${dir.toURI}' AS SELECT map('k1', 'v1') m, 'k1' k")
+@@ -3719,6 +3723,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+       }
+     }
+   }
++  */
+ 
+   test("SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar") {
+     withTempView("df") {
+@@ -3745,6 +3750,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+     }
+   }
+ 
++  // Requires ORC which does not currently support big-endian.
++  /*
+   test("SPARK-33593: Vector reader got incorrect data with binary partition value") {
+     Seq("false", "true").foreach(value => {
+       withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> value) {
+@@ -3770,6 +3777,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+       }
+     })
+   }
++  */
+ 
+   test("SPARK-33945: handles a random seed consisting of an expr tree") {
+     val excludedRules = Seq(ConstantFolding, ReorderAssociativeOperator).map(_.ruleName)
