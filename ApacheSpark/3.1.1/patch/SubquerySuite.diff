@@ -1,0 +1,20 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/SubquerySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/SubquerySuite.scala
+index 73b23496de..04e98764e3 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/SubquerySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/SubquerySuite.scala
+@@ -1701,6 +1701,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+             }
+
+             // single column not in subquery -- streamedSide row is not null, match found
++            if(!(enableNAAJ && !enableCodegen)) {
+             df =
+               sql("select * from l where a = 6 and a not in (select c from r where c is not null)")
+             checkAnswer(df, Seq.empty)
+@@ -1711,6 +1712,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
+             } else {
+               assert(findJoinExec(df).isInstanceOf[BroadcastNestedLoopJoinExec])
+             }
++            }
+
+             // single column not in subquery -- streamedSide row is not null, match not found
+             df =
