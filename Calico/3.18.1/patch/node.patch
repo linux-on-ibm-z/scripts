@@ -1,0 +1,38 @@
+diff --git a/Makefile b/Makefile
+index 03ba53a..ccef8a8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -63,7 +63,7 @@ TEST_CONTAINER_NAME?=calico/test:$(TEST_CONTAINER_NAME_VER)-$(ARCH)
+ # If building on amd64 omit the arch in the container name.  Fixme!
+ ETCD_IMAGE?=quay.io/coreos/etcd:$(ETCD_VERSION)
+ ifneq ($(BUILDARCH),amd64)
+-	ETCD_IMAGE=$(ETCD_IMAGE)-$(ARCH)
++	ETCD_IMAGE:=$(ETCD_IMAGE)-$(ARCH)
+ endif
+ 
+ HYPERKUBE_IMAGE?=gcr.io/google_containers/hyperkube-$(ARCH):$(K8S_VERSION)
+@@ -251,7 +251,7 @@ endif
+ 	docker run --rm -v $(CURDIR)/dist/bin:/go/bin:rw $(CALICO_BUILD) /bin/sh -c "\
+ 	  echo; echo calico-node-$(ARCH) -v;	 /go/bin/calico-node-$(ARCH) -v; \
+ 	"
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) . --build-arg BIRD_IMAGE=$(BIRD_IMAGE) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./Dockerfile.$(ARCH)
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) . --build-arg BIRD_IMAGE=$(BIRD_IMAGE) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./Dockerfile.$(ARCH)
+ 	touch $@
+ 
+ # download BIRD source to include in image.
+@@ -340,7 +340,6 @@ ut:
+ # variables.  These are used for the STs.
+ dist/calicoctl:
+ 	-docker rm -f calicoctl
+-	docker pull $(CTL_CONTAINER_NAME)
+ 	docker create --name calicoctl $(CTL_CONTAINER_NAME)
+ 	docker cp calicoctl:calicoctl dist/calicoctl && \
+ 	  test -e dist/calicoctl && \
+@@ -349,7 +348,6 @@ dist/calicoctl:
+ 
+ dist/calico dist/calico-ipam:
+ 	-docker rm -f calico-cni
+-	docker pull calico/cni:$(CNI_VER)
+ 	docker create --name calico-cni calico/cni:$(CNI_VER)
+ 	docker cp calico-cni:/opt/cni/bin/install dist/calico && \
+ 	  test -e dist/calico && \
