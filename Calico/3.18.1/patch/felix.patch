@@ -1,0 +1,150 @@
+diff --git a/Makefile b/Makefile
+index 630d55e1..8e4bc45d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -98,7 +98,7 @@ FV_NUM_BATCHES?=1
+ # (with FV_NUM_BATCHES=1) to check that it's not a flake.
+ FV_BATCHES_TO_RUN?=$(shell seq $(FV_NUM_BATCHES))
+ FV_SLOW_SPEC_THRESH=90
+-FV_RACE_DETECTOR_ENABLED?=true
++FV_RACE_DETECTOR_ENABLED?=false
+ 
+ # Linker flags for building Felix.
+ #
+@@ -258,26 +258,26 @@ $(BUILD_IMAGE)-$(ARCH): bin/calico-felix-$(ARCH) \
+ 	mkdir -p docker-image/bpf/bin
+ 	# Copy only the files we're explicitly expecting (in case we have left overs after switching branch).
+ 	cp $(ALL_BPF_PROGS) docker-image/bpf/bin
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image;
+-ifeq ($(ARCH),amd64)
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --file ./docker-image/Dockerfile.$(ARCH) docker-image;
++ifeq ($(ARCH),s390x)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
+ 
+ ifeq ($(FV_RACE_DETECTOR_ENABLED),true)
+ FV_BINARY=calico-felix-race-amd64
+ else
+-FV_BINARY=calico-felix-amd64
++FV_BINARY=calico-felix-s390x
+ endif
+ 
+-image-test: image fv/Dockerfile.test.amd64 bin/pktgen bin/test-workload bin/test-connection bin/$(FV_BINARY) image-wgtool
++image-test: image fv/Dockerfile.test.s390x bin/pktgen bin/test-workload bin/test-connection bin/$(FV_BINARY) image-wgtool
+ 	docker build -t $(BUILD_IMAGE)-test:latest-$(ARCH) --build-arg FV_BINARY=$(FV_BINARY) --file ./fv/Dockerfile.test.$(ARCH) bin;
+-ifeq ($(ARCH),amd64)
++ifeq ($(ARCH),s390x)
+ 	docker tag $(BUILD_IMAGE)-test:latest-$(ARCH) $(BUILD_IMAGE)-test:latest
+ endif
+ 
+-image-wgtool: fv/Dockerfile.wgtool.amd64
++image-wgtool: fv/Dockerfile.wgtool.s390x
+ 	docker build -t $(BUILD_IMAGE)-wgtool:latest-$(ARCH) --file ./fv/Dockerfile.wgtool.$(ARCH) fv;
+-ifeq ($(ARCH),amd64)
++ifeq ($(ARCH),s390x)
+ 	docker tag $(BUILD_IMAGE)-wgtool:latest-$(ARCH) $(BUILD_IMAGE)-wgtool:latest
+ endif
+ 
+diff --git a/docker-image/Dockerfile.s390x b/docker-image/Dockerfile.s390x
+index 6608744e..a7ec9840 100644
+--- a/docker-image/Dockerfile.s390x
++++ b/docker-image/Dockerfile.s390x
+@@ -1,18 +1,55 @@
+-ARG QEMU_IMAGE=calico/go-build:latest
+-FROM ${QEMU_IMAGE} as qemu
++# Copyright (c) 2015-2019 Tigera, Inc. All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
+ 
++
++# NOTE: This Dockerfile should be kept in-sync with the one in calico/node.
++# This ensures that testing of Felix in this repository is done in the same
++# userspace environment as it will be deployed in calico/node.
+ FROM calico/bpftool:v5.3-s390x as bpftool
+ 
+-FROM s390x/alpine:3.8 as base
++FROM debian:10-slim
++LABEL maintainer="Shaun Crampton <shaun@tigera.io>"
++
++
++# Install remaining runtime deps required for felix from the global repository
++RUN apt-get update && apt-get install -y \
++    ipset \
++    iptables \
++    iproute2 \
++    iputils-arping \
++    iputils-ping \
++    iputils-tracepath \
++    # Need arp
++    net-tools \
++    conntrack \
++    runit \
++    # Need kmod to ensure ip6tables-save works correctly
++    kmod \
++    # Need netbase in order for ipset to work correctly
++    # See https://github.com/kubernetes/kubernetes/issues/68703
++    netbase \
++    # Also needed (provides utilities for browsing procfs like ps)
++    procps \
++    ca-certificates
+ 
+-# Enable non-native builds of this image on an amd64 hosts.
+-# This must be the first RUN command in this file!
+-# we only need this for the intermediate "base" image, so we can run all the apk and other commands
+-# when running on a kernel >= 4.8, this will become less relevant
+-COPY --from=qemu /usr/bin/qemu-s390x-static /usr/bin/
++# Default to the xtables backend of iptables.
++RUN update-alternatives --set iptables /usr/sbin/iptables-legacy
++RUN update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+ 
+-# Install our dependencies.
+-RUN apk --no-cache add ip6tables tini ipset iputils iproute2 conntrack-tools file
++# Install tini, the init daemon we use.
++ENV TINI_VERSION v0.18.0
++ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-s390x /sbin/tini
+ 
+ ADD felix.cfg /etc/calico/felix.cfg
+ ADD calico-felix-wrapper /usr/bin
+@@ -20,11 +57,17 @@ ADD calico-felix-wrapper /usr/bin
+ # Put our binary in /code rather than directly in /usr/bin.  This allows the downstream builds
+ # to more easily extract the Felix build artefacts from the container.
+ ADD bin/calico-felix-s390x /code/calico-felix
++ADD bin/calico-bpf /usr/bin/calico-bpf
++
++ADD bpf/bin/* /usr/lib/calico/bpf/
++
+ RUN ln -s /code/calico-felix /usr/bin
+ COPY --from=bpftool /bpftool /usr/bin
+ WORKDIR /code
+ 
+ # Since our binary isn't designed to run as PID 1, run it via the tini init daemon.
++RUN chmod +x /sbin/tini
+ ENTRYPOINT ["/sbin/tini", "--"]
++
+ # Run felix (via the wrapper script) by default
+-CMD ["calico-felix-wrapper"]
++CMD ["/usr/bin/calico-felix-wrapper"]
+
+diff --git a/fv/utils/utils.go b/fv/utils/utils.go
+index 254750db..235f0977 100644
+--- a/fv/utils/utils.go
++++ b/fv/utils/utils.go
+@@ -45,7 +45,7 @@ import (
+ type EnvConfig struct {
+ 	FelixImage   string `default:"calico/felix:latest"`
+ 	EtcdImage    string `default:"quay.io/coreos/etcd"`
+-	K8sImage     string `default:"gcr.io/google_containers/hyperkube-amd64:v1.17.4"`
++	K8sImage     string `default:"gcr.io/google_containers/hyperkube-s390x:v1.18.6"`
+ 	TyphaImage   string `default:"calico/typha:latest"` // Note: this is overridden in the Makefile!
+ 	BusyboxImage string `default:"busybox:latest"`
+ }
