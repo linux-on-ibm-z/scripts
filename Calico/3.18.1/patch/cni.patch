@@ -1,0 +1,17 @@
+diff --git a/Dockerfile.s390x b/Dockerfile.s390x
+index 96fe3a7..5184c0e 100644
+--- a/Dockerfile.s390x
++++ b/Dockerfile.s390x
+@@ -1,4 +1,4 @@
+-FROM s390x/debian:9.8-slim
++FROM s390x/debian:9.8-slim as base
+
+ LABEL maintainer "LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)"
+
+@@ -15,4 +15,4 @@ ADD bin/s390x/ /opt/cni/bin/
+
+ ENV PATH=$PATH:/opt/cni/bin
+ WORKDIR /opt/cni/bin]
+-CMD ["/opt/cni/bin/install"]
+\ No newline at end of file
++CMD ["/opt/cni/bin/install"]
