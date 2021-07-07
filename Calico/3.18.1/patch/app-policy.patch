@@ -1,0 +1,21 @@
+diff --git a/Makefile b/Makefile
+index 4487725..736558f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -273,14 +273,14 @@ proto/felixbackend.pb.go: proto/felixbackend.proto
+ 		      $(PROTOC_CONTAINER) \
+ 		      $(PROTOC_IMPORTS) \
+ 		      proto/*.proto \
+-		      --gogofast_out=plugins=grpc,$(PROTOC_MAPPINGS):proto
++		      --gogofaster_out=plugins=grpc,$(PROTOC_MAPPINGS):proto
+ 
+ proto/healthz.pb.go: proto/healthz.proto
+ 	$(DOCKER_RUN_PB) -v $(CURDIR):/src:rw \
+ 		      $(PROTOC_CONTAINER) \
+ 		      $(PROTOC_IMPORTS) \
+ 		      proto/*.proto \
+-		      --gogofast_out=plugins=grpc,$(PROTOC_MAPPINGS):proto
++		      --gogofaster_out=plugins=grpc,$(PROTOC_MAPPINGS):proto
+ 
+ 
+ # Building the image
