@@ -1,0 +1,26 @@
+diff --git a/Makefile b/Makefile
+index c737694..ef89ff2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -128,7 +128,7 @@ $(BUILD_IMAGE): bin/calico-typha-$(ARCH) register
+ 	mkdir -p docker-image/bin
+ 	cp bin/calico-typha-$(ARCH) docker-image/bin/
+ 	cp LICENSE docker-image/
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) --file ./docker-image/Dockerfile.$(ARCH) docker-image
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) --file ./docker-image/Dockerfile.$(ARCH) docker-image
+ ifeq ($(ARCH),amd64)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
+diff --git a/docker-image/Dockerfile.s390x b/docker-image/Dockerfile.s390x
+index c6824aa..d57a7dd 100644
+--- a/docker-image/Dockerfile.s390x
++++ b/docker-image/Dockerfile.s390x
+@@ -12,7 +12,7 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
+-ARG QEMU_IMAGE=calico/go-build:latest
++ARG QEMU_IMAGE=calico/go-build:v0.49
+ FROM ${QEMU_IMAGE} as qemu
+ 
+ FROM s390x/debian:9.8-slim as base
