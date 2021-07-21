@@ -11,6 +11,7 @@ set -e  -o pipefail
 
 PACKAGE_NAME="netty-tcnative"
 PACKAGE_VERSION="2.0.40"
+MAVEN_VERSION="3.6.3"
 SOURCE_ROOT="$(pwd)"
 USER="$(whoami)"
 FORCE="false"
@@ -63,7 +64,7 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
 	cd $SOURCE_ROOT
-	rm -rf  apache-maven-3.6.3-bin.tar.gz go1.16.3.linux-s390x.tar.gz cmake-3.7.2.tar.gz
+	rm -rf  apache-maven-${MAVEN_VERSION}-bin.tar.gz go1.16.3.linux-s390x.tar.gz cmake-3.7.2.tar.gz
 	rm -rf  OpenJDK11U-jdk_s390x_linux_openj9_11.0.11_9_openj9-0.26.0.tar.gz
 	rm -rf  OpenJDK11U-jdk_s390x_linux_hotspot_11.0.11_9.tar.gz
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
@@ -130,9 +131,9 @@ function configureAndInstall() {
 	if [[ "${DISTRO}" == rhel-7* || "$ID" == "sles" ]]  ;then
 		printf -- "\nInstalling maven . . . \n"
 		cd $SOURCE_ROOT
-		wget http://www.eu.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-		tar -xvzf apache-maven-3.6.3-bin.tar.gz
-		export PATH=$PATH:$SOURCE_ROOT/apache-maven-3.6.3/bin/
+		wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
+		tar -xvzf apache-maven-${MAVEN_VERSION}-bin.tar.gz
+		export PATH=$PATH:$SOURCE_ROOT/apache-maven-${MAVEN_VERSION}/bin/
 	fi
 
 	# Install GO (for SLES only)
