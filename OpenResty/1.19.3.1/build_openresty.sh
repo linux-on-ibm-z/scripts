@@ -175,7 +175,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo " build_openresty.sh  [-d debug] [-y install-without-confirmation] [-t install-with-test]"
+    echo "bash build_openresty.sh  [-d debug] [-y install-without-confirmation] [-t install-with-test]"
     echo
 }
 
@@ -213,7 +213,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -221,13 +221,13 @@ case "$DISTRO" in
     sudo ln -sf make /usr/bin/gmake
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y curl tar wget make gcc dos2unix cpan perl postgresql-devel patch pcre-devel openssl-devel |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.2")
+"sles-12.5" | "sles-15.2" | "sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y curl tar wget make gcc dos2unix perl postgresql10-devel patch pcre-devel openssl libopenssl-devel gzip |& tee -a "$LOG_FILE"
