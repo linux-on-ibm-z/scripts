@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2020, 2021
+# © Copyright IBM Corporation 2020, 2021.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -67,7 +67,7 @@ function runTest() {
     "ubuntu-20.04")
       ./configure -c --spidermonkey-version 68
       ;;
-    "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+    "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
       ./configure -c --spidermonkey-version 60
       ;;
     *)
@@ -85,7 +85,8 @@ function cleanup() {
 	rm -rf "${CURDIR}/jsvalue.h.diff"
 	rm -rf "${CURDIR}/Makefile.in.diff"
 	rm -rf "${CURDIR}/couch_compress_tests.erl.diff"
-
+	rm -rf "${CURDIR}/couchdb/logfile-uploader.py.diff"
+	rm -rf "${CURDIR}/couchdb/show-test-results.py.diff"
 }
 
 function startServer() {
@@ -112,8 +113,7 @@ function configureAndInstall() {
 	printf -- '\nConfiguration and Installation started \n'
 	#Installing dependencies
 	printf -- 'User responded with Yes. \n'
-
-	sudo pip3 install --upgrade sphinx sphinx_rtd_theme nose requests hypothesis virtualenv
+	sudo pip3 install --upgrade wheel sphinx==3.5.4 sphinx_rtd_theme docutils==0.16 nose requests hypothesis virtualenv
 
 	#only for rhel 7.x
 	if [[ "${DISTRO}" == "rhel-7.*" ]]; then
@@ -186,7 +186,7 @@ function configureAndInstall() {
 		patch "${CURDIR}/js-1.8.5/js/src/Makefile.in" Makefile.in.diff
 
 		#Preparing the source code
-		cd "${CURDIR}/js-1.8.5/js/src"	
+		cd "${CURDIR}/js-1.8.5/js/src"
 
 		autoconf2.13
 	
@@ -206,13 +206,19 @@ function configureAndInstall() {
 
 	#Configure and build CouchDB
 	cd "${CURDIR}/couchdb"
+	curl -o logfile-uploader.py.diff $PATCH_URL/logfile-uploader.py.diff
+	patch "${CURDIR}/couchdb/build-aux/logfile-uploader.py" logfile-uploader.py.diff
+	
+	curl -o show-test-results.py.diff $PATCH_URL/show-test-results.py.diff
+	patch "${CURDIR}/couchdb/build-aux/show-test-results.py" show-test-results.py.diff
+	
 	export LD_LIBRARY_PATH=/usr/lib
 
 	case "$DISTRO" in
 	"ubuntu-20.04")
 	  ./configure --dev --spidermonkey-version 68
 	  ;;
-	"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+	"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
 	  ./configure --dev --spidermonkey-version 60
 	  ;;
 	*)
@@ -306,13 +312,7 @@ case "$DISTRO" in
 	installPython
 	configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
-"rhel-8.1")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
-        sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python36-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
-        configureAndInstall |&  tee -a "$LOG_FILE"
-	;;
-"rhel-8.2" | "rhel-8.3")
+"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python38 python38-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
