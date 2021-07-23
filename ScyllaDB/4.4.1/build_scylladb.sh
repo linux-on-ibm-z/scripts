@@ -389,7 +389,7 @@ buildCmake()
 #==============================================================================
 buildAnt()
 {
-  local ver=1.10.9
+  local ver=1.10.11
   msglog "Installing ant $ver"
 
   cd "$SOURCE_ROOT"
