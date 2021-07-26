@@ -12,7 +12,7 @@ PACKAGE_NAME="mariadb"
 PACKAGE_VERSION="10.3.12"
 CURDIR="$(pwd)"
 BUILD_DIR="/usr/local"
-REPO_URL="https://raw.github.ibm.com/linux-on-ibm-z/scripts/master/MariaDB/patch"
+REPO_URL="https://raw.github.ibm.com/linux-on-ibm-z/scripts/master/MariaDB/10.3.12/patch"
 
 MARIADB_CONN_VERSION="3.0.2"
 TESTS="false"
