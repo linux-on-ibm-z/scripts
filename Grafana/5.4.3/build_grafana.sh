@@ -15,7 +15,7 @@ CURDIR="$(pwd)"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
 PHANTOMJS_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/PhantomJS/build_phantomjs.sh"
-GRAFANA_CONFIG_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Grafana/conf/grafana.ini"
+GRAFANA_CONFIG_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Grafana/5.4.3/conf/grafana.ini"
 
 
 GO_DEFAULT="$HOME/go"
