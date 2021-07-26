@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Logstash/build_logstash.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Logstash/6.6.0/build_logstash.sh
 # Execute build script: bash build_logstash.sh    (provide -h for help)
 #
 
