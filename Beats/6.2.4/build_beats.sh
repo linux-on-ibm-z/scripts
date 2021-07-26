@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Beats/build_beats.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Beats/6.2.4/build_beats.sh
 # Execute build script: bash build_beats.sh    (provide -h for help)
 #
 
@@ -14,10 +14,10 @@ PACKAGE_VERSION="6.2.4"
 CURDIR="$(pwd)"
 USER="$(whoami)"
 
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.11.4/build_go.sh"
 
 #PATCH_URL
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Beats/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Beats/6.2.4/patch"
 
 #Default GOPATH if not present already.
 GO_DEFAULT="$HOME/go"
