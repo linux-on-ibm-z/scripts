@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/etcd/build_etcd.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/etcd/3.3.12/build_etcd.sh
 # Execute build script: bash build_etcd.sh    (provide -h for help)
 
 
@@ -12,7 +12,7 @@ PACKAGE_NAME="etcd"
 PACKAGE_VERSION="3.3.12"
 CURDIR="$(pwd)"
 
-CONFIG_ETCD="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/etcd/conf/etcd.conf.yml"
+CONFIG_ETCD="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/etcd/3.3.12/conf/etcd.conf.yml"
 
 
 FORCE="false"
