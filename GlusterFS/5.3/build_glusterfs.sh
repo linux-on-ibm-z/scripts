@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/build_glusterfs.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/5.3/build_glusterfs.sh
 # Execute build script: bash build_glusterfs.sh    (provide -h for help)
 #
 
@@ -13,7 +13,7 @@ PACKAGE_NAME="glusterfs"
 PACKAGE_VERSION="5.3"
 CURDIR="$(pwd)"
 
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/patch/"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/GlusterFS/5.3/patch/"
 
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 TEST_USER="$(whoami)"
