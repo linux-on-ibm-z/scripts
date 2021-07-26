@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Minikube/build_minikube.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Minikube/0.30.0/build_minikube.sh
 # Execute build script: bash build_minikube.sh    (provide -h for help)
 
 
@@ -16,8 +16,8 @@ PACKAGE_VERSION="0.30.0"
 CURDIR="$(pwd)"
 GO_DEFAULT="$HOME/go"
 
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/build_go.sh"
-CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Minikube/patch"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.11.4/build_go.sh"
+CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Minikube/0.30.0/patch"
 
 FORCE="false"
 TESTS="false"
