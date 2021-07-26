@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheCassandra/build_cassandra.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheCassandra/3.11.3/build_cassandra.sh
 # Execute build script: bash build_cassandra.sh    (provide -h for help)
 
 
@@ -13,7 +13,7 @@ set -e -o pipefail
 PACKAGE_NAME="cassandra"
 PACKAGE_VERSION="3.11.3"
 CURDIR="$(pwd)"
-CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheCassandra/patch"
+CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheCassandra/3.11.3/patch"
 
 
 FORCE="false"
