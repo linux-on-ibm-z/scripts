@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Istio/build_istio.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Istio/1.0.5/build_istio.sh
 # Execute build script: bash build_istio.sh    (provide -h for help)
 #
 
@@ -14,8 +14,8 @@ PACKAGE_VERSION="1.0.5"
 GO_VERSION="1.10.5"
 HELM_VERSION="2.9.1"
 CURDIR="$(pwd)"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Istio/patch"
-PROXY_REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/IstioProxy/build_istio_proxy.sh"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Istio/1.0.5/patch"
+PROXY_REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/IstioProxy/1.0.5/build_istio_proxy.sh"
 HELM_REPO_URL="https://github.com/kubernetes/helm.git"
 ISTIO_REPO_URL="https://github.com/istio/istio.git"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
