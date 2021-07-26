@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/build_elasticsearch.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/6.6.0/build_elasticsearch.sh
 # Execute build script: bash build_elasticsearch.sh    (provide -h for help)
 #
 set -e -o pipefail
@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="elasticsearch"
 PACKAGE_VERSION="6.6.0"
 CURDIR="$(pwd)"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/patch"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Elasticsearch/6.6.0/patch"
 ES_REPO_URL="https://github.com/elastic/elasticsearch"
 
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
