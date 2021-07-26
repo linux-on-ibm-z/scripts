@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 #Instructions
-#Get Build script : wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/build_python3.sh
+#Get Build script : wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.7.2/build_python3.sh
 #Execute build script: bash build_python3.sh
 
 set -e -o pipefail
