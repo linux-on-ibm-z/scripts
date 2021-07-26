@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 #Instructions
-#Get Build script : wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/build_python2.sh
+#Get Build script : wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/2.7.15/build_python2.sh
 #Execute build script: bash build_python2.sh
 
 set -e -o pipefail
@@ -12,7 +12,7 @@ PACKAGE_NAME="python"
 PACKAGE_VERSION="2.7.15"
 FORCE=false
 CURDIR="$(pwd)"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/patch/test_ssl.patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python2/2.7.15/patch/test_ssl.patch"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 
 trap "" 1 2 ERR
