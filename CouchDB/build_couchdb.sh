@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CouchDB/build_couchdb.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CouchDB/2.3.0/build_couchdb.sh
 # Execute build script: bash build_couchdb.sh  (provide -h for help)
 #
 
@@ -13,7 +13,7 @@ PACKAGE_NAME="couchdb"
 PACKAGE_VERSION="2.3.0"
 PYTHON_VERSION="3.7.1"
 CURDIR="$(pwd)"
-REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CouchDB/patch"
+REPO_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CouchDB/2.3.0/patch"
 		  
 PYTHON_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/build_python3.sh"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
