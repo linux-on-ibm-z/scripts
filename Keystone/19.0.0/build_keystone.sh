@@ -13,7 +13,7 @@ PACKAGE_VERSION="19.0.0"
 KEYSTONE_DBPASS="keystone"
 KEYSTONE_HOST_IP="localhost"
 
-CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Keystone/19.0.0/conf"
+CONF_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Keystone/${PACKAGE_VERSION}/conf"
 
 export SOURCE_ROOT="$(pwd)"
 
