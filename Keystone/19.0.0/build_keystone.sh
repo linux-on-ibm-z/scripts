@@ -71,7 +71,7 @@ function setUpApache2HttpdConf() {
     echo 'LoadModule wsgi_module /usr/lib64/httpd/modules/mod_wsgi.so' | sudo tee -a /etc/httpd/conf/httpd.conf
     ;;
 	
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'Include /etc/httpd/sites-enabled/' | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'LoadModule wsgi_module /usr/lib64/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/httpd/conf/httpd.conf
@@ -108,7 +108,7 @@ function setUpKeystoneConf() {
     sudo ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
     ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
     sudo mkdir -p /etc/httpd/sites-available
     sudo mkdir -p /etc/httpd/sites-enabled
     curl -SL -k -o wsgi-keystone.conf $CONF_URL/rhel-wsgi-keystone.conf
@@ -116,7 +116,7 @@ function setUpKeystoneConf() {
     sudo ln -s /etc/httpd/sites-available/wsgi-keystone.conf /etc/httpd/sites-enabled
     ;;
 
-"sles-12.5" | "sles-15.1" | "sles-15.2" | "sles-15.3")
+"sles-12.5" | "sles-15.2" | "sles-15.3")
     sudo mkdir -p /etc/apache2/sites-available
     sudo mkdir -p /etc/apache2/sites-enabled
     curl -SL -k -o wsgi-keystone.conf $CONF_URL/sles-wsgi-keystone.conf
@@ -374,7 +374,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
