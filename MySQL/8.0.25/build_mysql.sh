@@ -191,7 +191,7 @@ case "$DISTRO" in
 	sudo ln -s /opt/rh/llvm-toolset-7/root/bin/cmake /usr/local/bin/cmake	
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-8.2" | "rhel-8.3")
     	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     	printf -- "Installing dependencies... it may take some time.\n"
     	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive |& tee -a "$LOG_FILE"
