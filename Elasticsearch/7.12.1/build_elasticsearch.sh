@@ -161,13 +161,16 @@ function installClient() {
         if [[ "${ID}" == "ubuntu" ]]; then
             sudo apt-get update
             sudo apt-get install -y python3-pip libyaml-dev
+            sudo pip3 install elasticsearch==7.13.4
             sudo pip3 install elasticsearch-curator==5.8.4
         elif [[ "${ID}" == "rhel" ]]; then
             sudo yum install -y python3-devel libyaml-devel
+            sudo pip3 install elasticsearch==7.13.4
             sudo pip3 install elasticsearch-curator==5.8.4
         else
             if [[ "${DISTRO}" == "sles-15.2" ]]; then
                 sudo zypper install -y python3-devel python3-pip libyaml-devel
+                sudo pip3 install elasticsearch==7.13.4
                 sudo pip3 install elasticsearch-curator==5.8.4
             else
                 sudo zypper install -y libyaml-devel
@@ -176,6 +179,7 @@ function installClient() {
                 wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.4/build_python3.sh
                 bash build_python3.sh -y
                 rm -f build_python3.sh
+                sudo -H env PATH=$PATH pip3 install elasticsearch==7.13.4
                 sudo -H env PATH=$PATH pip3 install elasticsearch-curator==5.8.4
             fi
         fi
