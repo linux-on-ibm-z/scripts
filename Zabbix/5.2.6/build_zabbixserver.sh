@@ -14,15 +14,16 @@ PACKAGE_VERSION="5.2.6"
 MAJOR_VERSION="5.2"
 PHP_VERSION="7.4.11"
 CURDIR="$(pwd)"
-BUILD_DIR="/home/$(whoami)"
+BUILD_DIR="$(pwd)"
 PREFIX="/usr/local"
 CMAKE=$PREFIX/bin/cmake
 PHP_PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/"
 PHP_PATCH_URL+="PHP/${PHP_VERSION}/patch"
 PHP_URL="https://www.php.net/distributions"
-PHP_URL+="/php-${PACKAGE_VERSION}.tar.gz"
+PHP_URL+="/php-${PHP_VERSION}.tar.gz"
 
 FORCE="false"
+TESTS="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 SUCCESS="false"
 
@@ -83,13 +84,8 @@ function cleanup() {
   cd $BUILD_DIR
 
   if [[ $SUCCESS == "true" ]]; then
-
-    if [ -f ${URL_NAME}-${PACKAGE_VERSION}.tar.gz ]; then
-      sudo rm ${URL_NAME}-${PACKAGE_VERSION}.tar.gz
-    fi
-
-    if [ -d ${URL_NAME}-${PACKAGE_VERSION} ]; then
-      sudo rm -rf ${URL_NAME}-${PACKAGE_VERSION}
+    if [ -d ${URL_NAME} ]; then
+      sudo rm -rf ${URL_NAME}
     fi
 
     if [ -f php-$PHP_VERSION.tar.gz ]; then
@@ -124,6 +120,18 @@ function cleanup() {
   printf -- 'Cleaned up the artifacts\n' >>"$LOG_FILE"
 }
 
+function runTest() {
+	set +e
+	if [[ "$TESTS" == "true" ]]; then
+		printf -- "TEST Flag is set , Continue with running test \n"
+		cd ${BUILD_DIR}/${URL_NAME}
+		make tests
+		printf -- "Tests completed. \n"
+
+	fi
+	set -e
+}
+
 function configureAndInstall() {
   printf -- 'Configuration and Installation started \n'
 
@@ -138,15 +146,15 @@ function configureAndInstall() {
     echo "</Directory>" >> httpd.conf
     sudo chmod 644 httpd.conf
 
-    sudo groupadd --system zabbix
-    sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix Monitoring System" zabbix
+    sudo groupadd --system zabbix || echo "group already exists"
+    sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix Monitoring System" zabbix || echo "user already exists"
 
     if [[ "$VERSION_ID" == "7.8" || "$VERSION_ID" == "7.9" ]]; then
       sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /usr/local/lib/php.ini
       sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /usr/local/lib/php.ini
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /usr/local/lib/php.ini
     fi
-    if [[ "$VERSION_ID" == "8.1" || "$VERSION_ID" == "8.2" || "$VERSION_ID" == "8.3" ]]; then
+    if [[ "$VERSION_ID" == "8.2" || "$VERSION_ID" == "8.3" || "$VERSION_ID" == "8.4" ]]; then
       sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php.ini
       sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php.ini
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php.ini
@@ -165,8 +173,8 @@ function configureAndInstall() {
     echo "LoadModule php7_module /usr/lib64/apache2/mod_php7.so" >> httpd.conf
     sudo chmod 644 httpd.conf
 
-    sudo groupadd --system zabbix
-    sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix Monitoring System" zabbix
+    sudo groupadd --system zabbix || echo "group already exists"
+    sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix Monitoring System" zabbix || echo "user already exists"
 
     sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php7/apache2/php.ini
     sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php7/apache2/php.ini
@@ -183,8 +191,8 @@ function configureAndInstall() {
     echo "</Directory>" >> apache2.conf
     sudo chmod 644 apache2.conf
 
-    sudo addgroup --system --quiet zabbix
-    sudo adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix
+    sudo addgroup --system --quiet zabbix || echo "group already exists"
+    sudo adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix || echo "user already exists"
 
     if [[ "$VERSION_ID" == "18.04" ]]; then
       sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php/7.2/apache2/php.ini
@@ -200,21 +208,30 @@ function configureAndInstall() {
 
   #Download and install zabbix server
   cd $BUILD_DIR
-  wget https://cdn.zabbix.com/zabbix/sources/stable/${MAJOR_VERSION}/${URL_NAME}-${PACKAGE_VERSION}.tar.gz
-  tar -xvf ${URL_NAME}-${PACKAGE_VERSION}.tar.gz
+  if ! [ -d ${URL_NAME} ]; then
+      git clone https://github.com/zabbix/zabbix.git
+  fi
+  cd ${URL_NAME}
+  git checkout ${PACKAGE_VERSION}
+  ./bootstrap.sh tests
 
-  cd ${BUILD_DIR}/${URL_NAME}-${PACKAGE_VERSION}
+  cd ${BUILD_DIR}/${URL_NAME}
   sed -i '94s/field_size/new_field_size/' src/zabbix_server/preprocessor/preprocessing.c
   sed -i '94i\ \t\t\t\tzbx_uint32_t new_field_size = (zbx_uint32_t)field_size;' src/zabbix_server/preprocessor/preprocessing.c
-  ./configure --enable-server --with-mysql --enable-ipv6 --with-net-snmp --with-libcurl --with-libxml2
+
+  sed -i '172s/is_uint64/is_uint32/' tests/libs/zbxhistory/zbx_history_get_values.c
+  sed -i '121s/is_uint64/is_uint32/' tests/mocks/valuecache/valuecache_mock.c
+
+  ./configure --enable-server --enable-agent --with-mysql --enable-ipv6 --with-net-snmp --with-libcurl --with-libxml2
 
   # Installation
   make
+  make dbschema
   sudo make install
 
   # Installing Zabbix web interface
   if [[ "$ID" == "ubuntu" ]]; then
-    cd "$BUILD_DIR"/${URL_NAME}-${PACKAGE_VERSION}/ui/
+    cd "$BUILD_DIR"/${URL_NAME}/ui/
     sudo mkdir -p /var/www/html/${URL_NAME}
     sudo cp -rf * /var/www/html/${URL_NAME}/
     sudo chown -R www-data:www-data /var/www/html/zabbix/conf
@@ -223,7 +240,7 @@ function configureAndInstall() {
   fi
 
   if [[ "$ID" == "rhel" ]]; then
-    cd /"$BUILD_DIR"/${URL_NAME}-${PACKAGE_VERSION}/ui/
+    cd /"$BUILD_DIR"/${URL_NAME}/ui/
     sudo mkdir -p /var/www/html/${URL_NAME}
     sudo cp -rf * /var/www/html/${URL_NAME}/
     sudo chown -R apache:apache /var/www/html/zabbix/conf
@@ -232,7 +249,7 @@ function configureAndInstall() {
   fi
 
   if [[ "$ID" == "sles" ]]; then
-    cd /"$BUILD_DIR"/${URL_NAME}-${PACKAGE_VERSION}/ui/
+    cd /"$BUILD_DIR"/${URL_NAME}/ui/
     sudo mkdir -p /srv/www/htdocs/${URL_NAME}
     sudo cp -rf * /srv/www/htdocs/${URL_NAME}
     sudo chown -R wwwrun:www /srv/www/htdocs/zabbix/conf
@@ -250,13 +267,34 @@ function configureAndInstall() {
     sudo mysql -e "grant all privileges on zabbix.* to 'zabbix'@'localhost'"
   fi
 
-  cd ${BUILD_DIR}/${URL_NAME}-${PACKAGE_VERSION}/database/mysql
+  cd ${BUILD_DIR}/${URL_NAME}/database/mysql
   mysql -uzabbix zabbix < schema.sql
   mysql -uzabbix zabbix < images.sql
   mysql -uzabbix zabbix < data.sql
 
+  # Disable duktape javascript processing on server. Duktape does not support s390x and causes a crash.
+  sudo mysql -e "update zabbix.items set status=1 where itemid in (select itemid from zabbix.item_preproc where type=21)"
+
+  #run tests
+  runTest
+
   #cleanup
   cleanup
+}
+
+#==============================================================================
+buildCmocka()
+{
+  cd "$SOURCE_ROOT"
+  if [ ! -d cmocka ]; then
+    git clone https://gitlab.com/cmocka/cmocka.git
+  fi
+  cd cmocka
+  git checkout cmocka-1.1.5
+  mkdir -p build
+  cd build
+  cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+  sudo make install
 }
 
 #==============================================================================
@@ -289,7 +327,7 @@ buildZip()
   fi
   cd libzip
   git checkout ${ver}
-  mkdir build && cd build
+  mkdir -p build && cd build
   $CMAKE .. -DCMAKE_INSTALL_PREFIX=${PREFIX}
   make
   sudo make install
@@ -411,7 +449,6 @@ buildPHP()
   sudo sed -i "s/;opcache.enable_cli=0/opcache.enable_cli=1/" ${PREFIX}/lib/php.ini
 }
 
-
 function logDetails() {
   printf -- '**************************** SYSTEM DETAILS *************************************************************\n' >"$LOG_FILE"
 
@@ -430,11 +467,11 @@ function logDetails() {
 function printHelp() {
   echo
   echo "Usage: "
-  echo "  build_zabbixserver.sh [-d debug] [-y install-without-confirmation]"
+  echo "  build_zabbixserver.sh [-d debug] [-y install-without-confirmation] [-t run-tests] [-s skip-cleanup]"
   echo
 }
 
-while getopts "h?dy" opt; do
+while getopts "h?dyt" opt; do
   case "$opt" in
   h | \?)
     printHelp
@@ -446,12 +483,16 @@ while getopts "h?dy" opt; do
   y)
     FORCE="true"
     ;;
+  t)
+		TESTS="true"
+		;;
   esac
 done
 
 function gettingStarted() {
 
-  printf -- " Please follow following steps from the build instructions to complete the installation :\n"
+  printf -- " Please follow the following steps from the build instructions to complete the installation :\n"
+  printf -- " Step 7: Start Zabbix server.  \n"
   printf -- " Step 8: Configure through online console. \n"
   printf -- "\n\nReference: \n"
   printf -- " More information can be found here : https://www.zabbix.com/documentation/5.2/manual/installation\n"
@@ -471,7 +512,7 @@ case "$DISTRO" in
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
   sudo apt-get update >/dev/null
-  sudo apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph libmysqld-dev libmysqlclient-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql libapache2-mod-php mysql-server php7.2-xml php7.2-gd php-bcmath php-mbstring php7.2-ldap libevent-dev libpcre3-dev |& tee -a "$LOG_FILE"
+  sudo apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph libmysqld-dev libmysqlclient-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql libapache2-mod-php mysql-server php7.2-xml php7.2-gd php-bcmath php-mbstring php7.2-ldap libevent-dev libpcre3-dev automake pkg-config libcmocka-dev libyaml-dev libyaml-libyaml-perl libpath-tiny-perl libipc-run3-perl build-essential |& tee -a "$LOG_FILE"
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
@@ -479,15 +520,19 @@ case "$DISTRO" in
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
   sudo apt-get update >/dev/null
-  sudo apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph libmariadbd-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql libapache2-mod-php mysql-server php7.4-xml php7.4-gd php-bcmath php-mbstring php7.4-ldap libevent-dev libpcre3-dev |& tee -a "$LOG_FILE"
+  sudo apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph libmariadbd-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql libapache2-mod-php mysql-server php7.4-xml php7.4-gd php-bcmath php-mbstring php7.4-ldap libevent-dev libpcre3-dev automake pkg-config libcmocka-dev libyaml-dev libyaml-libyaml-perl libpath-tiny-perl libipc-run3-perl build-essential |& tee -a "$LOG_FILE"
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
 "rhel-7.8" | "rhel-7.9")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo yum install -y initscripts httpd tar wget curl vim gcc pcre pcre-devel make net-snmp net-snmp-devel httpd-devel mariadb mariadb-server mariadb-devel mariadb-libs git libcurl-devel libxml2-devel libjpeg-devel libpng-devel freetype freetype-devel openldap openldap-devel libevent-devel sqlite-devel policycoreutils-python |& tee -a "$LOG_FILE"
+  sudo yum install -y initscripts httpd tar wget curl vim gcc pcre pcre-devel make net-snmp net-snmp-devel httpd-devel mariadb mariadb-server mariadb-devel mariadb-libs git libcurl-devel libxml2-devel libjpeg-devel libpng-devel freetype freetype-devel openldap openldap-devel libevent-devel sqlite-devel policycoreutils-python libyaml-devel perl-IPC-Run3 |& tee -a "$LOG_FILE"
   sudo yum install -y bzip2-devel curl-devel enchant-devel gmp-devel krb5-devel postgresql-devel aspell-devel cyrus-sasl-devel sqlite-devel libXpm-devel libxslt-devel recode-devel readline-devel openssl-devel gdbm-devel libdb-devel openldap openldap-devel autoconf automake patch curl pkgconfig libtool gcc-c++ bison openssl aspell |& tee -a "$LOG_FILE"
+
+  curl -L http://cpanmin.us | sudo perl - --self-upgrade |& tee -a "$LOG_FILE"
+  sudo /usr/local/bin/cpanm YAML::XS |& tee -a "$LOG_FILE"
+  sudo /usr/local/bin/cpanm Path::Tiny |& tee -a "$LOG_FILE"
 
   buildCmake |& tee -a "$LOG_FILE"
 
@@ -514,33 +559,45 @@ case "$DISTRO" in
   buildOniguruma |& tee -a "$LOG_FILE"
   buildIcu |& tee -a "$LOG_FILE"
 
-  sudo ln -s /usr/lib64/libldap* /usr/lib/
-  sudo ln -s /usr/lib64/liblber.so /usr/lib/
+  sudo ln -sf /usr/lib64/libldap* /usr/lib/
+  sudo ln -sf /usr/lib64/liblber.so /usr/lib/
 
   buildPHP |& tee -a "$LOG_FILE"
+
+  buildCmocka |& tee -a "$LOG_FILE"
 
   configureAndInstall |& tee -a "$LOG_FILE"
 
   ;;
 
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo yum install -y initscripts httpd tar wget curl vim gcc make net-snmp net-snmp-devel mariadb mariadb-server mysql-devel php-mysqlnd mysql-libs git httpd php libcurl-devel libxml2-devel php-xml php-gd php-bcmath php-mbstring php-ldap php-json libevent-devel pcre-devel policycoreutils-python-utils |& tee -a "$LOG_FILE"
+  sudo subscription-manager repos --enable=codeready-builder-for-rhel-8-s390x-rpms
+  sudo yum install -y initscripts httpd tar wget curl vim gcc make net-snmp net-snmp-devel mariadb mariadb-server mysql-devel php-mysqlnd mysql-libs git httpd php libcurl-devel libxml2-devel php-xml php-gd php-bcmath php-mbstring php-ldap php-json libevent-devel pcre-devel policycoreutils-python-utils automake pkgconfig libcmocka-devel libyaml-devel perl-YAML-LibYAML libpath_utils-devel perl-IPC-Run3 perl-Path-Tiny |& tee -a "$LOG_FILE"
+  sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
 "sles-12.5")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo zypper install -y wget tar curl vim gcc make net-snmp net-snmp-devel mariadb libmysqld-devel net-tools git apache2 apache2-devel apache2-mod_php72 php72 php72-mysql php72-xmlreader php72-xmlwriter php72-gd php72-bcmath php72-mbstring php72-ctype php72-sockets php72-gettext php72-ldap libcurl-devel libxml2 libxml2-devel openldap2-devel openldap2 libevent-devel pcre-devel |& tee -a "$LOG_FILE"
+  sudo zypper install -y wget tar curl vim gcc make net-snmp net-snmp-devel mariadb libmysqld-devel net-tools git apache2 apache2-devel apache2-mod_php72 php72 php72-mysql php72-xmlreader php72-xmlwriter php72-gd php72-bcmath php72-mbstring php72-ctype php72-sockets php72-gettext php72-ldap libcurl-devel libxml2 libxml2-devel openldap2-devel openldap2 libevent-devel pcre-devel automake libyaml-devel perl-YAML-LibYAML perl-IPC-Run3 cmake |& tee -a "$LOG_FILE"
+  curl -L http://cpanmin.us | sudo perl - --self-upgrade |& tee -a "$LOG_FILE"
+  sudo cpanm Path::Tiny |& tee -a "$LOG_FILE"
+
+  buildCmocka |& tee -a "$LOG_FILE"
+
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
-"sles-15.2")
+"sles-15.2" | "sles-15.3")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo zypper install -y wget tar curl vim gcc make net-snmp net-snmp-devel mariadb libmysqld-devel net-tools git apache2 apache2-devel apache2-mod_php7 php7 php7-mysql php7-xmlreader php7-xmlwriter php7-gd php7-bcmath php7-mbstring php7-ctype php7-sockets php7-gettext libcurl-devel libxml2  libxml2-devel openldap2-devel openldap2 php7-ldap libevent-devel pcre-devel awk gzip |& tee -a "$LOG_FILE"
+  sudo zypper install -y wget tar curl vim gcc make net-snmp net-snmp-devel mariadb libmysqld-devel net-tools git apache2 apache2-devel apache2-mod_php7 php7 php7-mysql php7-xmlreader php7-xmlwriter php7-gd php7-bcmath php7-mbstring php7-ctype php7-sockets php7-gettext libcurl-devel libxml2 libxml2-devel openldap2-devel openldap2 php7-ldap libevent-devel pcre-devel awk gzip automake cmake libyaml-devel perl-YAML-LibYAML perl-Path-Tiny perl-IPC-Run3 |& tee -a "$LOG_FILE"
+
+  buildCmocka |& tee -a "$LOG_FILE"
+
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
