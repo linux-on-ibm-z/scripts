@@ -1,0 +1,27 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 79ca7f29..622f909b 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -13,10 +13,19 @@ workspace(name = "tf_serving")
+ # 3. Request the new archive to be mirrored on mirror.bazel.build for more
+ #    reliable downloads.
+ load("//tensorflow_serving:repo.bzl", "tensorflow_http_archive")
+-tensorflow_http_archive(
++#tensorflow_http_archive(
++#    name = "org_tensorflow",
++#    sha256 = "cb99f136dc5c89143669888a44bfdd134c086e1e2d9e36278c1eb0f03fe62d76",
++#    git_commit = "a4dfb8d1a71385bd6d122e4f27f86dcebb96712d",
++#)
++local_repository(
+     name = "org_tensorflow",
+-    sha256 = "cb99f136dc5c89143669888a44bfdd134c086e1e2d9e36278c1eb0f03fe62d76",
+-    git_commit = "a4dfb8d1a71385bd6d122e4f27f86dcebb96712d",
++    path = "/source_root/tensorflow",
++)
++
++local_repository(
++    name = "boringssl",
++    path = "/source_root/boringssl",
+ )
+ 
+ # Import all of TensorFlow Serving's external dependencies.
