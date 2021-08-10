@@ -76,10 +76,6 @@ function configureAndInstall() {
 	make
 	sudo make install
 
-	#'zabbix' user required to start Zabbix agent daemon
-	sudo /usr/sbin/groupadd ${URL_NAME} || echo "group already exist"
-	sudo /usr/sbin/useradd -g ${URL_NAME} ${URL_NAME} || echo "user already exist"
-
 	export PATH=$PATH:/usr/local/sbin/
 
 	#start the zabbix agent
@@ -149,21 +145,21 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.3")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.3" | "rhel-8.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y tar wget make gcc pcre-devel |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.1" | "rhel-8.2")
+"rhel-8.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y tar wget make gcc-8.3.1-5.1.el8 pcre-devel |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.5" | "sles-15.2")
+"sles-12.5" | "sles-15.2" | "sles-15.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y tar wget make gcc awk pcre-devel |& tee -a "$LOG_FILE"
