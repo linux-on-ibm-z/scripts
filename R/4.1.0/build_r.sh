@@ -222,7 +222,7 @@ function logDetails() {
 function printHelp(){
   cat <<eof
   Usage:
-  build_r.sh [-y] [-d] [-t] [-j (AdoptJDK-HotSpot|AdoptJDK-OpenJ9|OpenJDK)]
+  bash build_r.sh [-y] [-d] [-t] [-j (AdoptJDK-HotSpot|AdoptJDK-OpenJ9|OpenJDK)]
   where:
    -y install-without-confirmation
    -d debug
@@ -291,7 +291,7 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "$LOG_FILE"
 ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-7.8" | "rhel-7.9")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
   sudo yum install -y \
@@ -309,7 +309,7 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "$LOG_FILE"
 ;;
 
-"sles-12.5" | "sles-15.2")
+"sles-12.5" | "sles-15.2" | "sles-15.3")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
   sudo zypper install -y \
