@@ -1,0 +1,26 @@
+--- build/install-build-deps.sh.orig	2021-08-06 11:27:56.477964531 -0400
++++ build/install-build-deps.sh	2021-08-06 11:21:18.739599872 -0400
+@@ -117,10 +117,10 @@
+     exit 1
+   fi
+ 
+-  if ! uname -m | egrep -q "i686|x86_64"; then
+-    echo "Only x86 architectures are currently supported" >&2
+-    exit
+-  fi
++#  if ! uname -m | egrep -q "i686|x86_64"; then
++#    echo "Only x86 architectures are currently supported" >&2
++#    exit
++#  fi
+ fi
+ 
+ if [ "x$(id -u)" != x0 ] && [ 0 -eq "${do_quick_check-0}" ]; then
+@@ -225,7 +225,7 @@
+ # 64-bit systems need a minimum set of 32-bit compat packages for the pre-built
+ # NaCl binaries.
+ if file -L /sbin/init | grep -q 'ELF 64-bit'; then
+-  dev_list="${dev_list} libc6-i386 lib32stdc++6"
++#  dev_list="${dev_list} libc6-i386 lib32stdc++6"
+ 
+   # lib32gcc-s1 used to be called lib32gcc1 in older distros.
+   if package_exists lib32gcc-s1; then
