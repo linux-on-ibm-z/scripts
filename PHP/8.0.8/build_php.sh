@@ -398,7 +398,7 @@ case "$DISTRO" in
   sudo apt-get install -y locales language-pack-de \
        autoconf build-essential curl libtool \
        libssl-dev libcurl4-openssl-dev libxml2-dev \
-       libreadline8 libreadline-dev libzip-dev \ 
+       libreadline8 libreadline-dev libzip-dev \
        nginx openssl pkg-config zlib1g-dev \
        libsqlite3-dev libonig-dev libpq-dev \
        gcc-10 g++-10 git curl tar gcc make \
