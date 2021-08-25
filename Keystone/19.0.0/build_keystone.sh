@@ -60,7 +60,7 @@ function cleanup() {
 
 function setUpApache2HttpdConf() {
   case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
+"ubuntu-18.04")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/apache2/apache2.conf
     echo 'LoadModule wsgi_module /usr/local/lib/python3.6/dist-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/apache2/apache2.conf
     ;;
@@ -102,7 +102,7 @@ esac
 function setUpKeystoneConf() {
   cd "${SOURCE_ROOT}"
   case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
+"ubuntu-18.04")
     curl -SL -k -o wsgi-keystone.conf $CONF_URL/ubuntu-wsgi-keystone.conf
     sudo mv wsgi-keystone.conf /etc/apache2/sites-available/
     sudo ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
@@ -297,7 +297,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo "  build_keystone.sh  [-d debug] [-y install-without-confirmation] [-t run-check-after]"
+    echo " bash build_keystone.sh  [-d debug] [-y install-without-confirmation] [-t run-check-after]"
     echo
 }
 
@@ -349,7 +349,7 @@ logDetails
 prepare
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
+"ubuntu-18.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
