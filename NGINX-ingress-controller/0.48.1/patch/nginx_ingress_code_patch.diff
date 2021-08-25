@@ -1,0 +1,92 @@
+diff --git a/Makefile b/Makefile
+index 8a449ede8..a50fd8b06 100644
+--- a/Makefile
++++ b/Makefile
+@@ -51,7 +51,7 @@ endif
+ 
+ REGISTRY ?= gcr.io/k8s-staging-ingress-nginx
+ 
+-BASE_IMAGE ?= k8s.gcr.io/ingress-nginx/nginx:v20210530-g6aab4c291@sha256:a7356029dd0c26cc3466bf7a27daec0f4df73aa14ca6c8b871a767022a812c0b
++BASE_IMAGE ?= gcr.io/k8s-staging-ingress-nginx/nginx:0.0
+ 
+ GOARCH=$(ARCH)
+ 
+diff --git a/build/run-in-docker.sh b/build/run-in-docker.sh
+index d6723c7a1..bf7316ad2 100755
+--- a/build/run-in-docker.sh
++++ b/build/run-in-docker.sh
+@@ -34,7 +34,7 @@ function cleanup {
+ }
+ trap cleanup EXIT
+ 
+-E2E_IMAGE=${E2E_IMAGE:-k8s.gcr.io/ingress-nginx/e2e-test-runner:v20210601-g96a87c79b@sha256:f84dcddc84e5cba220260f315e18cd47fc8c6b7f3f4f57b7b3e9cc2ea25324b7}
++E2E_IMAGE=${E2E_IMAGE:-gcr.io/ingress-nginx/e2e-test-runner:v0.48.1}
+ 
+ DOCKER_OPTS=${DOCKER_OPTS:-}
+ DOCKER_IN_DOCKER_ENABLED=${DOCKER_IN_DOCKER_ENABLED:-}
+diff --git a/deploy/static/provider/baremetal/deploy.yaml b/deploy/static/provider/baremetal/deploy.yaml
+index 01dbd0376..159931854 100644
+--- a/deploy/static/provider/baremetal/deploy.yaml
++++ b/deploy/static/provider/baremetal/deploy.yaml
+@@ -320,7 +320,7 @@ spec:
+       dnsPolicy: ClusterFirst
+       containers:
+         - name: controller
+-          image: k8s.gcr.io/ingress-nginx/controller:v0.48.1@sha256:e9fb216ace49dfa4a5983b183067e97496e7a8b307d2093f4278cd550c303899
++          image: gcr.io/k8s-staging-ingress-nginx/controller:v0.48.1
+           imagePullPolicy: IfNotPresent
+           lifecycle:
+             preStop:
+diff --git a/images/nginx/Makefile b/images/nginx/Makefile
+index 11ffd2f06..91e0aac24 100644
+--- a/images/nginx/Makefile
++++ b/images/nginx/Makefile
+@@ -33,9 +33,8 @@ export DOCKER_CLI_EXPERIMENTAL=enabled
+ PLATFORMS?=linux/amd64,linux/arm,linux/arm64,linux/s390x
+ OUTPUT=
+ PROGRESS=plain
+-build: ensure-buildx
+-	docker buildx build \
+-		--platform=${PLATFORMS} $(OUTPUT) \
++build:
++	docker build \
+ 		--progress=$(PROGRESS) \
+ 		--pull \
+ 		--tag $(IMAGE):$(TAG) rootfs
+diff --git a/images/test-runner/Makefile b/images/test-runner/Makefile
+index fc6a31ec7..35abd5e7a 100644
+--- a/images/test-runner/Makefile
++++ b/images/test-runner/Makefile
+@@ -33,9 +33,8 @@ PLATFORMS?=linux/amd64,linux/arm64
+ OUTPUT=
+ PROGRESS=plain
+ 
+-build: ensure-buildx
+-	docker buildx build \
+-		--platform=${PLATFORMS} $(OUTPUT) \
++build:
++	docker build \
+ 		--progress=$(PROGRESS) \
+ 		--pull \
+ 		--build-arg BASE_IMAGE=$(NGINX_BASE_IMAGE) \
+@@ -50,6 +49,7 @@ build: ensure-buildx
+ 		--build-arg YAML_LINT_VERSION=1.13.0 \
+ 		--build-arg YAMALE_VERSION=1.8.0 \
+ 		--build-arg HELM_VERSION=v3.4.2 \
++		--build-arg TARGETARCH=s390x \
+ 		-t $(IMAGE):$(TAG) rootfs
+ 
+ # push the cross built image
+diff --git a/images/test-runner/rootfs/Dockerfile b/images/test-runner/rootfs/Dockerfile
+index e58cf47ad..f853f17f7 100644
+--- a/images/test-runner/rootfs/Dockerfile
++++ b/images/test-runner/rootfs/Dockerfile
+@@ -26,6 +26,8 @@ RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
+ COPY --from=GO   /usr/local/go /usr/local/go
+ COPY --from=etcd /usr/local/bin/etcd /usr/local/bin/etcd
+ 
++ENV ETCD_UNSUPPORTED_ARCH=s390x
++
+ RUN echo "@testing http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+ 
+ RUN apk add --no-cache \
