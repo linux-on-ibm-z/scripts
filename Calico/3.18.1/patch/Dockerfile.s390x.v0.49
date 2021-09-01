@@ -44,7 +44,7 @@ index 43752c0..06a0f87 100644
 -RUN apk upgrade --no-cache
 +# Install gcc for cgo.
 +# Install clang, libbpf and newer kernel headers for building BPF binaries.
-+RUN echo 'APT::Default-Release "stable";' > /etc/apt/apt.conf.d/99defaultrelease && \
++RUN echo 'APT::Default-Release "buster";' > /etc/apt/apt.conf.d/99defaultrelease && \
 +    echo 'deb     http://ftp.de.debian.org/debian/    buster-backports main contrib non-free' > /etc/apt/sources.list.d/buster-backports.list && \
 +    apt-get -y update &&  \
 +    apt-get -y upgrade && \
