@@ -4,7 +4,7 @@
 
 ################################################################################################################################################################
 #Script     :   build_calico.sh
-#Description:   The script builds Calico version v3.18.1 on Linux on IBM Z for RHEL (7.8, 7.9, 8.1, 8.2, 8.3), Ubuntu (18.04, 20.04, 21.04) and SLES (12 SP5, 15 SP2).
+#Description:   The script builds Calico version v3.18.1 on Linux on IBM Z for RHEL (7.8, 7.9, 8.2, 8.3), Ubuntu (18.04, 20.04, 21.04) and SLES (12 SP5, 15 SP2).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Calico mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Calico-3.x ).
 #               This script doesn't handle Docker installation. Install docker first before proceeding.
@@ -497,7 +497,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo yum install -y curl git wget tar gcc glibc-static.s390x make which patch 2>&1 | tee -a "$LOG_FILE"
