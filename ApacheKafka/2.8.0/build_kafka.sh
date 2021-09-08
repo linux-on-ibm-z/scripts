@@ -106,9 +106,11 @@ function configureAndInstall() {
     # Download the source code and build the jar files
     printf -- "Download the source code and build the jar files\n"
     cd "$CURDIR"
+    wget -O scala-2.13.3.patch https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheKafka/2.8.0/patch/scala-2.13.3.patch
     git clone https://github.com/apache/kafka.git
     cd kafka
     git checkout ${PACKAGE_VERSION}
+    git apply $CURDIR/scala-2.13.3.patch
     ./gradlew jar
     printf -- "Built Apache Kafka Jar successfully.\n"
     
@@ -132,8 +134,8 @@ function configureAndInstall() {
     printf -- "Built rocksdb and created rocksdbjni-5.18.4.jar successfully.\n"
     printf -- "Replace Rocksdbjni jar\n"
     cp $CURDIR/rocksdb/java/target/rocksdbjni-5.18.4-linux64.jar $HOME/.gradle/caches/modules-2/files-2.1/org.rocksdb/rocksdbjni/5.18.4/def7af83920ad2c39eb452f6ef9603777d899ea0/rocksdbjni-5.18.4.jar
-    cp $CURDIR/rocksdb/java/target/rocksdbjni-5.18.4-linux64.jar $CURDIR/kafka/streams/examples/build/dependant-libs-2.13.5/rocksdbjni-5.18.4.jar
-    cp $CURDIR/rocksdb/java/target/rocksdbjni-5.18.4-linux64.jar $CURDIR/kafka/streams/build/dependant-libs-2.13.5/rocksdbjni-5.18.4.jar
+    cp $CURDIR/rocksdb/java/target/rocksdbjni-5.18.4-linux64.jar $CURDIR/kafka/streams/examples/build/dependant-libs-2.13.3/rocksdbjni-5.18.4.jar
+    cp $CURDIR/rocksdb/java/target/rocksdbjni-5.18.4-linux64.jar $CURDIR/kafka/streams/build/dependant-libs-2.13.3/rocksdbjni-5.18.4.jar
     
     cleanup
 }
