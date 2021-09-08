@@ -1,0 +1,39 @@
+diff --git a/bin/kafka-run-class.sh b/bin/kafka-run-class.sh
+index 3889be7e3e..83d073ee4f 100755
+--- a/bin/kafka-run-class.sh
++++ b/bin/kafka-run-class.sh
+@@ -48,7 +48,7 @@ should_include_file() {
+ base_dir=$(dirname $0)/..
+
+ if [ -z "$SCALA_VERSION" ]; then
+-  SCALA_VERSION=2.13.5
++  SCALA_VERSION=2.13.3
+   if [[ -f "$base_dir/gradle.properties" ]]; then
+     SCALA_VERSION=`grep "^scalaVersion=" "$base_dir/gradle.properties" | cut -d= -f 2`
+   fi
+diff --git a/gradle.properties b/gradle.properties
+index 4124d714d9..b32dcd1eed 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -21,7 +21,7 @@ group=org.apache.kafka
+ #  - tests/kafkatest/version.py (variable DEV_VERSION)
+ #  - kafka-merge-pr.py
+ version=2.8.0
+-scalaVersion=2.13.5
++scalaVersion=2.13.3
+ task=build
+ org.gradle.jvmargs=-Xmx2g -Xss4m -XX:+UseParallelGC
+ org.gradle.parallel=true
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index 1dce4bf0b5..b75d6c25a1 100644
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -28,7 +28,7 @@ ext {
+
+ // Add Scala version
+ def defaultScala212Version = '2.12.13'
+-def defaultScala213Version = '2.13.5'
++def defaultScala213Version = '2.13.3'
+ if (hasProperty('scalaVersion')) {
+   if (scalaVersion == '2.12') {
+     versions["scala"] = defaultScala212Version
