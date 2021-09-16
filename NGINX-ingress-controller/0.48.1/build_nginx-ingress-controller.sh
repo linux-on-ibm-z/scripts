@@ -78,12 +78,31 @@ function cleanup() {
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
 
+    # Install Git, only for RHEL7.x as it has older version in repo because of which cmake throws error while updating submodules.
+    cd "$SOURCE_ROOT"
+    DISTRO="$ID-$VERSION_ID"
+    if [[ "$DISTRO" == "rhel-7.8" || "$DISTRO" == "rhel-7.9" ]]; then
+        sudo yum remove -y git
+        sudo yum groupinstall -y "Development Tools"
+        sudo yum install -y gettext-devel openssl-devel perl-devel perl-CPAN zlib-devel curl-devel
+        wget https://github.com/git/git/archive/refs/tags/v2.26.3.tar.gz
+        tar -xvzf v2.26.3.tar.gz
+        cd git-2.26.3
+        make configure
+        ./configure --prefix=/usr/local
+        sudo make install
+        export PATH=/usr/local/bin:$PATH
+        git --version
+        printf -- "Install Git success\n" >>"$LOG_FILE"
+    fi
+
     # Install Go
     cd "$SOURCE_ROOT"
-    wget $GO_INSTALL_URL 
-    bash build_go.sh
-    printf -- "Installed Go successfully.\n" >> "$LOG_FILE"
-    
+    if [[ "$DISTRO" != "sles-15.3" ]]; then
+        wget $GO_INSTALL_URL 
+        bash build_go.sh
+        printf -- "Installed Go successfully.\n" >> "$LOG_FILE"
+    fi    
 
    	# Set GOPATH if not already set
 	if [[ -z "${GOPATH}" ]]; then
@@ -201,7 +220,7 @@ done
 function gettingStarted() {
     printf -- '\n********************************************************************************************************\n'
     printf -- "\n * Getting Started * \n\n"
-    printf -- "Deploying nginx-ingress-controller: \n\n"
+    printf -- "* Deploying nginx-ingress-controller: \n\n"
     printf -- " cd \$GOPATH/src/k8s.io/ingress-nginx/ \n"
     printf -- " kubectl apply -f deploy/static/provider/baremetal/deploy.yaml \n\n"
     printf -- "* Verify installed version * \n\n"
@@ -220,19 +239,31 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y curl git make |& tee -a "$LOG_FILE"
+    sudo apt-get install -y curl git make wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y curl git make |& tee -a "$LOG_FILE"
+    sudo yum install -y make curl tar wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.2" | "sles-15.3")
+"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y curl git make |& tee -a "$LOG_FILE"
+    sudo yum install -y curl git make wget |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"sles-12.5" | "sles-15.2")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo zypper install -y curl git make which wget |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"sles-15.3")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo zypper install -y go1.16 curl git make which wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
