@@ -306,7 +306,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo apt=get install -y wget
+    sudo apt-get install -y wget
     wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB/10.5.10/build_mariadb.sh
     sudo bash build_mariadb.sh -y
     export PATH=/usr/local/mysql/bin/:$PATH
