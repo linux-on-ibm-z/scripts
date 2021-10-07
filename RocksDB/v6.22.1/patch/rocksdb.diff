@@ -1,0 +1,268 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5d9b4b64a..0abffb06e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -267,6 +267,13 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|AARCH64")
+   endif(HAS_ARMV8_CRC)
+ endif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|AARCH64")
+ 
++if(CMAKE_SYSTEM_PROCESSOR MATCHES "s390x")
++  CHECK_C_COMPILER_FLAG("-march=native" HAS_S390X_MARCH_NATIVE)
++  if(HAS_S390X_MARCH_NATIVE)
++    message(STATUS " HAS_S390X_MARCH_NATIVE yes")
++  endif(HAS_S390X_MARCH_NATIVE)
++endif(CMAKE_SYSTEM_PROCESSOR MATCHES "s390x")
++
+ option(PORTABLE "build a portable binary" OFF)
+ option(FORCE_SSE42 "force building with SSE4.2, even when PORTABLE=ON" OFF)
+ option(FORCE_AVX "force building with AVX, even when PORTABLE=ON" OFF)
+@@ -292,12 +299,17 @@ if(PORTABLE)
+     if(FORCE_AVX2)
+       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi -mlzcnt")
+     endif()
++    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^s390x")
++      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=z196")
++    endif()
+   endif()
+ else()
+   if(MSVC)
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+   else()
+-    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64" AND NOT HAS_ARMV8_CRC)
++    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^s390x" AND NOT HAS_S390X_MARCH_NATIVE)
++      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=z196")
++    elseif(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64" AND NOT HAS_ARMV8_CRC)
+       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+     endif()
+   endif()
+diff --git a/Makefile b/Makefile
+index 274864378..a1913f6e7 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1997,7 +1997,7 @@ JAVA_INCLUDE = -I$(JAVA_HOME)/include/ -I$(JAVA_HOME)/include/linux
+ ifeq ($(PLATFORM), OS_SOLARIS)
+ 	ARCH := $(shell isainfo -b)
+ else ifeq ($(PLATFORM), OS_OPENBSD)
+-	ifneq (,$(filter amd64 ppc64 ppc64le arm64 aarch64 sparc64, $(MACHINE)))
++	ifneq (,$(filter amd64 ppc64 ppc64le s390x arm64 aarch64 sparc64, $(MACHINE)))
+ 		ARCH := 64
+ 	else
+ 		ARCH := 32
+@@ -2017,7 +2017,7 @@ ifneq ($(origin JNI_LIBC), undefined)
+   JNI_LIBC_POSTFIX = -$(JNI_LIBC)
+ endif
+ 
+-ifneq (,$(filter ppc% arm64 aarch64 sparc64, $(MACHINE)))
++ifneq (,$(filter ppc% s390x arm64 aarch64 sparc64, $(MACHINE)))
+ 	ROCKSDBJNILIB = librocksdbjni-linux-$(MACHINE)$(JNI_LIBC_POSTFIX).so
+ else
+ 	ROCKSDBJNILIB = librocksdbjni-linux$(ARCH)$(JNI_LIBC_POSTFIX).so
+diff --git a/build_tools/build_detect_platform b/build_tools/build_detect_platform
+index 1d5138dbf..00bc50794 100755
+--- a/build_tools/build_detect_platform
++++ b/build_tools/build_detect_platform
+@@ -638,13 +638,19 @@ if test "0$PORTABLE" -eq 0; then
+     # Tune for this POWER processor, treating '+' models as base models
+     POWER=`LD_SHOW_AUXV=1 /bin/true | grep AT_PLATFORM | grep -E -o power[0-9]+`
+     COMMON_FLAGS="$COMMON_FLAGS -mcpu=$POWER -mtune=$POWER "
+-  elif test -n "`echo $TARGET_ARCHITECTURE | grep ^s390x`"; then
+-    COMMON_FLAGS="$COMMON_FLAGS -march=z10 "
+   elif test -n "`echo $TARGET_ARCHITECTURE | grep -e^arm -e^aarch64`"; then
+     # TODO: Handle this with approprite options.
+     COMMON_FLAGS="$COMMON_FLAGS"
+   elif test -n "`echo $TARGET_ARCHITECTURE | grep ^aarch64`"; then
+     COMMON_FLAGS="$COMMON_FLAGS"
++  elif test -n "`echo $TARGET_ARCHITECTURE | grep ^s390x`"; then
++    if echo 'int main() {}' | $CXX $PLATFORM_CXXFLAGS -x c++ \
++      -fsyntax-only -march=native - -o /dev/null 2>/dev/null; then
++      COMMON_FLAGS="$COMMON_FLAGS -march=native "
++    else
++      COMMON_FLAGS="$COMMON_FLAGS -march=z196 "
++    fi
++    COMMON_FLAGS="$COMMON_FLAGS"
+   elif [ "$TARGET_OS" == "IOS" ]; then
+     COMMON_FLAGS="$COMMON_FLAGS"
+   elif [ "$TARGET_OS" == "AIX" ] || [ "$TARGET_OS" == "SunOS" ]; then
+@@ -661,6 +667,10 @@ else
+     TRY_SSE_ETC="1"
+   fi
+ 
++  if test -n "`echo $TARGET_ARCHITECTURE | grep ^s390x`"; then
++    COMMON_FLAGS="$COMMON_FLAGS -march=z196 "
++  fi
++
+   if [[ "${PLATFORM}" == "OS_MACOSX" ]]; then
+     # For portability compile for macOS 10.12 (2016) or newer
+     COMMON_FLAGS="$COMMON_FLAGS -mmacosx-version-min=10.12"
+diff --git a/db/db_properties_test.cc b/db/db_properties_test.cc
+index 8ff4a30b0..fbe74f3f3 100644
+--- a/db/db_properties_test.cc
++++ b/db/db_properties_test.cc
+@@ -213,7 +213,7 @@ void VerifySimilar(uint64_t a, uint64_t b, double bias) {
+ 
+ void VerifyTableProperties(
+     const TableProperties& base_tp, const TableProperties& new_tp,
+-    double filter_size_bias = CACHE_LINE_SIZE >= 256 ? 0.15 : 0.1,
++    double filter_size_bias = CACHE_LINE_SIZE >= 256 ? 0.18 : 0.1,
+     double index_size_bias = 0.1, double data_size_bias = 0.1,
+     double num_data_blocks_bias = 0.05) {
+   VerifySimilar(base_tp.data_size, new_tp.data_size, data_size_bias);
+@@ -607,7 +607,8 @@ TEST_F(DBPropertiesTest, AggregatedTablePropertiesAtLevel) {
+           value_is_delta_encoded);
+       // Gives larger bias here as index block size, filter block size,
+       // and data block size become much harder to estimate in this test.
+-      VerifyTableProperties(expected_tp, tp, 0.5, 0.4, 0.4, 0.25);
++      VerifyTableProperties(expected_tp, tp, CACHE_LINE_SIZE >= 256 ? 0.6 : 0.5,
++                            0.4, 0.4, 0.25);
+     }
+   }
+ }
+diff --git a/db/version_set_test.cc b/db/version_set_test.cc
+index 90088100c..8475dffa8 100644
+--- a/db/version_set_test.cc
++++ b/db/version_set_test.cc
+@@ -1889,7 +1889,7 @@ class VersionSetAtomicGroupTest : public VersionSetTestBase,
+         });
+     SyncPoint::GetInstance()->SetCallBack(
+         "VersionEditHandlerBase::Iterate:Finish", [&](void* arg) {
+-          num_recovered_edits_ = *reinterpret_cast<int*>(arg);
++          num_recovered_edits_ = *reinterpret_cast<size_t*>(arg);
+         });
+     SyncPoint::GetInstance()->SetCallBack(
+         "AtomicGroupReadBuffer::AddEdit:AtomicGroup",
+@@ -1929,7 +1929,7 @@ class VersionSetAtomicGroupTest : public VersionSetTestBase,
+   bool first_in_atomic_group_ = false;
+   bool last_in_atomic_group_ = false;
+   int num_edits_in_atomic_group_ = 0;
+-  int num_recovered_edits_ = 0;
++  size_t num_recovered_edits_ = 0;
+   VersionEdit corrupted_edit_;
+   VersionEdit edit_with_incorrect_group_size_;
+   std::unique_ptr<log::Writer> log_writer_;
+diff --git a/java/src/main/java/org/rocksdb/util/Environment.java b/java/src/main/java/org/rocksdb/util/Environment.java
+index b5de34b75..a2b9e23c8 100644
+--- a/java/src/main/java/org/rocksdb/util/Environment.java
++++ b/java/src/main/java/org/rocksdb/util/Environment.java
+@@ -106,7 +106,7 @@ public class Environment {
+       if (isPowerPC() || isAarch64()) {
+         return String.format("%sjni-linux-%s%s", name, ARCH, getLibcPostfix());
+       } else if (isS390x()) {
+-        return String.format("%sjni-linux%s", name, ARCH);
++        return String.format("%sjni-linux-%s", name, ARCH);
+       } else {
+         return String.format("%sjni-linux%s%s", name, arch, getLibcPostfix());
+       }
+diff --git a/monitoring/statistics.h b/monitoring/statistics.h
+index 9ad108763..20661777f 100644
+--- a/monitoring/statistics.h
++++ b/monitoring/statistics.h
+@@ -100,7 +100,9 @@ class StatisticsImpl : public Statistics {
+     void operator delete[](void *p) { port::cacheline_aligned_free(p); }
+   };
+ 
++#ifndef TEST_CACHE_LINE_SIZE
+   static_assert(sizeof(StatisticsData) % CACHE_LINE_SIZE == 0, "Expected " TOSTRING(CACHE_LINE_SIZE) "-byte aligned");
++#endif
+ 
+   CoreLocalArray<StatisticsData> per_core_stats_;
+ 
+diff --git a/port/port_posix.h b/port/port_posix.h
+index 291139764..c98c34e7f 100644
+--- a/port/port_posix.h
++++ b/port/port_posix.h
+@@ -190,7 +190,11 @@ extern void InitOnce(OnceType* once, void (*initializer)());
+ #define ALIGN_AS(n) /*empty*/
+ #else
+ #if defined(__s390__)
++#if defined(__GNUC__) && __GNUC__ < 6
++#define CACHE_LINE_SIZE 64U
++#else
+ #define CACHE_LINE_SIZE 256U
++#endif
+ #elif defined(__powerpc__) || defined(__aarch64__)
+ #define CACHE_LINE_SIZE 128U
+ #else
+diff --git a/third-party/folly/folly/Portability.h b/third-party/folly/folly/Portability.h
+index 93a4e41a5..b88b3d0c8 100644
+--- a/third-party/folly/folly/Portability.h
++++ b/third-party/folly/folly/Portability.h
+@@ -31,6 +31,12 @@
+ #define FOLLY_PPC64 0
+ #endif
+ 
++#if defined(__s390x__)
++#define FOLLY_S390X 1
++#else
++#define FOLLY_S390X 0
++#endif
++
+ #if defined(__has_builtin)
+ #define FOLLY_HAS_BUILTIN(...) __has_builtin(__VA_ARGS__)
+ #else
+@@ -57,6 +63,7 @@ constexpr bool kIsArchArm = FOLLY_ARM == 1;
+ constexpr bool kIsArchAmd64 = FOLLY_X64 == 1;
+ constexpr bool kIsArchAArch64 = FOLLY_AARCH64 == 1;
+ constexpr bool kIsArchPPC64 = FOLLY_PPC64 == 1;
++constexpr bool kIsArchS390X = FOLLY_S390X == 1;
+ } // namespace folly
+ 
+ namespace folly {
+diff --git a/third-party/folly/folly/lang/Align.h b/third-party/folly/folly/lang/Align.h
+index 2a404b91d..2d3717aad 100644
+--- a/third-party/folly/folly/lang/Align.h
++++ b/third-party/folly/folly/lang/Align.h
+@@ -120,7 +120,7 @@ struct alignas(max_align_v) max_align_t {};
+ //
+ //  mimic: std::hardware_destructive_interference_size, C++17
+ constexpr std::size_t hardware_destructive_interference_size =
+-    kIsArchArm ? 64 : 128;
++    (kIsArchArm || kIsArchS390X) ? 64 : 128;
+ static_assert(hardware_destructive_interference_size >= max_align_v, "math?");
+ 
+ //  Memory locations within the same cache line are subject to constructive
+diff --git a/util/bloom_test.cc b/util/bloom_test.cc
+index 7b1dee2a5..dbde584b3 100644
+--- a/util/bloom_test.cc
++++ b/util/bloom_test.cc
+@@ -552,7 +552,8 @@ TEST_P(FullBloomTest, OptimizeForMemory) {
+     }
+     if (FLAGS_bits_per_key == 10) {
+       EXPECT_LE(total_fp_rate / double{nfilters}, 0.011);
+-      EXPECT_GE(total_fp_rate / double{nfilters}, 0.008);
++      EXPECT_GE(total_fp_rate / double{nfilters},
++                CACHE_LINE_SIZE >= 256 ? 0.007 : 0.008);
+     }
+ 
+     int64_t ex_min_total_size = int64_t{FLAGS_bits_per_key} * total_keys / 8;
+diff --git a/util/compression.h b/util/compression.h
+index 207f9949e..a58b2b575 100644
+--- a/util/compression.h
++++ b/util/compression.h
+@@ -1136,7 +1136,11 @@ inline CacheAllocationPtr LZ4_Uncompress(const UncompressionInfo& info,
+     if (input_length < 8) {
+       return nullptr;
+     }
+-    memcpy(&output_len, input_data, sizeof(output_len));
++    if (port::kLittleEndian) {
++      memcpy(&output_len, input_data, sizeof(output_len));
++    } else {
++      memcpy(&output_len, input_data + 4, sizeof(output_len));
++    }
+     input_length -= 8;
+     input_data += 8;
+   }
+diff --git a/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h b/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
+index 4425a4a2e..225e3fa72 100644
+--- a/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
++++ b/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
+@@ -133,6 +133,10 @@ static inline tokutime_t toku_time_now(void) {
+   return result;
+ #elif defined(__powerpc__)
+   return __ppc_get_timebase();
++#elif defined(__s390x__)
++  uint64_t result;
++  asm volatile("stckf %0" : "=Q"(result) : : "cc");
++  return result;
+ #else
+ #error No timer implementation for this platform
+ #endif
