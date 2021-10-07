@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Rocksdb/scripts/v6.22.1/build_rocksdb.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RocksDB/scripts/v6.22.1/build_rocksdb.sh
 # Execute build script: bash build_rocksdb.sh    (provide -h for help)
 #
 
