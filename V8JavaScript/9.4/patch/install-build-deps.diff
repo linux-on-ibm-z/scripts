@@ -1,0 +1,18 @@
+--- build/install-build-deps.sh.orig   2021-09-24 16:43:00.047251306 +0000
++++ build/install-build-deps.sh  2021-09-23 19:48:20.031405887 +0000
+@@ -118,10 +118,10 @@
+     exit 1
+   fi
+ 
+-  if ! uname -m | egrep -q "i686|x86_64"; then
+-    echo "Only x86 architectures are currently supported" >&2
+-    exit
+-  fi
++#  if ! uname -m | egrep -q "i686|x86_64"; then
++#    echo "Only x86 architectures are currently supported" >&2
++#    exit
++#  fi
+ fi
+ 
+ if [ "x$(id -u)" != x0 ] && [ 0 -eq "${do_quick_check-0}" ]; then
+ 
