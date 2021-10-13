@@ -1,0 +1,795 @@
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityTopicOperatorTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityTopicOperatorTest.java
+index 85cccc56e..add5f25fb 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityTopicOperatorTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityTopicOperatorTest.java
+@@ -86,7 +86,7 @@ public class EntityTopicOperatorTest {
+             .withReadinessProbe(readinessProbe)
+             .withLogging(topicOperatorLogging)
+             .withNewJvmOptions()
+-                    .withNewXms("128m")
++                    .withXms("128m")
+                     .addAllToJavaSystemProperties(javaSystemProperties)
+             .endJvmOptions()
+             .build();
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityUserOperatorTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityUserOperatorTest.java
+index dcb4663c6..8191f4d7f 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityUserOperatorTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/EntityUserOperatorTest.java
+@@ -97,7 +97,7 @@ public class EntityUserOperatorTest {
+             .withLogging(userOperatorLogging)
+             .withNewJvmOptions()
+                 .addAllToJavaSystemProperties(javaSystemProperties)
+-                .withNewXmx("256m")
++                .withXmx("256m")
+             .endJvmOptions()
+             .build();
+ 
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/JmxTransTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/JmxTransTest.java
+index d220ca77f..41027d6bb 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/JmxTransTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/JmxTransTest.java
+@@ -81,7 +81,7 @@ public class JmxTransTest {
+             .withKafkaQueries(new JmxTransQueryTemplateBuilder()
+                     .withOutputs("name")
+                     .withAttributes("attributes")
+-                    .withNewTargetMBean("mbean")
++                    .withTargetMBean("mbean")
+                     .build())
+             .build();
+ 
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaBrokerConfigurationBuilderTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaBrokerConfigurationBuilderTest.java
+index 1291a4a1a..d9111cf7f 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaBrokerConfigurationBuilderTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaBrokerConfigurationBuilderTest.java
+@@ -1110,10 +1110,10 @@ public class KafkaBrokerConfigurationBuilderTest {
+                 .withType(KafkaListenerType.INTERNAL)
+                 .withTls(false)
+                 .withNewKafkaListenerAuthenticationOAuth()
+-                    .withNewValidIssuerUri("http://valid-issuer")
+-                    .withNewJwksEndpointUri("http://jwks")
++                    .withValidIssuerUri("http://valid-issuer")
++                    .withJwksEndpointUri("http://jwks")
+                     .withEnableECDSA(true)
+-                    .withNewUserNameClaim("preferred_username")
++                    .withUserNameClaim("preferred_username")
+                     .withMaxSecondsWithoutReauthentication(3600)
+                     .withJwksMinRefreshPauseSeconds(5)
+                     .withEnablePlain(true)
+@@ -1163,9 +1163,9 @@ public class KafkaBrokerConfigurationBuilderTest {
+                 .withType(KafkaListenerType.INTERNAL)
+                 .withTls(false)
+                 .withNewKafkaListenerAuthenticationOAuth()
+-                .withNewValidIssuerUri("http://valid-issuer")
+-                .withNewJwksEndpointUri("http://jwks")
+-                .withNewUserNameClaim("preferred_username")
++                .withValidIssuerUri("http://valid-issuer")
++                .withJwksEndpointUri("http://jwks")
++                .withUserNameClaim("preferred_username")
+                 .withMaxSecondsWithoutReauthentication(3600)
+                 .withJwksMinRefreshPauseSeconds(5)
+                 .withEnablePlain(true)
+@@ -1263,10 +1263,10 @@ public class KafkaBrokerConfigurationBuilderTest {
+                 .withType(KafkaListenerType.INTERNAL)
+                 .withTls(false)
+                 .withNewKafkaListenerAuthenticationOAuth()
+-                    .withNewValidIssuerUri("https://valid-issuer")
+-                    .withNewJwksEndpointUri("https://jwks")
++                    .withValidIssuerUri("https://valid-issuer")
++                    .withJwksEndpointUri("https://jwks")
+                     .withEnableECDSA(true)
+-                    .withNewUserNameClaim("preferred_username")
++                    .withUserNameClaim("preferred_username")
+                     .withDisableTlsHostnameVerification(true)
+                     .withTlsTrustedCertificates(cert)
+                 .endKafkaListenerAuthenticationOAuth()
+@@ -1315,7 +1315,7 @@ public class KafkaBrokerConfigurationBuilderTest {
+                     .withIntrospectionEndpointUri("https://intro")
+                     .withCheckAudience(true)
+                     .withCustomClaimCheck("'kafka-user' in @.roles.client-roles.kafka")
+-                    .withNewClientId("my-oauth-client")
++                    .withClientId("my-oauth-client")
+                     .withNewClientSecret()
+                         .withSecretName("my-secret")
+                         .withKey("client-secret")
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaClusterTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaClusterTest.java
+index e7c919d1e..385973a77 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaClusterTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaClusterTest.java
+@@ -3161,7 +3161,7 @@ public class KafkaClusterTest {
+                     .editKafka()
+                         // Set a rack to force init-container to be templated
+                         .withNewRack()
+-                            .withNewTopologyKey("a-topology")
++                            .withTopologyKey("a-topology")
+                         .endRack()
+                         .withNewTemplate()
+                             .withNewInitContainer()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectBuildTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectBuildTest.java
+index 8ae93a241..9208df1e3 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectBuildTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectBuildTest.java
+@@ -67,7 +67,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+                                 new PluginBuilder().withName("my-connector2").withArtifacts(jarArtifactNoChecksum).build())
+@@ -90,7 +90,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                     .endBuild()
+                 .endSpec()
+@@ -113,7 +113,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").build())
+                     .endBuild()
+@@ -137,7 +137,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+                                 new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactNoChecksum).build())
+@@ -170,7 +170,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+                                 new PluginBuilder().withName("my-connector2").withArtifacts(jarArtifactNoChecksum).build())
+@@ -258,7 +258,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+                                 new PluginBuilder().withName("my-connector2").withArtifacts(jarArtifactNoChecksum).build())
+@@ -298,7 +298,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+                                 new PluginBuilder().withName("my-connector2").withArtifacts(jarArtifactNoChecksum).build())
+@@ -396,7 +396,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+                                 new PluginBuilder().withName("my-connector2").withArtifacts(jarArtifactNoChecksum).build())
+@@ -468,7 +468,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                             .withAdditionalKanikoOptions("--reproducible", "--single-snapshot", "--log-format=json")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+@@ -495,7 +495,7 @@ public class KafkaConnectBuildTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-image:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                             .withAdditionalKanikoOptions("--reproducible", "--reproducible-something", "--build-arg", "--single-snapshot", "--digest-file=/dev/null", "--log-format=json")
+                         .endDockerOutput()
+                         .withPlugins(new PluginBuilder().withName("my-connector").withArtifacts(jarArtifactWithChecksum).build(),
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectClusterTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectClusterTest.java
+index 5890d64df..cb92659ca 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectClusterTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaConnectClusterTest.java
+@@ -1140,8 +1140,8 @@ public class KafkaConnectClusterTest {
+         KafkaConnect resource = new KafkaConnectBuilder(this.resource)
+                 .editSpec()
+                     .withNewJvmOptions()
+-                        .withNewXms("512m")
+-                        .withNewXmx("1024m")
++                        .withXms("512m")
++                        .withXmx("1024m")
+                         .withXx(xx)
+                     .endJvmOptions()
+                 .endSpec()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaExporterTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaExporterTest.java
+index 499ef64f0..abcee9c58 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaExporterTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaExporterTest.java
+@@ -394,7 +394,7 @@ public class KafkaExporterTest {
+                                     .withAnnotations(podAnots)
+                                 .endMetadata()
+                                 .withPriorityClassName("top-priority")
+-                                .withNewSchedulerName("my-scheduler")
++                                .withSchedulerName("my-scheduler")
+                                 .withAffinity(affinity)
+                                 .withTolerations(tolerations)
+                                 .withTopologySpreadConstraints(tsc1, tsc2)
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMaker2ClusterTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMaker2ClusterTest.java
+index 3aef95b45..94da5ec2a 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMaker2ClusterTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMaker2ClusterTest.java
+@@ -1224,8 +1224,8 @@ public class KafkaMirrorMaker2ClusterTest {
+         KafkaMirrorMaker2 resource = new KafkaMirrorMaker2Builder(this.resource)
+                 .editSpec()
+                     .withNewJvmOptions()
+-                        .withNewXms("512m")
+-                        .withNewXmx("1024m")
++                        .withXms("512m")
++                        .withXmx("1024m")
+                         .withXx(xx)
+                     .endJvmOptions()
+                 .endSpec()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMakerClusterTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMakerClusterTest.java
+index 9297be993..dead55889 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMakerClusterTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/KafkaMirrorMakerClusterTest.java
+@@ -794,8 +794,8 @@ public class KafkaMirrorMakerClusterTest {
+         KafkaMirrorMaker resource = new KafkaMirrorMakerBuilder(this.resource)
+                 .editSpec()
+                     .withNewJvmOptions()
+-                        .withNewXms("512m")
+-                        .withNewXmx("1024m")
++                        .withXms("512m")
++                        .withXmx("1024m")
+                         .withXx(xx)
+                     .endJvmOptions()
+                 .endSpec()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/StatusDiffTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/StatusDiffTest.java
+index 032ece4a2..e6dc30014 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/StatusDiffTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/StatusDiffTest.java
+@@ -27,7 +27,7 @@ public class StatusDiffTest {
+     @ParallelTest
+     public void testStatusDiff()    {
+         ListenerStatus ls1 = new ListenerStatusBuilder()
+-                .withNewType("plain")
++                .withType("plain")
+                 .withAddresses(new ListenerAddressBuilder()
+                         .withHost("my-service.my-namespace.svc")
+                         .withPort(9092)
+@@ -35,7 +35,7 @@ public class StatusDiffTest {
+                 .build();
+ 
+         ListenerStatus ls2 = new ListenerStatusBuilder()
+-                .withNewType("tls")
++                .withType("tls")
+                 .withAddresses(new ListenerAddressBuilder()
+                         .withHost("my-service.my-namespace.svc")
+                         .withPort(9093)
+@@ -43,7 +43,7 @@ public class StatusDiffTest {
+                 .build();
+ 
+         ListenerStatus ls3 = new ListenerStatusBuilder()
+-                .withNewType("tls")
++                .withType("tls")
+                 .withAddresses(new ListenerAddressBuilder()
+                         .withHost("my-service.my-namespace.svc")
+                         .withPort(9094)
+@@ -51,15 +51,15 @@ public class StatusDiffTest {
+                 .build();
+ 
+         Condition condition1 = new ConditionBuilder()
+-                .withNewLastTransitionTime(StatusUtils.iso8601(new Date()))
+-                .withNewType("Ready")
+-                .withNewStatus("True")
++                .withLastTransitionTime(StatusUtils.iso8601(new Date()))
++                .withType("Ready")
++                .withStatus("True")
+                 .build();
+ 
+         Condition condition2 = new ConditionBuilder()
+-                .withNewLastTransitionTime(StatusUtils.iso8601(new Date()))
+-                .withNewType("Ready2")
+-                .withNewStatus("True")
++                .withLastTransitionTime(StatusUtils.iso8601(new Date()))
++                .withType("Ready2")
++                .withStatus("True")
+                 .build();
+ 
+         KafkaStatus status1 = new KafkaStatusBuilder()
+@@ -114,7 +114,7 @@ public class StatusDiffTest {
+     @ParallelTest
+     public void testTimestampDiff() throws ParseException {
+         ListenerStatus ls1 = new ListenerStatusBuilder()
+-                .withNewType("plain")
++                .withType("plain")
+                 .withAddresses(new ListenerAddressBuilder()
+                         .withHost("my-service.my-namespace.svc")
+                         .withPort(9092)
+@@ -122,7 +122,7 @@ public class StatusDiffTest {
+                 .build();
+ 
+         ListenerStatus ls2 = new ListenerStatusBuilder()
+-                .withNewType("tls")
++                .withType("tls")
+                 .withAddresses(new ListenerAddressBuilder()
+                         .withHost("my-service.my-namespace.svc")
+                         .withPort(9093)
+@@ -130,15 +130,15 @@ public class StatusDiffTest {
+                 .build();
+ 
+         Condition condition1 = new ConditionBuilder()
+-                .withNewLastTransitionTime(StatusUtils.iso8601(new Date()))
+-                .withNewType("Ready")
+-                .withNewStatus("True")
++                .withLastTransitionTime(StatusUtils.iso8601(new Date()))
++                .withType("Ready")
++                .withStatus("True")
+                 .build();
+ 
+         Condition condition2 = new ConditionBuilder()
+-                .withNewLastTransitionTime(StatusUtils.iso8601(new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse("2011-01-01 00:00:00")))
+-                .withNewType("Ready")
+-                .withNewStatus("True")
++                .withLastTransitionTime(StatusUtils.iso8601(new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse("2011-01-01 00:00:00")))
++                .withType("Ready")
++                .withStatus("True")
+                 .build();
+ 
+         KafkaStatus status1 = new KafkaStatusBuilder()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorKubeTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorKubeTest.java
+index fbbc6527a..8f04d6d8a 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorKubeTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorKubeTest.java
+@@ -111,7 +111,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -264,7 +264,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -386,7 +386,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -548,7 +548,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1, plugin2)
+                     .endBuild()
+@@ -718,7 +718,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -892,7 +892,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1, plugin2)
+                     .endBuild()
+@@ -1062,7 +1062,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -1188,7 +1188,7 @@ public class KafkaConnectBuildAssemblyOperatorKubeTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorOpenShiftTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorOpenShiftTest.java
+index da5419803..d7b3d38e9 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorOpenShiftTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaConnectBuildAssemblyOperatorOpenShiftTest.java
+@@ -110,7 +110,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -378,7 +378,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -539,7 +539,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -660,7 +660,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -814,7 +814,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -1002,7 +1002,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+@@ -1192,7 +1192,7 @@ public class KafkaConnectBuildAssemblyOperatorOpenShiftTest {
+                     .withNewBuild()
+                         .withNewDockerOutput()
+                             .withImage("my-connect-build:latest")
+-                            .withNewPushSecret("my-docker-credentials")
++                            .withPushSecret("my-docker-credentials")
+                         .endDockerOutput()
+                         .withPlugins(plugin1)
+                     .endBuild()
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaStatusTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaStatusTest.java
+index 241850d38..7d37e400c 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaStatusTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/operator/assembly/KafkaStatusTest.java
+@@ -123,9 +123,9 @@ public class KafkaStatusTest {
+                 .withNewStatus()
+                     .withObservedGeneration(1L)
+                     .withConditions(new ConditionBuilder()
+-                            .withNewLastTransitionTime(StatusUtils.iso8601(new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse("2011-01-01 00:00:00")))
+-                            .withNewType("NotReady")
+-                            .withNewStatus("True")
++                            .withLastTransitionTime(StatusUtils.iso8601(new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").parse("2011-01-01 00:00:00")))
++                            .withType("NotReady")
++                            .withStatus("True")
+                             .build())
+                 .endStatus()
+                 .build();
+@@ -231,14 +231,14 @@ public class KafkaStatusTest {
+                         .withType("Ready")
+                     .endCondition()
+                     .withListeners(new ListenerStatusBuilder()
+-                            .withNewType("plain")
++                            .withType("plain")
+                             .withAddresses(new ListenerAddressBuilder()
+                                     .withHost("my-service.my-namespace.svc")
+                                     .withPort(9092)
+                                     .build())
+                             .build(),
+                             new ListenerStatusBuilder()
+-                                    .withNewType("external")
++                                    .withType("external")
+                                     .withAddresses(new ListenerAddressBuilder()
+                                             .withHost("my-route-address.domain.tld")
+                                             .withPort(443)
+@@ -340,14 +340,14 @@ public class KafkaStatusTest {
+                         .withType("Ready")
+                     .endCondition()
+                     .withListeners(new ListenerStatusBuilder()
+-                                    .withNewType("plain")
++                                    .withType("plain")
+                                     .withAddresses(new ListenerAddressBuilder()
+                                             .withHost("my-service.my-namespace.svc")
+                                             .withPort(9092)
+                                             .build())
+                                     .build(),
+                             new ListenerStatusBuilder()
+-                                    .withNewType("external")
++                                    .withType("external")
+                                     .withAddresses(new ListenerAddressBuilder()
+                                             .withHost("my-route-address.domain.tld")
+                                             .withPort(443)
+@@ -1141,7 +1141,7 @@ public class KafkaStatusTest {
+         @Override
+         Future<Void> reconcile(ReconciliationState reconcileState)  {
+             ListenerStatus ls = new ListenerStatusBuilder()
+-                    .withNewType("plain")
++                    .withType("plain")
+                     .withAddresses(new ListenerAddressBuilder()
+                             .withHost("my-service.my-namespace.svc")
+                             .withPort(9092)
+@@ -1149,7 +1149,7 @@ public class KafkaStatusTest {
+                     .build();
+ 
+             ListenerStatus ls2 = new ListenerStatusBuilder()
+-                    .withNewType("external")
++                    .withType("external")
+                     .withAddresses(new ListenerAddressBuilder()
+                             .withHost("my-route-address.domain.tld")
+                             .withPort(443)
+@@ -1178,7 +1178,7 @@ public class KafkaStatusTest {
+         @Override
+         Future<Void> reconcile(ReconciliationState reconcileState)  {
+             ListenerStatus ls = new ListenerStatusBuilder()
+-                    .withNewType("plain")
++                    .withType("plain")
+                     .withAddresses(new ListenerAddressBuilder()
+                             .withHost("my-service.my-namespace.svc")
+                             .withPort(9092)
+diff --git a/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaBridgeCrdOperatorIT.java b/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaBridgeCrdOperatorIT.java
+index 6d23fada6..666a4d279 100644
+--- a/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaBridgeCrdOperatorIT.java
++++ b/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaBridgeCrdOperatorIT.java
+@@ -58,7 +58,7 @@ public class KafkaBridgeCrdOperatorIT extends AbstractCustomResourceOperatorIT<K
+                     .withNamespace(getNamespace())
+                 .endMetadata()
+                 .withNewSpec()
+-                    .withNewBootstrapServers("localhost:9092")
++                    .withBootstrapServers("localhost:9092")
+                 .endSpec()
+                 .withNewStatus()
+                 .endStatus()
+diff --git a/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaConnectCrdOperatorIT.java b/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaConnectCrdOperatorIT.java
+index 21d0f18d9..93b00ac0a 100644
+--- a/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaConnectCrdOperatorIT.java
++++ b/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaConnectCrdOperatorIT.java
+@@ -56,7 +56,7 @@ public class KafkaConnectCrdOperatorIT extends AbstractCustomResourceOperatorIT<
+                     .withNamespace(getNamespace())
+                 .endMetadata()
+                 .withNewSpec()
+-                    .withNewBootstrapServers("localhost:9092")
++                    .withBootstrapServers("localhost:9092")
+                 .endSpec()
+                 .withNewStatus()
+                 .endStatus()
+diff --git a/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaCrdOperatorTest.java b/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaCrdOperatorTest.java
+index 02a358fcc..e569de82b 100644
+--- a/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaCrdOperatorTest.java
++++ b/operator-common/src/test/java/io/strimzi/operator/common/operator/resource/KafkaCrdOperatorTest.java
+@@ -67,7 +67,7 @@ public class KafkaCrdOperatorTest extends AbstractResourceOperatorTest<Kubernete
+                     .endZookeeper()
+                 .endSpec()
+                 .withNewStatus()
+-                    .addToConditions(new ConditionBuilder().withNewStatus("Ready").withNewMessage("Kafka is ready").build())
++                    .addToConditions(new ConditionBuilder().withStatus("Ready").withMessage("Kafka is ready").build())
+                 .endStatus()
+                 .build();
+     }
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/bridge/HttpBridgeKafkaExternalListenersST.java b/systemtest/src/test/java/io/strimzi/systemtest/bridge/HttpBridgeKafkaExternalListenersST.java
+index b36b9c046..271ffba85 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/bridge/HttpBridgeKafkaExternalListenersST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/bridge/HttpBridgeKafkaExternalListenersST.java
+@@ -71,7 +71,7 @@ class HttpBridgeKafkaExternalListenersST extends HttpBridgeAbstractST {
+ 
+         KafkaBridgeSpec bridgeSpec = new KafkaBridgeSpecBuilder()
+             .withNewKafkaClientAuthenticationScramSha512()
+-                .withNewUsername(weirdUserName)
++                .withUsername(weirdUserName)
+                 .withPasswordSecret(passwordSecret)
+             .endKafkaClientAuthenticationScramSha512()
+             .withNewTls()
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/connect/ConnectST.java b/systemtest/src/test/java/io/strimzi/systemtest/connect/ConnectST.java
+index 30d651666..7dd5b864f 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/connect/ConnectST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/connect/ConnectST.java
+@@ -230,7 +230,7 @@ class ConnectST extends AbstractST {
+             .withNewSpec()
+                 .withBootstrapServers(KafkaResources.plainBootstrapAddress(clusterName))
+                 .withNewKafkaClientAuthenticationScramSha512()
+-                    .withNewUsername(userName)
++                    .withUsername(userName)
+                     .withPasswordSecret(new PasswordSecretSourceBuilder()
+                         .withSecretName(userName)
+                         .withPassword("password")
+@@ -841,7 +841,7 @@ class ConnectST extends AbstractST {
+                 .editOrNewSpec()
+                     .withBootstrapServers(KafkaResources.tlsBootstrapAddress(clusterName))
+                     .withNewKafkaClientAuthenticationScramSha512()
+-                        .withNewUsername(weirdUserName)
++                        .withUsername(weirdUserName)
+                         .withPasswordSecret(new PasswordSecretSourceBuilder()
+                             .withSecretName(weirdUserName)
+                             .withPassword("password")
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/cruisecontrol/CruiseControlConfigurationST.java b/systemtest/src/test/java/io/strimzi/systemtest/cruisecontrol/CruiseControlConfigurationST.java
+index 6d6f4d29c..e25e06d63 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/cruisecontrol/CruiseControlConfigurationST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/cruisecontrol/CruiseControlConfigurationST.java
+@@ -157,7 +157,7 @@ public class CruiseControlConfigurationST extends AbstractST {
+ 
+             CruiseControlSpec cruiseControl = new CruiseControlSpecBuilder()
+                 .withNewBrokerCapacity()
+-                    .withNewDisk("200M")
++                    .withDisk("200M")
+                 .endBrokerCapacity()
+                 .build();
+ 
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/kafka/QuotasST.java b/systemtest/src/test/java/io/strimzi/systemtest/kafka/QuotasST.java
+index 3f82aaef4..a1a6d1cd6 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/kafka/QuotasST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/kafka/QuotasST.java
+@@ -55,7 +55,7 @@ public class QuotasST extends AbstractST {
+                     .addToConfig("client.quota.callback.static.storage.soft", "50000000")
+                     .addToConfig("client.quota.callback.static.storage.check-interval", "5")
+                     .withNewPersistentClaimStorage()
+-                        .withNewSize("1Gi")
++                        .withSize("1Gi")
+                     .endPersistentClaimStorage()
+                 .endKafka()
+             .endSpec()
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMaker2ST.java b/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMaker2ST.java
+index 2576ece7a..b1d7dacb2 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMaker2ST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMaker2ST.java
+@@ -377,7 +377,7 @@ class MirrorMaker2ST extends AbstractST {
+             .editSpec()
+                 .withClusters(sourceClusterWithTlsAuth, targetClusterWithTlsAuth)
+                 .editFirstMirror()
+-                    .withNewTopicsPattern(MIRRORMAKER2_TOPIC_NAME + ".*")
++                    .withTopicsPattern(MIRRORMAKER2_TOPIC_NAME + ".*")
+                 .endMirror()
+             .endSpec()
+             .build());
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMakerST.java b/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMakerST.java
+index 512337559..f9a8bb723 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMakerST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/mirrormaker/MirrorMakerST.java
+@@ -509,7 +509,7 @@ public class MirrorMakerST extends AbstractST {
+                 .withNamespace(namespaceName)
+             .endMetadata()
+             .editSpec()
+-                .withNewInclude(topicName)
++                .withInclude(topicName)
+             .endSpec().build());
+ 
+         internalKafkaClient = internalKafkaClient.toBuilder()
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/security/OpaIntegrationST.java b/systemtest/src/test/java/io/strimzi/systemtest/security/OpaIntegrationST.java
+index 4b9b6f999..3196b4113 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/security/OpaIntegrationST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/security/OpaIntegrationST.java
+@@ -148,7 +148,7 @@ public class OpaIntegrationST extends AbstractST {
+                 .editKafka()
+                     .withNewKafkaAuthorizationOpa()
+                         .withUrl("http://opa:8181/v1/data/kafka/simple/authz/allow")
+-                        .addNewSuperUser("CN=" + OPA_SUPERUSER)
++                        .addToSuperUsers("CN=" + OPA_SUPERUSER)
+                     .endKafkaAuthorizationOpa()
+                     .withListeners(new GenericKafkaListenerBuilder()
+                             .withName(Constants.TLS_LISTENER_DEFAULT_NAME)
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/security/SecurityST.java b/systemtest/src/test/java/io/strimzi/systemtest/security/SecurityST.java
+index 0f2740be6..62c4f9506 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/security/SecurityST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/security/SecurityST.java
+@@ -661,7 +661,7 @@ class SecurityST extends AbstractST {
+ 
+         resourceManager.createResource(extensionContext, KafkaTemplates.kafkaPersistent(clusterName, 3, 1)
+             .editSpec()
+-                .addNewMaintenanceTimeWindow(maintenanceWindowCron)
++                .addToMaintenanceTimeWindows(maintenanceWindowCron)
+             .endSpec()
+             .build());
+ 
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthPlainST.java b/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthPlainST.java
+index b2455ddeb..8fe00dcfb 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthPlainST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthPlainST.java
+@@ -377,7 +377,7 @@ public class OauthPlainST extends OauthAbstractST {
+                         .withGroupId(ClientUtils.generateRandomConsumerGroup())
+                         .addToConfig(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                         .withNewKafkaClientAuthenticationOAuth()
+-                            .withNewTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
++                            .withTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
+                             .withClientId("kafka-mirror-maker")
+                             .withNewClientSecret()
+                                 .withSecretName(MIRROR_MAKER_OAUTH_SECRET)
+@@ -389,7 +389,7 @@ public class OauthPlainST extends OauthAbstractST {
+                     .withNewProducer()
+                         .withBootstrapServers(KafkaResources.plainBootstrapAddress(targetKafkaCluster))
+                         .withNewKafkaClientAuthenticationOAuth()
+-                            .withNewTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
++                            .withTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
+                             .withClientId("kafka-mirror-maker")
+                             .withNewClientSecret()
+                                 .withSecretName(MIRROR_MAKER_OAUTH_SECRET)
+@@ -506,7 +506,7 @@ public class OauthPlainST extends OauthAbstractST {
+             .withConfig(connectorConfig)
+             .withBootstrapServers(KafkaResources.plainBootstrapAddress(kafkaSourceClusterName))
+             .withNewKafkaClientAuthenticationOAuth()
+-                .withNewTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
++                .withTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
+                 .withClientId("kafka-mirror-maker-2")
+                 .withNewClientSecret()
+                     .withSecretName(MIRROR_MAKER_2_OAUTH_SECRET)
+@@ -520,7 +520,7 @@ public class OauthPlainST extends OauthAbstractST {
+             .withConfig(connectorConfig)
+             .withBootstrapServers(KafkaResources.plainBootstrapAddress(kafkaTargetClusterName))
+             .withNewKafkaClientAuthenticationOAuth()
+-                .withNewTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
++                .withTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
+                 .withClientId("kafka-mirror-maker-2")
+                 .withNewClientSecret()
+                     .withSecretName(MIRROR_MAKER_2_OAUTH_SECRET)
+@@ -533,7 +533,7 @@ public class OauthPlainST extends OauthAbstractST {
+             .editSpec()
+                 .withClusters(sourceClusterWithOauth, targetClusterWithOauth)
+                 .editFirstMirror()
+-                    .withNewSourceCluster(kafkaSourceClusterName)
++                    .withSourceCluster(kafkaSourceClusterName)
+                 .endMirror()
+             .endSpec()
+             .build());
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthTlsST.java b/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthTlsST.java
+index 9d3b0c535..e92a809c9 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthTlsST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/security/oauth/OauthTlsST.java
+@@ -344,7 +344,7 @@ public class OauthTlsST extends OauthAbstractST {
+                         .withGroupId(ClientUtils.generateRandomConsumerGroup())
+                         .addToConfig(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                         .withNewKafkaClientAuthenticationOAuth()
+-                            .withNewTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
++                            .withTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
+                             .withClientId("kafka-mirror-maker")
+                             .withNewClientSecret()
+                                 .withSecretName(MIRROR_MAKER_OAUTH_SECRET)
+@@ -368,7 +368,7 @@ public class OauthTlsST extends OauthAbstractST {
+                                 .build())
+                         .endTls()
+                         .withNewKafkaClientAuthenticationOAuth()
+-                            .withNewTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
++                            .withTokenEndpointUri(keycloakInstance.getOauthTokenEndpointUri())
+                             .withClientId("kafka-mirror-maker")
+                             .withNewClientSecret()
+                                 .withSecretName(MIRROR_MAKER_OAUTH_SECRET)
