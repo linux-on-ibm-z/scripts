@@ -10,7 +10,7 @@
 USER_IN_GROUP_DOCKER=$(id -nGz $USER | tr '\0' '\n' | grep '^docker$' | wc -l)
 set -e -o pipefail
 
-PACKAGE_NAME="strimzi_kafka_bridge"
+PACKAGE_NAME="strimzi-kafka-bridge"
 PACKAGE_VERSION="0.20.2"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/${PACKAGE_NAME}/${PACKAGE_VERSION}/patch"
 FORCE="false"
