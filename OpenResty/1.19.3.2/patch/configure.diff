@@ -1,0 +1,16 @@
+--- configure-tmp	2021-02-12 20:28:13.794965272 +0000
++++ configure	2021-02-12 20:28:36.515019331 +0000
+@@ -717,12 +717,7 @@
+        {
+             my $comp = ($cc || 'cc');
+             my $ver = `$comp --version`;
+-            if (defined $ver && $ver =~ /\(GCC\) (\d+\.\d+)/) {
+-                my $v = $1;
+-                if ($v < 4.5) {
+-                    $luajit_xcflags .= " -std=gnu99";
+-                }
+-            }
++            $luajit_xcflags .= " -std=gnu99";
+         }
+
+         if (!$no_luajit_lua52
