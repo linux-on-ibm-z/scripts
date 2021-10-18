@@ -77,11 +77,11 @@ function configureAndInstall() {
         # Install AdoptOpenJDK 11 (With OpenJ9)
 
         cd "$SOURCE_ROOT"
-        sudo wget https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.11%2B9_openj9-0.26.0/OpenJDK11U-jdk_s390x_linux_openj9_11.0.11_9_openj9-0.26.0.tar.gz
-        sudo tar -C /usr/local -xzf OpenJDK11U-jdk_s390x_linux_openj9_11.0.11_9_openj9-0.26.0.tar.gz
-        export JAVA_HOME=/usr/local/jdk-11.0.11+9
+        sudo wget https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.12%2B7_openj9-0.27.0/ibm-semeru-open-jdk_s390x_linux_11.0.12_7_openj9-0.27.0.tar.gz
+        sudo tar -C /usr/local -xzf ibm-semeru-open-jdk_s390x_linux_11.0.12_7_openj9-0.27.0.tar.gz
+        export JAVA_HOME=/usr/local/jdk-11.0.12+7
 
-        printf -- 'export JAVA_HOME=/usr/local/jdk-11.0.11+9\n'  >> "$BUILD_ENV"
+        printf -- 'export JAVA_HOME=/usr/local/jdk-11.0.12+7\n'  >> "$BUILD_ENV"
         printf -- 'AdoptOpenJDK 11 installed\n' >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "OpenJDK" ]]; then
@@ -164,7 +164,7 @@ function runTest() {
         git clone https://github.com/SonarSource/sonar-scanning-examples.git
 
         #Run Java Scanner
-        cd "$SOURCE_ROOT"/sonar-scanning-examples/sonarqube-scanner-gradle
+        cd "$SOURCE_ROOT"/sonar-scanning-examples/sonarqube-scanner-gradle/gradle-basic
         ./gradlew -Dsonar.host.url=http://localhost:9000 -Dsonar.login="admin" -Dsonar.password="admin" sonarqube
         curl http://localhost:9000/dashboard/index/Example%20of%20SonarQube%20Scanner%20for%20Gradle%20Usage
 
@@ -277,19 +277,19 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y wget git unzip tar curl |& tee -a "$LOG_FILE"
+    sudo apt-get install -y wget git unzip tar curl net-tools |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y git wget unzip tar which curl net-tools xz |& tee -a "$LOG_FILE"
+    sudo yum install -y git wget unzip tar which curl net-tools xz net-tools |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-12.5" | "sles-15.2" | "sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git wget unzip tar which gzip curl xz |& tee -a "$LOG_FILE"
+    sudo zypper install -y git wget unzip tar which gzip curl xz net-tools |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
