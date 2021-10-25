@@ -153,8 +153,8 @@ case "$DISTRO" in
 "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-    sudo apt-get update -y >/dev/null
-	sudo apt-get install -y gcc make wget tar libncursesw5 libcunit1-ncurses libncursesw5-dev |& tee -a "$LOG_FILE"
+    	sudo apt-get update -y >/dev/null
+	sudo apt-get install -y gcc make wget tar libncursesw5 libcunit1-ncurses libncursesw5-dev autoconf |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
