@@ -1,0 +1,40 @@
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/vectorized/ColumnarBatchSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/vectorized/ColumnarBatchSuite.scala
+index a369b2d690..008b152c52 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/vectorized/ColumnarBatchSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/vectorized/ColumnarBatchSuite.scala
+@@ -25,8 +25,6 @@ import scala.collection.JavaConverters._
+ import scala.collection.mutable
+ import scala.util.Random
+ 
+-import org.apache.arrow.vector.IntVector
+-
+ import org.apache.spark.SparkFunSuite
+ import org.apache.spark.memory.MemoryMode
+ import org.apache.spark.sql.{RandomDataGenerator, Row}
+@@ -35,8 +33,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+ import org.apache.spark.sql.catalyst.util.{ArrayBasedMapBuilder, DateTimeUtils, GenericArrayData}
+ import org.apache.spark.sql.execution.RowToColumnConverter
+ import org.apache.spark.sql.types._
+-import org.apache.spark.sql.util.ArrowUtils
+-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
++import org.apache.spark.sql.vectorized.ColumnarBatch
+ import org.apache.spark.unsafe.Platform
+ import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
+ 
+@@ -1311,6 +1308,8 @@ class ColumnarBatchSuite extends SparkFunSuite {
+     }
+   }
+ 
++  // Arrow < 3.0.0 not supported on big-endian systems
++  /*
+   test("create columnar batch from Arrow column vectors") {
+     val allocator = ArrowUtils.rootAllocator.newChildAllocator("int", 0, Long.MaxValue)
+     val vector1 = ArrowUtils.toArrowField("int1", IntegerType, nullable = true, null)
+@@ -1355,6 +1354,7 @@ class ColumnarBatchSuite extends SparkFunSuite {
+     batch.close()
+     allocator.close()
+   }
++  */
+ 
+   test("RowToColumnConverter") {
+     val schema = StructType(
