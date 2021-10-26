@@ -363,7 +363,7 @@ function runTest() {
                 printf -- "TEST Flag is set, Preparing the kafka server for testing \n" >> "$LOG_FILE"
                 cd ${CURDIR}
                 wget --no-check-certificate $PATCH_URL/kafka_config.diff
-                wget https://downloads.apache.org/kafka/2.8.0/kafka_2.13-2.8.0.tgz
+                wget https://archive.apache.org/dist/kafka/2.8.0/kafka_2.13-2.8.0.tgz
                 tar xvf kafka_2.13-2.8.0.tgz
                 cd kafka_2.13-2.8.0
                 cp -f $S390X_JNI_JAR_DIR/rocksdbjni-5.18.4.jar libs/
