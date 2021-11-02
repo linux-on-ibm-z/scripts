@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2020.
+# © Copyright IBM Corporation 2020, 2021
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -298,7 +298,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper update -y |& tee -a "$LOG_FILE"
-	sudo zypper install -y gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool python python-xml python-curses libicu-devel protobuf-devel libprotobuf-lite9 libprotobuf9 boost-devel termcap curl libcurl-devel git awk  |& tee -a "$LOG_FILE"
+	sudo zypper install -y gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool python python-xml python-curses libicu-devel protobuf-devel=2.6.1-7.3.16 libprotobuf-lite9 libprotobuf9 boost-devel termcap curl libcurl-devel git awk  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
