@@ -77,18 +77,9 @@ function configureAndInstall() {
     	if [[ "$ID" == "rhel" ]]; then
 	        export PATH=/usr/local/bin:$PATH
 		export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
-		      
-		      if [[ "$DISTRO" == "rhel-7.8" || "$DISTRO" == "rhel-7.9" ]]; then
-			      cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/opt/rh/devtoolset-7/root/bin/gcc -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-7/root/bin/g++
-
-				make
-				sudo make install
-		      
-		      else
-			      cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++	
-			      make
-			      sudo make install
-		       fi	
+		cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/opt/rh/devtoolset-7/root/bin/gcc -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-7/root/bin/g++
+		make
+		sudo make install	      	
    	else	
 		cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=. -DWITH_SSL=system
 		make
@@ -189,12 +180,6 @@ case "$DISTRO" in
     	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar wget zlib-devel doxygen llvm-toolset-7-cmake devtoolset-7-gcc devtoolset-7-gcc-c++ |& tee -a "$LOG_FILE"
 	
 	sudo ln -s /opt/rh/llvm-toolset-7/root/bin/cmake /usr/local/bin/cmake	
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-"rhel-8.2" | "rhel-8.3")
-    	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    	printf -- "Installing dependencies... it may take some time.\n"
-    	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 "sles-12.5")
