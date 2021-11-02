@@ -247,7 +247,7 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo zypper install -y gcc7 gcc7-c++ git-core cmake ncurses-devel libopenssl-devel \
-        libcurl-devel protobuf-devel patch which automake autoconf libtool libelf-devel \
+        libcurl-devel protobuf-devel=2.6.1-7.3.16 patch which automake autoconf libtool libelf-devel \
         "kernel-default-devel=${SLES_KERNEL_VERSION}"
 	
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
