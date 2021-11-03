@@ -1,0 +1,58 @@
+diff --git a/bin/kafka-run-class.sh b/bin/kafka-run-class.sh
+index 3889be7e3e..d5d2cc2e49 100755
+--- a/bin/kafka-run-class.sh
++++ b/bin/kafka-run-class.sh
+@@ -266,7 +266,7 @@ fi
+ # JVM performance options
+ # MaxInlineLevel=15 is the default since JDK 14 and can be removed once older JDKs are no longer supported
+ if [ -z "$KAFKA_JVM_PERFORMANCE_OPTS" ]; then
+-  KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+ExplicitGCInvokesConcurrent -XX:MaxInlineLevel=15 -Djava.awt.headless=true"
++  KAFKA_JVM_PERFORMANCE_OPTS="-server -Xverify:none -XX:-UseSplitVerifier -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+ExplicitGCInvokesConcurrent -XX:MaxInlineLevel=15 -Djava.awt.headless=true"
+ fi
+
+ while [ $# -gt 0 ]; do
+@@ -311,7 +311,7 @@ if [ "x$GC_LOG_ENABLED" = "xtrue" ]; then
+   if [[ "$JAVA_MAJOR_VERSION" -ge "9" ]] ; then
+     KAFKA_GC_LOG_OPTS="-Xlog:gc*:file=$LOG_DIR/$GC_LOG_FILE_NAME:time,tags:filecount=10,filesize=100M"
+   else
+-    KAFKA_GC_LOG_OPTS="-Xloggc:$LOG_DIR/$GC_LOG_FILE_NAME -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=100M"
++    KAFKA_GC_LOG_OPTS="-Xloggc:$LOG_DIR/$GC_LOG_FILE_NAME -verbose:gc -Xverify:none -XX:-UseSplitVerifier -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=100M"
+   fi
+ fi
+
+diff --git a/build.gradle b/build.gradle
+index e21609fd49..5dfa8181ff 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -106,7 +106,7 @@ ext {
+   buildVersionFileName = "kafka-version.properties"
+
+   defaultMaxHeapSize = "2g"
+-  defaultJvmArgs = ["-Xss4m", "-XX:+UseParallelGC"]
++  defaultJvmArgs = ["-Xss4m", "-Xverify:none", "-XX:+UseParallelGC", "-XX:-UseSplitVerifier"]
+
+   userMaxForks = project.hasProperty('maxParallelForks') ? maxParallelForks.toInteger() : null
+   userIgnoreFailures = project.hasProperty('ignoreFailures') ? ignoreFailures : false
+diff --git a/config/server.properties b/config/server.properties
+index b1cf5c4541..9ec7a034f3 100644
+--- a/config/server.properties
++++ b/config/server.properties
+@@ -53,6 +53,7 @@ socket.receive.buffer.bytes=102400
+ # The maximum size of a request that the socket server will accept (protection against OOM)
+ socket.request.max.bytes=104857600
+
++delete.topic.enable=true
+
+ ############################# Log Basics #############################
+
+diff --git a/gradle.properties b/gradle.properties
+index 4124d714d9..c4d07c24e7 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -23,5 +23,5 @@ group=org.apache.kafka
+ version=2.8.0
+ scalaVersion=2.13.3
+ task=build
+-org.gradle.jvmargs=-Xmx2g -Xss4m -XX:+UseParallelGC
++org.gradle.jvmargs=-Xmx2g -Xss4m -Xverify:none -XX:+UseParallelGC -XX:-UseSplitVerifier
+ org.gradle.parallel=true
