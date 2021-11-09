@@ -80,6 +80,8 @@ function configureAndInstall() {
     cd server
     git checkout mariadb-${PACKAGE_VERSION}
     git submodule update --init --recursive
+    #Fix PCRE download link in cmake/pcre.cmake file
+    sed -i 's#http://ftp.pcre.org/pub/pcre/pcre2-10.37.zip#https://github.com/PhilipHazel/pcre2/releases/download/pcre2-10.37/pcre2-10.37.zip#g' cmake/pcre.cmake
     # Build and install mariadb
     mkdir build  && cd build
     cmake "$CURDIR"/server
@@ -194,7 +196,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git gcc which gcc-c++ make wget tar cmake openssl-devel ncurses-devel bison boost-devel check-devel perl-Test-Simple perl-Time-HiRes openssl pcre-devel pam-devel perl-Memoize.noarch patch diffutils hostname libarchive |& tee -a "$LOG_FILE"
