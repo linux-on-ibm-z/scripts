@@ -307,7 +307,7 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo apt-get install -y wget
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB/10.5.10/build_mariadb.sh
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB/10.6.4/build_mariadb.sh
     sudo bash build_mariadb.sh -y
     export PATH=/usr/local/mysql/bin/:$PATH
     sudo apt-get install -y unixodbc-dev git cmake gcc libssl-dev tar curl libcurl4-openssl-dev libkrb5-dev |& tee -a "$LOG_FILE"
@@ -323,7 +323,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB/10.5.10/build_mariadb.sh
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB/10.6.4/build_mariadb.sh
     sudo bash build_mariadb.sh -y
     export PATH=/usr/local/mysql/bin/:$PATH
     sudo yum install -y patch unixODBC unixODBC-devel git cmake gcc libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make |& tee -a "$LOG_FILE"
