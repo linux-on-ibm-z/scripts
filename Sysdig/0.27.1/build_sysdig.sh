@@ -69,6 +69,7 @@ function configureAndInstall() {
     git clone https://github.com/draios/sysdig.git
     cd sysdig
     git checkout "$PACKAGE_VERSION"
+    sed -i 's/master/main/g' CMakeListsGtestInclude.cmake
     mkdir build
     cd $SOURCE_ROOT/sysdig/build
     printf -- '\nStarting Sysdig build. \n'
