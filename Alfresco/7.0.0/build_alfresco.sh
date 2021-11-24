@@ -308,7 +308,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
+"ubuntu-18.04" | "ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -321,7 +321,7 @@ case "$DISTRO" in
     sudo yum install -y git gcc make java-1.8.0-openjdk-devel wget ant iptables-services procps-ng xz texinfo curl patch |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-8.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git gcc maven make java-1.8.0-openjdk-devel wget ant iptables-services procps-ng xz curl patch |& tee -a "$LOG_FILE"
