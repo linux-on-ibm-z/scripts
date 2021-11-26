@@ -170,14 +170,14 @@ checkPrequisites  #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04" | "ubuntu-21.10")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
   sudo apt-get install -y gcc make wget tar bison flex openssl libssl-dev libdb-dev libgdbm-dev libreadline-dev |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel readline-devel gdbm-devel gcc make wget tar |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
