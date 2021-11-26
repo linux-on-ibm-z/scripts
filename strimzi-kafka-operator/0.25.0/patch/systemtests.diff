@@ -1,0 +1,453 @@
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/Environment.java b/systemtest/src/main/java/io/strimzi/systemtest/Environment.java
+index 1faea83ab..89460efa8 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/Environment.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/Environment.java
+@@ -7,6 +7,7 @@ package io.strimzi.systemtest;
+ import com.fasterxml.jackson.databind.JsonNode;
+ import com.fasterxml.jackson.databind.ObjectMapper;
+ import io.strimzi.systemtest.enums.ClusterOperatorInstallType;
++import io.strimzi.systemtest.utils.specific.BridgeUtils;
+ import io.strimzi.test.TestUtils;
+ import io.strimzi.test.k8s.cluster.OpenShift;
+ import org.apache.logging.log4j.LogManager;
+@@ -174,7 +175,8 @@ public class Environment {
+     public static final String TEST_CLIENT_IMAGE = getOrDefault(TEST_CLIENT_IMAGE_ENV, TEST_CLIENT_IMAGE_DEFAULT);
+     // variables for kafka bridge image
+     private static final String BRIDGE_IMAGE_DEFAULT = "latest-released";
+-    public static final String BRIDGE_IMAGE = getOrDefault(BRIDGE_IMAGE_ENV, BRIDGE_IMAGE_DEFAULT);
++    //public static final String BRIDGE_IMAGE = getOrDefault(BRIDGE_IMAGE_ENV, BRIDGE_IMAGE_DEFAULT);
++    public static final String BRIDGE_IMAGE = STRIMZI_REGISTRY + "/" + STRIMZI_ORG + "/kafka-bridge:" + BridgeUtils.getBridgeVersion(); 
+     // Image pull policy variables
+     public static final String COMPONENTS_IMAGE_PULL_POLICY = getOrDefault(COMPONENTS_IMAGE_PULL_POLICY_ENV, COMPONENTS_IMAGE_PULL_POLICY_ENV_DEFAULT);
+     public static final String OPERATOR_IMAGE_PULL_POLICY = getOrDefault(OPERATOR_IMAGE_PULL_POLICY_ENV, OPERATOR_IMAGE_PULL_POLICY_ENV_DEFAULT);
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBasicExampleClients.java b/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBasicExampleClients.java
+index 5f98b92cb..1645445f5 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBasicExampleClients.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBasicExampleClients.java
+@@ -221,7 +221,7 @@ public class KafkaBasicExampleClients {
+                             .addNewContainer()
+                                 .withName(producerName)
+                                 .withImagePullPolicy(Constants.IF_NOT_PRESENT_IMAGE_PULL_POLICY)
+-                                .withImage(Environment.STRIMZI_REGISTRY_DEFAULT + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + Constants.STRIMZI_EXAMPLE_PRODUCER_NAME + ":latest")
++                                .withImage(Environment.STRIMZI_REGISTRY + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + Constants.STRIMZI_EXAMPLE_PRODUCER_NAME + ":latest")
+                                 .addNewEnv()
+                                     .withName("BOOTSTRAP_SERVERS")
+                                     .withValue(bootstrapAddress)
+@@ -295,7 +295,7 @@ public class KafkaBasicExampleClients {
+                                 .addNewContainer()
+                                     .withName(consumerName)
+                                     .withImagePullPolicy(Constants.IF_NOT_PRESENT_IMAGE_PULL_POLICY)
+-                                    .withImage(Environment.STRIMZI_REGISTRY_DEFAULT + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + Constants.STRIMZI_EXAMPLE_CONSUMER_NAME + ":latest")
++                                    .withImage(Environment.STRIMZI_REGISTRY + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + Constants.STRIMZI_EXAMPLE_CONSUMER_NAME + ":latest")
+                                     .addNewEnv()
+                                         .withName("BOOTSTRAP_SERVERS")
+                                         .withValue(bootstrapAddress)
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBridgeExampleClients.java b/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBridgeExampleClients.java
+index cfce4e704..24a9c5f01 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBridgeExampleClients.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaBridgeExampleClients.java
+@@ -5,6 +5,7 @@
+ package io.strimzi.systemtest.resources.crd.kafkaclients;
+ 
+ import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
++import io.strimzi.systemtest.Environment;
+ import io.strimzi.systemtest.Constants;
+ import io.strimzi.systemtest.resources.ResourceManager;
+ 
+@@ -130,7 +131,7 @@ public class KafkaBridgeExampleClients extends KafkaBasicExampleClients {
+                             .addNewContainer()
+                                 .withName(producerName)
+                                 .withImagePullPolicy(Constants.IF_NOT_PRESENT_IMAGE_PULL_POLICY)
+-                                .withImage("strimzi/kafka-http-producer:latest")
++                                .withImage(Environment.STRIMZI_REGISTRY + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + "java-http-vertx-producer:latest")
+                                 .addNewEnv()
+                                     .withName("HOSTNAME")
+                                     .withValue(bootstrapAddress)
+@@ -180,7 +181,7 @@ public class KafkaBridgeExampleClients extends KafkaBasicExampleClients {
+                             .addNewContainer()
+                                 .withName(consumerName)
+                                 .withImagePullPolicy(Constants.IF_NOT_PRESENT_IMAGE_PULL_POLICY)
+-                                .withImage("strimzi/kafka-http-consumer:latest")
++                                .withImage(Environment.STRIMZI_REGISTRY + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + "java-http-vertx-consumer:latest")
+                                 .addNewEnv()
+                                     .withName("HOSTNAME")
+                                     .withValue(bootstrapAddress)
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaTracingExampleClients.java b/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaTracingExampleClients.java
+index 91fef8b39..a2fc0abda 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaTracingExampleClients.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/resources/crd/kafkaclients/KafkaTracingExampleClients.java
+@@ -227,7 +227,7 @@ public class KafkaTracingExampleClients extends KafkaBasicExampleClients {
+                         .withContainers()
+                         .addNewContainer()
+                             .withName(kafkaStreamsName)
+-                            .withImage(Environment.STRIMZI_REGISTRY_DEFAULT + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + Constants.STRIMZI_EXAMPLE_STREAMS_NAME + ":latest")
++                            .withImage(Environment.STRIMZI_REGISTRY + "/" + Environment.STRIMZI_CLIENTS_ORG_DEFAULT + "/" + Constants.STRIMZI_EXAMPLE_STREAMS_NAME + ":latest")
+                             .addNewEnv()
+                                 .withName("BOOTSTRAP_SERVERS")
+                                 .withValue(bootstrapAddress)
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/resources/operator/specific/HelmResource.java b/systemtest/src/main/java/io/strimzi/systemtest/resources/operator/specific/HelmResource.java
+index ac07d9c8c..0c29299bc 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/resources/operator/specific/HelmResource.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/resources/operator/specific/HelmResource.java
+@@ -90,7 +90,7 @@ public class HelmResource implements SpecificResourceType {
+                 entry("kafkaConnect.image.registry", Environment.STRIMZI_REGISTRY),
+                 entry("kafkaMirrorMaker.image.registry", Environment.STRIMZI_REGISTRY),
+                 entry("kafkaMirrorMaker2.image.registry", Environment.STRIMZI_REGISTRY),
+-                entry("kafkaBridge.image.registry", Environment.STRIMZI_REGISTRY_DEFAULT),
++                entry("kafkaBridge.image.registry", Environment.STRIMZI_REGISTRY),
+ 
+                 // image repository config
+                 entry("image.repository", Environment.STRIMZI_ORG),
+@@ -107,7 +107,7 @@ public class HelmResource implements SpecificResourceType {
+                 entry("kafkaConnect.image.repository", Environment.STRIMZI_ORG),
+                 entry("kafkaMirrorMaker.image.repository", Environment.STRIMZI_ORG),
+                 entry("kafkaMirrorMaker2.image.repository", Environment.STRIMZI_ORG),
+-                entry("kafkaBridge.image.repository", Environment.STRIMZI_ORG_DEFAULT),
++                entry("kafkaBridge.image.repository", Environment.STRIMZI_ORG),
+ 
+                 // image tags config
+                 entry("image.tag", Environment.STRIMZI_TAG),
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java b/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java
+index 40a151334..237b2824b 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java
+@@ -19,6 +19,7 @@ import java.net.URI;
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.nio.file.Paths;
++import java.nio.file.StandardCopyOption;
+ import java.util.zip.ZipEntry;
+ import java.util.zip.ZipInputStream;
+ 
+@@ -145,4 +146,22 @@ public class FileUtils {
+         }
+         return null;
+     }
++
++    public static void updateRegistryAndRepoInYamlFile(String pathToOrigin, String registry, String repo) throws IOException {
++        byte[] encoded;
++        File yamlFile = File.createTempFile("temp-file", ".yaml");
++
++        try (OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(yamlFile), StandardCharsets.UTF_8)) {
++            encoded = Files.readAllBytes(Paths.get(pathToOrigin));
++
++            String yaml = new String(encoded, StandardCharsets.UTF_8);
++            yaml = yaml.replaceAll("quay.io/strimzi", registry + "/" + repo);
++
++            osw.write(yaml);
++            osw.close();
++            Files.copy(yamlFile.toPath(), Paths.get(pathToOrigin), StandardCopyOption.REPLACE_EXISTING);
++        } catch (RuntimeException e) {
++            e.printStackTrace();
++        }
++    }
+ }
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/tracing/TracingST.java b/systemtest/src/test/java/io/strimzi/systemtest/tracing/TracingST.java
+index 09adeddd8..0042ac74a 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/tracing/TracingST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/tracing/TracingST.java
+@@ -95,7 +95,7 @@ public class TracingST extends AbstractST {
+     private static final String JAEGER_AGENT_NAME = JAEGER_INSTANCE_NAME + "-agent";
+     private static final String JAEGER_QUERY_SERVICE = JAEGER_INSTANCE_NAME + "-query";
+ 
+-    private static final String JAEGER_VERSION = "1.22.1";
++    private static final String JAEGER_VERSION = "1.25.0";
+ 
+     private Stack<String> jaegerConfigs = new Stack<>();
+ 
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java
+index 1200fbb51..3e99b5d9a 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java
+@@ -11,6 +11,7 @@ import io.strimzi.api.kafka.model.KafkaResources;
+ import io.strimzi.api.kafka.model.KafkaTopic;
+ import io.strimzi.api.kafka.model.KafkaUser;
+ import io.strimzi.systemtest.AbstractST;
++import io.strimzi.systemtest.Environment;
+ import io.strimzi.systemtest.resources.ResourceManager;
+ import io.strimzi.systemtest.resources.crd.kafkaclients.KafkaBasicExampleClients;
+ import io.strimzi.systemtest.templates.crd.KafkaTopicTemplates;
+@@ -207,6 +208,9 @@ public class AbstractUpgradeST extends AbstractST {
+             examplesPath = io.strimzi.systemtest.Constants.PATH_TO_PACKAGING_EXAMPLES + "";
+         } else {
+             File dir = FileUtils.downloadAndUnzip(toUrl);
++            File deployYaml = new File(dir, testParameters.getString("toExamples") + "/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml");
++            if (deployYaml.exists())
++                FileUtils.updateRegistryAndRepoInYamlFile(deployYaml.getPath(), Environment.STRIMZI_REGISTRY, Environment.STRIMZI_ORG);
+             examplesPath = dir.getAbsolutePath() + "/" + testParameters.getString("toExamples") + "/examples";
+         }
+ 
+@@ -309,6 +313,9 @@ public class AbstractUpgradeST extends AbstractST {
+         } else {
+             String url = testParameters.getString("urlTo");
+             File dir = FileUtils.downloadAndUnzip(url);
++            File deployYaml = new File(dir, testParameters.getString("toExamples") + "/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml");
++            if (deployYaml.exists())
++                FileUtils.updateRegistryAndRepoInYamlFile(deployYaml.getPath(), Environment.STRIMZI_REGISTRY, Environment.STRIMZI_ORG);
+             coDir = new File(dir, testParameters.getString("toExamples") + "/install/cluster-operator/");
+         }
+ 
+@@ -407,6 +414,9 @@ public class AbstractUpgradeST extends AbstractST {
+         } else {
+             url = testParameters.getString("urlFrom");
+             dir = FileUtils.downloadAndUnzip(url);
++            File deployYaml = new File(dir, testParameters.getString("fromExamples") + "/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml");
++            if (deployYaml.exists())
++                FileUtils.updateRegistryAndRepoInYamlFile(deployYaml.getPath(), Environment.STRIMZI_REGISTRY, Environment.STRIMZI_ORG);
+             coDir = new File(dir, testParameters.getString("fromExamples") + "/install/cluster-operator/");
+         }
+ 
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeST.java b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeST.java
+index b48932d58..11dcb8857 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeST.java
+@@ -100,7 +100,10 @@ public class OlmUpgradeST extends AbstractUpgradeST {
+ 
+         String url = testParameters.getString("urlFrom");
+         File dir = FileUtils.downloadAndUnzip(url);
+-
++        File deployYaml = new File(dir, testParameters.getString("fromExamples") + "/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml");
++        if (deployYaml.exists())
++            FileUtils.updateRegistryAndRepoInYamlFile(deployYaml.getPath(), Environment.STRIMZI_REGISTRY, Environment.STRIMZI_ORG);
++        
+         // In chainUpgrade we want to setup Kafka only at the begging and then upgrade it via CO
+         kafkaYaml = new File(dir, testParameters.getString("fromExamples") + "/examples/kafka/kafka-persistent.yaml");
+         LOGGER.info("Going to deploy Kafka from: {}", kafkaYaml.getPath());
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeST.java b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeST.java
+index f2195accf..f4ae47d36 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeST.java
+@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
+ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+ import io.strimzi.api.kafka.model.KafkaResources;
+ import io.strimzi.systemtest.resources.operator.SetupClusterOperator;
++import io.strimzi.systemtest.Environment;
+ import io.strimzi.systemtest.resources.ResourceManager;
+ import io.strimzi.systemtest.utils.FileUtils;
+ import io.strimzi.systemtest.utils.StUtils;
+@@ -60,7 +61,7 @@ public class StrimziUpgradeST extends AbstractUpgradeST {
+ 
+     // TODO: make testUpgradeKafkaWithoutVersion to run upgrade with config from StrimziUpgradeST.json
+     // main idea of the test and usage of latestReleasedVersion: upgrade CO from version X, kafka Y, to CO version Z and kafka Y + 1 at the end
+-    private final String strimziReleaseWithOlderKafkaVersion = "0.22.1";
++    private final String strimziReleaseWithOlderKafkaVersion = "0.24.0";
+     private final String strimziReleaseWithOlderKafka = String.format("https://github.com/strimzi/strimzi-kafka-operator/releases/download/%s/strimzi-%s.zip",
+             strimziReleaseWithOlderKafkaVersion, strimziReleaseWithOlderKafkaVersion);
+ 
+@@ -80,6 +81,9 @@ public class StrimziUpgradeST extends AbstractUpgradeST {
+         JsonObject conversionTool = getConversionToolDataFromUpgradeJSON();
+ 
+         File dir = FileUtils.downloadAndUnzip(strimziReleaseWithOlderKafka);
++        File deployYaml = new File(dir, "strimzi-" + strimziReleaseWithOlderKafkaVersion + "/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml");
++        if (deployYaml.exists())
++            FileUtils.updateRegistryAndRepoInYamlFile(deployYaml.getPath(), Environment.STRIMZI_REGISTRY, Environment.STRIMZI_ORG);
+         File startKafkaPersistent = new File(dir, "strimzi-" + strimziReleaseWithOlderKafkaVersion + "/examples/kafka/kafka-persistent.yaml");
+         File startKafkaVersionsYaml = FileUtils.downloadYaml("https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/" + strimziReleaseWithOlderKafkaVersion + "/kafka-versions.yaml");
+         File latestKafkaVersionsYaml = new File(TestUtils.USER_PATH + "//../kafka-versions.yaml");
+diff --git a/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh b/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh
+index 2baeeff72..7df2f4aa4 100755
+--- a/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh
++++ b/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh
+@@ -22,7 +22,7 @@ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/r
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakrealms_crd.yaml
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloaks_crd.yaml
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakusers_crd.yaml
+-kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/operator.yaml
++kubectl apply -n ${NAMESPACE} -f "$(dirname "$(realpath "$0")")/../../../../../packaging/examples/keycloak/operator.yaml"
+ echo "[INFO] $(date -u +"%Y-%m-%d %H:%M:%S") Deploy Keycloak instance"
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/examples/keycloak/keycloak.yaml
+ 
+diff --git a/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh b/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh
+index 7c95f7fda..6cae739d3 100644
+--- a/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh
++++ b/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh
+@@ -8,7 +8,7 @@ SCRIPT_PATH=$(dirname "${BASH_SOURCE[0]}")
+ 
+ echo "[INFO] $(date -u +"%Y-%m-%d %H:%M:%S") Delete Keycloak & Keycloak Operator"
+ kubectl delete -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/examples/keycloak/keycloak.yaml
+-kubectl delete -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/operator.yaml
++kubectl delete -n ${NAMESPACE} -f "$(dirname "$(realpath "$0")")/../../../../../packaging/examples/keycloak/operator.yaml"
+ kubectl delete -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakusers_crd.yaml
+ kubectl delete -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloaks_crd.yaml
+ kubectl delete -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakclients_crd.yaml
+diff --git a/systemtest/src/test/resources/opa/opa.yaml b/systemtest/src/test/resources/opa/opa.yaml
+index 66d42f608..76aa815be 100644
+--- a/systemtest/src/test/resources/opa/opa.yaml
++++ b/systemtest/src/test/resources/opa/opa.yaml
+@@ -26,7 +26,7 @@ spec:
+       serviceAccountName: opa
+       containers:
+         - name: opa
+-          image: openpolicyagent/opa:latest
++          image: YOUR_OWN_REPO/openpolicyagent/opa:latest
+           ports:
+             - name: http
+               containerPort: 8181
+diff --git a/systemtest/src/test/resources/tracing/jaeger-instance.yaml b/systemtest/src/test/resources/tracing/jaeger-instance.yaml
+index 3f1ada441..f9e2398d7 100644
+--- a/systemtest/src/test/resources/tracing/jaeger-instance.yaml
++++ b/systemtest/src/test/resources/tracing/jaeger-instance.yaml
+@@ -5,7 +5,7 @@ metadata:
+ spec:
+   strategy: allInOne
+   allInOne:
+-    image: 'jaegertracing/all-in-one:1.22'
++    image: 'jaegertracing/all-in-one:1.25'
+     options:
+       log-level: debug
+       query:
+diff --git a/systemtest/src/test/resources/tracing/operator-files/jaeger-operator.yaml b/systemtest/src/test/resources/tracing/operator-files/jaeger-operator.yaml
+index 45bce503c..c1eafb5a4 100644
+--- a/systemtest/src/test/resources/tracing/operator-files/jaeger-operator.yaml
++++ b/systemtest/src/test/resources/tracing/operator-files/jaeger-operator.yaml
+@@ -15,7 +15,7 @@ spec:
+       serviceAccountName: jaeger-operator
+       containers:
+         - name: jaeger-operator
+-          image: jaegertracing/jaeger-operator:1.20.0
++          image: jaegertracing/jaeger-operator:1.25.0
+           ports:
+             - containerPort: 8383
+               name: http-metrics
+diff --git a/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json b/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json
+index 6758d5fc9..d78637785 100644
+--- a/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json
++++ b/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json
+@@ -10,10 +10,10 @@
+     "additionalTopics": 2,
+     "oldestKafka": "2.7.0",
+     "imagesAfterOperatorDowngrade": {
+-      "zookeeper": "strimzi/kafka:0.24.0-kafka-2.8.0",
+-      "kafka": "strimzi/kafka:0.24.0-kafka-2.8.0",
+-      "topicOperator": "strimzi/operator:0.24.0",
+-      "userOperator": "strimzi/operator:0.24.0"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.24.0-kafka-2.8.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.24.0-kafka-2.8.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.24.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.24.0"
+     },
+     "deployKafkaVersion": "2.8.0",
+     "client": {
+diff --git a/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json b/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json
+index a7397b32d..b466eec16 100644
+--- a/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json
++++ b/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json
+@@ -1,95 +1,27 @@
+ [
+-  {
+-    "fromVersion":"0.22.1",
+-    "fromExamples":"strimzi-0.22.1",
+-    "urlFrom":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.22.1/strimzi-0.22.1.zip",
+-    "convertCRDs": true,
+-    "conversionTool": {
+-      "urlToConversionTool": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.22.0/api-conversion-0.22.0.zip",
+-      "toConversionTool": "api-conversion-0.22.0"
+-    },
+-    "generateTopics": true,
+-    "additionalTopics": 2,
+-    "oldestKafka": "2.6.0",
+-    "imagesBeforeKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-2.7.0",
+-      "kafka": "strimzi/kafka:latest-kafka-2.7.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
+-    },
+-    "imagesAfterKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-2.8.0",
+-      "kafka": "strimzi/kafka:latest-kafka-2.8.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
+-    },
+-    "client": {
+-      "continuousClientsMessages": 500
+-    },
+-    "environmentInfo": {
+-      "maxK8sVersion": "latest",
+-      "status": "stable",
+-      "flakyEnvVariable": "none",
+-      "reason" : "Test is working on all environment used by QE."
+-    }
+-  },
+-  {
+-    "fromVersion":"0.23.0",
+-    "fromExamples":"strimzi-0.23.0",
+-    "urlFrom":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.23.0/strimzi-0.23.0.zip",
+-    "convertCRDs": false,
+-    "conversionTool": {
+-      "urlToConversionTool": "",
+-      "toConversionTool": ""
+-    },
+-    "generateTopics": true,
+-    "additionalTopics": 2,
+-    "oldestKafka": "2.6.0",
+-    "imagesBeforeKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-2.7.0",
+-      "kafka": "strimzi/kafka:latest-kafka-2.7.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
+-    },
+-    "imagesAfterKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-2.8.0",
+-      "kafka": "strimzi/kafka:latest-kafka-2.8.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
+-    },
+-    "client": {
+-      "continuousClientsMessages": 500
+-    },
+-    "environmentInfo": {
+-      "maxK8sVersion": "latest",
+-      "status": "stable",
+-      "flakyEnvVariable": "none",
+-      "reason" : "Test is working on all environment used by QE."
+-    }
+-  },
+   {
+     "fromVersion":"0.24.0",
+     "fromExamples":"strimzi-0.24.0",
+     "urlFrom":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.24.0/strimzi-0.24.0.zip",
+     "convertCRDs": false,
+     "conversionTool": {
+-      "urlToConversionTool": "",
+-      "toConversionTool": ""
++      "urlToConversionTool": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.24.0/api-conversion-0.24.0.zip",
++      "toConversionTool": "api-conversion-0.24.0"
+     },
+     "generateTopics": true,
+     "additionalTopics": 2,
+     "oldestKafka": "2.7.0",
+     "imagesBeforeKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-2.7.0",
+-      "kafka": "strimzi/kafka:latest-kafka-2.7.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.24.0-kafka-2.7.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.24.0-kafka-2.7.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.24.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.24.0"
+     },
+     "imagesAfterKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-2.8.0",
+-      "kafka": "strimzi/kafka:latest-kafka-2.8.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.25.0-kafka-2.8.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.25.0-kafka-2.8.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.25.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.25.0"
+     },
+     "client": {
+       "continuousClientsMessages": 500
+diff --git a/tools/cold-backup/templates/patch.json b/tools/cold-backup/templates/patch.json
+index 7b73c4854..bd2fa3fa7 100644
+--- a/tools/cold-backup/templates/patch.json
++++ b/tools/cold-backup/templates/patch.json
+@@ -3,7 +3,7 @@
+         "containers": [
+             {
+                 "name": "dummy",
+-                "image": "centos:7",
++                "image": "registry.access.redhat.com/ubi8/ubi:latest",
+                 "command": [
+                     "/bin/bash",
+                     "-c",
