@@ -1,0 +1,42 @@
+diff --git a/Dockerfile b/Dockerfile
+index 3504679..fb088b9 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,4 @@
+-FROM registry.svc.ci.openshift.org/openshift/release:golang-1.13 AS build-env
++FROM golang:1.13 AS build-env
+ 
+ COPY . /src/
+ 
+diff --git a/pkg/model/image_manager.go b/pkg/model/image_manager.go
+index 199eeb0..e64b2ca 100644
+--- a/pkg/model/image_manager.go
++++ b/pkg/model/image_manager.go
+@@ -15,10 +15,10 @@ const (
+ 	RHMIBackupContainer   = "RELATED_IMAGE_RHMI_BACKUP_CONTAINER"
+ 	PostgresqlImage       = "RELATED_IMAGE_POSTGRESQL"
+ 
+-	DefaultKeycloakImage         = "quay.io/keycloak/keycloak:11.0.1"
++	DefaultKeycloakImage         = "YOUR_OWN_REPO/keycloak/keycloak:11.0.1"
+ 	DefaultRHSSOImageOpenJ9      = "registry.redhat.io/rh-sso-7/sso74-openj9-openshift-rhel8:7.4"
+ 	DefaultRHSSOImageOpenJDK     = "registry.redhat.io/rh-sso-7/sso74-openshift-rhel8:7.4"
+-	DefaultKeycloakInitContainer = "quay.io/keycloak/keycloak-init-container:master"
++	DefaultKeycloakInitContainer = "YOUR_OWN_REPO/keycloak/keycloak-init-container:master"
+ 	DefaultRHSSOInitContainer    = "registry.redhat.io/rh-sso-7-tech-preview/sso74-init-container-rhel8:7.4"
+ 	DefaultRHMIBackupContainer   = "quay.io/integreatly/backup-container:1.0.14"
+ 	DefaultPostgresqlImage       = "registry.access.redhat.com/rhscl/postgresql-10-rhel7:1"
+@@ -62,13 +62,9 @@ func (p *ImageManager) getDefaultRHSSOImageForCurrentArchitecture() string {
+ 	// Full list of archs might be found here:
+ 	// https://github.com/golang/go/blob/release-branch.go1.10/src/go/build/syslist.go#L8
+ 	switch arch := runtime.GOARCH; arch {
+-	case "ppc64":
+-	case "ppc64le":
+-	case "s390x":
+-	case "s390":
++	case "ppc64", "ppc64le", "s390x", "s390":
+ 		return p.getImage(RHSSOImageOpenJ9, DefaultRHSSOImageOpenJ9)
+ 	default:
+ 		return p.getImage(RHSSOImageOpenJDK, DefaultRHSSOImageOpenJDK)
+ 	}
+-	panic("Unknown architecture")
+ }
