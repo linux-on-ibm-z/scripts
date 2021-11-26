@@ -12,7 +12,9 @@ set -e -o pipefail
 
 PACKAGE_NAME="strimzi-kafka-operator"
 PACKAGE_VERSION="0.25.0"
+PRE_PACKAGE_VERSION="0.24.0"
 BRIDGE_VERSION="0.20.2"
+PRE_BRIDGE_VERSION="0.20.1"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/${PACKAGE_NAME}/${PACKAGE_VERSION}/patch"
 FORCE="false"
 TESTS="false"
@@ -26,6 +28,8 @@ PREFIX="/usr/local"
 PUSH_TO_REGISTRY="N"
 INSECURE_REGISTRY="N"
 REGISTRY_NEED_LOGIN="N"
+BUILD_SYSTEMTESTS_DEPS="N"
+USER_LIB_PATH="/usr/lib64/"
 DOCKER_DJSON_FILE="/etc/docker/daemon.json"
 S390X_JNI_JAR_DIR="/tmp/opertemp/libs"
 #export DOCKER_ORG=your_organization_name
@@ -135,10 +139,7 @@ function buildGCC()
         make -j$(nproc)
         sudo make install
 
-        sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc-7 40
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/local/bin/gcc-7 40
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/local/bin/g++-7 40
-        sudo update-alternatives --install /usr/bin/c++ c++ /usr/local/bin/g++-7 40
+        sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 40
 }
 
 function buildRuby()
@@ -168,7 +169,7 @@ function buildOpenssl()
         printf -- "Building openssl $ver \n"
 
         cd $CURDIR
-        wget https://www.openssl.org/source/old/1.1.1/openssl-${ver}.tar.gz
+        wget --no-check-certificate https://www.openssl.org/source/old/1.1.1/openssl-${ver}.tar.gz
         tar xvf openssl-${ver}.tar.gz
         cd openssl-${ver}
         ./config --prefix=${PREFIX}
@@ -177,7 +178,7 @@ function buildOpenssl()
 
         sudo mkdir -p /usr/local/etc/openssl
         cd /usr/local/etc/openssl
-        sudo wget https://curl.se/ca/cacert.pem
+        sudo wget --no-check-certificate https://curl.se/ca/cacert.pem
 }
 
 function configureAndInstall() {
@@ -453,6 +454,9 @@ function configureAndInstall() {
         cd strimzi-kafka-operator/
         git checkout $PACKAGE_VERSION
         patch -p1 < ${CURDIR}/operator.diff
+        if [[ "${DISTRO}" == "sles-12.5" ]]; then
+            sed -i 's/"$code" == "404"/"$code" == "404" || "$code" == "000"/g' docker-images/build.sh
+        fi
         if [[ "$JAVA_PROVIDED" == "AdoptJDK11_openj9" ]]; then
             patch -p1 < ${CURDIR}/incompatible_types.diff
         fi
@@ -493,6 +497,156 @@ function configureAndInstall() {
         fi
 
         export DOCKER_TAG=$PACKAGE_VERSION
+
+        if [[ $BUILD_SYSTEMTESTS_DEPS == "Y" ]]; then
+
+            #Build and push keycloak-operator image
+            printf -- "Building and pushing keycloak-operator image\n"
+            cd $CURDIR
+            wget --no-check-certificate $PATCH_URL/keycloak-operator.diff
+            git clone https://github.com/keycloak/keycloak-operator.git
+            cd keycloak-operator
+            git checkout 11.0.1
+            sed -i "s/YOUR_OWN_REPO/${DOCKER_REGISTRY}/g" ${CURDIR}/keycloak-operator.diff
+            patch -p1 < ${CURDIR}/keycloak-operator.diff
+            docker buildx build --platform linux/s390x --push --tag ${DOCKER_REGISTRY}/keycloak/keycloak-operator:11.0.1 .
+
+            #Build and push keycloak related images
+            printf -- "Building and pushing keycloak and keycloak-init-container images\n"
+            cd $CURDIR
+            git clone https://github.com/keycloak/keycloak-containers.git
+            cd keycloak-containers
+            git checkout 11.0.1
+            cd server
+            docker buildx build --platform linux/s390x --push --tag ${DOCKER_REGISTRY}/keycloak/keycloak:11.0.1 .
+            cd ..
+            #git checkout main
+            git checkout a03d3e8c54c3ad364d4ee912fca0298bc5a7099c
+            cd keycloak-init-container
+            docker buildx build --platform linux/s390x --push --tag ${DOCKER_REGISTRY}/keycloak/keycloak-init-container:master .
+        
+            #Build and push java-kafka-producer, java-kafka-consumer, java-kafka-streams, java-http-vertx-producer and java-http-vertx-consumer images
+            printf -- "Building and pushing java-kafka-producer, java-kafka-consumer, java-kafka-streams, java-http-vertx-producer and java-http-vertx-consumer images\n"
+            cd $CURDIR
+            DOCKER_ORG_TMP=$DOCKER_ORG
+            export DOCKER_ORG=strimzi-examples
+            export DOCKER_TAG=latest
+            git clone https://github.com/strimzi/client-examples.git
+            cd client-examples
+            make all
+            export DOCKER_ORG=$DOCKER_ORG_TMP
+            export DOCKER_TAG=$PACKAGE_VERSION
+
+            #Patch keycloak-operator.yaml
+            printf -- "Apply patch for keycloak-operator.yaml\n"
+            cd $CURDIR
+            cd strimzi-kafka-operator/
+            mkdir -p packaging/examples/keycloak
+            cd packaging/examples/keycloak
+            wget --no-check-certificate $PATCH_URL/keycloak-operator.yaml
+            mv keycloak-operator.yaml operator.yaml
+            sed -i "s/YOUR_OWN_REPO/${DOCKER_REGISTRY}/g" operator.yaml
+        
+            #Build Golang 1.17.3
+            printf -- "Build Golang 1.17.3\n"
+            cd $CURDIR
+            Golang_version="1.17.3"
+            wget -q https://storage.googleapis.com/golang/go"${Golang_version}".linux-s390x.tar.gz
+            chmod ugo+r go"${Golang_version}".linux-s390x.tar.gz
+            sudo rm -rf /usr/local/go /usr/bin/go /usr/bin/gofmt
+            sudo tar -C /usr/local -xzf go"${Golang_version}".linux-s390x.tar.gz
+            sudo ln -sf /usr/local/go/bin/go /usr/bin/ 
+            sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
+            sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc 
+
+            #Download wasmtime lib
+            printf -- "Download wasmtime lib\n"
+            cd $CURDIR
+            wget https://github.com/bytecodealliance/wasmtime/releases/download/v0.31.0/wasmtime-v0.31.0-s390x-linux-c-api.tar.xz
+            tar xvf wasmtime-v0.31.0-s390x-linux-c-api.tar.xz
+            if [[ "${ID}" == "ubuntu" ]]; then
+                USER_LIB_PATH="/usr/lib/"
+            fi
+            if [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" == "sles-15.2" ]] || [[ "${DISTRO}" == "ubuntu-18.04" ]]; then
+                sudo cp wasmtime-v0.31.0-s390x-linux-c-api/lib/libwasmtime.so $USER_LIB_PATH
+            else
+                sudo cp wasmtime-v0.31.0-s390x-linux-c-api/lib/libwasmtime.a $USER_LIB_PATH
+            fi
+
+            #Build and push opa-wasm-builder and opa images
+            printf -- "Building and pushing opa-wasm-builder and opa images\n"
+            cd $CURDIR
+            wget --no-check-certificate $PATCH_URL/opa.diff
+            wget --no-check-certificate $PATCH_URL/opa_dockerfile.diff
+            git clone https://github.com/open-policy-agent/opa.git
+            cd opa
+            git checkout v0.34.0
+            patch -p1 < ${CURDIR}/opa.diff
+            cd wasm
+            make builder
+            make all
+            cd ..
+            make generate
+            #Build opa_linux_s390x binary
+            if [[ ${DISTRO} =~ rhel-7\.[8-9] ]] || [[ "${DISTRO}" == "ubuntu-21.04" ]]; then
+                make build-linux  #It uses deprecated-build-linux target, WASM_ENABLE=0
+            else
+                make ci-build-linux
+            fi
+            #Build image
+            if [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" == "sles-15.2" ]] || [[ "${DISTRO}" == "ubuntu-18.04" ]]; then
+                patch -p1 < ${CURDIR}/opa_dockerfile.diff
+                cp $CURDIR/wasmtime-v0.31.0-s390x-linux-c-api/lib/libwasmtime.so .
+            fi
+            make image-s390x
+            docker tag openpolicyagent/opa:0.34.0 ${DOCKER_REGISTRY}/openpolicyagent/opa:latest
+            docker push ${DOCKER_REGISTRY}/openpolicyagent/opa:latest
+
+            #Patch systemtests
+            printf -- "Apply patches for systemtests\n"
+            cd $CURDIR
+            wget --no-check-certificate $PATCH_URL/systemtests.diff
+            sed -i "s/YOUR_OWN_REPO/${DOCKER_REGISTRY}/g" systemtests.diff
+            sed -i "s/YOUR_OWN_ORG/${DOCKER_ORG}/g" systemtests.diff
+            cd strimzi-kafka-operator/
+            patch -p1 < ${CURDIR}/systemtests.diff
+
+            #Build and publish strimzi-kafka-operator v0.24.0
+            printf -- "Building and pushing Strimzi-kafka-operator v0.24.0 image\n"
+            cd $CURDIR
+            mkdir -p system_test/${PRE_PACKAGE_VERSION}
+            cd system_test/${PRE_PACKAGE_VERSION}
+            wget --no-check-certificate $PATCH_URL/operator_${PRE_PACKAGE_VERSION}.diff
+            if [[ "$JAVA_PROVIDED" == "AdoptJDK11_openj9" ]]; then
+                wget --no-check-certificate $PATCH_URL/incompatible_types_${PRE_PACKAGE_VERSION}.diff
+            fi
+            git clone https://github.com/strimzi/strimzi-kafka-operator.git
+            cd strimzi-kafka-operator/
+            git checkout $PRE_PACKAGE_VERSION
+            patch -p1 < ../operator_${PRE_PACKAGE_VERSION}.diff
+            if [[ "${DISTRO}" == "sles-12.5" ]]; then
+                sed -i 's/"$code" == "404"/"$code" == "404" || "$code" == "000"/g' docker-images/build.sh
+            fi
+            if [[ "$JAVA_PROVIDED" == "AdoptJDK11_openj9" ]]; then
+                patch -p1 < ../incompatible_types_${PRE_PACKAGE_VERSION}.diff
+            fi
+            export DOCKER_TAG=$PRE_PACKAGE_VERSION
+            make MVN_ARGS='-DskipTests -DskipITs' all
+
+            #Build and publish strimzi-kafka-bridge v0.20.1
+            printf -- "Building and pushing Strimzi-kafka-bridge v0.20.1 image\n"
+            cd $CURDIR/system_test/${PRE_PACKAGE_VERSION}
+            wget --no-check-certificate $PATCH_URL/bridge_${PRE_BRIDGE_VERSION}.diff
+            export DOCKER_TAG=$PRE_BRIDGE_VERSION
+            git clone https://github.com/strimzi/strimzi-kafka-bridge.git
+            cd strimzi-kafka-bridge/
+            git checkout $PRE_BRIDGE_VERSION
+            patch -p1 < ../bridge_${PRE_BRIDGE_VERSION}.diff
+            make all
+
+            export DOCKER_TAG=$PACKAGE_VERSION
+
+        fi
 
         # run tests
         runTest
@@ -540,12 +694,12 @@ function printHelp() {
         echo
         echo "Usage: "
         echo "Please set up environment variables DOCKER_REGISTRY, DOCKER_ORG, DOCKERHUB_USER and DOCKERHUB_PASS first, ensure user $USER belongs to group docker."
-        echo "  build_strimzi.sh  [-d debug] [-y install-without-confirmation] [-t run-test] [-p push-to-registry] [-i insecure-registry] [-l registry-need-login] [-j Java to use from {AdoptJDK11_openj9, AdoptJDK11_hotspot, OpenJDK11}]"
+        echo "  bash build_strimzi.sh  [-d debug] [-y install-without-confirmation] [-t run-test] [-p push-to-registry] [-i insecure-registry] [-l registry-need-login] [-s build-systemtests-deps] [-j Java to use from {AdoptJDK11_openj9, AdoptJDK11_hotspot, OpenJDK11}]"
         echo "  default: If no -j specified, openjdk-11 will be installed"
         echo
 }
 
-while getopts "h?dytpilj:" opt; do
+while getopts "h?dytpilsj:" opt; do
         case "$opt" in
         h | \?)
                 printHelp
@@ -568,6 +722,9 @@ while getopts "h?dytpilj:" opt; do
                 ;;
         l)
                 REGISTRY_NEED_LOGIN="Y"
+                ;;
+        s)
+                BUILD_SYSTEMTESTS_DEPS="Y"
                 ;;
         j)
                 JAVA_PROVIDED="$OPTARG"
@@ -592,6 +749,9 @@ function gettingStarted() {
                 printf -- "    kubectl -n myproject create -f strimzi-kafka-operator/packaging/install/cluster-operator \n\n"
                 printf -- "Then you can deploy the cluster custom resource by running: \n"
                 printf -- "    kubectl -n myproject create -f strimzi-kafka-operator/packaging/examples/kafka/kafka-ephemeral.yaml \n\n"
+                if [[ "$BUILD_SYSTEMTESTS_DEPS" == "Y" ]]; then
+                      printf -- "Please refer to the Building Instructions on how to run system tests.\n\n"  
+                fi
         else
                 printf -- "The docker images of Strimzi-kafka-operator $PACKAGE_VERSION have been built locally. \n\n"
         fi
@@ -628,7 +788,7 @@ case "$DISTRO" in
         sudo yum install -y yum-utils
         sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
         sudo yum-config-manager --enable docker-ce-stable
-        sudo yum install -y git make autoconf gcc gcc-c++ docker-ce tar wget patch curl conntrack ruby bison flex openssl-devel libyaml-devel libffi-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel bzip2 |& tee -a "${LOG_FILE}"
+        sudo yum install -y git make autoconf gcc gcc-c++ docker-ce tar wget patch curl conntrack ruby bison flex openssl-devel libyaml-devel libffi-devel readline-devel zlib-devel gdbm-devel ncurses-devel tcl-devel tk-devel bzip2 unzip |& tee -a "${LOG_FILE}"
         buildRuby |& tee -a "$LOG_FILE"
         buildGCC |& tee -a "$LOG_FILE"
         buildOpenssl |& tee -a "$LOG_FILE"
@@ -648,18 +808,18 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum remove -y podman buildah
         sudo yum install -y yum-utils
         sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-        sudo yum install -y git make gcc gcc-c++ ghc ghc-Cabal ghc-Cabal-devel zlib-devel docker-ce docker-ce-cli containerd.io tar wget patch maven ruby curl conntrack hostname unzip procps snappy binutils bzip2 bzip2-devel which diffutils |& tee -a "${LOG_FILE}"
+        sudo yum install -y git make gcc gcc-c++ ghc ghc-Cabal ghc-Cabal-devel zlib-devel docker-ce docker-ce-cli containerd.io tar wget patch maven ruby curl conntrack hostname unzip procps snappy binutils bzip2 bzip2-devel unzip which diffutils |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
 "sles-12.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo zypper install -y git gcc7 gcc7-c++ make autoconf tar wget patch curl which conntrack-tools ghc cabal-install docker-20.10.6_ce-98.66.1 bison flex libopenssl-devel readline-devel gdbm-devel gawk |& tee -a "${LOG_FILE}"
+        sudo zypper install -y git gcc7 gcc7-c++ make autoconf tar wget patch curl which zip unzip ruby conntrack-tools ghc cabal-install docker-20.10.6_ce-98.66.1 bison flex libopenssl-devel readline-devel gdbm-devel gawk |& tee -a "${LOG_FILE}"
         setupGCC
         buildOpenssl |& tee -a "$LOG_FILE"
         PATH=${PREFIX}/bin${PATH:+:${PATH}}
@@ -681,13 +841,13 @@ case "$DISTRO" in
 
 "sles-15.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo zypper install -y git gcc gcc-c++ make tar wget patch curl which ruby conntrack-tools ghc docker-20.10.6_ce-6.49.3 |& tee -a "${LOG_FILE}"
+        sudo zypper install -y git gcc gcc-c++ make tar wget patch curl which zip unzip ruby conntrack-tools ghc docker-20.10.6_ce-6.49.3 |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
 "sles-15.3")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo zypper install -y git gcc gcc-c++ make tar wget patch curl which ruby conntrack-tools libatomic1 docker-20.10.6_ce-6.49.3 |& tee -a "${LOG_FILE}"
+        sudo zypper install -y git gcc gcc-c++ make tar wget patch curl which zip unzip ruby conntrack-tools libatomic1 docker-20.10.6_ce-6.49.3 |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
