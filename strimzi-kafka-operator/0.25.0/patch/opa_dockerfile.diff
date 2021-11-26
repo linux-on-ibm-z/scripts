@@ -1,0 +1,12 @@
+diff --git a/Dockerfile b/Dockerfile
+index 097f95c7..8a65d8a0 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -21,5 +21,7 @@ USER ${USER}
+ ARG BIN=./opa_linux_amd64
+ COPY ${BIN} /opa
+ 
++COPY ./libwasmtime.so /usr/lib/
++
+ ENTRYPOINT ["/opa"]
+ CMD ["run"]
