@@ -194,7 +194,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git gcc which gcc-c++ make wget tar cmake openssl-devel ncurses-devel bison boost-devel check-devel perl-Test-Simple perl-Time-HiRes openssl pcre-devel pam-devel perl-Memoize.noarch patch diffutils hostname libarchive |& tee -a "$LOG_FILE"
