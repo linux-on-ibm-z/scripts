@@ -1,0 +1,13 @@
+diff --git a/build.gradle b/build.gradle
+index 7627dc13ae..89d2f8b920 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -573,7 +573,7 @@ subprojects {
+ 
+     // See README.md for details on this option and the meaning of each value
+     if (userScalaOptimizerMode.equals("method"))
+-      scalaCompileOptions.additionalParameters += ["-opt:l:method"]
++      scalaCompileOptions.additionalParameters += ["-opt:l:method,-closure-invocations"]
+     else if (userScalaOptimizerMode.startsWith("inline-")) {
+       List<String> inlineFrom = ["-opt-inline-from:org.apache.kafka.**"]
+       if (project.name.equals('core'))
