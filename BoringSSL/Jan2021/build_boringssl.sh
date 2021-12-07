@@ -168,7 +168,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$GIT_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y wget tar make gcc g++ cmake git |& tee -a "$LOG_FILE"
+    sudo apt-get install -y wget tar make gcc g++ cmake git curl |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
       ;;
 "rhel-7.8" | "rhel-7.9")
