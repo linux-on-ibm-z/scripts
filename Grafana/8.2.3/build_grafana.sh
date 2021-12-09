@@ -304,7 +304,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.3" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y make gcc tar wget git patch xz curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
