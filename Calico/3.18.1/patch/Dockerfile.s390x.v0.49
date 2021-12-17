@@ -113,7 +113,7 @@ index 43752c0..06a0f87 100644
  ENV GLIDE_HOME /home/user/.glide
 +RUN go get github.com/Masterminds/glide && \
 +  go get github.com/golang/dep/cmd/dep && \
-+  go get github.com/onsi/ginkgo/ginkgo && \
++  GO111MODULE=on go get github.com/onsi/ginkgo/ginkgo && \
 +  go get golang.org/x/tools/cmd/goimports && \
 +  wget -O - -q https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.27.0 && \
 +  golangci-lint --version && \
