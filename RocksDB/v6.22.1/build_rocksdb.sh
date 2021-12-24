@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RocksDB/scripts/v6.22.1/build_rocksdb.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/RocksDB/v6.22.1/build_rocksdb.sh
 # Execute build script: bash build_rocksdb.sh    (provide -h for help)
 #
 
@@ -269,14 +269,14 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo apt-get update |& tee -a "${LOG_FILE}"
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata |& tee -a "${LOG_FILE}"
-        sudo apt-get install -y git patch libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev g++ make python3 perl cmake curl wget libarchive-dev diffutils openssl gzip file procps |& tee -a "${LOG_FILE}"
+        sudo apt-get install -y git patch libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev g++ binutils make python3 perl cmake curl wget libarchive-dev diffutils openssl gzip file procps |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
 "rhel-7.8" | "rhel-7.9")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo subscription-manager repos --enable=rhel-7-server-for-system-z-rhscl-rpms || true
-        sudo yum install -y git patch snappy snappy-devel zlib zlib-devel bzip2 bzip2-devel lz4-devel devtoolset-8-gcc-c++ devtoolset-8-gcc make python3 perl curl wget libarchive diffutils which openssl openssl-devel gzip file procps |& tee -a "${LOG_FILE}"
+        sudo yum install -y git patch snappy-devel zlib-devel bzip2 bzip2-devel lz4-devel devtoolset-8-gcc-c++ devtoolset-8-gcc devtoolset-8-binutils make python3 perl curl wget libarchive diffutils which openssl openssl-devel gzip file procps |& tee -a "${LOG_FILE}"
         source /opt/rh/devtoolset-8/enable
         buildCmake |& tee -a "${LOG_FILE}"
         buildZstd |& tee -a "${LOG_FILE}"
@@ -285,13 +285,13 @@ case "$DISTRO" in
 
 "rhel-8.2" | "rhel-8.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo yum install -y git patch snappy snappy-devel zlib zlib-devel bzip2 bzip2-devel lz4-devel libzstd-devel libasan gcc-c++ make python3 perl cmake curl wget libarchive diffutils which openssl openssl-devel gzip file procps |& tee -a "${LOG_FILE}"
+        sudo yum install -y git patch snappy-devel zlib-devel bzip2 bzip2-devel lz4-devel libzstd-devel libasan gcc-c++ binutils make python3 perl cmake curl wget libarchive diffutils which openssl openssl-devel gzip file procps |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
 "sles-12.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo zypper install -y git patch libsnappy1 snappy-devel libz1 zlib-devel bzip2 libbz2-devel liblz4-devel libzstd-devel gcc7-c++ make python3 perl curl wget diffutils which openssl openssl-devel awk gzip file procps |& tee -a "${LOG_FILE}"
+        sudo zypper install -y git patch libsnappy1 snappy-devel libz1 zlib-devel bzip2 libbz2-devel liblz4-devel libzstd-devel gcc7-c++ binutils make python3 perl curl wget diffutils which openssl openssl-devel awk gzip file procps |& tee -a "${LOG_FILE}"
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 100
         sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 100
@@ -302,7 +302,7 @@ case "$DISTRO" in
 
 "sles-15.2" | "sles-15.3")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo zypper install -y git patch libsnappy1 snappy-devel libz1 zlib-devel bzip2 libbz2-devel liblz4-devel libzstd-devel gcc-c++ make python3 perl cmake curl wget diffutils which openssl openssl-devel awk gzip file procps |& tee -a "${LOG_FILE}"
+        sudo zypper install -y git patch libsnappy1 snappy-devel libz1 zlib-devel bzip2 libbz2-devel liblz4-devel libzstd-devel gcc-c++ binutils make python3 perl cmake curl wget diffutils which openssl openssl-devel awk gzip file procps |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
