@@ -1,0 +1,23 @@
+--- jsvalue.h	2019-01-09 09:10:44.085669722 +0000
++++ jsvalue.h.1	2019-01-09 09:24:29.222011555 +0000
+@@ -291,7 +291,6 @@
+ }
+ 
+ #ifdef __cplusplus
+-JS_STATIC_ASSERT(offsetof(jsval_layout, s.payload) == 0);
+ JS_STATIC_ASSERT((JSVAL_TYPE_NONFUNOBJ & 0xF) == JSVAL_TYPE_OBJECT);
+ JS_STATIC_ASSERT((JSVAL_TYPE_FUNOBJ & 0xF) == JSVAL_TYPE_OBJECT);
+ #endif
+@@ -729,7 +728,11 @@
+     }
+ 
+     const jsuword *payloadWord() const {
+-        return &data.s.payload.word;
++       #if JS_BITS_PER_WORD == 32
++          return reinterpret_cast<const jsuword *>(&data.s.payload.word);
++       #elif JS_BITS_PER_WORD == 64
++          return reinterpret_cast<const jsuword *>(&data.asBits);
++       #endif
+     }
+ 
+   private:
