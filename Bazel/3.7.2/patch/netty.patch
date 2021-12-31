@@ -1,5 +1,5 @@
 diff --git a/pom.xml b/pom.xml
-index 96016e139d..e3c4d9b385 100644
+index 96016e139d..89d8fe7f27 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -323,7 +323,7 @@
@@ -7,7 +7,7 @@ index 96016e139d..e3c4d9b385 100644
      <logging.config>${project.basedir}/../common/src/test/resources/logback-test.xml</logging.config>
      <logging.logLevel>debug</logging.logLevel>
 -    <log4j2.version>2.6.2</log4j2.version>
-+    <log4j2.version>2.17.0</log4j2.version>
++    <log4j2.version>2.17.1</log4j2.version>
      <enforcer.plugin.version>1.4.1</enforcer.plugin.version>
      <testJavaHome>${java.home}</testJavaHome>
      <testJvm>${testJavaHome}/bin/java</testJvm>
