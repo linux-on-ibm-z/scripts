@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -86,6 +86,7 @@ function buildNetty() {
 	git clone https://github.com/netty/netty.git
 	cd netty
 	git checkout netty-4.1.48.Final
+	curl -sSL $PATCH/netty.patch | git apply
 	./mvnw clean install -DskipTests
 }
 
