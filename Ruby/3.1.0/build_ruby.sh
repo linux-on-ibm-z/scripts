@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2021
+# © Copyright IBM Corporation 2021, 2022
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -177,7 +177,7 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4", | "rhel-8.5")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4" | "rhel-8.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel readline-devel gdbm-devel gcc make wget tar |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
