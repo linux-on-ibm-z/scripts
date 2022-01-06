@@ -99,7 +99,7 @@ index 4d7ec058f4..9c9e2bba62 100644
  
      static boolean isEngineSupported(SSLEngine engine) {
 diff --git a/pom.xml b/pom.xml
-index 6b23abef53..b2d8ed3492 100644
+index 6b23abef53..aa7a5b1e39 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -68,6 +68,36 @@
@@ -139,7 +139,15 @@ index 6b23abef53..b2d8ed3492 100644
      <!-- JDK13 -->
      <profile>
        <id>java13</id>
-@@ -290,6 +320,10 @@
+@@ -283,13 +313,17 @@
+     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
+     <logging.config>${project.basedir}/../common/src/test/resources/logback-test.xml</logging.config>
+     <logging.logLevel>debug</logging.logLevel>
+-    <log4j2.version>2.6.2</log4j2.version>
++    <log4j2.version>2.17.1</log4j2.version>
+     <enforcer.plugin.version>1.4.1</enforcer.plugin.version>
+     <testJavaHome>${env.JAVA_HOME}</testJavaHome>
+     <skipOsgiTestsuite>false</skipOsgiTestsuite>
      <skipAutobahnTestsuite>false</skipAutobahnTestsuite>
      <skipHttp2Testsuite>false</skipHttp2Testsuite>
      <skipJapicmp>false</skipJapicmp>
