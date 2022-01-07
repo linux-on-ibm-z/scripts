@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -59,18 +59,10 @@ function cleanup() {
 function configureAndInstall() {
     
     printf -- "Bazel Installation started \n"
-    sudo apt-get update  
-    sudo apt-get install -y wget curl openjdk-11-jdk unzip patch build-essential zip python3 git libapr1-dev
-    sudo ln -sf /usr/bin/python3 /usr/bin/python 
-    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
-    export PATH=$JAVA_HOME/bin:$PATH
-    cd $SOURCE_ROOT   
-    mkdir bazel && cd bazel  
-    wget https://github.com/bazelbuild/bazel/releases/download/3.4.1/bazel-3.4.1-dist.zip
-    unzip bazel-3.4.1-dist.zip 
-    chmod -R +w .
-    env EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" bash ./compile.sh
-    export PATH=$PATH:$SOURCE_ROOT/bazel/output/
+    
+    wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/3.4.1/build_bazel.sh
+    bash build_bazel.sh -y
+    export PATH=$SOURCE_ROOT/bazel-s390x/output:$PATH
     
     printf -- "Prow Installation started \n"
     cd $SOURCE_ROOT
