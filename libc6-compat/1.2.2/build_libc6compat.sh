@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021,2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -29,7 +29,7 @@ function prepare() {
         printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
     else
         printf -- 'Sudo : No \n' >>"$LOG_FILE"
-        printf -- 'You can install the same from installing sudo from repository using apt, yum or zypper based on your distro. \n'
+        printf -- 'Install sudo from repository using apt, yum or zypper based on your distro. \n'
         exit 1
     fi
 
@@ -92,7 +92,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo " build_libc6compat.sh  [-d debug] [-y install-without-confirmation] "
+    echo "bash build_libc6compat.sh  [-d debug] [-y install-without-confirmation] "
     echo
 }
 
@@ -124,20 +124,20 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04" | "ubuntu-21.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo apt-get install -y gcc g++ tar wget make cmake bzip2 zlib1g-dev g++-multilib |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y gcc gcc-c++ make wget tar |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.2")
+"sles-12.5" | "sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y gcc gcc-c++ make wget tar bzip2 zlib-devel gzip |& tee -a "$LOG_FILE"
