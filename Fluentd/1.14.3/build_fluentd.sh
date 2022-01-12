@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -12,7 +12,7 @@ PACKAGE_NAME="fluentd"
 PACKAGE_VERSION="1.14.3"
 CURDIR="$(pwd)"
 
-RUBY_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Ruby/3.0.2/build_ruby.sh"
+RUBY_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Ruby/3.1.0/build_ruby.sh"
 
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -182,7 +182,7 @@ case "$DISTRO" in
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.2" | "sles-15.3")
+"sles-12.5" | "sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y wget gzip awk zlib-devel |& tee -a "$LOG_FILE"
