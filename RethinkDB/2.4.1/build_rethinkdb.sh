@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2020, 2021
+# © Copyright IBM Corporation 2020, 2022
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -147,7 +147,7 @@ function configureAndInstall() {
 		protoc --version
     fi
 
-	if [[ "$DISTRO" == "sles-15.2" ]]; then
+	if [[ "$DISTRO" == "sles-15.3" ]]; then
 		#Install Python
 		cd /"$CURDIR"/
 		wget https://www.python.org/ftp/python/2.7.16/Python-2.7.16.tar.xz
@@ -269,11 +269,19 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-20.10")
+"ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
     sudo apt-get update -y >/dev/null
 	sudo  sudo apt-get install -y clang build-essential python libcurl4-openssl-dev libboost-all-dev libncurses5-dev wget m4 libssl-dev git curl  |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+
+"ubuntu-21.04")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
+    sudo apt-get update -y >/dev/null
+	sudo  sudo apt-get install -y clang build-essential python libcurl4-openssl-dev libboost1.71-all-dev libncurses5-dev wget m4 libssl-dev git curl  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
@@ -285,7 +293,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
-"rhel-8.1" | "rhel-8.2" | "rhel-8.3")
+"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
@@ -302,15 +310,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
-"sles-15.1")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
-	sudo zypper update -y |& tee -a "$LOG_FILE"
-	sudo zypper install -y gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool python3-devel python python-xml python-curses libicu-devel protobuf-devel libprotobuf-lite15 libprotobuf15 boost-devel termcap curl libcurl-devel git bzip2 awk  |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-	
-"sles-15.2")
+"sles-15.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper update -y |& tee -a "$LOG_FILE"
