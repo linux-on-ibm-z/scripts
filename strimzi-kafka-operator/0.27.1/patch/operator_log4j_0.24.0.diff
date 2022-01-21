@@ -1,0 +1,36 @@
+diff --git a/docker-images/kafka/kafka-thirdparty-libs/cc/pom.xml b/docker-images/kafka/kafka-thirdparty-libs/cc/pom.xml
+index 064130084..dff84da6f 100644
+--- a/docker-images/kafka/kafka-thirdparty-libs/cc/pom.xml
++++ b/docker-images/kafka/kafka-thirdparty-libs/cc/pom.xml
+@@ -31,6 +31,18 @@
+             <groupId>com.linkedin.cruisecontrol</groupId>
+             <artifactId>cruise-control</artifactId>
+             <version>${cruise-control.version}</version>
++            <exclusions>
++                <!-- Excluded because of CVE-2021-44228 -->
++                <exclusion>
++                    <groupId>org.apache.logging.log4j</groupId>
++                    <artifactId>log4j-slf4j-impl</artifactId>
++                </exclusion>
++            </exclusions>
++        </dependency>
++        <dependency>
++            <groupId>org.apache.logging.log4j</groupId>
++            <artifactId>log4j-slf4j-impl</artifactId>
++            <version>2.17.1</version>
+         </dependency>
+     </dependencies>
+ </project>
+diff --git a/pom.xml b/pom.xml
+index 1519585f8..08d2bbfd3 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -97,7 +97,7 @@
+         <okio.version>1.15.0</okio.version>
+         <vertx.version>4.1.0</vertx.version>
+         <vertx-junit5.version>4.1.0</vertx-junit5.version>
+-        <log4j.version>2.13.3</log4j.version>
++        <log4j.version>2.17.1</log4j.version>
+         <hamcrest.version>2.2</hamcrest.version>
+         <valid4j.version>1.1</valid4j.version>
+         <fasterxml.jackson-core.version>2.11.3</fasterxml.jackson-core.version>
