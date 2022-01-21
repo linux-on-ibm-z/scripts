@@ -1,0 +1,15 @@
+diff --git a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/CruiseControlTest.java b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/CruiseControlTest.java
+index 8978a757f..481e2e157 100644
+--- a/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/CruiseControlTest.java
++++ b/cluster-operator/src/test/java/io/strimzi/operator/cluster/model/CruiseControlTest.java
+@@ -533,8 +533,8 @@ public class CruiseControlTest {
+                         .withLabels(podLabels)
+                         .withAnnotations(podAnots)
+                     .endMetadata()
+-                    .withNewPriorityClassName("top-priority")
+-                    .withNewSchedulerName("my-scheduler")
++                    .withPriorityClassName("top-priority")
++                    .withSchedulerName("my-scheduler")
+                     .withHostAliases(hostAlias1, hostAlias2)
+                     .withAffinity(affinity)
+                     .withTolerations(tolerations)
