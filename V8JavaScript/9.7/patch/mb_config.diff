@@ -1,0 +1,20 @@
+--- infra/mb/mb_config.pyl.orig    2021-09-24 16:44:44.637251306 +0000
++++ infra/mb/mb_config.pyl  2021-09-24 16:40:48.237251306 +0000
+@@ -42,6 +42,7 @@
+       's390x.debug': 'default_debug_s390x',
+       's390x.optdebug': 'default_optdebug_s390x',
+       's390x.release': 'default_release_s390x',
++      's390x.release.sample': 'release_s390x_sample',
+       's390x.debug.sim': 'default_debug_s390x_sim',
+       's390x.optdebug.sim': 'default_optdebug_s390x_sim',
+       's390x.release.sim': 'default_release_s390x_sim',
+@@ -350,6 +351,8 @@
+       'debug', 's390x', 'v8_enable_slow_dchecks'],
+     'default_release_s390x': [
+       'release', 's390x'],
++    'release_s390x_sample': [
++      'release', 's390x', 'sample'],
+     'default_debug_s390x_sim': [
+       'debug', 'simulate_s390x', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+     'default_optdebug_s390x_sim': [
+
