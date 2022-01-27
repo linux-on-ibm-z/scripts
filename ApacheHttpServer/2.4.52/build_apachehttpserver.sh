@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -66,8 +66,8 @@ function configureAndInstall() {
          sudo alternatives --set python /usr/bin/python2
 	fi
 	
-	#Creating daemon user for sles 15 SP2 and SP3
-	if [[ "$ID-$VERSION_ID" == "sles-15.2" ]] || [[ "$ID-$VERSION_ID" == "sles-15.3" ]]; then
+	#Creating daemon user for sles 15 SP3
+	if [[ "$ID-$VERSION_ID" == "sles-15.3" ]]; then
 		 sudo groupadd daemon
 		 sudo useradd -G daemon daemon
 	fi
@@ -163,7 +163,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-15.2" | "sles-15.3" | "sles-12.5")
+"sles-15.3" | "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y git openssl libopenssl-devel python gcc libtool autoconf make libpcre1 pcre-devel libxml2-tools libxml2-devel libexpat-devel which wget tar awk |& tee -a "$LOG_FILE"
