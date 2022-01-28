@@ -1,0 +1,84 @@
+diff --git a/Dockerfile.s390x b/Dockerfile.s390x
+index b6ff6fc..c8aa428 100644
+--- a/Dockerfile.s390x
++++ b/Dockerfile.s390x
+@@ -12,10 +12,8 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+-ARG QEMU_IMAGE=calico/go-build:latest
+ ARG BIRD_IMAGE=calico/bird:latest
+ 
+-FROM ${QEMU_IMAGE} as qemu
+ FROM ${BIRD_IMAGE} as bird
+ 
+ FROM calico/bpftool:v5.3-s390x as bpftool
+@@ -24,12 +22,6 @@ FROM s390x/alpine:3.8 as base
+ 
+ ARG ARCH=s390x
+ 
+-# Enable non-native builds of this image on an amd64 hosts.
+-# This must be the first RUN command in this file!
+-# we only need this for the intermediate "base" image, so we can run all the apk and other commands
+-# when running on a kernel >= 4.8, this will become less relevant
+-COPY --from=qemu /usr/bin/qemu-${ARCH}-static /usr/bin/
+-
+ # Install remaining runtime deps required for felix from the global repository
+ RUN apk add --no-cache ip6tables ipset iputils iproute2 conntrack-tools runit file ca-certificates
+ 
+@@ -44,8 +36,6 @@ COPY dist/bin/calico-node-${ARCH} /bin/calico-node
+ 
+ COPY --from=bpftool /bpftool /bin
+ 
+-RUN rm /usr/bin/qemu-${ARCH}-static
+-
+ CMD ["start_runit"]
+ 
+ # Tell sv where to find the services.
+diff --git a/Makefile b/Makefile
+index d1f0849..faa4a78 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ PACKAGE_NAME?=github.com/projectcalico/node
+-GO_BUILD_VER?=v0.58
++GO_BUILD_VER?=v0.59
+ 
+ ORGANIZATION=projectcalico
+ SEMAPHORE_PROJECT_ID?=$(SEMAPHORE_NODE_PROJECT_ID)
+@@ -91,7 +91,7 @@ TEST_CONTAINER_NAME?=calico/test:$(TEST_CONTAINER_NAME_VER)-$(ARCH)
+ # If building on amd64 omit the arch in the container name.  Fixme!
+ ETCD_IMAGE?=quay.io/coreos/etcd:$(ETCD_VERSION)
+ ifneq ($(BUILDARCH),amd64)
+-	ETCD_IMAGE=$(ETCD_IMAGE)-$(ARCH)
++	ETCD_IMAGE:=$(ETCD_IMAGE)-$(ARCH)
+ endif
+ 
+ # TODO: Update this to use newer version of Kubernetes.
+@@ -334,7 +334,7 @@ endif
+ 	  echo; echo calico-node-$(ARCH) -v;	 /go/bin/calico-node-$(ARCH) -v; \
+ 	"
+ ## TARGET_PLATFORM fixes an issue where `FROM SCRATCH` in the Dockerfile share the same architecture as the host.
+-	docker build --pull -t $(NODE_IMAGE):latest-$(ARCH) $(TARGET_PLATFORM) . --build-arg BIRD_IMAGE=$(BIRD_IMAGE) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./Dockerfile.$(ARCH)
++	docker build -t $(NODE_IMAGE):latest-$(ARCH) $(TARGET_PLATFORM) . --build-arg BIRD_IMAGE=$(BIRD_IMAGE) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./Dockerfile.$(ARCH)
+ 	touch $@
+ 
+ # download BIRD source to include in image.
+@@ -460,7 +460,7 @@ ut:
+ # variables.  These are used for the STs.
+ dist/calicoctl:
+ 	-docker rm -f calicoctl
+-	docker pull $(CTL_CONTAINER_NAME)
++	#docker pull $(CTL_CONTAINER_NAME)
+ 	docker create --name calicoctl $(CTL_CONTAINER_NAME)
+ 	docker cp calicoctl:calicoctl dist/calicoctl && \
+ 	  test -e dist/calicoctl && \
+@@ -469,7 +469,7 @@ dist/calicoctl:
+ 
+ dist/calico dist/calico-ipam:
+ 	-docker rm -f calico-cni
+-	docker pull calico/cni:$(CNI_VER)
++	#docker pull calico/cni:$(CNI_VER)
+ 	docker create --name calico-cni calico/cni:$(CNI_VER)
+ 	docker cp calico-cni:/opt/cni/bin/install dist/calico && \
+ 	  test -e dist/calico && \
