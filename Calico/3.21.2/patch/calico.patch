@@ -1,0 +1,47 @@
+diff --git a/Makefile b/Makefile
+index 109cef2f1..f04c743fc 100644
+--- a/Makefile
++++ b/Makefile
+@@ -224,13 +224,13 @@ dev-images-file:
+ 
+ # Builds a versions.yaml file that corresponds to the versions produced by the `dev-image` target.
+ dev-versions-yaml:
+-	@export TYPHA_VER=`cd ../typha && $(TAG_COMMAND)`-amd64; \
+-	export CTL_VER=`cd ../calicoctl && $(TAG_COMMAND)`-amd64; \
+-	export NODE_VER=`cd ../node && $(TAG_COMMAND)`-amd64; \
+-	export CNI_VER=`cd ../cni-plugin && $(TAG_COMMAND)`-amd64; \
+-	export KUBE_CONTROLLERS_VER=`cd ../kube-controllers && $(TAG_COMMAND)`-amd64; \
+-	export APP_POLICY_VER=`cd ../app-policy && $(TAG_COMMAND)`-amd64; \
+-	export POD2DAEMON_VER=`cd ../pod2daemon && $(TAG_COMMAND)`-amd64; \
++	@export TYPHA_VER=`cd ../typha && $(TAG_COMMAND)`-s390x; \
++	export CTL_VER=`cd ../calicoctl && $(TAG_COMMAND)`-s390x; \
++	export NODE_VER=`cd ../node && $(TAG_COMMAND)`-s390x; \
++	export CNI_VER=`cd ../cni-plugin && $(TAG_COMMAND)`-s390x; \
++	export KUBE_CONTROLLERS_VER=`cd ../kube-controllers && $(TAG_COMMAND)`-s390x; \
++	export APP_POLICY_VER=`cd ../app-policy && $(TAG_COMMAND)`-s390x; \
++	export POD2DAEMON_VER=`cd ../pod2daemon && $(TAG_COMMAND)`-s390x; \
+ 	/bin/echo -e \
+ "- title: \"dev-build\"\\n"\
+ "  note: \"Developer build\"\\n"\
+@@ -551,17 +551,17 @@ $(RELEASE_DIR_BIN)/%:
+ bin/helm: bin/helm3
+ 	mkdir -p bin
+ 	$(eval TMP := $(shell mktemp -d))
+-	wget -q https://get.helm.sh/helm-v2.16.3-linux-amd64.tar.gz -O $(TMP)/helm.tar.gz
++	wget -q https://get.helm.sh/helm-v2.16.3-linux-s390x.tar.gz -O $(TMP)/helm.tar.gz
+ 	tar -zxvf $(TMP)/helm.tar.gz -C $(TMP)
+-	mv $(TMP)/linux-amd64/helm bin/helm
++	mv $(TMP)/linux-s390x/helm bin/helm
+ 
+ helm-deps: bin/helm3 bin/helm
+ bin/helm3:
+ 	mkdir -p bin
+ 	$(eval TMP := $(shell mktemp -d))
+-	wget -q https://get.helm.sh/helm-v3.3.1-linux-amd64.tar.gz -O $(TMP)/helm3.tar.gz
++	wget -q https://get.helm.sh/helm-v3.3.1-linux-s390x.tar.gz -O $(TMP)/helm3.tar.gz
+ 	tar -zxvf $(TMP)/helm3.tar.gz -C $(TMP)
+-	mv $(TMP)/linux-amd64/helm bin/helm3
++	mv $(TMP)/linux-s390x/helm bin/helm3
+ 
+ .PHONY: values.yaml
+ values.yaml: _includes/charts/calico/values.yaml _includes/charts/tigera-operator/values.yaml
