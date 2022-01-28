@@ -1,0 +1,22 @@
+diff --git a/Makefile b/Makefile
+index 171b269c..6f3e17a9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -51,7 +51,7 @@ endif
+ ifeq ($(ARCH),arm64)
+ 	TARGET_PLATFORM=arm64/v8
+ else
+-	TARGET_PLATFORM=amd64
++	TARGET_PLATFORM=s390x
+ endif
+ EXTRA_DOCKER_ARGS += --platform=linux/$(TARGET_PLATFORM)
+ 
+@@ -229,7 +229,7 @@ image: build $(BUILD_IMAGE)
+ 
+ $(BUILD_IMAGE): $(BUILD_IMAGE)-$(ARCH)
+ $(BUILD_IMAGE)-$(ARCH): register $(BINDIR)/operator-$(ARCH)
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --platform=linux/$(TARGET_PLATFORM) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./build/Dockerfile.$(ARCH) .
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --platform=linux/$(TARGET_PLATFORM) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./build/Dockerfile.$(ARCH) .
+ ifeq ($(ARCH),amd64)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
