@@ -1,0 +1,51 @@
+diff --git a/Dockerfile.s390x b/Dockerfile.s390x
+index c4832694..aa331358 100644
+--- a/Dockerfile.s390x
++++ b/Dockerfile.s390x
+@@ -1,12 +1,4 @@
+-ARG QEMU_IMAGE
+-# Copying qemu binary files from amd64 container.
+-# latest `go-build` containers got no candidate for `s390x` architecture.
+-FROM --platform=linux/amd64 ${QEMU_IMAGE} as qemu
+-
+ FROM s390x/alpine:3.10
+-# Enable non-native builds of this image on an amd64 hosts.
+-# This must be the first RUN command in this file!
+-COPY --from=qemu /usr/bin/qemu-s390x-static /usr/bin/
+ MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
+ 
+ RUN apk --no-cache upgrade apk-tools
+@@ -16,7 +8,5 @@ ADD bin/calicoctl-linux-s390x /calicoctl
+ ENV CALICO_CTL_CONTAINER=TRUE
+ ENV PATH=$PATH:/
+ 
+-RUN rm /usr/bin/qemu-*
+-
+ WORKDIR /root
+ ENTRYPOINT ["/calicoctl"]
+diff --git a/tests/fv/utils/calicoctl.go b/tests/fv/utils/calicoctl.go
+index cfe4708e..01704d5f 100644
+--- a/tests/fv/utils/calicoctl.go
++++ b/tests/fv/utils/calicoctl.go
+@@ -23,7 +23,7 @@ import (
+ 	log "github.com/sirupsen/logrus"
+ )
+ 
+-var calicoctl = "/go/src/github.com/projectcalico/calicoctl/bin/calicoctl-linux-amd64"
++var calicoctl = "/go/src/github.com/projectcalico/calicoctl/bin/calicoctl-linux-s390x"
+ var version_helper = "/go/src/github.com/projectcalico/calicoctl/tests/fv/helper/bin/calico_version_helper"
+ 
+ func getEnv(kdd bool) []string {
+diff --git a/tests/st/utils/utils.py b/tests/st/utils/utils.py
+index 31bd537a..bb9b216d 100644
+--- a/tests/st/utils/utils.py
++++ b/tests/st/utils/utils.py
+@@ -238,7 +238,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+ 
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+ 
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
