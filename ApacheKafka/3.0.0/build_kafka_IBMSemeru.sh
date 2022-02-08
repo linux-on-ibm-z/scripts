@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021,2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -115,7 +115,7 @@ function logDetails() {
 
 # Print the usage message
 function printHelp() {
-    echo " build_kafka.sh [-d debug] [-y install-without-confirmation] "
+    echo "bash build_kafka.sh [-d debug] [-y install-without-confirmation] "
     echo "  default: IBM Semeru Runtime JDK11 will be installed"
 }
 
@@ -163,14 +163,14 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget tar git curl unzip ca-certificates
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-12.5" | "sles-15.2" | "sles-15.3")
+"sles-12.5" | "sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y wget tar git curl unzip gzip
