@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2021.
+# ©  Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -218,7 +218,7 @@ function logDetails() {
 function printHelp() {
         echo
         echo "Usage: "
-        echo "  build_rocksdb.sh  [-d debug] [-y install-without-confirmation] [-t run-test] [-j Java to use from {OpenJDK8, SemuruJDK8}]"
+        echo "Bash build_rocksdb.sh  [-d debug] [-y install-without-confirmation] [-t run-test] [-j Java to use from {OpenJDK8, SemuruJDK8}]"
         echo "  default: If no -j specified, openjdk-8 will be installed"
         echo
 }
@@ -283,7 +283,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-8.2" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum install -y git patch snappy-devel zlib-devel bzip2 bzip2-devel lz4-devel libzstd-devel libasan gcc-c++ binutils make python3 perl cmake curl wget libarchive diffutils which openssl openssl-devel gzip file procps |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
