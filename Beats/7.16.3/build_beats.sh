@@ -82,7 +82,7 @@ function cleanup() {
 function configureAndInstallPython() {
         printf -- 'Configuration and Installation of Python started\n'
 
-        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" == "sles-15.3" ]]; then
+        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
                 source "${BUILD_ENV}"
         fi
 
@@ -119,7 +119,7 @@ function configureAndInstallPython() {
 function configureAndInstall() {
         printf -- 'Configuration and Installation started \n'
 
-        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" == "sles-15.3" ]]; then
+        if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
                 source "${BUILD_ENV}"
         fi
 
@@ -168,20 +168,12 @@ function configureAndInstall() {
 
         echo "Installing RUST!!!"
         cd $CURDIR
-		if [ "${DISTRO}" == "sles-15.3" ]; then
-			wget --no-check-certificate https://static.rust-lang.org/dist/rust-1.58.1-s390x-unknown-linux-gnu.tar.gz
-			tar -xvf rust-1.58.1-s390x-unknown-linux-gnu.tar.gz
-			cd rust-1.58.1-s390x-unknown-linux-gnu
-			sudo bash install.sh
-			export PATH=$PATH:$PWD/cargo/bin
-		else
-			wget --no-check-certificate -O rustup-init.sh https://sh.rustup.rs
-			bash rustup-init.sh -y
-			export PATH=$PATH:$HOME/.cargo/bin
-			rustup toolchain install 1.49.0
-			rustup default 1.49.0
-			rustc --version | grep "1.49.0"
-		fi
+	wget --no-check-certificate -O rustup-init.sh https://sh.rustup.rs
+	bash rustup-init.sh -y
+	export PATH=$PATH:$HOME/.cargo/bin
+	rustup toolchain install 1.49.0
+	rustup default 1.49.0
+	rustc --version | grep "1.49.0"
 
         if  [[ "${ID}" == "sles" || "${DISTRO}" == "rhel-7."* ]]; then
                 python3 -m pip install cryptography
@@ -198,11 +190,7 @@ function configureAndInstall() {
         fi
         cd $GOPATH/src/github.com/elastic
         sudo rm -rf beats
-		if [ "${DISTRO}" == "sles-15.3" ]; then
-			git clone git://github.com/elastic/beats.git
-		else
-			git clone https://github.com/elastic/beats.git
-		fi
+	git clone https://github.com/elastic/beats.git
         cd beats
         git checkout v$PACKAGE_VERSION
 
@@ -475,14 +463,6 @@ case "$DISTRO" in
         configureAndInstallPython |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-"sles-15.3" )
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y git curl gawk make wget tar gcc libpcap1 libpcap-devel git libsystemd0 systemd-devel acl patch libjpeg62-devel zlib-devel libffi-devel|& tee -a "${LOG_FILE}"
-	installOpenssl |& tee -a "${LOG_FILE}"
-        configureAndInstallPython |& tee -a "${LOG_FILE}"
-        configureAndInstall |& tee -a "${LOG_FILE}"
-	;;
 
 esac
 
