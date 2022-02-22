@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021
+# © Copyright IBM Corporation 2021, 2022
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -179,10 +179,10 @@ case "$DISTRO" in
     source /opt/rh/devtoolset-7/enable
 	  configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.2")
+"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$GIT_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y wget tar make gcc gcc-c++ bzip2 zlib zlib-devel git xz diffutils cmake |& tee -a "$LOG_FILE"
+    sudo yum install -y wget tar make gcc gcc-c++ bzip2 zlib zlib-devel git xz diffutils cmake libarchive-devel.s390x |& tee -a "$LOG_FILE"
 	  configureAndInstall |& tee -a "$LOG_FILE"
 	  ;;
 "sles-12.5")
@@ -195,7 +195,7 @@ case "$DISTRO" in
     sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.2")
+"sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$GIT_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y wget git tar gzip cmake zlib-devel gcc gcc-c++ |& tee -a "$LOG_FILE"
