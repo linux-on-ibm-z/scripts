@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -379,12 +379,12 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc gcc-c++ openssl.s390x httpd httpd-devel mariadb-server mariadb-devel sqlite-devel
+    sudo yum install -y gcc gcc-c++ openssl.s390x httpd httpd-devel mariadb-server mariadb-devel sqlite-devel wget
     wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.1/build_python3.sh
     bash build_python3.sh -y
     export PATH=/usr/local/bin:$PATH
     sudo -H env PATH=$PATH pip3 install --upgrade pip
-    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 flask==1.1.2 mod_wsgi python-openstackclient mysqlclient keystone
+    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 mod_wsgi python-openstackclient mysqlclient keystone
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
@@ -403,13 +403,13 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo zypper install -y apache2-mod_wsgi libopenssl-devel gcc make gawk apache2  apache2-devel mariadb libmariadb3 gcc-c++ libmysqld-devel
+    sudo zypper install -y apache2-mod_wsgi libopenssl-devel gcc make gawk apache2  apache2-devel mariadb libmariadb3 gcc-c++ libmysqld-devel wget
     wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.1/build_python3.sh
     bash build_python3.sh -y
 
     export PATH=/usr/local/bin:$PATH
     sudo -H env PATH=$PATH pip3 install --upgrade pip
-    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient mysqlclient keystone
+    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 python-openstackclient mysqlclient keystone
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
