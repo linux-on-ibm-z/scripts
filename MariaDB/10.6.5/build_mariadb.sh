@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021
+# © Copyright IBM Corporation 2021, 2022
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -179,7 +179,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04" | "ubuntu-21.10")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -208,7 +208,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-15.2" | "sles-15.3")
+"sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y which git gcc gcc-c++ make wget tar gzip cmake libopenssl-devel ncurses-devel bison glibc-locale boost-devel libboost_program_options-devel check-devel gawk pam-devel patch hostname|& tee -a "$LOG_FILE"
