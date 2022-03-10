@@ -147,35 +147,14 @@ function configureAndInstall() {
 		protoc --version
     fi
 
-	if [[ "$DISTRO" == "sles-15.3" ]]; then
-		#Install Python
-		cd /"$CURDIR"/
-		wget https://www.python.org/ftp/python/2.7.16/Python-2.7.16.tar.xz
-		tar -xvf Python-2.7.16.tar.xz
-		sudo ln -sfv /usr/include/ncurses/* /usr/include/
-		cd Python-2.7.16
-		./configure --prefix=/usr/local --exec-prefix=/usr/local
-		make
-		sudo make install
-	fi
 	
-	if [[ "$DISTRO" = "rhel-8."* ]]; then
+	if [[ "$DISTRO" = "rhel-8."* ]] || [[ "$DISTRO" == "sles-15.3" ]]; then
 		#Install Node v6.17.0
 		cd /"$CURDIR"/
 		wget https://nodejs.org/dist/v6.17.0/node-v6.17.0-linux-s390x.tar.gz
 		tar xvf node-v6.17.0-linux-s390x.tar.gz
 		export PATH=$CURDIR/node-v6.17.0-linux-s390x/bin:$PATH
 	fi
-	
-	
-	if [[ "$DISTRO" = "sles-15."* ]]; then
-		#Install Node v6.11.0
-		cd /"$CURDIR"/
-		wget https://nodejs.org/dist/v6.11.0/node-v6.11.0-linux-s390x.tar.gz
-		tar xvf node-v6.11.0-linux-s390x.tar.gz
-		export PATH=$CURDIR/node-v6.11.0-linux-s390x/bin:$PATH	
-	fi
-
 
 	# Download RethinkDB source code
 	cd /"$CURDIR"/
@@ -272,24 +251,18 @@ case "$DISTRO" in
 "ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
-    sudo apt-get update -y >/dev/null
-	sudo  sudo apt-get install -y clang build-essential python libcurl4-openssl-dev libboost-all-dev libncurses5-dev wget m4 libssl-dev git curl  |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
-"ubuntu-21.04")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
-    sudo apt-get update -y >/dev/null
-	sudo  sudo apt-get install -y clang build-essential python libcurl4-openssl-dev libboost1.71-all-dev libncurses5-dev wget m4 libssl-dev git curl  |& tee -a "$LOG_FILE"
+	sudo apt-get update -y >/dev/null
+	sudo apt-get install -y clang build-essential python libcurl4-openssl-dev libboost-all-dev libncurses5-dev wget m4 libssl-dev git curl python3-pip  |& tee -a "$LOG_FILE"
+	sudo pip3 install httplib2 |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
-	sudo  sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
-	sudo   sudo yum install -y python3-devel openssl-devel libcurl-devel wget tar m4 git-core boost-static m4 gcc-c++  ncurses-devel which make ncurses-static zlib-devel zlib-static protobuf protobuf-compiler protobuf-devel |& tee -a "$LOG_FILE"
+	sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
+	sudo yum install -y python3-devel openssl-devel libcurl-devel wget tar m4 git-core boost-static m4 gcc-c++  ncurses-devel which make ncurses-static zlib-devel zlib-static protobuf protobuf-compiler protobuf-devel python3-pip |& tee -a "$LOG_FILE"
+	sudo pip3 install six httplib2 |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
@@ -297,8 +270,9 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
-	sudo yum install -y python3-devel python2 openssl-devel libcurl-devel wget tar m4 git-core boost gcc-c++  ncurses-devel which make ncurses zlib-devel zlib procps protobuf-devel protobuf-compiler |& tee -a "$LOG_FILE"
+	sudo yum install -y python3-devel python2 openssl-devel libcurl-devel wget tar m4 git-core boost gcc-c++  ncurses-devel which make ncurses zlib-devel zlib procps protobuf-devel protobuf-compiler python3-pip |& tee -a "$LOG_FILE"
 	sudo ln -s /usr/bin/python2 /usr/bin/python |& tee -a "$LOG_FILE"
+	sudo pip3 install httplib2 |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
@@ -306,7 +280,8 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper update -y |& tee -a "$LOG_FILE"
-	sudo zypper install -y gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool python python-xml python-curses libicu-devel protobuf-devel=2.6.1-7.3.16 libprotobuf-lite9 libprotobuf9 boost-devel termcap curl libcurl-devel git awk  |& tee -a "$LOG_FILE"
+	sudo zypper install -y gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool python python-xml python-curses libicu-devel protobuf-devel=2.6.1-7.3.16 libprotobuf-lite9 libprotobuf9 boost-devel termcap curl libcurl-devel git awk python3-pip  |& tee -a "$LOG_FILE"
+	sudo pip3 install httplib2 |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
@@ -314,7 +289,8 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper update -y |& tee -a "$LOG_FILE"
-	sudo zypper install -y  gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool  libicu-devel protobuf-devel libprotobuf-c-devel boost-devel termcap curl libcurl-devel git bzip2 awk gzip xz readline-devel sqlite3-devel tk-devel ncurses-devel gdbm-devel libdb-4_8-devel gdb gawk netcfg libbz2-devel glibc-locale |& tee -a "$LOG_FILE"
+	sudo zypper install -y  gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch curl unzip autoconf automake libtool python python-xml python-curses libicu-devel protobuf-devel libprotobuf-c-devel boost-devel termcap curl libcurl-devel git bzip2 awk gzip xz readline-devel sqlite3-devel tk-devel ncurses-devel gdbm-devel libdb-4_8-devel gdb gawk netcfg libbz2-devel glibc-locale python3-pip |& tee -a "$LOG_FILE"
+	sudo pip3 install httplib2 |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
