@@ -302,6 +302,16 @@ buildGCC() {
     sudo make install
 }
 
+installWget() {
+    cd $HOME
+    wget https://ftp.gnu.org/gnu/wget/wget-1.20.3.tar.gz
+    tar -xzf  wget-1.20.3.tar.gz
+    cd wget-1.20.3
+    ./configure
+    make
+    sudo make install
+}
+
 #==============================================================================
 logDetails
 checkPrequisites
@@ -326,13 +336,16 @@ case "$DISTRO" in
         libreadline7 libreadline-dev libzip-dev libzip4 \
         nginx openssl pkg-config zlib1g-dev libsqlite3-dev \
         libonig-dev libpq-dev git gcc g++ curl tar bzip2 \
-        make wget |& tee -a "$LOG_FILE"
+        make wget libgnutls28-dev |& tee -a "$LOG_FILE"
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     buildGCC |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 40
 
     PATH=${PREFIX}/bin${PATH:+:${PATH}}
+    export PATH
+    installWget
+    PATH=/usr/local/bin:$PATH
     export PATH
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
