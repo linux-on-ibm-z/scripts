@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -74,9 +74,9 @@ function configureAndInstall() {
     if [[ "$ID" == "ubuntu" && "$JAVA_FLAV" == "ibmsdk" ]]  ;then
     	printf -- "Installing IBM SDK 8 for Ubuntu \n"
         cd "$CURDIR"
-        wget http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.6.36/linux/s390x/ibm-java-s390x-sdk-8.0-6.36.bin
+        wget http://public.dhe.ibm.com/ibmdl/export/pub/systems/cloud/runtimes/java/8.0.7.5/linux/s390x/ibm-java-s390x-sdk-8.0-7.5.bin
         echo -en 'INSTALLER_UI=silent\nUSER_INSTALL_DIR=/opt/java-1.8.0-ibm\nLICENSE_ACCEPTED=TRUE' > installer.properties
-        sudo bash ibm-java-s390x-sdk-8.0-6.36.bin -i silent -f installer.properties
+        sudo bash ibm-java-s390x-sdk-8.0-7.5.bin -i silent -f installer.properties
 	export JAVA_HOME=/opt/java-1.8.0-ibm
     fi
     
