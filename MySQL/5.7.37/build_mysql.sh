@@ -64,7 +64,7 @@ function configureAndInstall() {
 
 	#Download the MySQL source code from Github
 	cd $SOURCE_ROOT
-	git clone git://github.com/mysql/mysql-server.git
+	git clone https://github.com/mysql/mysql-server
 	cd mysql-server
 	git checkout mysql-${PACKAGE_VERSION}
 	mkdir build
