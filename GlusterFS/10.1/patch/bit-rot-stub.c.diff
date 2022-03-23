@@ -1,0 +1,13 @@
+diff --git a/xlators/features/bit-rot/src/stub/bit-rot-stub.c b/xlators/features/bit-rot/src/stub/bit-rot-stub.c
+index 605a5e4c3..fc3d913e6 100644
+--- a/xlators/features/bit-rot/src/stub/bit-rot-stub.c
++++ b/xlators/features/bit-rot/src/stub/bit-rot-stub.c
+@@ -1639,7 +1639,7 @@ br_stub_getxattr_cbk(call_frame_t *frame, void *cookie, xlator_t *this,
+ {
+     int32_t ret = 0;
+     size_t totallen = 0;
+-    size_t signaturelen = 0;
++    uint32_t signaturelen = 0;
+     br_stub_private_t *priv = NULL;
+     br_version_t *obuf = NULL;
+     br_signature_t *sbuf = NULL;
