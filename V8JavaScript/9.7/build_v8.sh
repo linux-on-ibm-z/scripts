@@ -181,7 +181,8 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo -E DEBIAN_FRONTEND=noninteractive apt-get install -y python python3 curl pkg-config git wget clang g++ gcc ninja-build gcc-multilib g++-multilib python3-distutils lsb-release tzdata g++-7 gcc-7 gnupg |& tee -a "${LOG_FILE}"
+        sudo -E DEBIAN_FRONTEND=noninteractive apt-get install -y python python3 curl pkg-config git wget clang g++ gcc ninja-build gcc-multilib g++-multilib python3-distutils lsb-release tzdata g++-7 gcc-7 gnupg python3-pip |& tee -a "${LOG_FILE}"
+        sudo pip3 install httplib2 six |& tee -a "${LOG_FILE}"
         sudo dpkg-reconfigure --frontend noninteractive tzdata 
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 7
@@ -192,7 +193,8 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo -E DEBIAN_FRONTEND=noninteractive apt-get install -y python python3 curl pkg-config git wget clang g++ gcc ninja-build gcc-multilib g++-multilib python3-distutils lsb-release tzdata gnupg |& tee -a "${LOG_FILE}"
+        sudo -E DEBIAN_FRONTEND=noninteractive apt-get install -y python python3 curl pkg-config git wget clang g++ gcc ninja-build gcc-multilib g++-multilib python3-distutils lsb-release tzdata gnupg python3-pip |& tee -a "${LOG_FILE}"
+        sudo pip3 install httplib2 six |& tee -a "${LOG_FILE}"
         sudo dpkg-reconfigure --frontend noninteractive tzdata
         configureAndInstall |& tee -a "${LOG_FILE}"
         setENV |& tee -a "${LOG_FILE}"
