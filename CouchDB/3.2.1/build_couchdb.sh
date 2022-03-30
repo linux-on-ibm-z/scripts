@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -66,16 +66,16 @@ function runTest() {
     export LD_LIBRARY_PATH=/usr/lib
     case "$DISTRO" in
     "ubuntu-20.04")
-      ./configure -c  --prefix=/usr --with-js-lib=/usr/lib --with-js-include=/usr/include/mozjs-68  --spidermonkey-version 68
+      ./configure --prefix=/usr --with-js-lib=/usr/lib --with-js-include=/usr/include/mozjs-68  --spidermonkey-version 68
       ;;
-    "ubuntu-21.04" | "ubuntu-21.10")
-      ./configure -c  --prefix=/usr --with-js-lib=/usr/lib --with-js-include=/usr/include/mozjs-78  --spidermonkey-version 78
+    "ubuntu-21.10")
+      ./configure --prefix=/usr --with-js-lib=/usr/lib --with-js-include=/usr/include/mozjs-78  --spidermonkey-version 78
       ;;  
-    "rhel-8.2" | "rhel-8.3" | "rhel-8.4" | "rhel-8.5")
-      ./configure -c  --prefix=/usr --with-js-lib=/usr/lib --with-js-include=/usr/include/mozjs-60  --spidermonkey-version 60
+    "rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+      ./configure --prefix=/usr --with-js-lib=/usr/lib --with-js-include=/usr/include/mozjs-60  --spidermonkey-version 60
       ;;
     *)
-      ./configure -c
+      ./configure
       ;;
     esac
 		make check
@@ -108,7 +108,7 @@ function configureAndInstall() {
 	printf -- '\nConfiguration and Installation started \n'
 	#Installing dependencies
 	printf -- 'User responded with Yes. \n'
-	sudo pip3 install --upgrade wheel sphinx==3.5.4 sphinx_rtd_theme docutils==0.16 nose requests hypothesis virtualenv
+	sudo pip3 install --upgrade wheel sphinx==3.5.4 sphinx_rtd_theme docutils==0.16 nose requests hypothesis virtualenv jinja2==3.0.0
 
 	#only for rhel 7.x
 	if [[ "${DISTRO}" == "rhel-7.*" ]]; then
@@ -207,10 +207,10 @@ function configureAndInstall() {
 	"ubuntu-20.04")
 	  ./configure  --spidermonkey-version 68
 	  ;;
-	"rhel-8.2" | "rhel-8.3" | "rhel-8.4" | "rhel-8.5")
+	"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
 	  ./configure  --spidermonkey-version 60
 	  ;;
-	"ubuntu-21.04" | "ubuntu-21.10")
+	"ubuntu-21.10")
 	  ./configure  --spidermonkey-version 78
 	  ;;
 	*)
@@ -314,7 +314,7 @@ case "$DISTRO" in
 
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"ubuntu-21.04" | "ubuntu-21.10")
+"ubuntu-21.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
