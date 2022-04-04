@@ -164,6 +164,8 @@ function configureAndInstall() {
         curl -sSL https://github.com/facebook/rocksdb/commit/b4326b5273f677f28d5709e0f2ff86cf2d502bb3.patch | git apply --include="table/table_test.cc" - || error "c++-11 patch"
 
         # Build and install the rocksdb C++ static library
+	sed -i 's/1.2.11/1.2.12/g' Makefile
+	sed -i 's/c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1/91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9/g' Makefile
         make -j$(nproc) static_lib
         sudo make install-static
 
