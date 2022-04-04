@@ -66,7 +66,7 @@ function prepare() {
 }
 
 function cleanup() {
-        sudo rm -rf "${CURDIR}/logstash-oss-${PACKAGE_VERSION}.tar.gz" "${CURDIR}/adoptjdk.tar.gz"
+        sudo rm -rf "${CURDIR}/logstash-oss-${PACKAGE_VERSION}-linux-aarch64.tar.gz" "${CURDIR}/ibm-semeru-open-jdk_s390x_linux_11.0.14.1_1_openj9-0.30.1.tar.gz" "${CURDIR}/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.14.1_1.tar.gz"
         printf -- 'Cleaned up the artifacts\n' >>"${LOG_FILE}"
 }
 
@@ -79,9 +79,9 @@ function configureAndInstall() {
 		printf -- "\nInstalling Semeru11 . . . \n"
 		cd $SOURCE_ROOT
 		wget https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.14.1%2B1_openj9-0.30.1/ibm-semeru-open-jdk_s390x_linux_11.0.14.1_1_openj9-0.30.1.tar.gz
-		tar -xf ibm-semeru-open-jdk_s390x_linux_11.0.14.1_1_openj9-0.30.1.tar.gz
-		export JAVA_HOME=/usr
-		printf -- "export LS_JAVA_HOME=/usr\n" >> "$BUILD_ENV"
+		tar -xzf ibm-semeru-open-jdk_s390x_linux_11.0.14.1_1_openj9-0.30.1.tar.gz
+		export LS_JAVA_HOME=$PWD/jdk-11.0.14.1+1
+		printf -- "export LS_JAVA_HOME=$PWD/jdk-11.0.14.1+1\n" >> "$BUILD_ENV"
 		printf -- "Installation of Semeru11 is successful\n" >> "$LOG_FILE"
 
 	 elif [[ "$JAVA_PROVIDED" == "Temurin11" ]]; then
@@ -89,23 +89,23 @@ function configureAndInstall() {
 		printf -- "\nInstalling Temurin11 . . . \n"
 		cd $SOURCE_ROOT
 		wget https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.14.1%2B1/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.14.1_1.tar.gz
-		tar -xf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.14.1_1.tar.gz
-		export JAVA_HOME=/usr
-		printf -- "export LS_JAVA_HOME=/usr\n" >> "$BUILD_ENV"
+		tar -xzf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.14.1_1.tar.gz
+		export LS_JAVA_HOME=$PWD/jdk-11.0.14.1+1
+		printf -- "export LS_JAVA_HOME=$PWD/jdk-11.0.14.1+1\n" >> "$BUILD_ENV"
 		printf -- "Installation of Temurin11 is successful\n" >> "$LOG_FILE"
 
 	  elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
 		if [[ "${ID}" == "ubuntu" ]]; then
 			 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk
-			 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
+			 export LS_JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
 			 printf -- "export LS_JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x\n" >> "$BUILD_ENV"
 		elif [[ "${ID}" == "rhel" ]]; then
 			 sudo yum install -y java-11-openjdk-devel
-			 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+			 export LS_JAVA_HOME=/usr/lib/jvm/java-11-openjdk
 			 printf -- "export LS_JAVA_HOME=/usr/lib/jvm/java-11-openjdk\n" >> "$BUILD_ENV"
 		      elif [[ "${ID}" == "sles" ]]; then
 			 sudo zypper install -y java-11-openjdk  java-11-openjdk-devel
-			 export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
+			 export LS_JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
 			 printf -- "export LS_JAVA_HOME=/usr/lib64/jvm/java-11-openjdk\n" >> "$BUILD_ENV"
 		      fi
            printf -- "Installation of OpenJDK 11 is successful\n" >> "$LOG_FILE"
@@ -113,7 +113,7 @@ function configureAndInstall() {
                 printf "$JAVA_PROVIDED is not supported, Please use valid java from {Semeru11, Temurin11, OpenJDK11} only"
                 exit 1
         fi
-        export PATH=$JAVA_HOME/bin:$PATH
+        export PATH=$LS_JAVA_HOME/bin:$PATH
         printf -- "export PATH=$LS_JAVA_HOME/bin:$PATH\n" >> "$BUILD_ENV"
         java -version |& tee -a "$LOG_FILE"
 
