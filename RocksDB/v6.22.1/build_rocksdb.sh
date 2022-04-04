@@ -164,6 +164,8 @@ function configureAndInstall() {
         curl -sSL ${PATCH_URL}/rocksdb.diff | patch -p1 || error "rocksdb.diff"
         
         # Build and install the rocksdb C++ static library
+	sed -i 's/1.2.11/1.2.12/g' Makefile
+	sed -i 's/c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1/91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9/g' Makefile
         make -j$(nproc) static_lib
         sudo make install-static
 
@@ -283,7 +285,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-8.2" | "rhel-8.4")
+"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum install -y git patch snappy-devel zlib-devel bzip2 bzip2-devel lz4-devel libzstd-devel libasan gcc-c++ binutils make python3 perl cmake curl wget libarchive diffutils which openssl openssl-devel gzip file procps |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
