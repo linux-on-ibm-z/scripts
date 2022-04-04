@@ -162,6 +162,8 @@ function configureAndInstall() {
         git checkout "$PACKAGE_VERSION"
         
         # Build and install the rocksdb C++ static library
+	sed -i 's/1.2.11/1.2.12/g' Makefile
+	sed -i 's/c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1/91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9/g' Makefile
         make -j$(nproc) static_lib
         sudo make install-static
 
