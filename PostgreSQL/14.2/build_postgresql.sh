@@ -172,7 +172,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"sles-12.5" | "sles-15.3" )
+"sles-15.3" )
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
         sudo zypper install -y git wget gcc gcc-c++ tar make readline-devel zlib-devel bison flex gawk patch curl gzip |& tee -a "$LOG_FILE"
