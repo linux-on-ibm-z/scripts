@@ -1,0 +1,81 @@
+diff --git a/Makefile b/Makefile
+index 6f79fe1a..75377fd8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -20,8 +20,9 @@ GO_TAGS = -tags=opa_wasm
+ endif
+ 
+ GOVERSION ?= $(shell cat ./.go-version)
+-GOARCH := $(shell go env GOARCH)
+-GOOS := $(shell go env GOOS)
++GOARCH := s390x
++#GOARCH := $(shell go env GOARCH)
++#GOOS := $(shell go env GOOS)
+ 
+ GOLANGCI_LINT_VERSION := v1.40.1
+ 
+@@ -191,7 +192,7 @@ wasm-test: wasm-lib-test wasm-rego-test
+ .PHONY: wasm-lib-build
+ wasm-lib-build:
+ ifeq ($(DOCKER_RUNNING), 1)
+-	@$(MAKE) -C wasm ensure-builder build
++	@$(MAKE) -C wasm builder all
+ 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+ 	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
+ else
+@@ -238,11 +239,11 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
+ 	-e WASM_ENABLED=$(WASM_ENABLED) \
+ 	-e FUZZ_TIME=$(FUZZ_TIME) \
+ 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
+-	golang:$(GOVERSION) \
++	golang-wasmtime:$(GOVERSION) \
+ 	make
+ 
+ .PHONY: ci-go-%
+-ci-go-%: generate
++ci-go-%: wasm-lib-build
+ 	$(CI_GOLANG_DOCKER_MAKE) $*
+ 
+ .PHONY: ci-release-test
+@@ -289,6 +290,15 @@ ensure-release-dir:
+ .PHONY: build-all-platforms
+ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-windows
+ 
++.PHONY: image-s390x
++image-s390x:
++	chmod +x $(RELEASE_DIR)/opa_linux_s390x*
++	$(DOCKER) build \
++		-t $(DOCKER_IMAGE):$(VERSION) \
++		--build-arg BASE=gcr.io/distroless/cc \
++		--build-arg BIN=$(RELEASE_DIR)/opa_linux_s390x \
++		.
++
+ .PHONY: image-quick
+ image-quick:
+ 	chmod +x $(RELEASE_DIR)/opa_linux_amd64*
+diff --git a/wasm/Dockerfile b/wasm/Dockerfile
+index 8e382e59..4ae93bc3 100644
+--- a/wasm/Dockerfile
++++ b/wasm/Dockerfile
+@@ -19,7 +19,7 @@ RUN apt-get update && \
+       libc++-13-dev \
+       libc++abi-13-dev \
+       lld-13 && \
+-    update-alternatives --install /usr/bin/ld ld /usr/bin/lld-13 90 && \
++    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.bfd 90 && \
+     update-alternatives --install /usr/bin/cc cc /usr/bin/clang-13 90 && \
+     update-alternatives --install /usr/bin/cpp cpp /usr/bin/clang++-13 90 && \
+     update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-13 90
+diff --git a/wasm/Makefile b/wasm/Makefile
+index ef04b8bc..2aa71f23 100644
+--- a/wasm/Makefile
++++ b/wasm/Makefile
+@@ -74,7 +74,7 @@ build:
+ .PHONY: test
+ test:
+ 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
+-	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src -w /src node:14 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
++	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src -w /src node:14-bullseye node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+ 
+ .PHONY: hack
+ hack:
