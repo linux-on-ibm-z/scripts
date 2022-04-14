@@ -1,0 +1,269 @@
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/Environment.java b/systemtest/src/main/java/io/strimzi/systemtest/Environment.java
+index 7ffaa0f9e..fe3c629f3 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/Environment.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/Environment.java
+@@ -159,7 +159,7 @@ public class Environment {
+ 
+     private static final String ST_KAFKA_VERSION_DEFAULT = TestKafkaVersion.getDefaultSupportedKafkaVersion();
+     private static final String ST_CLIENTS_KAFKA_VERSION_DEFAULT = "3.0.0";
+-    public static final String TEST_CLIENTS_VERSION_DEFAULT = "0.1.1";
++    public static final String TEST_CLIENTS_VERSION_DEFAULT = "0.2.0";
+ 
+     /**
+      * Set values
+diff --git a/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java b/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java
+index 9c1c92dcc..d18055541 100644
+--- a/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java
++++ b/systemtest/src/main/java/io/strimzi/systemtest/utils/FileUtils.java
+@@ -5,6 +5,7 @@
+ package io.strimzi.systemtest.utils;
+ 
+ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
++import io.strimzi.systemtest.Environment;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+@@ -19,6 +20,7 @@ import java.net.URI;
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.nio.file.Paths;
++import java.nio.file.StandardCopyOption;
+ import java.util.zip.ZipEntry;
+ import java.util.zip.ZipInputStream;
+ 
+@@ -116,4 +118,28 @@ public class FileUtils {
+         }
+         return null;
+     }
++
++    public static void updateRegistryAndRepoInYamlFile(String pathToOrigin, String registry, String repo) throws IOException {
++        byte[] encoded;
++        File yamlFile = File.createTempFile("temp-file", ".yaml");
++
++        try (OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(yamlFile), StandardCharsets.UTF_8)) {
++            encoded = Files.readAllBytes(Paths.get(pathToOrigin));
++
++            String yaml = new String(encoded, StandardCharsets.UTF_8);
++            yaml = yaml.replaceAll("quay.io/strimzi", registry + "/" + repo);
++
++            osw.write(yaml);
++            osw.close();
++            Files.copy(yamlFile.toPath(), Paths.get(pathToOrigin), StandardCopyOption.REPLACE_EXISTING);
++        } catch (RuntimeException e) {
++            e.printStackTrace();
++        }
++    }
++
++    public static void updateRegistryAndRepoInDeploymentYamlFile(File dir, String basePath) throws IOException {
++        File deployYaml = new File(dir, basePath + "/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml");
++        if (deployYaml.exists())
++            updateRegistryAndRepoInYamlFile(deployYaml.getPath(), Environment.STRIMZI_REGISTRY, Environment.STRIMZI_ORG);
++    }
+ }
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java
+index c1061b49d..7b3a9502f 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/AbstractUpgradeST.java
+@@ -208,6 +208,7 @@ public class AbstractUpgradeST extends AbstractST {
+             examplesPath = PATH_TO_PACKAGING_EXAMPLES + "";
+         } else {
+             File dir = FileUtils.downloadAndUnzip(toUrl);
++            FileUtils.updateRegistryAndRepoInDeploymentYamlFile(dir, testParameters.getString("toExamples"));
+             examplesPath = dir.getAbsolutePath() + "/" + testParameters.getString("toExamples") + "/examples";
+         }
+ 
+@@ -323,6 +324,7 @@ public class AbstractUpgradeST extends AbstractST {
+         } else {
+             String url = testParameters.getString("urlTo");
+             File dir = FileUtils.downloadAndUnzip(url);
++            FileUtils.updateRegistryAndRepoInDeploymentYamlFile(dir, testParameters.getString("toExamples"));
+             coDir = new File(dir, testParameters.getString("toExamples") + "/install/cluster-operator/");
+         }
+ 
+@@ -421,6 +423,7 @@ public class AbstractUpgradeST extends AbstractST {
+         } else {
+             url = testParameters.getString("urlFrom");
+             dir = FileUtils.downloadAndUnzip(url);
++            FileUtils.updateRegistryAndRepoInDeploymentYamlFile(dir, testParameters.getString("fromExamples"));
+             coDir = new File(dir, testParameters.getString("fromExamples") + "/install/cluster-operator/");
+         }
+ 
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeIsolatedST.java b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeIsolatedST.java
+index 8c58639ae..4e0233e3b 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeIsolatedST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/OlmUpgradeIsolatedST.java
+@@ -102,6 +102,7 @@ public class OlmUpgradeIsolatedST extends AbstractUpgradeST {
+ 
+         String url = testParameters.getString("urlFrom");
+         File dir = FileUtils.downloadAndUnzip(url);
++        FileUtils.updateRegistryAndRepoInDeploymentYamlFile(dir, testParameters.getString("fromExamples"));
+ 
+         // In chainUpgrade we want to setup Kafka only at the begging and then upgrade it via CO
+         kafkaYaml = new File(dir, testParameters.getString("fromExamples") + "/examples/kafka/kafka-persistent.yaml");
+diff --git a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeIsolatedST.java b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeIsolatedST.java
+index d7537c1df..f51304cf7 100644
+--- a/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeIsolatedST.java
++++ b/systemtest/src/test/java/io/strimzi/systemtest/upgrade/StrimziUpgradeIsolatedST.java
+@@ -61,7 +61,7 @@ public class StrimziUpgradeIsolatedST extends AbstractUpgradeST {
+ 
+     // TODO: make testUpgradeKafkaWithoutVersion to run upgrade with config from StrimziUpgradeST.json
+     // main idea of the test and usage of latestReleasedVersion: upgrade CO from version X, kafka Y, to CO version Z and kafka Y + 1 at the end
+-    private final String strimziReleaseWithOlderKafkaVersion = "0.23.0";
++    private final String strimziReleaseWithOlderKafkaVersion = "0.24.0";
+     private final String strimziReleaseWithOlderKafka = String.format("https://github.com/strimzi/strimzi-kafka-operator/releases/download/%s/strimzi-%s.zip",
+             strimziReleaseWithOlderKafkaVersion, strimziReleaseWithOlderKafkaVersion);
+ 
+@@ -79,6 +79,7 @@ public class StrimziUpgradeIsolatedST extends AbstractUpgradeST {
+     @Test
+     void testUpgradeKafkaWithoutVersion(ExtensionContext extensionContext) throws IOException {
+         File dir = FileUtils.downloadAndUnzip(strimziReleaseWithOlderKafka);
++        FileUtils.updateRegistryAndRepoInDeploymentYamlFile(dir, "strimzi-" + strimziReleaseWithOlderKafkaVersion); 
+         File startKafkaPersistent = new File(dir, "strimzi-" + strimziReleaseWithOlderKafkaVersion + "/examples/kafka/kafka-persistent.yaml");
+         File startKafkaVersionsYaml = FileUtils.downloadYaml("https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/" + strimziReleaseWithOlderKafkaVersion + "/kafka-versions.yaml");
+         File latestKafkaVersionsYaml = new File(TestUtils.USER_PATH + "//../kafka-versions.yaml");
+diff --git a/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh b/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh
+index 79c193f6c..51b7d9990 100755
+--- a/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh
++++ b/systemtest/src/test/resources/oauth2/prepare_keycloak_operator.sh
+@@ -22,7 +22,7 @@ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/r
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakrealms_crd.yaml
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloaks_crd.yaml
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakusers_crd.yaml
+-kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/operator.yaml
++curl -s https://raw.githubusercontent.com/keycloak/keycloak-operator/${KEYCLOAK_VERSION}/deploy/operator.yaml | sed "s#quay.io#${DOCKER_REGISTRY}#g" | kubectl apply -n ${NAMESPACE} -f -
+ echo "[INFO] $(date -u +"%Y-%m-%d %H:%M:%S") Deploy Keycloak instance"
+ kubectl apply -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/examples/keycloak/keycloak.yaml
+ 
+diff --git a/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh b/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh
+index 16354a355..1c85217be 100644
+--- a/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh
++++ b/systemtest/src/test/resources/oauth2/teardown_keycloak_operator.sh
+@@ -8,7 +8,7 @@ SCRIPT_PATH=$(dirname "${BASH_SOURCE[0]}")
+ 
+ echo "[INFO] $(date -u +"%Y-%m-%d %H:%M:%S") Delete Keycloak & Keycloak Operator"
+ kubectl delete -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/examples/keycloak/keycloak.yaml
+-kubectl delete -n ${NAMESPACE} -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/operator.yaml
++curl -s https://raw.githubusercontent.com/keycloak/keycloak-operator/${KEYCLOAK_VERSION}/deploy/operator.yaml | sed "s#quay.io#${DOCKER_REGISTRY}#g" | kubectl delete -n ${NAMESPACE} -f -
+ kubectl delete -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakusers_crd.yaml
+ kubectl delete -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloaks_crd.yaml
+ kubectl delete -f https://github.com/keycloak/keycloak-operator/raw/${KEYCLOAK_VERSION}/deploy/crds/keycloak.org_keycloakclients_crd.yaml
+diff --git a/systemtest/src/test/resources/opa/opa.yaml b/systemtest/src/test/resources/opa/opa.yaml
+index 66d42f608..bf7f56689 100644
+--- a/systemtest/src/test/resources/opa/opa.yaml
++++ b/systemtest/src/test/resources/opa/opa.yaml
+@@ -26,7 +26,7 @@ spec:
+       serviceAccountName: opa
+       containers:
+         - name: opa
+-          image: openpolicyagent/opa:latest
++          image: YOUR_OWN_REPO/openpolicyagent/opa:latest
+           ports:
+             - name: http
+               containerPort: 8181
+diff --git a/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json b/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json
+index cee160759..675b09d37 100644
+--- a/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json
++++ b/systemtest/src/test/resources/upgrade/StrimziDowngradeST.json
+@@ -1,19 +1,19 @@
+ [
+   {
+     "fromVersion":"HEAD",
+-    "toVersion":"0.27.0",
++    "toVersion":"0.27.1",
+     "fromExamples":"HEAD",
+-    "toExamples":"strimzi-0.27.0",
++    "toExamples":"strimzi-0.27.1",
+     "urlFrom":"HEAD",
+-    "urlTo":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.27.0/strimzi-0.27.0.zip",
++    "urlTo":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.27.1/strimzi-0.27.1.zip",
+     "generateTopics": true,
+     "additionalTopics": 2,
+     "oldestKafka": "2.8.0",
+     "imagesAfterOperatorDowngrade": {
+-      "zookeeper": "strimzi/kafka:0.27.0-kafka-3.0.0",
+-      "kafka": "strimzi/kafka:0.27.0-kafka-3.0.0",
+-      "topicOperator": "strimzi/operator:0.27.0",
+-      "userOperator": "strimzi/operator:0.27.0"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.27.1-kafka-3.0.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.27.1-kafka-3.0.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.27.1",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.27.1"
+     },
+     "deployKafkaVersion": "3.0.0",
+     "client": {
+diff --git a/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json b/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json
+index e1ef391cd..bee2d87c8 100644
+--- a/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json
++++ b/systemtest/src/test/resources/upgrade/StrimziUpgradeST.json
+@@ -40,23 +40,23 @@
+     "urlFrom":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.24.0/strimzi-0.24.0.zip",
+     "convertCRDs": false,
+     "conversionTool": {
+-      "urlToConversionTool": "",
+-      "toConversionTool": ""
++      "urlToConversionTool": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.24.0/api-conversion-0.24.0.zip",
++      "toConversionTool": "api-conversion-0.24.0"
+     },
+     "generateTopics": true,
+     "additionalTopics": 2,
+     "oldestKafka": "2.7.0",
+     "imagesBeforeKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-3.0.0",
+-      "kafka": "strimzi/kafka:latest-kafka-3.0.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.0.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.0.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0"
+     },
+     "imagesAfterKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-3.1.0",
+-      "kafka": "strimzi/kafka:latest-kafka-3.1.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.1.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.1.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0"
+     },
+     "client": {
+       "continuousClientsMessages": 500
+@@ -70,9 +70,9 @@
+     "strimziFeatureGatesFlags": ""
+   },
+   {
+-    "fromVersion":"0.27.0",
+-    "fromExamples":"strimzi-0.27.0",
+-    "urlFrom":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.27.0/strimzi-0.27.0.zip",
++    "fromVersion":"0.27.1",
++    "fromExamples":"strimzi-0.27.1",
++    "urlFrom":"https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.27.1/strimzi-0.27.1.zip",
+     "convertCRDs": false,
+     "conversionTool": {
+       "urlToConversionTool": "",
+@@ -82,16 +82,16 @@
+     "additionalTopics": 2,
+     "oldestKafka": "2.8.0",
+     "imagesBeforeKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-3.0.0",
+-      "kafka": "strimzi/kafka:latest-kafka-3.0.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.0.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.0.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0"
+     },
+     "imagesAfterKafkaUpgrade": {
+-      "zookeeper": "strimzi/kafka:latest-kafka-3.1.0",
+-      "kafka": "strimzi/kafka:latest-kafka-3.1.0",
+-      "topicOperator": "strimzi/operator:latest",
+-      "userOperator": "strimzi/operator:latest"
++      "zookeeper": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.1.0",
++      "kafka": "YOUR_OWN_REPO/YOUR_OWN_ORG/kafka:0.28.0-kafka-3.1.0",
++      "topicOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0",
++      "userOperator": "YOUR_OWN_REPO/YOUR_OWN_ORG/operator:0.28.0"
+     },
+     "client": {
+       "continuousClientsMessages": 500
