@@ -1,0 +1,27 @@
+diff --git a/Dockerfile b/Dockerfile
+index 5e6fb0b..24c75db 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,4 @@
+-FROM registry.ci.openshift.org/openshift/release:golang-1.13 AS build-env
++FROM golang:1.13 AS build-env
+ 
+ COPY . /src/
+ 
+diff --git a/pkg/model/image_manager.go b/pkg/model/image_manager.go
+index 0aa5a6f..49d5fba 100644
+--- a/pkg/model/image_manager.go
++++ b/pkg/model/image_manager.go
+@@ -15,10 +15,10 @@ const (
+ 	RHMIBackupContainer   = "RELATED_IMAGE_RHMI_BACKUP_CONTAINER"
+ 	PostgresqlImage       = "RELATED_IMAGE_POSTGRESQL"
+ 
+-	DefaultKeycloakImage         = "quay.io/keycloak/keycloak:15.0.2"
++	DefaultKeycloakImage         = "YOUR_OWN_REPO/keycloak/keycloak:15.0.2"
+ 	DefaultRHSSOImageOpenJ9      = "registry.redhat.io/rh-sso-7/sso74-openj9-openshift-rhel8:7.4"
+ 	DefaultRHSSOImageOpenJDK     = "registry.redhat.io/rh-sso-7/sso74-openshift-rhel8:7.4"
+-	DefaultKeycloakInitContainer = "quay.io/keycloak/keycloak-init-container:master"
++	DefaultKeycloakInitContainer = "YOUR_OWN_REPO/keycloak/keycloak-init-container:master"
+ 	DefaultRHSSOInitContainer    = "registry.redhat.io/rh-sso-7-tech-preview/sso74-init-container-rhel8:7.4"
+ 	DefaultRHMIBackupContainer   = "quay.io/integreatly/backup-container:1.0.16"
+ 	DefaultPostgresqlImage       = "registry.access.redhat.com/rhscl/postgresql-10-rhel7:1"
