@@ -1,0 +1,35 @@
+diff --git a/Dockerfile b/Dockerfile
+index 2c5cd49..98c3986 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -30,6 +30,7 @@ ENV TINI_VERSION v0.19.0
+ ENV TINI_SHA256_AMD64=93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c
+ ENV TINI_SHA256_ARM64=07952557df20bfd2a95f9bef198b445e006171969499a1d361bd9e6f8e5e0e81
+ ENV TINI_SHA256_PPC64LE=3f658420974768e40810001a038c29d003728c5fe86da211cff5059e48cfdfde
++ENV TINI_SHA256_S390X=931b70a182af879ca249ae9de87ef68423121b38d235c78997fafc680ceab32d
+ 
+ RUN set -ex; \
+     if [[ ${TARGETPLATFORM} = "linux/ppc64le" ]]; then \
+@@ -40,6 +41,10 @@ RUN set -ex; \
+         curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-arm64 -o /usr/bin/tini; \
+         echo "${TINI_SHA256_ARM64} */usr/bin/tini" | sha256sum -c; \
+         chmod +x /usr/bin/tini; \
++    elif [[ ${TARGETPLATFORM} = "linux/s390x" ]]; then \
++        curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-s390x -o /usr/bin/tini; \
++        echo "${TINI_SHA256_S390X} */usr/bin/tini" | sha256sum -c; \
++        chmod +x /usr/bin/tini; \
+     else \
+         curl -s -L https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini -o /usr/bin/tini; \
+         echo "${TINI_SHA256_AMD64} */usr/bin/tini" | sha256sum -c; \
+diff --git a/Makefile.maven b/Makefile.maven
+index 1f5290f..1128808 100644
+--- a/Makefile.maven
++++ b/Makefile.maven
+@@ -15,6 +15,7 @@ java_verify:
+ java_package:
+ 	echo "Packaging project ..."
+ 	mvn $(MVN_ARGS) package
++	cp -f /tmp/opertemp/libs/zstd-jni-1.4.5-6.jar target/kafka-bridge-$(RELEASE_VERSION)/kafka-bridge-$(RELEASE_VERSION)/libs
+ 
+ .PHONY: java_install
+ java_install:
