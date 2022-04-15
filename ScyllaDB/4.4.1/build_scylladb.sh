@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Usage:
@@ -389,7 +389,7 @@ buildCmake()
 #==============================================================================
 buildAnt()
 {
-  local ver=1.10.11
+  local ver=1.10.12
   msglog "Installing ant $ver"
 
   cd "$SOURCE_ROOT"
