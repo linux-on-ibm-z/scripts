@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021                                                                                                                                                                                                                                                                                                                                                                                                                                                .
+# © Copyright IBM Corporation 2021, 2022                                                                                                                                                                                                                                                                                                                                                                                                                                           .
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -131,7 +131,6 @@ function configureAndInstall() {
     sed -i 's+http://download.sysdig.com/dependencies/protobuf-cpp-3.5.0.tar.gz+https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protobuf-cpp-3.13.0.tar.gz+g' protobuf.cmake
     sed -i 's/e4ba8284a407712168593e79e6555eb2/6425d7466db2efe5a80de1e38899f317/g' protobuf.cmake
     sed -i 's/PATCH_COMMAND wget http/#PATCH_COMMAND wget http/g' protobuf.cmake
-
     cd $SOURCE_ROOT/falco/build/
     make
 
@@ -222,7 +221,7 @@ logDetails
 prepare
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04" | "ubuntu-21.10")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update
@@ -270,7 +269,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"sles-15.2" | "sles-15.3")
+"sles-15.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
