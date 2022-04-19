@@ -101,6 +101,7 @@ function configureAndInstall() {
     sed -i 's+http://download.sysdig.com/dependencies/protobuf-cpp-3.5.0.tar.gz+https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protobuf-cpp-3.13.0.tar.gz+g' protobuf.cmake
     sed -i 's/e4ba8284a407712168593e79e6555eb2/6425d7466db2efe5a80de1e38899f317/g' protobuf.cmake
     sed -i 's/PATCH_COMMAND wget http/#PATCH_COMMAND wget http/g' protobuf.cmake
+    cd $SOURCE_ROOT/sysdig/build
     make
     sudo make install
     printf -- '\nSysdig build completed successfully. \n'
