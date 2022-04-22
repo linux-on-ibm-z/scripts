@@ -1,0 +1,155 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a5453b3..c556fd7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -100,17 +100,11 @@ IF (WIN32)
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+    SET(PLATFORM_FILES src/sockets.cc
+                       src/cb_win32.cc
+-                      src/crc32c_sse4_2.cc
+                       include/win32/getopt.h)
+ ELSE (WIN32)
+    SET(PLATFORM_FILES src/cb_pthreads.cc)
+    # We don't know the output of uname -p on all of our supported platforms
+    # so check if it's PPC64
+-   if (NOT CMAKE_SYSTEM_PROCESSOR EQUAL "^ppc64")
+-      list(APPEND PLATFORM_FILES src/crc32c_sse4_2.cc)
+-      set_source_files_properties(src/crc32c_sse4_2.cc
+-                                  PROPERTIES COMPILE_FLAGS -msse4.2)
+-   endif()
+    LIST(APPEND PLATFORM_LIBRARIES "pthread")
+
+    IF (NOT APPLE)
+@@ -235,6 +229,7 @@ LIST(APPEND PLATFORM_FILES
+   include/platform/thread.h
+   include/platform/timeutils.h
+   include/platform/uuid.h
++  /usr/local/include/crc32-s390x.h
+ )
+
+ # Build a separate static library for cbassert/backtrace
+@@ -283,6 +278,13 @@ endif()
+ # Always build the system_arena code for simpler concurrent development
+ LIST(APPEND PLATFORM_FILES src/system_arena_malloc.cc)
+
++
++# Find s390x crc files
++find_library(crc_lib
++             NAMES crc32_s390x
++             PATHS
++             /usr/local/lib/)
++set(CRC_LIBRARIES ${crc_lib} CACHE STRING "CRC s390x libraries" FORCE)
+ # platform - the main platform library containing our various
+ # platform abstraction functionality.
+ #
+@@ -300,6 +302,7 @@ LIST(APPEND PLATFORM_FILES src/system_arena_malloc.cc)
+ # linked folly, we run in to problems - see MB-45378.
+ add_library(platform STATIC)
+ target_link_libraries(platform PUBLIC Folly::folly platform_headers)
++target_link_libraries(platform PUBLIC ${CRC_LIBRARIES})
+ target_link_libraries(platform PRIVATE
+   phosphor
+   gsl_lite
+diff --git a/external/valgrind/valgrind.h b/external/valgrind/valgrind.h
+index 6954d75..b3822de 100644
+--- a/external/valgrind/valgrind.h
++++ b/external/valgrind/valgrind.h
+@@ -862,7 +862,8 @@ typedef
+                     /* results = r3 */                           \
+                     "lgr %0, 3\n\t"                              \
+                     : "=d" (_zzq_result)                         \
+-                    : "a" (&_zzq_args[0]), "0" (_zzq_default)    \
++                    : "a" (&_zzq_args[0]),                       \
++                      "0" ((unsigned long int)_zzq_default)      \
+                     : "cc", "2", "3", "memory"                   \
+                    );                                            \
+    _zzq_result;                                                  \
+diff --git a/include/platform/crc32c.h b/include/platform/crc32c.h
+index 686b412..c212fe3 100644
+--- a/include/platform/crc32c.h
++++ b/include/platform/crc32c.h
+@@ -24,6 +24,7 @@
+ #endif
+
+ uint32_t crc32c(const uint8_t* buf, size_t len, uint32_t crc_in);
++uint32_t crc32c_other(const uint8_t* buf, size_t len, uint32_t crc_in);
+
+ // The following methods are used by unit testing to force the calculation
+ // of the checksum by using a given implementation.
+diff --git a/src/crc32c.cc b/src/crc32c.cc
+index 042972c..ae5d9ad 100644
+--- a/src/crc32c.cc
++++ b/src/crc32c.cc
+@@ -53,6 +53,7 @@
+
+ #include "crc32c_private.h"
+ #include <platform/crc32c.h>
++#include <crc32-s390x.h>
+ #include <array>
+ #include <cstddef>
+ #include <cstdint>
+@@ -358,11 +359,15 @@ typedef uint32_t (*crc32c_function)(const uint8_t* buf,
+ // If SSE4.2 is available then hardware acceleration is used.
+ //
+ crc32c_function setup_crc32c() {
+-    return folly::CpuId().sse42() ? crc32c_hw : crc32c_sw;
++    return crc32c_sw;
+ }
+
+-static crc32c_function safe_crc32c = setup_crc32c();
++crc32c_function setup_crc32c_other() {
++    return crc32c_be;
++}
+
++static crc32c_function safe_crc32c = setup_crc32c();
++static crc32c_function safe_crc32c_other = setup_crc32c_other();
+ //
+ // The exported crc32c method uses the function setup_crc32 decided
+ // is safe for the platform.
+@@ -370,3 +375,7 @@ static crc32c_function safe_crc32c = setup_crc32c();
+ uint32_t crc32c (const uint8_t* buf, size_t len, uint32_t crc_in) {
+     return safe_crc32c(buf, len, crc_in);
+ }
++
++uint32_t crc32c_other (const uint8_t* buf, size_t len, uint32_t crc_in) {
++    return safe_crc32c_other(buf, len, crc_in);
++}
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 7978441..abcd15b 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -5,7 +5,7 @@ ADD_SUBDIRECTORY(base64)
+ ADD_SUBDIRECTORY(bitset)
+ ADD_SUBDIRECTORY(checked_snprintf)
+ ADD_SUBDIRECTORY(corestore)
+-ADD_SUBDIRECTORY(crc32)
++#ADD_SUBDIRECTORY(crc32)
+ ADD_SUBDIRECTORY(dirutils)
+ ADD_SUBDIRECTORY(gettimeofday)
+ ADD_SUBDIRECTORY(getopt)
+diff --git a/tests/crc32/CMakeLists.txt b/tests/crc32/CMakeLists.txt
+index 3b4dcf2..6afbd98 100644
+--- a/tests/crc32/CMakeLists.txt
++++ b/tests/crc32/CMakeLists.txt
+@@ -4,8 +4,5 @@ target_link_libraries(platform-crc32c-test platform)
+ add_executable(platform-crc32c-sw_hw-test crc32c_test.cc)
+ target_link_libraries(platform-crc32c-sw_hw-test platform)
+
+-add_executable(platform-crc32c-bench crc32c_bench.cc)
+-target_link_libraries(platform-crc32c-bench platform)
+-
+ add_test(platform-crc32c-test platform-crc32c-test)
+ add_test(platform-crc32c-sw_hw-test platform-crc32c-sw_hw-test)
+diff --git a/tests/crc32/crc32c_test.cc b/tests/crc32/crc32c_test.cc
+index f0b33d0..971d325 100644
+--- a/tests/crc32/crc32c_test.cc
++++ b/tests/crc32/crc32c_test.cc
+@@ -194,7 +194,7 @@ int main() {
+         pass &= run_test(buffer+1, ii, results[res+1], size + " bytes - unaligned");
+     }
+
+-
++    std::cout << "Did this execute on s390x?" << std::endl;
+     delete [] buffer;
+     return pass ? 0 : 1;
+ }
