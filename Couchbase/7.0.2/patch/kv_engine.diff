@@ -1,0 +1,289 @@
+diff --git a/daemon/subdocument_context.cc b/daemon/subdocument_context.cc
+index 10fb4b77c..39e09ab97 100644
+--- a/daemon/subdocument_context.cc
++++ b/daemon/subdocument_context.cc
+@@ -742,7 +742,7 @@ uint32_t SubdocCmdContext::computeValueCRC32C() {
+     } else {
+         value = in_doc.view;
+     }
+-    return crc32c(reinterpret_cast<const unsigned char*>(value.data()),
++    return crc32c_other(reinterpret_cast<const unsigned char*>(value.data()),
+                   value.size(),
+                   0 /*crc_in*/);
+ }
+diff --git a/engines/ep/management/cbstats b/engines/ep/management/cbstats
+index 8ebff7542..f16237a95 100755
+--- a/engines/ep/management/cbstats
++++ b/engines/ep/management/cbstats
+@@ -28,7 +28,12 @@ from collections import defaultdict
+ from difflib import SequenceMatcher
+ from operator import itemgetter
+
+-from natsort import natsorted
++try:
++    from natsort import natsorted
++except:
++    # MB-48540: natsort relies on distutils. Until cbpy is once again packaged with distutils, fall back to
++    # normal ("not-natural") sort.
++    natsorted = sorted
+
+ BIG_VALUE = 2 ** 60
+ SMALL_VALUE = - (2 ** 60)
+diff --git a/engines/ep/src/collections/persist_manifest_task.cc b/engines/ep/src/collections/persist_manifest_task.cc
+index 0f3bff35a..8d50903c6 100644
+--- a/engines/ep/src/collections/persist_manifest_task.cc
++++ b/engines/ep/src/collections/persist_manifest_task.cc
+@@ -74,7 +74,7 @@ cb::engine_errc PersistManifestTask::doTaskCore() {
+     flatbuffers::FlatBufferBuilder builder;
+     auto fbManifest = builder.CreateVector(fbData.data(), fbData.size());
+     auto toWrite = Collections::Persist::CreateManifestWithCrc(
+-            builder, crc32c(fbData.data(), fbData.size(), 0), fbManifest);
++            builder, crc32c_other(fbData.data(), fbData.size(), 0), fbManifest);
+     builder.Finish(toWrite);
+
+     std::ofstream writer(tmpFile, std::ofstream::trunc | std::ofstream::binary);
+@@ -142,7 +142,7 @@ std::optional<Manifest> PersistManifestTask::tryAndLoad(
+                 flatbuffers::GetRoot<Collections::Persist::ManifestWithCrc>(
+                         manifestRaw.data());
+         uint32_t storedCrc = fbData->crc();
+-        uint32_t crc = crc32c(
++        uint32_t crc = crc32c_other(
+                 fbData->manifest()->data(), fbData->manifest()->size(), 0);
+         if (crc != storedCrc) {
+             EP_LOG_CRITICAL(
+diff --git a/engines/ep/src/couch-kvstore/couch-kvstore-metadata.h b/engines/ep/src/couch-kvstore/couch-kvstore-metadata.h
+index e6ead8807..9847fe98c 100644
+--- a/engines/ep/src/couch-kvstore/couch-kvstore-metadata.h
++++ b/engines/ep/src/couch-kvstore/couch-kvstore-metadata.h
+@@ -244,7 +244,11 @@ protected:
+         void initialise(const char* raw) {
+             operation = Operation(raw[0]);
+             uint64_t buf;
+-            std::memcpy(&buf, &raw[1], sizeof(cb::uint48_t));
++            if (folly::kIsLittleEndian) {
++              std::memcpy(&buf, &raw[1], sizeof(cb::uint48_t));
++            } else {
++              std::memcpy(reinterpret_cast<uint8_t*>(&buf) + 2, &raw[1], sizeof(cb::uint48_t));
++            }
+             details.raw = cb::uint48_t(buf).ntoh();
+         };
+
+diff --git a/engines/ep/src/defragmenter.cc b/engines/ep/src/defragmenter.cc
+index d0292ef36..3966cc0c6 100644
+--- a/engines/ep/src/defragmenter.cc
++++ b/engines/ep/src/defragmenter.cc
+@@ -219,6 +219,10 @@ size_t DefragmenterTask::getMaxValueSize() {
+     size_t nbins{0};
+     cb::ArenaMalloc::getProperty("arenas.nbins", nbins);
+
++    if (folly::kIsBigEndian) {
++        nbins = nbins >> 32; //remove the padded zeros
++    }
++
+     char buff[20];
+     snprintf(buff,
+              sizeof(buff),
+diff --git a/engines/ep/src/ep_engine.cc b/engines/ep/src/ep_engine.cc
+index 3996ff43c..1e77cf47a 100644
+--- a/engines/ep/src/ep_engine.cc
++++ b/engines/ep/src/ep_engine.cc
+@@ -5119,7 +5119,7 @@ cb::engine_errc EventuallyPersistentEngine::observe(
+         }
+
+         // Get key stats
+-        uint16_t keystatus = 0;
++        uint8_t keystatus = 0;
+         struct key_stats kstats = {};
+         rv = kvBucket->getKeyStats(
+                 key, vb_id, cookie, kstats, WantsDeleted::Yes);
+diff --git a/engines/ep/src/stored-value.h b/engines/ep/src/stored-value.h
+index 204365a9b..c997d0c13 100644
+--- a/engines/ep/src/stored-value.h
++++ b/engines/ep/src/stored-value.h
+@@ -933,10 +933,17 @@ protected:
+         }
+         uint16_t raw;
+
++#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+         struct value_ptr_tag_fields {
+             uint8_t frequencyCounter;
+             uint8_t age;
+         } fields;
++#else
++        struct value_ptr_tag_fields {
++            uint8_t age;
++            uint8_t frequencyCounter;
++        } fields;
++#endif
+     };
+
+     /// @return the tag part of the value TaggedPtr
+diff --git a/engines/ep/src/vbucket.cc b/engines/ep/src/vbucket.cc
+index 3387daa05..4905f441a 100644
+--- a/engines/ep/src/vbucket.cc
++++ b/engines/ep/src/vbucket.cc
+@@ -763,7 +763,7 @@ uint64_t VBucket::getQueueAge() {
+     // Return the time in milliseconds
+     return (currentAge - currDirtyQueueAge);
+ }
+-
++/*
+ template <typename T>
+ void VBucket::addStat(const char* nm,
+                       const T& val,
+@@ -776,7 +776,7 @@ void VBucket::addStat(const char* nm,
+         add_casted_stat(statPrefix.data(), val, add_stat, c);
+     }
+ }
+-
++*/
+ void VBucket::handlePreExpiry(const HashTable::HashBucketLock& hbl,
+                               StoredValue& v) {
+     // Pending items should not be subject to expiry
+diff --git a/engines/ep/src/vbucket.h b/engines/ep/src/vbucket.h
+index e20c22cd0..3769b536e 100644
+--- a/engines/ep/src/vbucket.h
++++ b/engines/ep/src/vbucket.h
+@@ -30,6 +30,7 @@
+ #include <atomic>
+ #include <list>
+ #include <queue>
++#include <statistics/cbstat_collector.h>
+
+ class ActiveDurabilityMonitor;
+ struct CheckpointSnapshotRange;
+@@ -2015,12 +2016,26 @@ protected:
+     void _addStats(VBucketStatsDetailLevel detail,
+                    const AddStatFn& add_stat,
+                    const void* c);
+-
++/*
+     template <typename T>
+     void addStat(const char* nm,
+                  const T& val,
+                  const AddStatFn& add_stat,
+                  const void* c);
++*/
++    template <typename T>
++    void addStat(const char* nm,
++                      const T& val,
++                      const AddStatFn& add_stat,
++                      const void* c) {
++        std::string stat = statPrefix;
++        if (nm != nullptr) {
++            add_prefixed_stat(statPrefix, nm, val, add_stat, c);
++        } else {
++            add_casted_stat(statPrefix.data(), val, add_stat, c);
++        }
++    }
++
+
+     /* This member holds the eviction policy used */
+     const EvictionPolicy eviction;
+diff --git a/engines/ep/tests/CMakeLists.txt b/engines/ep/tests/CMakeLists.txt
+index 0f74fe641..949aab638 100644
+--- a/engines/ep/tests/CMakeLists.txt
++++ b/engines/ep/tests/CMakeLists.txt
+@@ -191,7 +191,7 @@ gtest_discover_tests(ep-engine_ep_unit_tests
+         TEST_PREFIX ep-engine_ep_unit_tests.
+         ONE_CTEST_PER_SUITE
+         DISCOVERY_TIMEOUT 60
+-        PROPERTIES TIMEOUT 300
++        PROPERTIES TIMEOUT 1000
+         ENVIRONMENT ${THREAD_SANITIZER_TEST_ENV})
+ IF (COUCHBASE_MAGMA_COMMIT_VALIDATION)
+     # Create a set of tests for magma which are filtered such that only the
+@@ -204,7 +204,7 @@ IF (COUCHBASE_MAGMA_COMMIT_VALIDATION)
+             # easier to just supply "agma" to the filter to capture both.
+             POST_SUITE_FILTER *agma
+             DISCOVERY_TIMEOUT 60
+-            PROPERTIES TIMEOUT 300
++            PROPERTIES TIMEOUT 1000
+             ENVIRONMENT ${THREAD_SANITIZER_TEST_ENV})
+ ENDIF()
+
+@@ -222,7 +222,7 @@ IF(FALSE)
+     IF (EP_USE_ROCKSDB)
+         ADD_TEST(NAME ep-engine-persistence-unit-tests.rocksdb
+                 COMMAND memcached_testapp -E ep -c "backend=rocksdb" --gtest_filter=*PersistToTest*)
+-        SET_TESTS_PROPERTIES(ep-engine-persistence-unit-tests.rocksdb PROPERTIES TIMEOUT 300)
++        SET_TESTS_PROPERTIES(ep-engine-persistence-unit-tests.rocksdb PROPERTIES TIMEOUT 1000)
+     ENDIF (EP_USE_ROCKSDB)
+ ENDIF()
+ # Defines a testsuite which runs in full and value eviction
+@@ -307,7 +307,7 @@ IF(WIN32)
+     # on CV machines slower?)
+     ADD_TESTSUITE(ep_testsuite 600 SKIP_MAGMA)
+ ELSE()
+-    ADD_TESTSUITE(ep_testsuite 300)
++    ADD_TESTSUITE(ep_testsuite 1000)
+ ENDIF()
+
+ ADD_TESTSUITE(ep_testsuite_basic 240)
+diff --git a/engines/ep/tests/ep_test_apis.cc b/engines/ep/tests/ep_test_apis.cc
+index 6323f45f2..74101ac8f 100644
+--- a/engines/ep/tests/ep_test_apis.cc
++++ b/engines/ep/tests/ep_test_apis.cc
+@@ -271,7 +271,13 @@ bool add_response_ret_meta(std::string_view key,
+     if (extras.size() == 16) {
+         const auto* ext_bytes = reinterpret_cast<const uint8_t*>(extras.data());
+         memcpy(&last_meta.flags, ext_bytes, 4);
+-        memcpy(&last_meta.exptime, ext_bytes + 4, 4);
++
++        if (folly::kIsLittleEndian) {
++            memcpy(&last_meta.exptime, ext_bytes + 4, 4);
++        } else {
++            memcpy(reinterpret_cast<char*>(&last_meta.exptime) + 4, ext_bytes + 4, 4);
++        }
++
+         last_meta.exptime = ntohl(last_meta.exptime);
+         uint64_t revId = 0;
+         memcpy(&revId, ext_bytes + 8, 8);
+diff --git a/engines/ep/tests/ep_testsuite_xdcr.cc b/engines/ep/tests/ep_testsuite_xdcr.cc
+index 377f9de26..5b1729887 100644
+--- a/engines/ep/tests/ep_testsuite_xdcr.cc
++++ b/engines/ep/tests/ep_testsuite_xdcr.cc
+@@ -2835,7 +2835,7 @@ static enum test_result test_cas_options_and_nmeta(EngineIface* h) {
+     itemMeta.flags = 0xdeadbeef;
+
+     // Watson (4.6) accepts valid encodings, but ignores them
+-    std::vector<char> junkMeta = {-2,-1,2,3};
++    std::vector<char> junkMeta = {'\xfe', '\xff', '\2', '\3'};
+
+     int force = 0;
+
+diff --git a/engines/ep/tests/module_tests/collections/manifest_test.cc b/engines/ep/tests/module_tests/collections/manifest_test.cc
+index 69994deae..8a5282292 100644
+--- a/engines/ep/tests/module_tests/collections/manifest_test.cc
++++ b/engines/ep/tests/module_tests/collections/manifest_test.cc
+@@ -649,7 +649,7 @@ TEST(ManifestTest, toJson) {
+ #endif // !defined(__clang_major__) || __clang_major__ > 7
+
+ TEST(ManifestTest, badNames) {
+-    for (char c = 127; c >= 0; c--) {
++    for (int8_t c = 127; c >= 0; c--) {
+         std::string name(1, c);
+         CollectionsManifest cm({name, 8});
+
+diff --git a/tests/testapp/testapp_xattr.cc b/tests/testapp/testapp_xattr.cc
+index 790e6aa7b..27bcdf8a4 100644
+--- a/tests/testapp/testapp_xattr.cc
++++ b/tests/testapp/testapp_xattr.cc
+@@ -1583,7 +1583,7 @@ TEST_P(XattrTest, MB_25562_IncludeValueCrc32cInDocumentVAttr) {
+     EXPECT_EQ(R"({"a":1})", resp.getValue());
+
+     // Compute the expected value checksum
+-    auto _crc32c = crc32c(
++    auto _crc32c = crc32c_other(
+             reinterpret_cast<const unsigned char*>(document.value.c_str()),
+             document.value.size(),
+             0 /*crc_in*/);
+@@ -1632,7 +1632,7 @@ TEST_P(XattrTest, MB_25562_StampValueCrc32cInUserXAttr) {
+
+     // Compute the expected value_crc32c
+     auto value = conn.get(name, Vbid(0)).value;
+-    auto _crc32c = crc32c(reinterpret_cast<const unsigned char*>(value.c_str()),
++    auto _crc32c = crc32c_other(reinterpret_cast<const unsigned char*>(value.c_str()),
+                           value.size(),
+                           0 /*crc_in*/);
+     auto expectedValueCrc32c = "\"" + cb::to_hex(_crc32c) + "\"";
