@@ -1,0 +1,60 @@
+diff --git a/Makefile b/Makefile
+index 54392cd..ddb9b7f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,4 +1,4 @@
+-CFLAGS=-Icrc32-vpmsum
++CFLAGS=-Icrc32-vpmsum -march=z13
+ 
+ CRC32_POLY=0x04C11DB7
+ CRC32C_POLY=0x1EDC6F41
+@@ -22,10 +22,10 @@ PROGS=  crc32be-vx.o \
+ all: $(PROGS)
+ 
+ crc32be-vx.o: crc32be-vx.S
+-	$(CC) -c crc32be-vx.S
++	$(CC) -march=z13 -c crc32be-vx.S
+ 
+ crc32le-vx.o: crc32le-vx.S
+-	$(CC) -c crc32le-vx.S
++	$(CC) -march=z13 -c crc32le-vx.S
+ 
+ libcrc32_s390x.a: crc32-s390x.o crc32be-vx.o crc32le-vx.o
+ 	ar rcs $@ $^ 
+diff --git a/crc32-s390x.c b/crc32-s390x.c
+index db26ea3..0c6fd9f 100644
+--- a/crc32-s390x.c
++++ b/crc32-s390x.c
+@@ -28,7 +28,7 @@ unsigned int crc32_be(unsigned int crc, const unsigned char *buf, size_t len) {
+ 	return crc;
+ }
+ 
+-unsigned int crc32c_be(unsigned int crc, const unsigned char *buf, size_t len) {
++unsigned int crc32c_be(const unsigned char *buf, size_t len, unsigned int crc) {
+ 	while (len--)
+ 		crc = crc32ctable_be[0][((crc >> 24) ^ *buf++) & 0xFF] ^ (crc << 8);
+ 	return crc;
+@@ -42,7 +42,7 @@ unsigned int crc32_le(unsigned int crc, const unsigned char *buf, size_t len) {
+ 	return crc;
+ }
+ 
+-unsigned int crc32c_le(unsigned int crc, const unsigned char *buf, size_t len){
++unsigned int crc32c_le(const unsigned char *buf, size_t len, unsigned int crc) {
+ 	crc = htole32(crc);
+ 	while (len--)
+ 		crc = crc32ctable_le[0][((crc >> 24) ^ *buf++) & 0xFF] ^ (crc << 8);
+diff --git a/crc32-s390x.h b/crc32-s390x.h
+index 76e84be..b01c39e 100644
+--- a/crc32-s390x.h
++++ b/crc32-s390x.h
+@@ -10,8 +10,8 @@ extern "C" {
+    big-endian and little-endian variants. */
+ unsigned int crc32_be(unsigned int, const unsigned char *, size_t);
+ unsigned int crc32_le(unsigned int, const unsigned char *, size_t);
+-unsigned int crc32c_be(unsigned int, const unsigned char *, size_t);
+-unsigned int crc32c_le(unsigned int, const unsigned char *, size_t);
++unsigned int crc32c_be(const unsigned char *, size_t, unsigned int);
++unsigned int crc32c_le(const unsigned char *, size_t, unsigned int);
+ 
+ /* Hardware-accelerated versions of the above. It is up to the caller
+    to detect the availability of vector facility and kernel support. */
