@@ -1,0 +1,20 @@
+diff --git a/src/mapreduce/CMakeLists.txt b/src/mapreduce/CMakeLists.txt
+index ef4d983a..f99b32a5 100644
+--- a/src/mapreduce/CMakeLists.txt
++++ b/src/mapreduce/CMakeLists.txt
+@@ -68,11 +68,11 @@ IF (WIN32)
+     INSTALL(FILES ${CMAKE_INSTALL_PREFIX}/bin/icudtl.dat
+             DESTINATION ${MR_PRIV_PREFIX})
+ ELSE ()
+-    INSTALL(FILES ${CMAKE_INSTALL_PREFIX}/lib/icudtl.dat
++    INSTALL(FILES /usr/local/lib/icudtb.dat
+             DESTINATION ${MR_PRIV_PREFIX})
+-    INSTALL(FILES ${CMAKE_INSTALL_PREFIX}/lib/icudtl.dat
++    INSTALL(FILES /usr/local/lib/icudtb.dat
+             DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+-    INSTALL(FILES ${CMAKE_INSTALL_PREFIX}/lib/icudtl.dat
++    INSTALL(FILES /usr/local/lib/icudtb.dat
+             DESTINATION ${CMAKE_BINARY_DIR}/couchdb/src/mapreduce/priv)
+ ENDIF ()
+ 
+
