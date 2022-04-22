@@ -1,0 +1,87 @@
+diff --git a/CMake/folly-config.h.cmake b/CMake/folly-config.h.cmake
+index 95f3d89b9..1b262afd6 100644
+--- a/CMake/folly-config.h.cmake
++++ b/CMake/folly-config.h.cmake
+@@ -59,7 +59,6 @@
+ #cmakedefine FOLLY_HAVE_VLA 1
+ #cmakedefine FOLLY_HAVE_WEAK_SYMBOLS 1
+ #cmakedefine FOLLY_HAVE_LINUX_VDSO 1
+-#cmakedefine FOLLY_HAVE_MALLOC_USABLE_SIZE 1
+ #cmakedefine FOLLY_HAVE_INT128_T 1
+ #cmakedefine FOLLY_SUPPLY_MISSING_INT128_TRAITS 1
+ #cmakedefine FOLLY_HAVE_WCHAR_SUPPORT 1
+diff --git a/build/fbcode_builder/CMake/FindGflags.cmake b/build/fbcode_builder/CMake/FindGflags.cmake
+index 246ceacdd..24f3aac20 100644
+--- a/build/fbcode_builder/CMake/FindGflags.cmake
++++ b/build/fbcode_builder/CMake/FindGflags.cmake
+@@ -41,6 +41,7 @@ if (gflags_FOUND)
+   # Re-export the config-specified libs with our local names
+   set(LIBGFLAGS_LIBRARY ${gflags_LIBRARIES})
+   set(LIBGFLAGS_INCLUDE_DIR ${gflags_INCLUDE_DIR})
++  message(STATUS "Found LIBGFLAGS_LIBRARY at ${gflags_LIBRARIES} and include dir at ${gflags_INCLUDE_DIR}")
+   set(LIBGFLAGS_FOUND ${gflags_FOUND})
+   # cmake module compat
+   set(GFLAGS_FOUND ${gflags_FOUND})
+diff --git a/folly/PackedSyncPtr.h b/folly/PackedSyncPtr.h
+index 7a4894cda..7a5c48f86 100644
+--- a/folly/PackedSyncPtr.h
++++ b/folly/PackedSyncPtr.h
+@@ -23,7 +23,7 @@
+ #include <folly/Portability.h>
+ #include <folly/synchronization/SmallLocks.h>
+ 
+-#if !FOLLY_X64 && !FOLLY_PPC64 && !FOLLY_AARCH64
++#if !FOLLY_X64 && !FOLLY_PPC64 && !FOLLY_AARCH64 && !defined(__s390x__)
+ #error "PackedSyncPtr is x64, ppc64 or aarch64 specific code."
+ #endif
+ 
+diff --git a/folly/detail/Demangle.h b/folly/detail/Demangle.h
+index b11ffc7d7..f01b2968e 100644
+--- a/folly/detail/Demangle.h
++++ b/folly/detail/Demangle.h
+@@ -18,7 +18,7 @@
+ 
+ #include <cstddef>
+ 
+-#if __has_include(<demangle.h>)
++#if __has_include(<Demangle.h>)
+ #define FOLLY_DETAIL_HAVE_DEMANGLE_H 1
+ #else
+ #define FOLLY_DETAIL_HAVE_DEMANGLE_H 0
+diff --git a/folly/experimental/QuotientMultiSet.h b/folly/experimental/QuotientMultiSet.h
+index 73506316e..fe2d9eb2b 100644
+--- a/folly/experimental/QuotientMultiSet.h
++++ b/folly/experimental/QuotientMultiSet.h
+@@ -26,7 +26,7 @@
+ #include <folly/io/IOBufQueue.h>
+ 
+ // A 128-bit integer type is needed for fast division.
+-#define FOLLY_QUOTIENT_MULTI_SET_SUPPORTED FOLLY_HAVE_INT128_T
++#define FOLLY_QUOTIENT_MULTI_SET_SUPPORTED FALSE
+ 
+ #if FOLLY_QUOTIENT_MULTI_SET_SUPPORTED
+ 
+diff --git a/folly/stats/detail/BufferedStat.h b/folly/stats/detail/BufferedStat.h
+index 451cdd847..061defd02 100644
+--- a/folly/stats/detail/BufferedStat.h
++++ b/folly/stats/detail/BufferedStat.h
+@@ -17,6 +17,7 @@
+ #pragma once
+ 
+ #include <folly/SharedMutex.h>
++#include "glog/logging.h"
+ #include <folly/stats/detail/DigestBuilder.h>
+ #include <folly/stats/detail/SlidingWindow.h>
+ 
+diff --git a/folly/synchronization/SmallLocks.h b/folly/synchronization/SmallLocks.h
+index a5c196b7d..8d64964af 100644
+--- a/folly/synchronization/SmallLocks.h
++++ b/folly/synchronization/SmallLocks.h
+@@ -37,6 +37,6 @@
+ #include <folly/synchronization/MicroSpinLock.h>
+ 
+ #include <folly/Portability.h>
+-#if FOLLY_X64 || FOLLY_AARCH64 || FOLLY_PPC64
++#if FOLLY_X64 || FOLLY_AARCH64 || FOLLY_PPC64 || defined(__s390x__)
+ #include <folly/synchronization/PicoSpinLock.h>
+ #endif
