@@ -1,0 +1,621 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a8878db..1be83b4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -90,8 +90,13 @@ SET (COUCHBASE_SERVER_BUILD True CACHE BOOL "Indicating this is a server build")
+
+ # Try to download the prebuilt 3rd-party dependencies by default
+ IF (NOT DEFINED CB_DOWNLOAD_DEPS)
+-   SET(CB_DOWNLOAD_DEPS True
++   IF (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "s390x")
++     SET(CB_DOWNLOAD_DEPS False
+        CACHE BOOL "Download prebuilt dependencies by default")
++   ELSE ()
++     SET(CB_DOWNLOAD_DEPS True
++       CACHE BOOL "Download prebuilt dependencies by default")
++   ENDIF ()
+ ENDIF (NOT DEFINED CB_DOWNLOAD_DEPS)
+
+ # Have to add deps first, before any other part of the build tries to
+@@ -173,7 +178,7 @@ INCLUDE(FindCouchbasePythonInterp)
+ INCLUDE(FindCouchbaseErlang)
+ INCLUDE(FindCouchbaseDtrace)
+ INCLUDE(FindCouchbaseGo)
+-INCLUDE(FindCouchbaseBreakpad)
++#INCLUDE(FindCouchbaseBreakpad)
+ INCLUDE(FindCouchbaseFlatbuffers)
+ INCLUDE(FindCouchbaseValgrind)
+ INCLUDE(FindCouchbaseV8)
+diff --git a/cmake/Modules/CBDownloadDeps.cmake b/cmake/Modules/CBDownloadDeps.cmake
+index cb8488e..a7e9f58 100644
+--- a/cmake/Modules/CBDownloadDeps.cmake
++++ b/cmake/Modules/CBDownloadDeps.cmake
+@@ -298,7 +298,11 @@ IF (NOT CBDownloadDeps_INCLUDED)
+       SET (_gofile "go${GOVERSION}.freebsd-amd64.tar.gz")
+     ELSE ()
+       # Presumed Linux
+-      SET (_gofile "go${GOVERSION}.linux-amd64.tar.gz")
++      IF (_arch STREQUAL "s390x")
++        SET (_gofile "go${GOVERSION}.linux-s390x.tar.gz")
++      ELSE ()
++        SET (_gofile "go${GOVERSION}.linux-amd64.tar.gz")
++      ENDIF ()
+     ENDIF ()
+     SET (_cachefile "${CB_DOWNLOAD_DEPS_CACHE}/${_gofile}")
+     IF (NOT EXISTS "${_cachefile}")
+diff --git a/cmake/Modules/FindCouchbaseBoost.cmake b/cmake/Modules/FindCouchbaseBoost.cmake
+index 66703b4..3b4d489 100644
+--- a/cmake/Modules/FindCouchbaseBoost.cmake
++++ b/cmake/Modules/FindCouchbaseBoost.cmake
+@@ -37,9 +37,11 @@ if (NOT DEFINED Boost_FOUND)
+
+     set(Boost_ADDITIONAL_VERSIONS "1.74")
+     set(Boost_DETAILED_FAILURE_MSG ON)
+-    set(Boost_USE_STATIC_LIBS ON)
++    # set(Boost_USE_STATIC_LIBS ON)
+
+-    set(BOOST_ROOT ${CMAKE_BINARY_DIR}/tlm/deps/boost.exploded)
++    set(BOOST_ROOT /usr/local/include)
++    set(Boost_INCLUDE_DIR /usr/local/include)
++    set(BOOST_LIBRARYDIR /usr/local/lib)
+
+     find_package(Boost
+             REQUIRED
+diff --git a/cmake/Modules/FindCouchbaseCurl.cmake b/cmake/Modules/FindCouchbaseCurl.cmake
+index 19777bf..822e2c0 100644
+--- a/cmake/Modules/FindCouchbaseCurl.cmake
++++ b/cmake/Modules/FindCouchbaseCurl.cmake
+@@ -22,7 +22,7 @@
+ if (NOT DEFINED CURL_FOUND)
+     include(PlatformIntrospection)
+     # Use include files directly from cbdeps exploded download
+-    set(_curl_exploded "${CMAKE_BINARY_DIR}/tlm/deps/curl.exploded")
++    set(_curl_exploded /usr/local)
+
+     cb_get_supported_platform(_supported_platform)
+     if (_supported_platform)
+@@ -36,6 +36,7 @@ if (NOT DEFINED CURL_FOUND)
+
+     find_path(CURL_INCLUDE_DIR curl/curl.h
+               HINTS ${_curl_exploded}/include
++              /usr/include
+               ${_curl_no_default_path})
+
+     if (NOT CURL_INCLUDE_DIR)
+@@ -44,7 +45,8 @@ if (NOT DEFINED CURL_FOUND)
+
+     find_library(CURL_LIBRARIES
+                  NAMES curl libcurl libcurl_imp
+-                 HINTS ${CMAKE_INSTALL_PREFIX}/lib
++                 HINTS ${_curl_exploded}/lib
++                 /usr/lib64
+                  ${_curl_no_default_path})
+
+     if (NOT CURL_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseDoubleConversion.cmake b/cmake/Modules/FindCouchbaseDoubleConversion.cmake
+index 4f3b3f9..3839cff 100644
+--- a/cmake/Modules/FindCouchbaseDoubleConversion.cmake
++++ b/cmake/Modules/FindCouchbaseDoubleConversion.cmake
+@@ -13,7 +13,7 @@ if (NOT DEFINED DOUBLE_CONVERSION_FOUND)
+         set(_double_conversion_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_double_conversion_exploded ${CMAKE_BINARY_DIR}/tlm/deps/double-conversion.exploded)
++    set(_double_conversion_exploded /usr)
+
+     find_path(DOUBLE_CONVERSION_INCLUDE_DIR double-conversion/double-conversion.h
+             PATH_SUFFIXES include
+@@ -22,7 +22,7 @@ if (NOT DEFINED DOUBLE_CONVERSION_FOUND)
+
+     find_library(DOUBLE_CONVERSION_LIBRARIES
+             NAMES double-conversion
+-            HINTS ${_double_conversion_exploded}/lib
++            HINTS ${_double_conversion_exploded}/lib/s390x-linux-gnu
+             ${_double_conversion_no_default_path})
+
+     if(DOUBLE_CONVERSION_INCLUDE_DIR AND DOUBLE_CONVERSION_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseFlatbuffers.cmake b/cmake/Modules/FindCouchbaseFlatbuffers.cmake
+index 0a6a4a2..e9a18c3 100644
+--- a/cmake/Modules/FindCouchbaseFlatbuffers.cmake
++++ b/cmake/Modules/FindCouchbaseFlatbuffers.cmake
+@@ -26,7 +26,7 @@ if (_supported_platform)
+     set(_flatbuffers_no_default_path NO_DEFAULT_PATH)
+ endif ()
+
+-set(google_flatbuffers_exploded ${CMAKE_BINARY_DIR}/tlm/deps/flatbuffers.exploded)
++set(google_flatbuffers_exploded /usr/local)
+
+ find_path(FLATBUFFERS_INCLUDE_DIR flatbuffers/flatbuffers.h
+             HINTS ${google_flatbuffers_exploded}/include
+diff --git a/cmake/Modules/FindCouchbaseFolly.cmake b/cmake/Modules/FindCouchbaseFolly.cmake
+index ad6d068..a503366 100644
+--- a/cmake/Modules/FindCouchbaseFolly.cmake
++++ b/cmake/Modules/FindCouchbaseFolly.cmake
+@@ -9,6 +9,7 @@ INCLUDE(FindCouchbaseDoubleConversion)
+ INCLUDE(FindCouchbaseGlog)
+ INCLUDE(FindCouchbaseLibevent)
+ INCLUDE(FindCouchbaseOpenSSL)
++INCLUDE(FindCouchbaseGflags)
+
+ include(PlatformIntrospection)
+ include(SelectLibraryConfigurations)
+@@ -20,7 +21,7 @@ if (_supported_platform)
+     set(_folly_no_default_path NO_DEFAULT_PATH)
+ endif ()
+
+-set(_folly_exploded ${CMAKE_BINARY_DIR}/tlm/deps/folly.exploded)
++set(_folly_exploded /usr/local)
+
+ find_path(FOLLY_CONFIG_INCLUDE_DIR folly/folly-config.h
+           PATH_SUFFIXES include
+@@ -88,6 +89,7 @@ endif()
+ set(folly_dependancies ${DOUBLE_CONVERSION_LIBRARIES}
+             ${GLOG_LIBRARIES}
+             ${CMAKE_DL_LIBS}
++            ${GFLAGS_LIBRARIES}
+             Boost::context
+             Boost::filesystem
+             Boost::program_options
+@@ -134,7 +136,8 @@ target_include_directories(Folly::headers INTERFACE
+         ${FOLLY_CONFIG_INCLUDE_DIR}
+         ${Boost_INCLUDE_DIR}
+         ${DOUBLE_CONVERSION_INCLUDE_DIR}
+-        ${GLOG_INCLUDE_DIR})
++        ${GLOG_INCLUDE_DIR}
++        ${GFLAGS_INCLUDE_DIR})
+
+ # Append Folly's depenancies to the include / lib variables so users
+ # of Folly pickup the dependancies automatically.
+@@ -144,6 +147,7 @@ set(FOLLY_INCLUDE_DIR
+     ${Boost_INCLUDE_DIR}
+     ${DOUBLE_CONVERSION_INCLUDE_DIR}
+     ${GLOG_INCLUDE_DIR}
++    ${GFLAGS_INCLUDE_DIR}
+     CACHE STRING "Folly include directories" FORCE)
+
+ foreach(variant FOLLY_LIBRARIES FOLLY_LIBRARIES_UNSANITIZED)
+diff --git a/cmake/Modules/FindCouchbaseGflags.cmake b/cmake/Modules/FindCouchbaseGflags.cmake
+new file mode 100644
+index 0000000..84c6d95
+--- /dev/null
++++ b/cmake/Modules/FindCouchbaseGflags.cmake
+@@ -0,0 +1,16 @@
++# Locate Google Glog library
++# This module defines
++#  GLOG_LIBRARIES, Library path and libs
++#  GLOG_INCLUDE_DIR, where to find the headers
++set(_gflags_exploded /usr)
++
++find_path(GFLAGS_INCLUDE_DIR gflags/gflags.h
++          PATH_SUFFIXES include
++          PATHS ${_gflags_exploded})
++
++find_library(GFLAGS_LIBRARIES
++             NAMES gflags
++             HINTS ${_gflags_exploded}/lib/s390x-linux-gnu)
++message(STATUS "Found gflag at ${GFLAGS_INCLUDE_DIR} and ${GFLAGS_LIBRARIES}")
++
++mark_as_advanced(GFLAGS_INCLUDE_DIR GFLAGS_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseGlog.cmake b/cmake/Modules/FindCouchbaseGlog.cmake
+index 9ea672b..aa591e0 100644
+--- a/cmake/Modules/FindCouchbaseGlog.cmake
++++ b/cmake/Modules/FindCouchbaseGlog.cmake
+@@ -14,7 +14,7 @@ if (_supported_platform)
+     set(_glog_no_default_path NO_DEFAULT_PATH)
+ endif ()
+
+-set(_glog_exploded ${CMAKE_BINARY_DIR}/tlm/deps/glog.exploded)
++set(_glog_exploded /usr)
+
+ find_path(GLOG_INCLUDE_DIR glog/logging.h
+           PATH_SUFFIXES include
+@@ -23,12 +23,12 @@ find_path(GLOG_INCLUDE_DIR glog/logging.h
+
+ find_library(GLOG_LIBRARY_RELEASE
+              NAMES glog
+-             HINTS ${_glog_exploded}/lib
++             HINTS ${_glog_exploded}/lib/s390x-linux-gnu
+              ${_glog_no_default_path})
+
+ find_library(GLOG_LIBRARY_DEBUG
+              NAMES glogd
+-             HINTS ${_glog_exploded}/lib
++             HINTS ${_glog_exploded}/lib/s390x-linux-gnu
+              ${_glog_no_default_path})
+
+ # Defines GLOG_LIBRARY / LIBRARIES to the correct Debug / Release
+diff --git a/cmake/Modules/FindCouchbaseGrpc.cmake b/cmake/Modules/FindCouchbaseGrpc.cmake
+index 03d551c..f1729be 100644
+--- a/cmake/Modules/FindCouchbaseGrpc.cmake
++++ b/cmake/Modules/FindCouchbaseGrpc.cmake
+@@ -15,8 +15,8 @@ if (NOT DEFINED GRPC_FOUND)
+         set (_grpc_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set (_grpc_exploded ${CMAKE_BINARY_DIR}/tlm/deps/grpc.exploded)
+-    set (_protoc_gen_go_exploded ${CMAKE_BINARY_DIR}/tlm/deps/protoc-gen-go.exploded)
++    set (_grpc_exploded /usr/local)
++    set (_protoc_gen_go_exploded /usr/local)
+
+     find_path (GRPC_INCLUDE_DIR grpc
+         HINTS ${_grpc_exploded}/include
+@@ -52,7 +52,7 @@ if (NOT DEFINED GRPC_FOUND)
+              grpc++_reflection
+              grpc++_unsecure
+              grpc_unsecure
+-             grpc_cronet
++            # grpc_cronet
+              grpc
+              address_sorting
+              gpr
+@@ -104,4 +104,4 @@ if (NOT DEFINED GRPC_FOUND)
+
+     set (GRPC_FOUND true CACHE BOOL "Found gRPC" FORCE)
+     mark_as_advanced (GRPC_FOUND GRPC_INCLUDE_DIR GRPC_LIBRARIES PROTOC GRPC_CPP_PLUGIN_EXE PROTOC_GEN_GO_EXE)
+-endif (NOT DEFINED GRPC_FOUND)
+\ No newline at end of file
++endif (NOT DEFINED GRPC_FOUND)
+diff --git a/cmake/Modules/FindCouchbaseIcu.cmake b/cmake/Modules/FindCouchbaseIcu.cmake
+index 4c2ddf9..4708ab9 100644
+--- a/cmake/Modules/FindCouchbaseIcu.cmake
++++ b/cmake/Modules/FindCouchbaseIcu.cmake
+@@ -63,13 +63,14 @@ if (NOT DEFINED ICU_FOUND)
+                 unset(_the_lib CACHE)
+                 find_library(_the_lib
+                             NAMES ${_mylib}
+-                            HINTS ${CMAKE_INSTALL_PREFIX}/lib
++                            HINTS /usr/local/lib
+                             NO_DEFAULT_PATH)
+                 if (_the_lib)
+                     list(APPEND _icu_libs_found ${_the_lib})
+                 endif (_the_lib)
+             endforeach (_mylib)
+-            set(ICU_LIBRARIES ${_icu_libs_found} CACHE STRING "V8 Libraries" FORCE)
++           #set(ICU_LIBRARIES ${_icu_libs_found} CACHE STRING "V8 Libraries" FORCE)
++            set(ICU_LIBRARIES "/usr/local/lib/libicuuc.so.65;/usr/local/lib/libicui18n.so.65" CACHE STRING "V8 Libraries" FORCE)
+         endif (NOT ICU_LIBRARIES)
+     endif (WIN32)
+
+diff --git a/cmake/Modules/FindCouchbaseJemalloc.cmake b/cmake/Modules/FindCouchbaseJemalloc.cmake
+index d55aa9c..55818a7 100644
+--- a/cmake/Modules/FindCouchbaseJemalloc.cmake
++++ b/cmake/Modules/FindCouchbaseJemalloc.cmake
+@@ -32,7 +32,7 @@ if (_supported_platform)
+     set(_jemalloc_no_default_path NO_DEFAULT_PATH)
+ endif ()
+
+-set(_jemalloc_exploded ${CMAKE_BINARY_DIR}/tlm/deps/jemalloc.exploded)
++set(_jemalloc_exploded /usr/local)
+
+ find_path(JEMALLOC_INCLUDE_DIR jemalloc/jemalloc.h
+           HINTS ${_jemalloc_exploded}/include
+diff --git a/cmake/Modules/FindCouchbaseLZ4.cmake b/cmake/Modules/FindCouchbaseLZ4.cmake
+index 4cbb5fc..0b6ce09 100644
+--- a/cmake/Modules/FindCouchbaseLZ4.cmake
++++ b/cmake/Modules/FindCouchbaseLZ4.cmake
+@@ -20,8 +20,8 @@
+ #  LZ4_INCLUDE_DIR, where to find the ICU headers
+
+ if (NOT DEFINED LZ4_FOUND)
+-    set(_lz4_exploded ${CMAKE_BINARY_DIR}/tlm/deps/lz4.exploded)
+-    set(_lz4_library_dir ${CMAKE_INSTALL_PREFIX})
++    set(_lz4_exploded /usr)
++    set(_lz4_library_dir /usr/lib/s390x-linux-gnu)
+
+     include(PlatformIntrospection)
+
+@@ -38,7 +38,7 @@ if (NOT DEFINED LZ4_FOUND)
+
+     find_library(LZ4_LIBRARIES
+                  NAMES lz4
+-                 HINTS ${_lz4_library_dir}/lib
++                 HINTS ${_lz4_library_dir}
+                  ${_lz4_no_default_path})
+
+     if (LZ4_INCLUDE_DIR AND LZ4_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseLibevent.cmake b/cmake/Modules/FindCouchbaseLibevent.cmake
+index bb6763d..c5b61be 100644
+--- a/cmake/Modules/FindCouchbaseLibevent.cmake
++++ b/cmake/Modules/FindCouchbaseLibevent.cmake
+@@ -46,8 +46,8 @@ if (NOT DEFINED LIBEVENT_FOUND)
+         endif ()
+     endmacro(get_directory _dirname filename)
+
+-    set(_libevent_exploded ${CMAKE_BINARY_DIR}/tlm/deps/libevent.exploded)
+-    set(_libevent_library_dir ${CMAKE_INSTALL_PREFIX})
++    set(_libevent_exploded /usr)
++    set(_libevent_library_dir /usr/lib/s390x-linux-gnu)
+
+     find_path(LIBEVENT_INCLUDE_DIR event2/event.h
+               HINTS ${_libevent_exploded}/include
+@@ -59,7 +59,7 @@ if (NOT DEFINED LIBEVENT_FOUND)
+
+     find_library(LIBEVENT_CORE_LIB
+                  NAMES event_core
+-                 HINTS ${_libevent_library_dir}/lib
++                 HINTS ${_libevent_library_dir}
+                  ${NO_DEFAULT_PATH})
+
+     if (NOT LIBEVENT_CORE_LIB)
+@@ -68,7 +68,7 @@ if (NOT DEFINED LIBEVENT_FOUND)
+
+     find_library(LIBEVENT_EXTRA_LIB
+                  NAMES event_extra
+-                 HINTS ${_libevent_library_dir}/lib
++                 HINTS ${_libevent_library_dir}
+                  ${NO_DEFAULT_PATH})
+
+     if (NOT LIBEVENT_EXTRA_LIB)
+@@ -77,7 +77,7 @@ if (NOT DEFINED LIBEVENT_FOUND)
+
+     find_library(LIBEVENT_OPENSSL_LIB
+                  NAMES event_openssl
+-                 HINTS ${_libevent_library_dir}/lib
++                 HINTS ${_libevent_library_dir}
+                  ${NO_DEFAULT_PATH})
+     if (NOT LIBEVENT_OPENSSL_LIB)
+         message(FATAL_ERROR "Failed to locate event_openssl")
+@@ -86,7 +86,7 @@ if (NOT DEFINED LIBEVENT_FOUND)
+     if (NOT WIN32)
+         find_library(LIBEVENT_THREAD_LIB
+                      NAMES event_pthreads
+-                     HINTS ${_libevent_library_dir}/lib
++                     HINTS ${_libevent_library_dir}
+                      ${NO_DEFAULT_PATH})
+
+         if (NOT LIBEVENT_THREAD_LIB)
+@@ -147,7 +147,7 @@ if (NOT DEFINED LIBEVENT_FOUND)
+         message(WARNING "Non-supported version of libevent headers detected, trying to use it anyway")
+     endif ()
+
+-    if (NOT ${_libevent_core_dir} STREQUAL ${_libevent_library_dir}/lib)
++    if (NOT ${_libevent_core_dir} STREQUAL ${_libevent_library_dir})
+         message(WARNING "Non-supported version of libevent libraries detected, trying to use anyway")
+     endif ()
+
+diff --git a/cmake/Modules/FindCouchbaseLibuv.cmake b/cmake/Modules/FindCouchbaseLibuv.cmake
+index 59f17bb..73a64a8 100644
+--- a/cmake/Modules/FindCouchbaseLibuv.cmake
++++ b/cmake/Modules/FindCouchbaseLibuv.cmake
+@@ -28,7 +28,7 @@ if (NOT DEFINED LIBUV_FOUND)
+         set(_libuv_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_libuv_exploded ${CMAKE_BINARY_DIR}/tlm/deps/libuv.exploded)
++    set(_libuv_exploded /usr)
+     find_path(LIBUV_INCLUDE_DIR uv.h
+               HINTS ${_libuv_exploded}/include
+               ${_libuv_no_default_path})
+@@ -39,7 +39,8 @@ if (NOT DEFINED LIBUV_FOUND)
+
+     find_library(LIBUV_LIBRARIES
+                  NAMES uv libuv
+-                 HINTS ${CMAKE_INSTALL_PREFIX}/lib
++                 HINTS /usr/lib/s390x-linux-gnu
++                 /usr/lib64
+                  ${_libuv_no_default_path})
+     if (NOT LIBUV_LIBRARIES)
+         message(FATAL_ERROR "Failed to locate libuv")
+diff --git a/cmake/Modules/FindCouchbaseNlohmannJson.cmake b/cmake/Modules/FindCouchbaseNlohmannJson.cmake
+index b30ea89..c9eab40 100644
+--- a/cmake/Modules/FindCouchbaseNlohmannJson.cmake
++++ b/cmake/Modules/FindCouchbaseNlohmannJson.cmake
+@@ -20,7 +20,7 @@
+ #  NLOHMANN_JSON_INCLUDE_DIR
+
+ if (NOT DEFINED NLOHMANN_JSON_FOUND)
+-    set(_nhlomann_json_exploded ${CMAKE_BINARY_DIR}/tlm/deps/json.exploded)
++    set(_nhlomann_json_exploded /usr/local)
+     if (EXISTS ${_nhlomann_json_exploded} AND IS_DIRECTORY ${_nhlomann_json_exploded})
+         set(_nhlomann_json_no_default_path NO_DEFAULT_PATH)
+     endif ()
+diff --git a/cmake/Modules/FindCouchbaseNuma.cmake b/cmake/Modules/FindCouchbaseNuma.cmake
+index 343183e..c805d63 100644
+--- a/cmake/Modules/FindCouchbaseNuma.cmake
++++ b/cmake/Modules/FindCouchbaseNuma.cmake
+@@ -31,14 +31,14 @@ if (NOT DEFINED NUMA_FOUND)
+         set(_numa_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_numa_exploded ${CMAKE_BINARY_DIR}/tlm/deps/numactl.exploded)
++    set(_numa_exploded /usr/local)
+
+     find_path(NUMA_INCLUDE_DIR numa.h
+               HINTS ${_numa_exploded}/include
+               ${_numa_no_default_path})
+     find_library(NUMA_LIBRARIES
+                  NAMES numa
+-                 PATHS ${CMAKE_INSTALL_PREFIX}/lib/
++                 PATHS /usr/local/lib/
+                  ${_numa_no_default_path})
+
+     if (NUMA_INCLUDE_DIR AND NUMA_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseOpenSSL.cmake b/cmake/Modules/FindCouchbaseOpenSSL.cmake
+index c33b1e1..7584d52 100644
+--- a/cmake/Modules/FindCouchbaseOpenSSL.cmake
++++ b/cmake/Modules/FindCouchbaseOpenSSL.cmake
+@@ -33,7 +33,7 @@ if (NOT DEFINED OPENSSL_FOUND)
+         set(_openssl_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_openssl_exploded ${CMAKE_BINARY_DIR}/tlm/deps/openssl.exploded)
++    set(_openssl_exploded /usr)
+     set(_openssl_libraries "ssl;libssl;crypto;libcrypto")
+
+     find_path(OPENSSL_INCLUDE_DIR openssl/ssl.h
+@@ -49,7 +49,7 @@ if (NOT DEFINED OPENSSL_FOUND)
+             unset(_the_lib CACHE)
+             find_library(_the_lib
+                          NAMES ${_mylib}
+-                         HINTS ${CMAKE_INSTALL_PREFIX}/lib
++                         HINTS /usr/lib/s390x-linux-gnu
+                          ${_openssl_no_default_path})
+             if (_the_lib)
+                 list(APPEND _openssl_libs_found ${_the_lib})
+diff --git a/cmake/Modules/FindCouchbasePCRE.cmake b/cmake/Modules/FindCouchbasePCRE.cmake
+index 3c400bf..02b5637 100644
+--- a/cmake/Modules/FindCouchbasePCRE.cmake
++++ b/cmake/Modules/FindCouchbasePCRE.cmake
+@@ -19,7 +19,7 @@ IF (NOT DEFINED PCRE_FOUND)
+     SET (_no_default_path NO_DEFAULT_PATH)
+   ENDIF ()
+
+-  SET (_exploded_dir "${CMAKE_BINARY_DIR}/tlm/deps/pcre.exploded")
++  SET (_exploded_dir /usr/local)
+
+   FIND_PATH (PCRE_INCLUDE_DIR
+     NAMES pcre.h
+@@ -40,7 +40,7 @@ IF (NOT DEFINED PCRE_FOUND)
+   # There is extensive confusing commentary about this on MB-32895.
+   FIND_PATH (PCRE_LIBRARY_DIR
+     NAMES libpcre.dll libpcre.so libpcre.dylib
+-    HINTS "${CMAKE_INSTALL_PREFIX}/bin" "${CMAKE_INSTALL_PREFIX}/lib"
++    HINTS "${CMAKE_INSTALL_PREFIX}/bin" "/usr/local/lib"
+     ${_no_default_path})
+
+   INCLUDE (FindPackageHandleStandardArgs)
+diff --git a/cmake/Modules/FindCouchbasePrometheus.cmake b/cmake/Modules/FindCouchbasePrometheus.cmake
+index 24f5ba7..74b9cfd 100644
+--- a/cmake/Modules/FindCouchbasePrometheus.cmake
++++ b/cmake/Modules/FindCouchbasePrometheus.cmake
+@@ -3,7 +3,7 @@
+ #  PROMETHEUS_LIBRARIES, Library path and libs
+ #  PROMETHEUS_INCLUDE_DIR, where to find the headers
+
+-set(_prometheus_exploded ${CMAKE_BINARY_DIR}/tlm/deps/prometheus-cpp.exploded)
++set(_prometheus_exploded /usr/local)
+
+ include(PlatformIntrospection)
+
+diff --git a/cmake/Modules/FindCouchbaseRocksDB.cmake b/cmake/Modules/FindCouchbaseRocksDB.cmake
+index 5c55a0b..85de187 100644
+--- a/cmake/Modules/FindCouchbaseRocksDB.cmake
++++ b/cmake/Modules/FindCouchbaseRocksDB.cmake
+@@ -36,7 +36,7 @@ if (NOT DEFINED ROCKSDB_FOUND)
+         set(_rocksdb_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_rocksdb_exploded ${CMAKE_BINARY_DIR}/tlm/deps/rocksdb.exploded)
++    set(_rocksdb_exploded /usr/local)
+
+     find_path(ROCKSDB_INCLUDE_DIR rocksdb/db.h
+               PATH_SUFFIXES include
+@@ -45,7 +45,7 @@ if (NOT DEFINED ROCKSDB_FOUND)
+
+     find_library(ROCKSDB_LIBRARIES
+                  NAMES ${rocksdb_lib}
+-                 HINTS ${CMAKE_INSTALL_PREFIX}/lib
++                 HINTS ${_rocksdb_exploded}/lib
+                  ${_rocksdb_no_default_path})
+
+     if (ROCKSDB_INCLUDE_DIR AND ROCKSDB_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseSnappy.cmake b/cmake/Modules/FindCouchbaseSnappy.cmake
+index c07fdd1..960a597 100644
+--- a/cmake/Modules/FindCouchbaseSnappy.cmake
++++ b/cmake/Modules/FindCouchbaseSnappy.cmake
+@@ -29,7 +29,7 @@ if (NOT DEFINED SNAPPY_FOUND)
+         set(_snappy_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_snappy_exploded ${CMAKE_BINARY_DIR}/tlm/deps/snappy.exploded)
++    set(_snappy_exploded /usr)
+
+     find_path(SNAPPY_INCLUDE_DIR snappy.h
+               HINTS ${_snappy_exploded}/include
+@@ -42,7 +42,7 @@ if (NOT DEFINED SNAPPY_FOUND)
+     find_library(SNAPPY_LIBRARIES
+                  NAMES snappy
+                  HINTS
+-                 ${_snappy_exploded}/lib
++                 /usr/lib/s390x-linux-gnu
+                  ${_snappy_no_default_path})
+
+     if (NOT SNAPPY_LIBRARIES)
+diff --git a/cmake/Modules/FindCouchbaseV8.cmake b/cmake/Modules/FindCouchbaseV8.cmake
+index aca9fa3..e663da4 100644
+--- a/cmake/Modules/FindCouchbaseV8.cmake
++++ b/cmake/Modules/FindCouchbaseV8.cmake
+@@ -28,7 +28,7 @@ if (NOT DEFINED V8_FOUND)
+         set(_v8_no_default_path NO_DEFAULT_PATH)
+     endif ()
+
+-    set(_v8_exploded ${CMAKE_BINARY_DIR}/tlm/deps/v8.exploded)
++    set(_v8_exploded /usr/local)
+
+     find_path(V8_INCLUDE_DIR v8.h
+               HINTS ${_v8_exploded}/include
+@@ -63,12 +63,12 @@ if (NOT DEFINED V8_FOUND)
+         endif (NOT V8_LIBRARIES)
+     else (WIN32)
+         if (NOT V8_LIBRARIES)
+-            set(_v8_libraries "v8;v8_libplatform;v8_libbase;libchrome_zlib")
++            set(_v8_libraries "v8;v8_libplatform;v8_libbase;chrome_zlib")
+             foreach (_mylib ${_v8_libraries})
+                 unset(_the_lib CACHE)
+                 find_library(_the_lib
+                              NAMES ${_mylib}
+-                             HINTS ${CMAKE_INSTALL_PREFIX}/lib
++                             HINTS ${_v8_exploded}/lib
+                              ${_v8_no_default_path})
+                 if (_the_lib)
+                     list(APPEND _v8_libs_found ${_the_lib})
+diff --git a/cmake/Modules/go-install.cmake b/cmake/Modules/go-install.cmake
+index ed9162f..bd5bfb0 100644
+--- a/cmake/Modules/go-install.cmake
++++ b/cmake/Modules/go-install.cmake
+@@ -95,6 +95,7 @@ IF (_failure)
+   MESSAGE (STATUS "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+   # Easier to debug
+   EXECUTE_PROCESS (COMMAND "${GO_EXECUTABLE}" build ${_bits} "-tags=${GOTAGS}" "-gcflags=${GCFLAGS}" "-asmflags=${ASMFLAGS}" "-ldflags=${LDFLAGS}" -x "${PACKAGE}")
++  MESSAGE (STATUS "THE BITS ARE ${_bits}, the packages is ${PACKAGE}")
+   MESSAGE (FATAL_ERROR "Failed running go install")
+ ENDIF (_failure)
+
+diff --git a/python/CMakeLists.txt b/python/CMakeLists.txt
+index edadb25..35d95cc 100644
+--- a/python/CMakeLists.txt
++++ b/python/CMakeLists.txt
+@@ -27,7 +27,7 @@ SET (CBPY_BLD_NUM "${CBDEP_cbpy_BLD_NUM}")
+ # as the non-installed wrapper scripts created by PyWrapper(). Note that
+ # this directory is actually created by the local-cbpy target below.
+ SET (CBPY_PATH lib/python/runtime)
+-SET (CBPY_INSTALL "${CMAKE_INSTALL_PREFIX}/${CBPY_PATH}" CACHE INTERNAL "")
++SET (CBPY_INSTALL "/usr/local/${CBPY_PATH}" CACHE INTERNAL "")
+ SET (CBPY_VER_FILE "${CBPY_INSTALL}/couchbase-${CBPY_VERSION}-${CBPY_BLD_NUM}.version")
+
+ # Path to python interpreter in the local cbpy install.
+@@ -47,7 +47,7 @@ ELSE ()
+ ENDIF()
+
+ # Ship cbpy-installer with the Server installer
+-INSTALL (FILES "${_installer}" DESTINATION lib/python)
++# INSTALL (FILES "${_installer}" DESTINATION lib/python)
+
+ # Add the PyWrapper-related CMake functions.
+ INCLUDE (PyWrapperFunctions.cmake)
+@@ -67,19 +67,16 @@ IF (WIN32)
+     VERBATIM)
+ ELSE ()
+   ADD_CUSTOM_COMMAND (OUTPUT "${CBPY_VER_FILE}"
+-    COMMENT "Installing local cbpy"
+-    COMMAND rm -rf "${CBPY_INSTALL}"
+-    COMMAND "${_installer}" -b -p "${CBPY_INSTALL}"
+-    COMMAND "${CMAKE_COMMAND}" -E touch "${CBPY_VER_FILE}"
++    COMMENT "Having local miniconda3 for s390x"
+     VERBATIM)
+ ENDIF()
+
+ ADD_CUSTOM_TARGET (local-cbpy ALL DEPENDS "${CBPY_VER_FILE}")
+
+-# Clean targets
++# Clean targets, commented out for s390x for now
+
+-ADD_CUSTOM_TARGET ("local-cbpy-clean"
+-  COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CBPY_INSTALL}"
+-  VERBATIM)
++# ADD_CUSTOM_TARGET ("local-cbpy-clean"
++#  COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CBPY_INSTALL}"
++#  VERBATIM)
+
+-ADD_DEPENDENCIES (realclean local-cbpy-clean)
++# ADD_DEPENDENCIES (realclean local-cbpy-clean)
