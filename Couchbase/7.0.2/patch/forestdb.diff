@@ -1,0 +1,31 @@
+diff --git a/src/arch.h b/src/arch.h
+index 1f94b7a..ad3be3f 100644
+--- a/src/arch.h
++++ b/src/arch.h
+@@ -329,7 +329,11 @@
+             (pthread_spin_trylock(arg) == 0)
+         #define spin_unlock(arg) pthread_spin_unlock(arg)
+         #define spin_destroy(arg) pthread_spin_destroy(arg)
+-        #define SPIN_INITIALIZER (spin_t)(1)
++        #if defined(__GLIBC__) && !defined(__s390x__) && !defined(__PPC64__)
++            #define SPIN_INITIALIZER (spin_t)(1)
++        #else
++            #define SPIN_INITIALIZER (spin_t)(0)
++        #endif
+     #endif
+     #ifndef mutex_t
+         // mutex
+diff --git a/utils/debug.cc b/utils/debug.cc
+index 71f8524..3cd1673 100644
+--- a/utils/debug.cc
++++ b/utils/debug.cc
+@@ -90,6 +90,8 @@ static void sigsegv_handler(int sig, siginfo_t *siginfo, void *context)
+     ucontext_t *u = (ucontext_t *)context;
+ #ifdef REG_RIP // Test if the Program Counter is 64 bits
+     unsigned char *pc = (unsigned char *)u->uc_mcontext.gregs[REG_RIP];
++#elif __s390x__
++    unsigned char *pc = (unsigned char *)u->uc_mcontext.psw.addr;
+ #else // 32 bit machine, PC is stored in %eip register
+     unsigned char *pc = (unsigned char *)u->uc_mcontext.gregs[REG_EIP];
+ #endif // REG_RIP for 64-bit machines
+
