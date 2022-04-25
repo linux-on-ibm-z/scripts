@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2021.
+# ©  Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -82,7 +82,7 @@ function configureAndInstall() {
 	# Download Go binary
 	printf -- 'Downloading Go binary.\n'
 	cd "${CURDIR}"
-	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.16.3/build_go.sh
+	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18/build_go.sh
 	bash build_go.sh
 
 	# Building Bazelisk from source
@@ -262,7 +262,7 @@ case "$DISTRO" in
 	export PATH=$JAVA_HOME/bin:$PATH
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-8.1" | "rhel-8.2"| "rhel-8.3")
+"rhel-8.2" | "rhel-8.4"| "rhel-8.5")
 	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo yum install -y curl git gcc-c++ gzip make python2 python3 java-11-openjdk-devel unzip zip tar wget patch xz |& tee -a "${LOG_FILE}"
 	sudo ln -sf /usr/bin/python3 /usr/bin/python
@@ -271,7 +271,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"sles-15.2")
+"sles-15.3")
 	printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	sudo zypper install -y curl git gcc-c++ gzip make python python3 java-11-openjdk-devel unzip zip tar wget patch xz which gawk |& tee -a "${LOG_FILE}"
 	export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
