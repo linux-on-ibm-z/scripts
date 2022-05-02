@@ -171,7 +171,7 @@ function configureAndInstall() {
   printf -- '\nConfiguration and Installation started \n'
   printf -- 'User responded with Yes. \n'
 
-  mkdir ${CURDIR}/patch
+  mkdir -p ${CURDIR}/patch
 
   # Go
   if [[ "${ID}" == "ubuntu" ]] || [[ "${DISTRO}" == "rhel-7."* ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
