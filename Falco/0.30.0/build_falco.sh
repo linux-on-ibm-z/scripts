@@ -93,6 +93,17 @@ function configureAndInstall() {
        fi
     fi
 
+    if [[ "${ID}" == "ubuntu" ]] || [[ "${ID}" == "sles" ]]; then
+	cd $SOURCE_ROOT/
+	wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.27.0.tar.gz
+	tar -xvf git-2.27.0.tar.gz
+	cd git-2.27.0/
+	make prefix=/usr/local all
+	sudo make prefix=/usr/local install
+	export PATH=$PWD:$PATH
+     fi
+     git --version
+
     printf -- '\nDownloading Falco source. \n'
     cd $SOURCE_ROOT
     git clone https://github.com/falcosecurity/falco.git
@@ -226,7 +237,8 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update
     sudo apt-get install -y git cmake build-essential libncurses-dev pkg-config autoconf libtool libelf-dev curl \
-        rpm linux-headers-$(uname -r)
+        rpm linux-headers-$(uname -r) \
+	libz-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext gcc
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
@@ -259,7 +271,8 @@ case "$DISTRO" in
 
     sudo zypper install -y gcc7 gcc7-c++ git-core cmake ncurses-devel libopenssl-devel \
         libcurl-devel protobuf-devel=2.6.1-7.3.16 patch which automake autoconf libtool libelf-devel \
-        "kernel-default-devel=${SLES_KERNEL_VERSION}"
+        "kernel-default-devel=${SLES_KERNEL_VERSION}" \
+	libexpat-devel tcl gettext-tools openssl libcurl-devel tar curl
 	
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
@@ -275,7 +288,8 @@ case "$DISTRO" in
 
     sudo zypper install -y gcc gcc-c++ git-core cmake libjq-devel ncurses-devel yaml-cpp-devel libopenssl-devel \
         libcurl-devel c-ares-devel protobuf-devel patch which automake autoconf libtool libelf-devel \
-        "kernel-default-devel=${SLES_KERNEL_VERSION}"
+        "kernel-default-devel=${SLES_KERNEL_VERSION}" \
+	libexpat-devel tcl-devel gettext-tools tar curl
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
