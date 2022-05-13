@@ -81,7 +81,18 @@ function configureAndInstall() {
         protoc --version
         printf -- 'cmake installed successfully\n'
        fi
-	
+
+    if [[ "${ID}" == "ubuntu" ]] || [[ "${ID}" == "sles" ]]; then
+	cd $SOURCE_ROOT/
+	wget https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.27.0.tar.gz
+	tar -xvf git-2.27.0.tar.gz
+	cd git-2.27.0/
+	make prefix=/usr/local all
+	sudo make prefix=/usr/local install
+	export PATH=$PWD:$PATH
+    fi
+    git --version
+
     printf -- '\nDownloading Sysdig source. \n'
     cd "${SOURCE_ROOT}"
     git clone https://github.com/draios/sysdig.git
@@ -164,7 +175,8 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update
     sudo apt-get install -y git cmake build-essential pkg-config autoconf \
-       wget curl patch libtool libelf-dev linux-headers-$(uname -r) kmod
+       wget curl patch libtool libelf-dev linux-headers-$(uname -r) kmod \
+       libz-dev libssl-dev libcurl4-gnutls-dev libexpat1-dev gettext gcc
     
     if  [[  "$DISTRO"  =  "ubuntu-20.04"  ]] || [[  "$DISTRO"  =  "ubuntu-21.10"  ]]; then
       sudo apt install -y libgrpc++-dev protobuf-compiler-grpc
@@ -191,7 +203,8 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo zypper install -y gcc7 gcc7-c++ git cmake automake autoconf libtool zlib-devel wget pkg-config \
-        curl patch glibc-devel-static libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod
+        curl patch glibc-devel-static libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod \
+	libexpat-devel tcl gettext-tools openssl libopenssl-devel libcurl-devel tar
     
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
@@ -204,7 +217,8 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo zypper install -y gcc gcc-c++ git cmake patch automake autoconf libtool wget pkg-config \
-       curl glibc-devel-static libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod
+       curl glibc-devel-static libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod \
+       libexpat-devel tcl-devel gettext-tools tar libopenssl-devel libcurl-devel
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 *)
