@@ -225,7 +225,7 @@ function configureAndInstall() {
     sudo sed -i "s|#provider = fernet|provider = fernet|g" /etc/keystone/keystone.conf
 
     printf -- '\nPopulating Keystone DB. \n'
-    if  [[ "${DISTRO}" == "sles-12."* || "${DISTRO}" == "rhel-7."* ]]; then
+    if  [[ "${DISTRO}" == "sles-12."* || "${DISTRO}" == "rhel-7."* || "${DISTRO}" == "ubuntu-21.10" ]]; then
      sudo env PATH=$PATH keystone-manage db_sync
     else
     keystone-manage db_sync
@@ -239,7 +239,7 @@ function configureAndInstall() {
    
     sudo chown -R keystone:keystone /etc/keystone/fernet-keys
 
-    if [[ "${ID}" == "rhel" || "${DISTRO}" == "sles-12."* ]]; then
+    if [[ "${ID}" == "rhel" || "${DISTRO}" == "sles-12."* || "${DISTRO}" == "ubuntu-21.10" ]]; then
       sudo env PATH=$PATH keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
       sudo env PATH=$PATH keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
     else
@@ -248,11 +248,19 @@ function configureAndInstall() {
     fi
 
     printf -- '\nBootstrapping identity service. \n'
-    keystone-manage bootstrap --bootstrap-password ADMIN_PASS \
-      --bootstrap-admin-url http://${KEYSTONE_HOST_IP}:35357/v3/ \
-      --bootstrap-internal-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
-      --bootstrap-public-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
-      --bootstrap-region-id RegionOne
+    if [[ "${DISTRO}" == "ubuntu-21.10" ]]; then
+    	sudo env PATH=$PATH keystone-manage bootstrap --bootstrap-password ADMIN_PASS \
+      	--bootstrap-admin-url http://${KEYSTONE_HOST_IP}:35357/v3/ \
+      	--bootstrap-internal-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
+      	--bootstrap-public-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
+      	--bootstrap-region-id RegionOne
+    else
+	keystone-manage bootstrap --bootstrap-password ADMIN_PASS \
+	--bootstrap-admin-url http://${KEYSTONE_HOST_IP}:35357/v3/ \
+	--bootstrap-internal-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
+	--bootstrap-public-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
+	--bootstrap-region-id RegionOne
+    fi  
 
 
     setUpApache2HttpdConf
@@ -367,7 +375,7 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo apt-get update
-    sudo apt-get install -y python3-pip libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev
+    sudo apt-get install -y python3-pip libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev curl
     sudo apt-get install -y mariadb-server
     sudo -H pip3 install --upgrade pip
     sudo pip3 install cryptography==3.3.1 python-openstackclient mysqlclient mod_wsgi keystone
