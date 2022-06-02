@@ -155,7 +155,7 @@ function configureAndInstall() {
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /usr/local/lib/php.ini
       sudo sed -i 's/;date.timezone =/date.timezone = Asia\/Kolkata/g' /usr/local/lib/php.ini
     fi
-    if [[ "$VERSION_ID" == "8.2" || "$VERSION_ID" == "8.4" || "$VERSION_ID" == "8.5" ]]; then
+    if [[ "$VERSION_ID" == "8.4" || "$VERSION_ID" == "8.5" ]]; then
       sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php.ini
       sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php.ini
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php.ini
@@ -208,7 +208,7 @@ function configureAndInstall() {
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php/7.4/apache2/php.ini
       sudo sed -i 's/;date.timezone =/date.timezone = Asia\/Kolkata/g' /etc/php/7.4/apache2/php.ini
     fi
-	if [[ "$VERSION_ID" == "21.10" ]]; then
+    if [[ "$VERSION_ID" == "21.10" ]]; then
       sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php/8.0/apache2/php.ini
       sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php/8.0/apache2/php.ini
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php/8.0/apache2/php.ini
@@ -240,7 +240,9 @@ function configureAndInstall() {
     sudo cp -rf * /var/www/html/${URL_NAME}/
     sudo chown -R www-data:www-data /var/www/html/zabbix/conf
     sudo service apache2 restart
-    sudo service mysql restart
+    sudo service mysql stop
+    sudo usermod -d /var/lib/mysql/ mysql
+    sudo service mysql start
   fi
 
   if [[ "$ID" == "rhel" ]]; then
@@ -272,9 +274,9 @@ function configureAndInstall() {
   fi
 
   cd ${BUILD_DIR}/${URL_NAME}/database/mysql
-  mysql -uzabbix zabbix < schema.sql
-  mysql -uzabbix zabbix < images.sql
-  mysql -uzabbix zabbix < data.sql
+  sudo mysql -uzabbix zabbix < schema.sql
+  sudo mysql -uzabbix zabbix < images.sql
+  sudo mysql -uzabbix zabbix < data.sql
 
   # Disable duktape javascript processing on server. Duktape does not support s390x and causes a crash.
   sudo mysql -e "update zabbix.items set status=1 where itemid in (select itemid from zabbix.item_preproc where type=21)"
@@ -582,7 +584,7 @@ case "$DISTRO" in
 
   ;;
 
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.5" )
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
   sudo subscription-manager repos --enable=codeready-builder-for-rhel-8-s390x-rpms
