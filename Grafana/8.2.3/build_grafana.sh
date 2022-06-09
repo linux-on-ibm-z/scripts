@@ -99,7 +99,9 @@ function configureAndInstall() {
     sudo zypper install -y go1.16
     export GOPATH="${HOME}"
   else
-    curl https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/${GO_VERSION}/build_go.sh | bash
+    wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.2/build_go.sh
+	bash build_go.sh -y -v ${GO_VERSION}
+	go version
 	  printf -- 'Extracted the tar in /usr/local and created symlink\n'
 
 	  if [[ "${ID}" != "ubuntu" ]]; then
@@ -297,20 +299,20 @@ prepare # Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.04" | "ubuntu-21.10" )
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10" | "ubuntu-22.04" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update
 	sudo apt-get install -y gcc tar wget git make xz-utils patch curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.5" | "rhel-8.6"  )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y make gcc tar wget git patch xz curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.5" | "sles-15.2" | "sles-15.3")
+"sles-12.5" | "sles-15.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo zypper install -y make gcc wget tar git xz gzip curl patch |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
