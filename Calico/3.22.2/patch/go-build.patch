@@ -1,5 +1,5 @@
 diff --git a/Dockerfile.s390x b/Dockerfile.s390x
-index c6ae1a6..138a286 100644
+index c6ae1a6..c553ac6 100644
 --- a/Dockerfile.s390x
 +++ b/Dockerfile.s390x
 @@ -1,6 +1,8 @@
@@ -121,7 +121,7 @@ index c6ae1a6..138a286 100644
 +# Install go programs that we rely on
 +RUN GO111MODULE=on go get github.com/onsi/ginkgo/ginkgo@v1.16.5 && \
 +  go get golang.org/x/tools/cmd/goimports && \
-+  wget -O - -q https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.27.0 && \
++  wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.27.0 && \
 +  golangci-lint --version && \
 +  go get github.com/pmezard/licenses && \
 +  go get github.com/wadey/gocovmerge && \
