@@ -162,7 +162,7 @@ function logDetails() {
 function printHelp() {
     echo
     echo "Usage: "
-    echo "  bash build_sysdig.sh  [-d debug] [-y install-without-confirmation]"
+    echo "  bash build_sysdig.sh  [-d debug] [-y install-without-confirmation] [-t install-with-tests]"
     echo
 }
 
@@ -234,7 +234,7 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo zypper install -y gcc7 gcc7-c++ git automake autoconf libtool zlib-devel wget pkg-config curl patch glibc-devel-static libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod libexpat-devel tcl gettext-tools libcurl-devel tar |& tee -a "$LOG_FILE"
+    sudo zypper install -y gcc7 gcc7-c++ git make automake autoconf libtool zlib-devel wget pkg-config curl patch glibc-devel-static libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod libexpat-devel tcl gettext-tools libcurl-devel tar |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40
