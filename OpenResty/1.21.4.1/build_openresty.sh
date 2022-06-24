@@ -80,7 +80,7 @@ function configureAndInstall() {
     ./config no-threads shared enable-ssl3 enable-ssl3-method -g --prefix=$OPENSSL_PREFIX -DPURIFY
     make -j$(nproc)
     sudo make PATH=$PATH install_sw
-    if [[ ${DISTRO} =~ rhel-7\.[8-9] ]]; then
+    if [[ ${DISTRO} =~ rhel-7\.[8-9] || ${DISTRO} == sles-12.5 ]]; then
         sudo ln -s /usr/local/lib64/libssl.so.1.1 /usr/lib64/libssl.so.1.1
         sudo ln -s /usr/local/lib64/libcrypto.so.1.1 /usr/lib64/libcrypto.so.1.1
     fi
@@ -215,7 +215,7 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git curl tar wget make gcc7 dos2unix perl patch pcre-devel gzip zlib-devel |& tee -a "$LOG_FILE"
+    sudo zypper install -y git curl tar wget make gcc7 dos2unix perl patch pcre-devel gzip zlib-devel which |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
     curl -L https://cpanmin.us | perl - --sudo App::cpanminus
