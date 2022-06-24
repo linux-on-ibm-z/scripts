@@ -175,7 +175,7 @@ case "$DISTRO" in
 "rhel-8.4" | "rhel-8.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y python2-devel python2 openssl-devel libcurl-devel jemalloc-devel wget tar unzip bzip2 m4 git-core boost gcc-c++ ncurses-devel curl which patch make ncurses zlib-devel zlib procps protobuf-devel protobuf-compiler |& tee -a "$LOG_FILE"
+	sudo yum install -y python2-devel python2 openssl-devel libcurl-devel jemalloc-devel wget tar unzip bzip2 m4 git-core boost gcc-c++ ncurses-devel curl which patch make ncurses zlib-devel zlib procps protobuf-devel protobuf-compiler xz |& tee -a "$LOG_FILE"
 	sudo ln -s /usr/bin/python2 /usr/bin/python |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
