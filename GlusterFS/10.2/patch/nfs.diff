@@ -1,0 +1,26 @@
+diff --git a/xlators/nfs/server/src/nfs.c b/xlators/nfs/server/src/nfs.c
+index d5c30b871d..4c531279a2 100644
+--- a/xlators/nfs/server/src/nfs.c
++++ b/xlators/nfs/server/src/nfs.c
+@@ -1682,7 +1682,7 @@ nfs_start_rpc_poller(struct nfs_state *state)
+  *     all registered services, from any thread.
+  */
+ #ifdef HAVE_LIBTIRPC
+-    if (uatomic_xchg(&state->svc_running, true)) {
++    if (uatomic_xchg(&state->svc_running, 1)) {
+         return;
+     }
+ #endif
+diff --git a/xlators/nfs/server/src/nfs.h b/xlators/nfs/server/src/nfs.h
+index b597871f27..b252f56746 100644
+--- a/xlators/nfs/server/src/nfs.h
++++ b/xlators/nfs/server/src/nfs.h
+@@ -104,7 +104,7 @@ struct nfs_state {
+     gf_boolean_t rdirplus;
+ 
+ #ifdef HAVE_LIBTIRPC
+-    bool svc_running;
++    int svc_running;
+ #endif
+ };
+ 
