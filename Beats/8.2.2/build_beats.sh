@@ -63,8 +63,6 @@ function cleanup() {
 
     if [[ "${DISTRO}" == "rhel-7."* ]]; then
         printf -- "Reverting to system python and check if yum is working. \n"
-        sudo /usr/sbin/update-alternatives --remove python /usr/local/bin/python3.9
-        sudo /usr/sbin/update-alternatives --display python
         sudo ln -fs /usr/bin/python2 /usr/bin/python
         sudo yum info python
     fi
@@ -90,8 +88,11 @@ function configureAndInstallPython() {
         make
         sudo make install
         export PATH=/usr/local/bin:$PATH
-
-        sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.9 10
+        if [[ "${DISTRO}" == "rhel-7."* ]]; then
+            sudo ln -fs /usr/bin/python3 /usr/bin/python
+        else
+            sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.9 10
+        fi
         sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 10
         sudo update-alternatives --display python3
     fi
@@ -238,9 +239,6 @@ function configureAndInstall() {
 
     # Run Tests
     runTest
-
-    # Cleanup
-    cleanup
 
     printf -- "\n Installation of %s %s was successful \n\n" $PACKAGE_NAME $PACKAGE_VERSION
 }
