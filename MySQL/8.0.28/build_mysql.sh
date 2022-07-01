@@ -117,6 +117,26 @@ function configureAndInstall() {
     cleanup
 }
 
+function installGCC(){
+    local ver=10.3.0
+    local url
+    printf -- "Building GCC $ver. \n"
+
+    cd "$SOURCE_ROOT"
+    url=http://ftp.mirrorservice.org/sites/sourceware.org/pub/gcc/releases/gcc-${ver}/gcc-${ver}.tar.gz
+    curl -sSL $url | tar xzf - || error "gcc $ver"
+
+    cd gcc-${ver}
+    ./contrib/download_prerequisites
+    mkdir build-gcc
+    cd build-gcc
+    ../configure --enable-languages=c,c++ --disable-multilib
+    make -j$(nproc)
+    sudo make install
+    sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 40
+    export PATH=/usr/bin:$PATH
+}
+
 function installOpenssl(){
       cd $SOURCE_ROOT
       wget https://www.openssl.org/source/openssl-1.1.1k.tar.gz --no-check-certificate
@@ -139,14 +159,6 @@ function buildCmake(){
     make
     sudo make install
     cmake --version
-}
-
-function setupGCC()
-{
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-10 40
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 40
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 40
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-10 40
 }
 
 function runTest() {
@@ -261,7 +273,7 @@ case "$DISTRO" in
     buildCmake |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils |& tee -a "$LOG_FILE"
@@ -275,10 +287,9 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper install -y cmake bison git ncurses-devel pkg-config gawk doxygen tar gcc10 gcc10-c++ libtirpc-devel |& tee -a "$LOG_FILE"
     sudo zypper install -y python python2-PyYAML |& tee -a "$LOG_FILE" # for Duktape
-    setupGCC |& tee -a "$LOG_FILE"
 
+    installGCC |& tee -a "$LOG_FILE"
     installOpenssl |& tee -a "$LOG_FILE"
-    export PATH=/usr/local/bin:$PATH
     export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
     LD_LIBRARY_PATH=/usr/local/lib/:/usr/local/lib64/${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     export LD_LIBRARY_PATH
