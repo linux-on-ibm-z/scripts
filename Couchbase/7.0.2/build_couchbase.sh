@@ -112,7 +112,7 @@ function installClang12() {
   git checkout llvmorg-12.0.0
   mkdir build && cd build
   cmake -DLLVM_ENABLE_PROJECTS=clang -G "Unix Makefiles" ../llvm
-  make
+  make -j$(nproc)
   sudo make install
 }
 
@@ -931,7 +931,8 @@ case "$DISTRO" in
     liblz4-1 libz1 liblz4-devel make makedepend \
     ncurses-devel ninja patch pkg-config \
     python python-xml python3-httplib2 re2c ruby snappy-devel sqlite3 tar \
-    unixODBC wget which xinetd xmlto zlib-devel
+    unixODBC wget which xinetd xmlto zlib-devel python3-pip xz 
+	pip3 install pyparsing
   sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-10 10
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 10
   sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 10
@@ -951,7 +952,7 @@ case "$DISTRO" in
     libopenssl1_1 libopenssl-1_1-devel libpango-1_0-0 \
     libtirpc-devel libtool libxml2-tools libxslt-tools libz1 make makedepend \
     ncurses-devel ninja openssl-1_1 patch pkg-config python re2c ruby \
-    snappy-devel sqlite3 tar texinfo unixODBC wget which xinetd xmlto zlib-devel
+    snappy-devel sqlite3 tar texinfo unixODBC wget which xinetd xmlto zlib-devel xz glibc-locale
   export LANG=en_US.UTF-8
   export LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib/:/usr/lib64:/usr/lib/:$LD_LIBRARY_PATH
   # Install Python 3
