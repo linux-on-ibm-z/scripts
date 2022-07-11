@@ -103,10 +103,14 @@ function configureAndInstall() {
         cmake .. -DDOWNLOAD_BOOST=0 -DWITH_BOOST=$SOURCE_ROOT/mysql-server/build -DWITH_SSL=system -DCMAKE_C_COMPILER=/opt/rh/devtoolset-10/root/bin/gcc -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-10/root/bin/g++
         make
         sudo make install	      	
-    else	
-        cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=. -DWITH_SSL=system
+    elif [[ "$DISTRO" == "sles-12.5" ]]; then
+        cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=. -DWITH_SSL=system -DCMAKE_C_COMPILER=/usr/local/bin/gcc -DCMAKE_CXX_COMPILER=/usr/local/bin/g++
         make
         sudo make install    
+    else
+       cmake .. -DDOWNLOAD_BOOST=1 -DWITH_BOOST=. -DWITH_SSL=system
+       make
+       sudo make install
     fi
     
     printf -- "MySQL build completed successfully. \n"
@@ -133,8 +137,13 @@ function installGCC(){
     ../configure --enable-languages=c,c++ --disable-multilib
     make -j$(nproc)
     sudo make install
-    sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 40
-    export PATH=/usr/bin:$PATH
+    sudo ln -sf /usr/local/bin/gcc /usr/bin/gcc
+    sudo ln -sf /usr/local/bin/g++ /usr/bin/g++
+    sudo ln -sf /usr/local/bin/g++ /usr/bin/c++
+    export PATH=/usr/local/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+    export C_INCLUDE_PATH=/usr/local/lib/gcc/s390x-ibm-linux-gnu/10.3.0/include/
+    export CPLUS_INCLUDE_PATH=/usr/local/lib/gcc/s390x-ibm-linux-gnu/10.3.0/include/
 }
 
 function installOpenssl(){
@@ -285,8 +294,9 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y cmake bison git ncurses-devel pkg-config gawk doxygen tar gcc10 gcc10-c++ libtirpc-devel |& tee -a "$LOG_FILE"
+	sudo zypper install -y cmake bison git ncurses-devel pkg-config gawk doxygen tar gcc gcc-c++ libtirpc-devel |& tee -a "$LOG_FILE"
     sudo zypper install -y python python2-PyYAML |& tee -a "$LOG_FILE" # for Duktape
+    export PATH=/usr/local/bin:$PATH
 
     installGCC |& tee -a "$LOG_FILE"
     installOpenssl |& tee -a "$LOG_FILE"
