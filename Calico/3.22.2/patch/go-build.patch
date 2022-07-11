@@ -42,7 +42,7 @@ index c6ae1a6..c553ac6 100644
 +    apt-get -y update &&  \
 +    apt-get -y upgrade && \
 +    apt-get install --no-install-recommends -y -t buster-backports \
-+        libbpf-dev linux-headers-5.10.0-0.bpo.12-s390x && \
++        libbpf-dev linux-headers-5.10.0-0.bpo*s390x && \
 +    apt-get install --no-install-recommends -y \
 +        curl bash git openssh-client mercurial make wget util-linux file grep sed jq zip \
 +        llvm-11 clang-11 binutils file iproute2 \
