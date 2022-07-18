@@ -1,0 +1,179 @@
+diff --git a/tensorflow/core/api_def/base_api/api_def_Bitcast.pbtxt b/tensorflow/core/api_def/base_api/api_def_Bitcast.pbtxt
+index 4a606566eb5..408aba6d99b 100644
+--- a/tensorflow/core/api_def/base_api/api_def_Bitcast.pbtxt
++++ b/tensorflow/core/api_def/base_api/api_def_Bitcast.pbtxt
+@@ -47,8 +47,8 @@ tf.Tensor([0. 1. 1.], shape=(3,), dtype=float32)
+ >>> print(equality_bitcast)
+ tf.Tensor(
+     [[  0   0   0   0]
+-     [  0   0 128  63]
+-     [  0   0 128  63]], shape=(3, 4), dtype=uint8)
++     [ 63 128   0   0]
++     [ 63 128   0   0]], shape=(3, 4), dtype=uint8)
+ 
+ *NOTE*: Bitcast is implemented as a low-level cast, so machines with different
+ endian orderings will give different results.
+diff --git a/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc b/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc
+index a3d8d226504..68711c74bb9 100644
+--- a/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc
++++ b/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc
+@@ -715,7 +715,7 @@ TEST_F(ArithmeticOptimizerTest, TrivialSumsSimple) {
+   ASSERT_EQ(new_const->input_size(), 1);
+   EXPECT_EQ(new_const->input(0), "^x");
+   EXPECT_EQ(new_const->attr().at("value").tensor().tensor_content(),
+-            string("\0\0\0@", 4));
++            string("@\0\0\0", 4));
+ 
+   const NodeDef* new_mul = node_map.GetNode(optimized_mul_name);
+   ASSERT_NE(new_mul, nullptr);
+@@ -762,7 +762,7 @@ TEST_F(ArithmeticOptimizerTest, TrivialSumsSimpleWithControlDep) {
+   ASSERT_EQ(new_const->input_size(), 1);
+   EXPECT_EQ(new_const->input(0), "^x");
+   EXPECT_EQ(new_const->attr().at("value").tensor().tensor_content(),
+-            string("\0\0\0@", 4));
++            string("@\0\0\0", 4));
+ 
+   const NodeDef* new_mul = node_map.GetNode(optimized_mul_name);
+   ASSERT_NE(new_mul, nullptr);
+diff --git a/tensorflow/distribute/experimental/rpc/kernels/BUILD b/tensorflow/distribute/experimental/rpc/kernels/BUILD
+index 9f92501443b..05c81fb5703 100644
+--- a/tensorflow/distribute/experimental/rpc/kernels/BUILD
++++ b/tensorflow/distribute/experimental/rpc/kernels/BUILD
+@@ -17,7 +17,7 @@ cc_library(
+     deps = [
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_proto_cc",
+         "//tensorflow/stream_executor/platform",
+-        "@com_github_grpc_grpc//:grpc++",
++        "//tensorflow:grpc++",
+     ],
+     alwayslink = 1,
+ )
+@@ -26,7 +26,7 @@ cc_library(
+     name = "grpc_credentials",
+     hdrs = ["grpc_credentials.h"],
+     deps = [
+-        "@com_github_grpc_grpc//:grpc++",
++        "//tensorflow:grpc++",
+     ] + grpc_credentials_dependency(),
+ )
+ 
+@@ -47,7 +47,7 @@ tf_kernel_library(
+         "//tensorflow/core/distributed_runtime/rpc:grpc_util",
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_proto_cc",
+         "//tensorflow/stream_executor/platform",
+-        "@com_github_grpc_grpc//:grpc++",
++        "//tensorflow:grpc++",
+         "@com_google_absl//absl/strings",
+         "@com_google_absl//absl/strings:str_format",
+     ],
+diff --git a/tensorflow/python/eager/backprop_test.py b/tensorflow/python/eager/backprop_test.py
+index 0db892e3fff..62273b50c80 100644
+--- a/tensorflow/python/eager/backprop_test.py
++++ b/tensorflow/python/eager/backprop_test.py
+@@ -1851,7 +1851,7 @@ class JacobianTest(test.TestCase):
+ 
+     theoretical, numerical = gradient_checker_v2.compute_gradient(
+         def_function.function(_inner), [array_ops.ones([10, 4, 4, 1])])
+-    self.assertAllClose(numerical, theoretical, rtol=1e-1)
++    self.assertAllClose(numerical, theoretical, rtol=1.2e-1)
+ 
+     @def_function.function
+     def _outer():
+@@ -1862,7 +1862,7 @@ class JacobianTest(test.TestCase):
+       return tape.gradient(y, x)
+ 
+     self.assertAllClose(array_ops.reshape(numerical, [-1]),
+-                        array_ops.reshape(_outer(), [-1]), rtol=1e-1)
++                        array_ops.reshape(_outer(), [-1]), rtol=1.2e-1)
+ 
+   @test_util.run_in_graph_and_eager_modes
+   def test_indexed_slices(self):
+diff --git a/tensorflow/python/framework/tensor_util_test.py b/tensorflow/python/framework/tensor_util_test.py
+index edb79a8874d..b196bcb1b3c 100644
+--- a/tensorflow/python/framework/tensor_util_test.py
++++ b/tensorflow/python/framework/tensor_util_test.py
+@@ -229,7 +229,7 @@ class TensorUtilTest(test.TestCase, parameterized.TestCase):
+         """
+       dtype: DT_HALF
+       tensor_shape { dim { size: 2 } }
+-      tensor_content: "\000I\000M"
++      tensor_content: "I\000M\000"
+       """, t)
+ 
+     a = tensor_util.MakeNdarray(t)
+diff --git a/tensorflow/python/tfcompile_wrapper.cc b/tensorflow/python/tfcompile_wrapper.cc
+index c8818309919..b02ba0036e1 100644
+--- a/tensorflow/python/tfcompile_wrapper.cc
++++ b/tensorflow/python/tfcompile_wrapper.cc
+@@ -15,6 +15,7 @@ limitations under the License.
+ 
+ #include <string>
+ 
++#include "llvm/Support/Host.h"
+ #include "pybind11/cast.h"
+ #include "pybind11/pybind11.h"
+ #include "pybind11/pytypes.h"
+@@ -45,7 +46,8 @@ PYBIND11_MODULE(_pywrap_tfcompile, m) {
+         flags.graph = std::move(graph);
+         flags.config = std::move(config);
+         flags.target_triple = std::move(target_triple);
+-        flags.target_cpu = std::move(target_cpu);
++        flags.target_cpu = std::move(target_cpu.empty() ?
++                       llvm::sys::getHostCPUName().str() : target_cpu);
+         flags.target_features = std::move(target_features);
+         flags.entry_point = std::move(entry_point);
+         flags.cpp_class = std::move(cpp_class);
+diff --git a/tensorflow/stream_executor/tpu/c_api_conversions.cc b/tensorflow/stream_executor/tpu/c_api_conversions.cc
+index 24c2565e76e..68c5a128745 100644
+--- a/tensorflow/stream_executor/tpu/c_api_conversions.cc
++++ b/tensorflow/stream_executor/tpu/c_api_conversions.cc
+@@ -171,8 +171,8 @@ static void CreateVectorBase(const absl::Span<Src> src, DstList* dst) {
+ static void CreateVector(const absl::Span<const int64_t> src, Int64List* dst) {
+   return CreateVectorBase<const int64_t, int64_t, Int64List>(src, dst);
+ }
+-void CreateVector(const absl::Span<const float> src, FloatList* dst) {
+-  return CreateVectorBase<const float, float, FloatList>(src, dst);
++void CreateVector(const absl::Span<const double> src, FloatList* dst) {
++  return CreateVectorBase<const double, double, FloatList>(src, dst);
+ }
+ static void CreateVector(const absl::Span<const bool> src, BoolList* dst) {
+   return CreateVectorBase<const bool, bool, BoolList>(src, dst);
+@@ -210,8 +210,8 @@ static absl::Span<const int64_t> MakeSpan(const Int64List& src_list) {
+   return MakeSpanBase<int64_t, int64_t, Int64List>(src_list);
+ }
+ 
+-absl::Span<const float> MakeSpan(const FloatList& src_list) {
+-  return MakeSpanBase<float, float, FloatList>(src_list);
++absl::Span<const double> MakeSpan(const FloatList& src_list) {
++  return MakeSpanBase<double, double, FloatList>(src_list);
+ }
+ static absl::Span<const bool> MakeSpan(const BoolList& src_list) {
+   return MakeSpanBase<bool, bool, BoolList>(src_list);
+diff --git a/tensorflow/stream_executor/tpu/c_api_conversions.h b/tensorflow/stream_executor/tpu/c_api_conversions.h
+index 0c4fed1771c..9ae98a70e57 100644
+--- a/tensorflow/stream_executor/tpu/c_api_conversions.h
++++ b/tensorflow/stream_executor/tpu/c_api_conversions.h
+@@ -35,8 +35,8 @@ limitations under the License.
+ // XLA/StreamExecutor data structures.
+ namespace ApiConverter {
+ 
+-absl::Span<const float> MakeSpan(const FloatList& src_list);
+-void CreateVector(const absl::Span<const float> src, FloatList* dst);
++absl::Span<const double> MakeSpan(const FloatList& src_list);
++void CreateVector(const absl::Span<const double> src, FloatList* dst);
+ void Destroy(FloatList* float_list);
+ 
+ // se::DeviceMemoryBase
+diff --git a/third_party/llvm/macos_build_fix.patch b/third_party/llvm/macos_build_fix.patch
+index 4dba8676ea5..07c4df927f6 100644
+--- a/third_party/llvm/macos_build_fix.patch
++++ b/third_party/llvm/macos_build_fix.patch
+@@ -38,7 +38,7 @@ index ff64df694048..c9c35b01711c 100644
+ -    "@bazel_tools//src/conditions:darwin_arm64": native_arch_defines("AArch64", "arm64-apple-darwin"),
+ -    "@bazel_tools//src/conditions:darwin_x86_64": native_arch_defines("X86", "x86_64-unknown-darwin"),
+ +    "//llvm:macos_arm64": native_arch_defines("AArch64", "arm64-apple-darwin"),
+-+    "@bazel_tools//src/conditions:darwin": native_arch_defines("X86", "x86_64-unknown-darwin"),
+++    "@bazel_tools//src/conditions:linux_s390x": native_arch_defines("SystemZ", "systemz-unknown-linux_gnu"),
+      "@bazel_tools//src/conditions:linux_aarch64": native_arch_defines("AArch64", "aarch64-unknown-linux-gnu"),
+      "//conditions:default": native_arch_defines("X86", "x86_64-unknown-linux-gnu"),
+  }) + [
