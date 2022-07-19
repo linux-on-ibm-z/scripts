@@ -125,6 +125,15 @@ function configureAndInstall() {
     printf -- '\nStarting Sysdig build. \n'
     cmake -DUSE_BUNDLED_PROTOBUF=Off -DUSE_BUNDLED_GRPC=Off \
         -DCREATE_TEST_TARGETS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
+    if [[ "$DISTRO" != "ubuntu-18.04"  ]]; then
+    mv googletest-src googletest-src_old
+    git clone https://github.com/google/googletest.git
+    cd googletest
+    git checkout release-1.12.0
+    cd ..
+    mv googletest googletest-src
+    fi
+
     make
     sudo make install
     printf -- '\nSysdig build completed successfully. \n'
