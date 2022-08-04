@@ -282,7 +282,7 @@ case "$DISTRO" in
     buildCmake |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-8.4" | "rhel-8.5")
+"rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils |& tee -a "$LOG_FILE"
