@@ -137,7 +137,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04"| "ubuntu-21.10")
+"ubuntu-18.04" | "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
@@ -149,13 +149,6 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y tar wget make gcc pcre-devel |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
-"rhel-8.2")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y tar wget make gcc-8.3.1-5.1.el8 pcre-devel |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
