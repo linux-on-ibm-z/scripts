@@ -76,7 +76,7 @@ function configureAndInstall() {
     # Install Go
     printf -- 'Installing go\n'
     cd ${GOPATH}
-    wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.2/build_go.sh
+    wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh
     bash build_go.sh -y -v ${GO_PACKAGE_VERSION}
     go version
     printf -- "Install Go success\n"
@@ -185,14 +185,14 @@ logDetails
 prepare # Check Prequisites
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10" | "ubuntu-22.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo apt-get install -y curl gcc git make wget unzip |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.5" | "rhel-8.6" | "rhel-9.0")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-9.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y  curl gcc git make wget diffutils procps-ng unzip|& tee -a "$LOG_FILE"
