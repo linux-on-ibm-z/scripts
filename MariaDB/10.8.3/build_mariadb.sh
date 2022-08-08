@@ -55,9 +55,10 @@ function prepare() {
 
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
-
+    
+    source "/etc/os-release"
     cd "$CURDIR"
-    if [ "${DISTRO}" == "rhel-7."* ]]; then
+     if [[ "${DISTRO}" == rhel-7* ]]; then
         # Install Git, only for RHEL7.x as it has older version in repo because of which cmake throws error while updating submodules.
         sudo yum remove -y git
         sudo yum groupinstall -y "Development Tools"
@@ -99,7 +100,8 @@ function configureAndInstall() {
     make
     sudo make install
     printf -- "Build mariadb success\n"
-
+    
+    export PATH=$PATH:/usr/sbin
     sudo groupadd mysql || true
     sudo useradd -g mysql mysql || true
 
@@ -192,7 +194,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-21.10")
+"ubuntu-18.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -208,7 +210,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.4" | "rhel-8.5" | "rhel-8.6")
+"rhel-8.4" | "rhel-8.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git gcc which gcc-c++ make wget tar cmake openssl-devel ncurses-devel bison boost-devel check-devel perl-Test-Simple perl-Time-HiRes openssl pcre-devel pam-devel perl-Memoize.noarch patch diffutils hostname libarchive |& tee -a "$LOG_FILE"
