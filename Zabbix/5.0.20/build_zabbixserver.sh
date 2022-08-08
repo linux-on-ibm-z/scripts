@@ -208,12 +208,6 @@ function configureAndInstall() {
       sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php/7.4/apache2/php.ini
       sudo sed -i 's/;date.timezone =/date.timezone = Asia\/Kolkata/g' /etc/php/7.4/apache2/php.ini
     fi
-    if [[ "$VERSION_ID" == "21.10" ]]; then
-      sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php/8.0/apache2/php.ini
-      sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php/8.0/apache2/php.ini
-      sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php/8.0/apache2/php.ini
-      sudo sed -i 's/;date.timezone =/date.timezone = Asia\/Kolkata/g' /etc/php/8.0/apache2/php.ini
-    fi
   fi
 
   #Download and install zabbix server
@@ -527,14 +521,6 @@ case "$DISTRO" in
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
   sudo apt-get update >/dev/null
   sudo apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph libmariadbd-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql libapache2-mod-php mysql-server php7.4-xml php7.4-gd php-bcmath php-mbstring php7.4-ldap libevent-dev libpcre3-dev automake pkg-config libcmocka-dev libyaml-dev libyaml-libyaml-perl libpath-tiny-perl libipc-run3-perl build-essential |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-
-"ubuntu-21.10")
-  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo apt-get update >/dev/null
-  sudo apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph libmariadbd-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql libapache2-mod-php mysql-server php8.0-xml php8.0-gd php-bcmath php-mbstring php8.0-ldap libevent-dev libpcre3-dev automake pkg-config libcmocka-dev libyaml-dev libyaml-libyaml-perl libpath-tiny-perl libipc-run3-perl build-essential |& tee -a "$LOG_FILE"
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
