@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021
+# © Copyright IBM Corporation 2021, 2022
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -306,7 +306,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-21.04" | "ubuntu-21.10")
+"ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -324,7 +324,7 @@ case "$DISTRO" in
     sudo apt-get install -y unixodbc-dev git cmake gcc libssl-dev tar curl libcurl4-openssl-dev libkrb5-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y mariadb mariadb-server unixODBC unixODBC-devel git cmake gcc libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make |& tee -a "$LOG_FILE"
