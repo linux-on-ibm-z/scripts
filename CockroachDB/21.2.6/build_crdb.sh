@@ -225,14 +225,6 @@ DISTRO="$ID-$VERSION_ID"
 checkPrequisites #Check Prequisites
 
 case "$DISTRO" in
-"ubuntu-21.10")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-	sudo apt-get update >/dev/null
-	sudo apt-get install -y autoconf automake libssl-dev cmake wget libncurses5-dev bison xz-utils patch g++ curl git ccache python |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
 "ubuntu-20.04" | "ubuntu-18.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
@@ -273,7 +265,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
     sudo yum install -y gcc-c++ autoconf libarchive cmake git wget make ncurses-devel curl xz diffutils bison ccache python2 |& tee -a "$LOG_FILE"
