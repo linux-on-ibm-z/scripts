@@ -60,7 +60,7 @@ function cleanup() {
 
 function setUpApache2HttpdConf() {
   case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-21.10")
+"ubuntu-18.04")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/apache2/apache2.conf
     echo 'LoadModule wsgi_module /usr/local/lib/python3.6/dist-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/apache2/apache2.conf
     ;;
@@ -71,7 +71,7 @@ function setUpApache2HttpdConf() {
     echo 'LoadModule wsgi_module /usr/lib64/httpd/modules/mod_wsgi.so' | sudo tee -a /etc/httpd/conf/httpd.conf
     ;;
 	
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.5")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'Include /etc/httpd/sites-enabled/' | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'LoadModule wsgi_module /usr/lib64/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/httpd/conf/httpd.conf
@@ -102,13 +102,13 @@ esac
 function setUpKeystoneConf() {
   cd "${SOURCE_ROOT}"
   case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-21.10")
+"ubuntu-18.04")
     curl -SL -k -o wsgi-keystone.conf $CONF_URL/ubuntu-wsgi-keystone.conf
     sudo mv wsgi-keystone.conf /etc/apache2/sites-available/
     sudo ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
     ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.5")
     sudo mkdir -p /etc/httpd/sites-available
     sudo mkdir -p /etc/httpd/sites-enabled
     curl -SL -k -o wsgi-keystone.conf $CONF_URL/rhel-wsgi-keystone.conf
@@ -225,7 +225,7 @@ function configureAndInstall() {
     sudo sed -i "s|#provider = fernet|provider = fernet|g" /etc/keystone/keystone.conf
 
     printf -- '\nPopulating Keystone DB. \n'
-    if  [[ "${DISTRO}" == "sles-12."* || "${DISTRO}" == "rhel-7."* || "${DISTRO}" == "ubuntu-21.10" ]]; then
+    if  [[ "${DISTRO}" == "sles-12."* || "${DISTRO}" == "rhel-7."* ]]; then
      sudo env PATH=$PATH keystone-manage db_sync
     else
     keystone-manage db_sync
@@ -239,7 +239,7 @@ function configureAndInstall() {
    
     sudo chown -R keystone:keystone /etc/keystone/fernet-keys
 
-    if [[ "${ID}" == "rhel" || "${DISTRO}" == "sles-12."* || "${DISTRO}" == "ubuntu-21.10" ]]; then
+    if [[ "${ID}" == "rhel" || "${DISTRO}" == "sles-12."* ]]; then
       sudo env PATH=$PATH keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
       sudo env PATH=$PATH keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
     else
@@ -248,19 +248,12 @@ function configureAndInstall() {
     fi
 
     printf -- '\nBootstrapping identity service. \n'
-    if [[ "${DISTRO}" == "ubuntu-21.10" ]]; then
-    	sudo env PATH=$PATH keystone-manage bootstrap --bootstrap-password ADMIN_PASS \
-      	--bootstrap-admin-url http://${KEYSTONE_HOST_IP}:35357/v3/ \
-      	--bootstrap-internal-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
-      	--bootstrap-public-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
-      	--bootstrap-region-id RegionOne
-    else
+    
 	keystone-manage bootstrap --bootstrap-password ADMIN_PASS \
 	--bootstrap-admin-url http://${KEYSTONE_HOST_IP}:35357/v3/ \
 	--bootstrap-internal-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
 	--bootstrap-public-url http://${KEYSTONE_HOST_IP}:5000/v3/ \
-	--bootstrap-region-id RegionOne
-    fi  
+	--bootstrap-region-id RegionOne 
 
 
     setUpApache2HttpdConf
@@ -370,19 +363,6 @@ case "$DISTRO" in
 
     ;;
 
-"ubuntu-21.10")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-
-    sudo apt-get update
-    sudo apt-get install -y python3-pip libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev curl
-    sudo apt-get install -y mariadb-server
-    sudo -H pip3 install --upgrade pip
-    sudo pip3 install cryptography==3.3.1 python-openstackclient mysqlclient mod_wsgi keystone
-    configureAndInstall | tee -a "$LOG_FILE"
-
-    ;;
-
 "rhel-7.8" | "rhel-7.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
@@ -396,7 +376,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
