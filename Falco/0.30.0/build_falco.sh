@@ -127,14 +127,6 @@ function configureAndInstall() {
 
     cmake $CMAKE_FLAGS ../
 
-    #patch for ub21.10
-    if [[ "${DISTRO}" == "ubuntu-21.10" ]]; then
-        cd $SOURCE_ROOT/falco/cmake/modules
-        sed -i 's/v2.12.1/v2.13.7/g' DownloadCatch.cmake
-        sed -i 's/e5635c082282ea518a8dd7ee89796c8026af8ea9068cd7402fb1615deacd91c3/3cdb4138a072e4c0290034fe22d9f0a80d3bcfb8d7a8a5c49ad75d3a5da24fae/g' DownloadCatch.cmake
-        cd $SOURCE_ROOT/falco/build/falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules
-        sed -i 's/v1.38.1/v1.42.0/g' grpc.cmake
-    fi
     
     cd $SOURCE_ROOT/falco/build/falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules
     sed -i 's/v1.2.1/v2.0.0.1/g' b64.cmake
@@ -232,7 +224,7 @@ logDetails
 prepare
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10")
+"ubuntu-18.04" | "ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update
@@ -255,7 +247,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
