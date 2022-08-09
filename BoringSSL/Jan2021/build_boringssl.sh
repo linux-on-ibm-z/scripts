@@ -86,11 +86,6 @@ function configureAndInstall() {
     git clone https://github.com/linux-on-ibm-z/boringssl
     cd boringssl
     git checkout patch-s390x-Jan2021
-
-if [[ "${DISTRO}" == "ubuntu-21.10" ]]  ;then 
-	curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff 
-	git apply gcc_patch.diff
-fi
 	
     # Build Boringssl
     cd $CURDIR/boringssl
@@ -164,7 +159,7 @@ case "$DISTRO" in
     sudo apt-get install -y build-essential wget make tar git cmake gcc-7 g++-7 |& tee -a "$LOG_FILE"
       configureAndInstall |& tee -a "$LOG_FILE"
       ;;
-"ubuntu-20.04" | "ubuntu-21.10")
+"ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$GIT_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
