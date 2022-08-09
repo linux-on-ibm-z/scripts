@@ -82,7 +82,7 @@ function configureAndInstall() {
         printf -- '\nBuilding bazel..... \n'
         cd $SOURCE_ROOT
         wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/3.7.2/build_bazel.sh
-        sed -i "s/\"ubuntu-18.04\"/\"ubuntu-18.04\" | \"ubuntu-20.04\" | \"ubuntu-21.04\"/g" build_bazel.sh
+        sed -i "s/\"ubuntu-18.04\"/\"ubuntu-18.04\" | \"ubuntu-20.04\"/g" build_bazel.sh
         bash build_bazel.sh -y
 
         export PATH=$SOURCE_ROOT/bazel/output:$PATH
@@ -272,22 +272,6 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"ubuntu-21.04")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- "Installing dependencies... it may take some time.\n"
-        sudo apt-get update
-        sudo apt-get install sudo wget git unzip zip python3-dev python3-pip pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran gcc-7 g++-7 -y |& tee -a "${LOG_FILE}"
-        sudo ldconfig
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 40 --slave /usr/bin/g++ g++ /usr/bin/g++-10
-        sudo update-alternatives --auto gcc
-        sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
-        sudo pip3 install --no-cache-dir numpy==1.19.5 wheel scipy==1.6.3 portpicker protobuf==3.13.0 |& tee -a "${LOG_FILE}"
-        sudo pip3 install keras_preprocessing --no-deps |& tee -a "${LOG_FILE}"
-        configureAndInstall |& tee -a "${LOG_FILE}"
-        ;;
-
-*)
         printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
         exit 1
         ;;
