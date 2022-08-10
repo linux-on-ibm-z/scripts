@@ -145,7 +145,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-21.10" | "ubuntu-22.04")
+"ubuntu-18.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -158,7 +158,7 @@ case "$DISTRO" in
     sudo yum install -y pcre-devel wget tar xz gcc make zlib-devel diffutils |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.3")
+"sles-12.5" | "sles-15.3" | "sles-15.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y pcre-devel wget tar xz gcc make zlib-devel diffutils gzip |& tee -a "$LOG_FILE"
