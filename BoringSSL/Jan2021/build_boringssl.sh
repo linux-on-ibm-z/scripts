@@ -11,7 +11,6 @@ set -e -o pipefail
 PACKAGE_NAME="boringssl"
 CURDIR="$(pwd)"
 GIT_BRANCH="patch-s390x-Jan2021"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/BoringSSL/Jan2021/patch"
 TESTS="false"
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${GIT_BRANCH}-$(date +"%F-%T").log"
@@ -174,7 +173,7 @@ case "$DISTRO" in
     source /opt/rh/devtoolset-7/enable
 	  configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$GIT_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget tar make gcc gcc-c++ bzip2 zlib zlib-devel git xz diffutils cmake libarchive-devel.s390x |& tee -a "$LOG_FILE"
