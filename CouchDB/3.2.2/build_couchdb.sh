@@ -69,10 +69,10 @@ function runTest() {
     "ubuntu-20.04")
       ./configure --spidermonkey-version 68
       ;;
-    "ubuntu-21.10" | "ubuntu-22.04")
+    "ubuntu-22.04")
       ./configure --spidermonkey-version 78
       ;;
-    "rhel-8.4" | "rhel-8.5" | "rhel-8.6")
+    "rhel-8.4" | "rhel-8.6")
       ./configure --spidermonkey-version 60
       ;;
     *)
@@ -208,10 +208,10 @@ function configureAndInstall() {
 	"ubuntu-20.04")
 	  ./configure  --spidermonkey-version 68
 	  ;;
-	"rhel-8.4" | "rhel-8.5" | "rhel-8.6")
+	"rhel-8.4" | "rhel-8.6")
 	  ./configure  --spidermonkey-version 60
 	  ;;
-	"ubuntu-21.10" | "ubuntu-22.04")
+	"ubuntu-22.04")
 	  ./configure  --spidermonkey-version 78
 	  ;;
 	*)
@@ -315,14 +315,6 @@ case "$DISTRO" in
 
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"ubuntu-21.10")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update
-	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config ncurses-base g++ gcc python python3 python3-pip python3-venv hostname curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-8-jdk xsltproc libxml2-utils libmozjs-78-dev|& tee -a "$LOG_FILE"
-
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
 "ubuntu-22.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
@@ -340,7 +332,7 @@ case "$DISTRO" in
 	installPython
 	configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
-"rhel-8.4"  | "rhel-8.5" | "rhel-8.6")
+"rhel-8.4"  | "rhel-8.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python38 python38-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
