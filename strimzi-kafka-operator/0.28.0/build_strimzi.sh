@@ -350,13 +350,7 @@ function configureAndInstall() {
             fi
         fi
 	
-        if [[ "${DISTRO}" == "rhel-8.2" ]]; then
-            sudo yum install -y gcc-toolset-10
-            source /opt/rh/gcc-toolset-10/enable
-        fi
-
-        if [[ ${DISTRO} =~ rhel-8\.[2-5] ]] || [[ "${DISTRO}" == "ubuntu-18.04" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
-            if [[ ${DISTRO} =~ rhel-8\.[2-5] ]]; then
+        if [[ "${DISTRO}" == "rhel-8.4" ]] || [[ "${DISTRO}" == "ubuntu-18.04" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
                 # Build cabal-install
                 printf -- "Building cabal-install\n"
                 cd $CURDIR
@@ -364,7 +358,7 @@ function configureAndInstall() {
                 tar -xvf cabal-install-2.0.0.1.tar.gz
                 cd cabal-install-2.0.0.1
                 ./bootstrap.sh
-            fi
+            
             export PATH=$HOME/.cabal/bin:$PATH
             cabal --version
             cabal update
@@ -815,7 +809,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"ubuntu-20.04" | "ubuntu-21.10")
+"ubuntu-20.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata |& tee -a "${LOG_FILE}"
@@ -852,7 +846,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-8.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum remove -y podman buildah
         sudo yum install -y yum-utils
