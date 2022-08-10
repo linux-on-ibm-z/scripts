@@ -177,7 +177,7 @@ function runTest() {
 			echo "Running Tests: "
 
 			case "$DISTRO" in	
-			"rhel-8.4" | "rhel-8.5" | "rhel-8.6")
+			"rhel-8.4" | "rhel-8.6")
 				yum install -y acl attr bc bind-utils boost-devel docbook-style-xsl expat-devel gdb net-tools nfs-utils psmisc vim xfsprogs yajl redhat-rpm-config python3-devel python3-pyxattr python3-prettytable perl-Test-Harness popt-devel procps-ng
 				;;
 			
@@ -310,7 +310,7 @@ export LD_RUN_PATH
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.4" | "rhel-8.5" | "rhel-8.6")
+"rhel-8.4" | "rhel-8.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 	yum install -y autoconf automake bison bzip2 flex fuse-devel gcc-c++ git glib2-devel libacl-devel libaio-devel libibverbs-devel librdmacm-devel libtool libxml2-devel libuuid-devel liburing-devel lvm2 make binutils openssl-devel pkgconfig python3 readline-devel wget zlib-devel tar gzip libtirpc-devel patch rpcgen userspace-rcu-devel which diffutils xz gperftools gperf
