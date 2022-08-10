@@ -4,7 +4,7 @@
 
 ################################################################################################################################################################
 #Script     :   build_calico.sh
-#Description:   The script builds Calico version v3.22.2 on Linux on IBM Z for RHEL (7.8, 7.9, 8.4, 8.5), Ubuntu (18.04, 20.04) and SLES (12 SP5, 15 SP3).
+#Description:   The script builds Calico version v3.22.2 on Linux on IBM Z for RHEL (7.8, 7.9, 8.4), Ubuntu (18.04, 20.04) and SLES (12 SP5, 15 SP3).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Calico mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Calico-3.x ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -461,7 +461,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.4" | "rhel-8.5")
+"rhel-8.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo yum remove -y podman buildah
