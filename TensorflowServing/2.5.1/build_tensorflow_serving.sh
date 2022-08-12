@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021.
+# © Copyright IBM Corporation 2021, 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -272,10 +272,10 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
+*)
         printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
         exit 1
         ;;
 esac
 
 gettingStarted |& tee -a "${LOG_FILE}"
-
