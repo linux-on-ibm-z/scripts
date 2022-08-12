@@ -160,6 +160,8 @@ EOF
     rm -rf $GOPATH/src/github.com/projectcalico/bpftool
     git clone https://github.com/projectcalico/bpftool $GOPATH/src/github.com/projectcalico/bpftool 2>&1 | tee -a "$BPFTOOL_LOG"
     cd $GOPATH/src/github.com/projectcalico/bpftool
+    sed -i 's,buster-slim,bullseye-slim,g' Dockerfile.s390x
+    sed -i 's,libgcc-8-dev,libgcc-10-dev,g' Dockerfile.s390x
     ARCH=s390x VERSION=v5.3 make image 2>&1 | tee -a "$BPFTOOL_LOG"
 
     # Build go-build v0.65.1
