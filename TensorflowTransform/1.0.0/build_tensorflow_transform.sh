@@ -201,6 +201,12 @@ function configureAndInstall() {
     sudo pip3 install dist/*.whl
 
     printf -- 'tfx-bsl installed successfully \n'
+    
+    printf -- 'Installing google-api-core... \n'
+
+    sudo pip3 install google-api-core==2.8.1
+
+    printf -- 'google-api-core installed successfully \n'
 
     printf -- 'Building TensorFlow Transform... \n'
 
