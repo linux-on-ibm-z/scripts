@@ -10,7 +10,7 @@ set -e -o pipefail
 
 PACKAGE_NAME="CFSSL"
 PACKAGE_VERSION="1.6.1"
-GO_VERSION="1.14.15"
+GO_VERSION="1.16.5"
 SOURCE_ROOT="$(pwd)"
 
 GO_DEFAULT="$HOME/go"
@@ -87,6 +87,9 @@ function configureAndInstall() {
 	cd $SOURCE_ROOT
 	go get -u github.com/cloudflare/cfssl/cmd/cfssl
 	go get -u github.com/cloudflare/cfssl/cmd/cfssljson
+	mkdir -p $GOPATH/src/github.com/cloudflare
+	cd $GOPATH/src/github.com/cloudflare
+	git clone https://github.com/cloudflare/cfssl.git
 	cd $GOPATH/src/github.com/cloudflare/cfssl
 	git checkout "v${PACKAGE_VERSION}"
 	
