@@ -353,7 +353,7 @@ case "$DISTRO" in
     ;;
 
     #----------------------------------------------------------
-"ubuntu-20.04" | "ubuntu-21.10" | "ubuntu-22.04")
+"ubuntu-20.04" | "ubuntu-22.04")
 
     sudo apt-get update >/dev/null
 
@@ -419,7 +419,7 @@ case "$DISTRO" in
     ;;
 
     #----------------------------------------------------------
-"rhel-8.4"| "rhel-8.5" | "rhel-8.6")
+"rhel-8.4"| "rhel-8.6")
 
     sudo yum install -y \
         autoconf curl libtool openssl-devel \
