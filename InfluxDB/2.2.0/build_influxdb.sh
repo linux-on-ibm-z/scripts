@@ -14,7 +14,7 @@ PACKAGE_VERSION="2.2.0"
 FORCE="false"
 TEST="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.2/build_go.sh"
+GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh"
 
 trap cleanup 0 1 2 ERR
 
@@ -247,7 +247,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-20.04" | "ubuntu-21.10" | "ubuntu-22.04")
+"ubuntu-20.04" | "ubuntu-22.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
@@ -285,7 +285,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo yum install -y clang git gcc gcc-c++ wget protobuf protobuf-devel tar curl patch pkg-config make nodejs python38  |& tee -a "$LOG_FILE"
