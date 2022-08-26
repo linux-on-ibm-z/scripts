@@ -121,7 +121,7 @@ index 6608744e5..bbdd5801f 100644
  FROM calico/bpftool:v5.3-s390x as bpftool
  
 -FROM s390x/alpine:3.8 as base
-+FROM debian:10-slim
++FROM debian:11-slim
  
  # Enable non-native builds of this image on an amd64 hosts.
  # This must be the first RUN command in this file!
