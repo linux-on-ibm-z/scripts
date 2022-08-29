@@ -117,9 +117,9 @@ function configureAndInstall() {
     wget -O rustup-init.sh https://sh.rustup.rs
     bash rustup-init.sh -y
     export PATH=$PATH:$HOME/.cargo/bin
-    rustup toolchain install 1.49.0
-    rustup default 1.49.0
-    rustc --version | grep "1.49.0"
+    rustup toolchain install 1.59.0
+    rustup default 1.59.0
+    rustc --version | grep "1.59.0"
 
     cd $CURDIR
 
@@ -413,7 +413,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-8.4" | "rhel-8.5" | "rhel-8.6" )
+"rhel-8.4" | "rhel-8.6" )
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python38 python38-devel |& tee -a "${LOG_FILE}"
