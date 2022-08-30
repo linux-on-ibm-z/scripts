@@ -307,11 +307,18 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-    "rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-9.0")
+    "rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum groupinstall -y 'Development Tools'  |& tee -a "${LOG_FILE}"
         sudo yum install -y wget tar git libtool autoconf make curl python3 |& tee -a "${LOG_FILE}"
+        configureAndInstall |& tee -a "${LOG_FILE}"
+        ;;
+        
+    "rhel-9.0")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo yum install -y rpmdevtools wget tar git libtool autoconf make curl python3 flex gcc redhat-rpm-config  rpm-build pkgconfig gettext automake gdb bison gcc-c++ binutils |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
