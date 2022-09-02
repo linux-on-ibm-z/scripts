@@ -71,7 +71,7 @@ function setUpApache2HttpdConf() {
     echo 'LoadModule wsgi_module /usr/lib64/httpd/modules/mod_wsgi.so' | sudo tee -a /etc/httpd/conf/httpd.conf
     ;;
 	
-"rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.6")
     echo "ServerName ${KEYSTONE_HOST_IP}" | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'Include /etc/httpd/sites-enabled/' | sudo tee -a /etc/httpd/conf/httpd.conf
     echo 'LoadModule wsgi_module /usr/lib64/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-s390x-linux-gnu.so' | sudo tee -a /etc/httpd/conf/httpd.conf
@@ -108,7 +108,7 @@ function setUpKeystoneConf() {
     sudo ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
     ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.5")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6")
     sudo mkdir -p /etc/httpd/sites-available
     sudo mkdir -p /etc/httpd/sites-enabled
     curl -SL -k -o wsgi-keystone.conf $CONF_URL/rhel-wsgi-keystone.conf
@@ -284,6 +284,19 @@ function configureAndInstall() {
     runCheck
 }
 
+function installRustc() {
+
+	cd $SOURCE_ROOT
+	wget https://static.rust-lang.org/dist/rust-1.63.0-s390x-unknown-linux-gnu.tar.gz
+	tar -xzf rust-1.63.0-s390x-unknown-linux-gnu.tar.gz
+	cd rust-1.63.0-s390x-unknown-linux-gnu
+	sudo ./install.sh
+	export PATH=$HOME/.cargo/bin:$PATH
+	rustc -V
+	cargo  -V
+
+}
+
 function logDetails() {
     printf -- 'SYSTEM DETAILS\n' >"$LOG_FILE"
     if [ -f "/etc/os-release" ]; then
@@ -356,8 +369,9 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo apt-get update
-    sudo apt-get install -y python3-pip libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev
+    sudo apt-get install -y python3-pip wget cargo libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev curl
     sudo -H pip3 install --upgrade pip
+
     sudo pip3 install cryptography==3.3.1 python-openstackclient mysqlclient mod_wsgi keystone
     configureAndInstall | tee -a "$LOG_FILE"
 
@@ -368,19 +382,23 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo yum install -y gcc gcc-c++ openssl.s390x httpd httpd-devel mariadb-server mariadb-devel sqlite-devel wget
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.10.3/build_python3.sh
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.10.4/build_python3.sh
     bash build_python3.sh -y
     export PATH=/usr/local/bin:$PATH
+	
+    installRustc
+    sudo ldconfig /usr/local/lib64
+	
     sudo -H env PATH=$PATH pip3 install --upgrade pip
-    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 mod_wsgi python-openstackclient mysqlclient keystone  jinja2==3.0.0 werkzeug==0.16.1
+    sudo env PATH=$PATH pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 mod_wsgi python-openstackclient mysqlclient keystone  jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.4" | "rhel-8.5")
+"rhel-8.4" | "rhel-8.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y python3-devel libffi-devel openssl-devel gcc make gcc-c++ python3-mod_wsgi.s390x httpd httpd-devel mariadb-devel  mariadb-server procps sqlite-devel.s390x
+    sudo yum install -y python3-devel libffi-devel cargo curl wget openssl-devel gcc make gcc-c++ python3-mod_wsgi.s390x httpd httpd-devel mariadb-devel  mariadb-server procps sqlite-devel.s390x
     export PATH=/usr/local/bin:$PATH
     sudo -H pip3 install --upgrade pip
     sudo pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient keystone mysqlclient  jinja2==3.0.0 werkzeug==0.16.1
@@ -392,12 +410,13 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo zypper install -y apache2-mod_wsgi libopenssl-devel gcc make gawk apache2  apache2-devel mariadb libmariadb3 gcc-c++ libmysqld-devel wget
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.10.3/build_python3.sh
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.10.4/build_python3.sh
     bash build_python3.sh -y
-
     export PATH=/usr/local/bin:$PATH
+	
+    installRustc
     sudo -H env PATH=$PATH pip3 install --upgrade pip
-    sudo env PATH=$PATH  pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 python-openstackclient mysqlclient keystone jinja2==3.0.0 werkzeug==0.16.1
+    sudo env PATH=$PATH pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 python-openstackclient mysqlclient keystone jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
@@ -405,7 +424,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo zypper install -y libopenssl-devel libffi-devel gcc make python3-devel python3-pip gawk apache2  apache2-devel mariadb libmariadb-devel gcc-c++
+    sudo zypper install -y libopenssl-devel libffi-devel cargo curl wget gcc make python3-devel python3-pip gawk apache2  apache2-devel mariadb libmariadb-devel gcc-c++
     sudo -H pip3 install --upgrade pip
     sudo pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient mysqlclient keystone mod_wsgi jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
