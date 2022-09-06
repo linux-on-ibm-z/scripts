@@ -1,0 +1,203 @@
+diff --git a/tensorflow/c/c_api_test.cc b/tensorflow/c/c_api_test.cc
+index 90615015cce..ee3674340ee 100644
+--- a/tensorflow/c/c_api_test.cc
++++ b/tensorflow/c/c_api_test.cc
+@@ -1533,11 +1533,13 @@ TEST(CAPI, TestBitcastFrom_Reshape) {
+   EXPECT_EQ(6 * TF_DataTypeSize(TF_UINT64), TF_TensorByteSize(a));
+   EXPECT_EQ(6 * TF_DataTypeSize(TF_UINT64), TF_TensorByteSize(b));
+
+-  // Check that a write to one tensor shows up in the other.
+-  *(static_cast<int64_t*>(TF_TensorData(a))) = 4;
+-  EXPECT_EQ(4, *(static_cast<int64_t*>(TF_TensorData(b))));
+-  *(static_cast<int64_t*>(TF_TensorData(b))) = 6;
+-  EXPECT_EQ(6, *(static_cast<int64_t*>(TF_TensorData(a))));
++  if (tensorflow::port::kLittleEndian) {
++    // Check that a write to one tensor shows up in the other.
++    *(static_cast<int64_t*>(TF_TensorData(a))) = 4;
++    EXPECT_EQ(4, *(static_cast<int64_t*>(TF_TensorData(b))));
++    *(static_cast<int64_t*>(TF_TensorData(b))) = 6;
++    EXPECT_EQ(6, *(static_cast<int64_t*>(TF_TensorData(a))));
++  }
+
+   TF_DeleteTensor(a);
+   TF_DeleteTensor(b);
+diff --git a/tensorflow/core/framework/BUILD b/tensorflow/core/framework/BUILD
+index b277bb36e46..bfe76608c5a 100644
+--- a/tensorflow/core/framework/BUILD
++++ b/tensorflow/core/framework/BUILD
+@@ -858,6 +858,7 @@ tf_cuda_library(
+         "//tensorflow/core/platform:types",
+         "//tensorflow/core/public:version",
+         "//tensorflow/core/util:managed_stack_trace",
++        "//tensorflow/core/util/tensor_bundle",
+         "//third_party/eigen3",
+         "@com_google_absl//absl/memory",
+         "@com_google_absl//absl/strings",
+diff --git a/tensorflow/core/framework/tensor.cc b/tensorflow/core/framework/tensor.cc
+index 216df1799f2..14bd296c416 100644
+--- a/tensorflow/core/framework/tensor.cc
++++ b/tensorflow/core/framework/tensor.cc
+@@ -38,6 +38,7 @@ limitations under the License.
+ #include "tensorflow/core/framework/resource_handle.pb.h"
+ #include "tensorflow/core/framework/tensor.pb.h"
+ #include "tensorflow/core/framework/tensor_description.pb.h"
++#include "tensorflow/core/framework/tensor_util.h"
+ #include "tensorflow/core/framework/type_traits.h"
+ #include "tensorflow/core/framework/typed_allocator.h"
+ #include "tensorflow/core/framework/types.h"
+@@ -58,6 +59,7 @@ limitations under the License.
+ #include "tensorflow/core/platform/protobuf.h"
+ #include "tensorflow/core/platform/tensor_coding.h"
+ #include "tensorflow/core/platform/types.h"
++#include "tensorflow/core/util/tensor_bundle/byte_swap.h"
+
+ namespace tensorflow {
+
+@@ -754,8 +756,18 @@ Status Tensor::BitcastFrom(const Tensor& other, DataType dtype,
+   shape_.set_data_type(dtype);
+   if (buf_ != other.buf_) {
+     UnrefIfNonNull(buf_);
+-    buf_ = other.buf_;
+-    RefIfNonNull(buf_);
++    if (port::kLittleEndian) {
++      buf_ = other.buf_;
++      RefIfNonNull(buf_);
++    } else {
++      Tensor ts_ = tensor::DeepCopy(other);
++      buf_ = ts_.buf_;
++      ByteSwapArray((char*)(buf_->root_buffer()->data()),
++          in_size, other.shape().num_elements());
++      ByteSwapArray((char*)(buf_->root_buffer()->data()),
++          out_size, shape.num_elements());
++      RefIfNonNull(buf_);
++    }
+   }
+   return Status::OK();
+ }
+diff --git a/tensorflow/distribute/experimental/rpc/kernels/BUILD b/tensorflow/distribute/experimental/rpc/kernels/BUILD
+index 9f92501443b..05c81fb5703 100644
+--- a/tensorflow/distribute/experimental/rpc/kernels/BUILD
++++ b/tensorflow/distribute/experimental/rpc/kernels/BUILD
+@@ -17,7 +17,7 @@ cc_library(
+     deps = [
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_proto_cc",
+         "//tensorflow/stream_executor/platform",
+-        "@com_github_grpc_grpc//:grpc++",
++        "//tensorflow:grpc++",
+     ],
+     alwayslink = 1,
+ )
+@@ -26,7 +26,7 @@ cc_library(
+     name = "grpc_credentials",
+     hdrs = ["grpc_credentials.h"],
+     deps = [
+-        "@com_github_grpc_grpc//:grpc++",
++        "//tensorflow:grpc++",
+     ] + grpc_credentials_dependency(),
+ )
+
+@@ -47,7 +47,7 @@ tf_kernel_library(
+         "//tensorflow/core/distributed_runtime/rpc:grpc_util",
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_proto_cc",
+         "//tensorflow/stream_executor/platform",
+-        "@com_github_grpc_grpc//:grpc++",
++        "//tensorflow:grpc++",
+         "@com_google_absl//absl/strings",
+         "@com_google_absl//absl/strings:str_format",
+     ],
+diff --git a/tensorflow/python/tfcompile_wrapper.cc b/tensorflow/python/tfcompile_wrapper.cc
+index c8818309919..b02ba0036e1 100644
+--- a/tensorflow/python/tfcompile_wrapper.cc
++++ b/tensorflow/python/tfcompile_wrapper.cc
+@@ -15,6 +15,7 @@ limitations under the License.
+
+ #include <string>
+
++#include "llvm/Support/Host.h"
+ #include "pybind11/cast.h"
+ #include "pybind11/pybind11.h"
+ #include "pybind11/pytypes.h"
+@@ -45,7 +46,8 @@ PYBIND11_MODULE(_pywrap_tfcompile, m) {
+         flags.graph = std::move(graph);
+         flags.config = std::move(config);
+         flags.target_triple = std::move(target_triple);
+-        flags.target_cpu = std::move(target_cpu);
++        flags.target_cpu = std::move(target_cpu.empty() ?
++                       llvm::sys::getHostCPUName().str() : target_cpu);
+         flags.target_features = std::move(target_features);
+         flags.entry_point = std::move(entry_point);
+         flags.cpp_class = std::move(cpp_class);
+diff --git a/third_party/llvm/macos_build_fix.patch b/third_party/llvm/macos_build_fix.patch
+index 4dba8676ea5..07c4df927f6 100644
+--- a/third_party/llvm/macos_build_fix.patch
++++ b/third_party/llvm/macos_build_fix.patch
+@@ -38,7 +38,7 @@ index ff64df694048..c9c35b01711c 100644
+ -    "@bazel_tools//src/conditions:darwin_arm64": native_arch_defines("AArch64", "arm64-apple-darwin"),
+ -    "@bazel_tools//src/conditions:darwin_x86_64": native_arch_defines("X86", "x86_64-unknown-darwin"),
+ +    "//llvm:macos_arm64": native_arch_defines("AArch64", "arm64-apple-darwin"),
+-+    "@bazel_tools//src/conditions:darwin": native_arch_defines("X86", "x86_64-unknown-darwin"),
+++    "@bazel_tools//src/conditions:linux_s390x": native_arch_defines("SystemZ", "systemz-unknown-linux_gnu"),
+      "@bazel_tools//src/conditions:linux_aarch64": native_arch_defines("AArch64", "aarch64-unknown-linux-gnu"),
+      "//conditions:default": native_arch_defines("X86", "x86_64-unknown-linux-gnu"),
+  }) + [
+diff --git a/tensorflow/core/platform/ctstring_internal.h b/tensorflow/core/platform/ctstring_internal.h
+index 07fa6636b61..6f01e803910 100644
+--- a/tensorflow/core/platform/ctstring_internal.h
++++ b/tensorflow/core/platform/ctstring_internal.h
+@@ -215,7 +215,7 @@ static inline const char *TF_TString_GetDataPointer(const TF_TString *str) {
+     case TF_TSTR_LARGE:
+       return str->u.large.ptr;
+     case TF_TSTR_OFFSET:
+-      return (const char *)str + str->u.offset.offset;  // NOLINT
++      return (const char *)str + TF_le32toh(str->u.offset.offset);  // NOLINT
+     case TF_TSTR_VIEW:
+       return str->u.view.ptr;
+     default:
+diff --git a/tensorflow/core/platform/ctstring_test.cc b/tensorflow/core/platform/ctstring_test.cc
+index d1e76812f4d..a0fffabfa30 100644
+--- a/tensorflow/core/platform/ctstring_test.cc
++++ b/tensorflow/core/platform/ctstring_test.cc
+@@ -384,26 +384,22 @@ TEST(TF_CTStringTest, ResizeReserve) {
+
+ TEST(TF_CTStringTest, OffsetType) {
+   {
+-    TF_TString s71;
+-
+-    TF_TString_Init(&s71);
+-    size_t header_length = 24;
+-    size_t size = 8;
+-    TF_TString_ResizeUninitialized(&s71, header_length + size);
+-    uint32_t save_size = s71.u.offset.size;
+-    uint32_t save_offset = s71.u.offset.offset;
+-    uint32_t save_count = s71.u.offset.count;
+-
+-    s71.u.offset.size = TF_TString_ToInternalSizeT(size, TF_TSTR_OFFSET);
+-    s71.u.offset.offset = header_length;
+-    s71.u.offset.count = 0;
+-    EXPECT_EQ(size, TF_TString_GetSize(&s71));
+-    EXPECT_EQ(TF_TSTR_OFFSET, TF_TString_GetType(&s71));
+-
+-    // restore state so string can be deallocated
+-    s71.u.offset.size = save_size;
+-    s71.u.offset.offset = save_offset;
+-    s71.u.offset.count = save_count;
+-    TF_TString_Dealloc(&s71);
++    uint8_t str[] = "test";
++    constexpr size_t str_size = sizeof(str) / sizeof(str[0]);
++
++    uint8_t buf[sizeof(TF_TString) + str_size];
++
++    memcpy(buf + sizeof(TF_TString), str, str_size);
++
++    TF_TString *offsets = (TF_TString *)buf;
++    TF_TString_Init(offsets);
++    // using existing TF_le32toh to achieve htole32
++    offsets[0].u.offset.size = TF_le32toh(str_size << 2 | TF_TSTR_OFFSET);
++    offsets[0].u.offset.offset = TF_le32toh(sizeof(TF_TString));
++    offsets[0].u.offset.count = TF_le32toh(1);
++
++    EXPECT_EQ(str_size, TF_TString_GetSize(offsets));
++    EXPECT_EQ(TF_TSTR_OFFSET, TF_TString_GetType(offsets));
++    EXPECT_EQ(0, ::memcmp(str, TF_TString_GetDataPointer(offsets), str_size));
+   }
+ }
