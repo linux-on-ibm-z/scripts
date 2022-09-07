@@ -233,9 +233,11 @@ function configureAndInstall() {
     sudo mkdir -p /var/www/html/${URL_NAME}
     sudo cp -rf * /var/www/html/${URL_NAME}/
     sudo chown -R www-data:www-data /var/www/html/zabbix/conf
-    sudo service apache2 restart
+    sudo service apache2 start
     if [[ "$VERSION_ID" == "20.04" || "$VERSION_ID" == "22.04" ]]; then
-      sudo service mysql restart
+      sudo service mysql stop
+      sudo usermod -d /var/lib/mysql/ mysql
+      sudo service mysql start
     fi
   fi
 
