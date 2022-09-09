@@ -302,14 +302,14 @@ if [[ "$USEAS" == "server" ]]; then
                 ;;
 
         "sles-12.5")
-                printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+                printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo zypper install -y gcc-c++ tar unzip libopenssl-devel make git wget zip gzip gawk |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
         "sles-15.3" | "sles-15.4")
-                printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+                printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo zypper install -y gcc-c++ tar unzip libopenssl-devel make git wget zip ruby gzip gawk |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
