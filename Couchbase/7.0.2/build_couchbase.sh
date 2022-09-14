@@ -925,7 +925,7 @@ case "$DISTRO" in
   printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- '\nInstalling dependencies from repository \n' |& tee -a "$LOG_FILE"
   sudo sudo zypper install -y asciidoc autoconf automake clang12 cmake curl flex \
-    gcc gcc-c++ gcc10-c++ gcc10 git-core glib2 glib2-devel glibc-locale go1.15 \
+    gcc gcc-c++ gcc10-c++-10.3.0+git1587 gcc10-10.3.0+git1587 git-core glib2 glib2-devel glibc-locale go1.15 \
     libcurl-devel libevent-devel libopenssl-devel libncurses6 \
     libsnappy1 libtirpc-devel libtool libuv1 libuv-devel libxml2-tools libxslt-tools \
     liblz4-1 libz1 liblz4-devel make makedepend \
