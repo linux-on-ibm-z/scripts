@@ -135,7 +135,7 @@ checkPrequisites #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10" | "ubuntu-22.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
     	sudo apt-get update -y >/dev/null
@@ -143,7 +143,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.5" | "rhel-8.6")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-9.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y ncurses-devel automake autoconf gcc git make |& tee -a "$LOG_FILE"
@@ -157,7 +157,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"sles-15.3")
+"sles-15.3" | "sles-15.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y ncurses ncurses-devel gcc make wget tar awk git autoconf libtool xz gzip|& tee -a "$LOG_FILE"
