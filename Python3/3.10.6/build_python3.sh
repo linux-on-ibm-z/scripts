@@ -259,13 +259,13 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-9.0")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        if [[ "$VERSION_ID" == "8.4" ]] || [[ "$VERSION_ID" == "8.6" ]]; then
-                sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libnsl2-devel libuuid-devel make ncurses ncurses-devel openssl openssl-devel readline-devel sqlite-devel tar tk-devel wget xz zlib-devel glibc-langpack-en diffutils xz-devel
-        else
+        if [[ "$DISTRO" == "rhel-7."* ]]; then
                 sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libuuid-devel make ncurses-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel
                 build_openssl |& tee -a "${LOG_FILE}"
+        else
+                sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libnsl2-devel libuuid-devel make ncurses ncurses-devel openssl openssl-devel readline-devel sqlite-devel tar tk-devel wget xz zlib-devel glibc-langpack-en diffutils xz-devel
         fi
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
