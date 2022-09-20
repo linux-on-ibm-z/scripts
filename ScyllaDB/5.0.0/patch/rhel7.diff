@@ -1,0 +1,40 @@
+diff --git a/src/core/file.cc b/src/core/file.cc
+index 62a06ce..9974047 100644
+--- a/src/core/file.cc
++++ b/src/core/file.cc
+@@ -1126,11 +1126,17 @@ void append_challenged_posix_file_impl::truncate_to_logical_size() {
+ }
+
+ future<> file::set_file_lifetime_hint(uint64_t hint) noexcept {
++    #ifdef F_SET_FILE_RW_HINT
+     return set_lifetime_hint_impl(F_SET_FILE_RW_HINT, hint);
++    #endif
++    return make_ready_future<>();
+ }
+
+ future<> file::set_inode_lifetime_hint(uint64_t hint) noexcept {
++    #ifdef F_SET_RW_HINT
+     return set_lifetime_hint_impl(F_SET_RW_HINT, hint);
++    #endif
++    return make_ready_future<>();
+ }
+
+ future<uint64_t> file::get_lifetime_hint_impl(int op) noexcept {
+@@ -1150,11 +1156,17 @@ void append_challenged_posix_file_impl::truncate_to_logical_size() {
+ }
+
+ future<uint64_t> file::get_file_lifetime_hint() noexcept {
++    #ifdef F_GET_FILE_RW_HINT
+     return get_lifetime_hint_impl(F_GET_FILE_RW_HINT);
++    #endif
++    return make_ready_future<uint64_t>();
+ }
+
+ future<uint64_t> file::get_inode_lifetime_hint() noexcept {
++    #ifdef F_GET_RW_HINT
+     return get_lifetime_hint_impl(F_GET_RW_HINT);
++    #endif
++    return make_ready_future<uint64_t>();
+ }
+
+ future<temporary_buffer<uint8_t>>
