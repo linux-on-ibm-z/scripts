@@ -1,0 +1,56 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c6e9fb3..ef3f756 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -720,7 +720,9 @@ set (Seastar_PRIVATE_CXX_FLAGS
+   -Wall
+   -Werror
+   -Wno-array-bounds # Disabled because of https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93437
+-  -Wno-error=deprecated-declarations)
++  -Wno-deprecated-declarations
++  -Wno-unused-private-field)
++
+
+ if (Seastar_COMPRESS_DEBUG)
+   # -gz doesn't imply -g, so it is safe to add it regardless of debug
+diff --git a/include/seastar/core/std-coroutine.hh b/include/seastar/core/std-coroutine.hh
+index 841e854..5ee33b5 100644
+--- a/include/seastar/core/std-coroutine.hh
++++ b/include/seastar/core/std-coroutine.hh
+@@ -22,7 +22,7 @@
+ #pragma once
+
+ // Clang currently only supports the TS
+-#if __has_include(<coroutine>) && !defined(__clang__)
++#if __has_include(<coroutine>) && (!defined(__clang__) || __clang_major__ >= 14)
+ #include <coroutine>
+ #define SEASTAR_INTERNAL_COROUTINE_NAMESPACE std
+ #elif __has_include(<experimental/coroutine>)
+diff --git a/src/core/reactor.cc b/src/core/reactor.cc
+index 17a5064..a9fce24 100644
+--- a/src/core/reactor.cc
++++ b/src/core/reactor.cc
+@@ -2592,8 +2592,8 @@ class reactor::smp_pollfn final : public reactor::pollfn {
+ public:
+     smp_pollfn(reactor& r) : _r(r) {}
+     virtual bool poll() final override {
+-        return (smp::poll_queues() |
+-                _r._alien.poll_queues());
++        return (int(smp::poll_queues()) |
++                int(_r._alien.poll_queues()));
+     }
+     virtual bool pure_poll() final override {
+         return (smp::pure_poll_queues() ||
+diff --git a/src/core/thread.cc b/src/core/thread.cc
+index 1548adf..c17f61a 100644
+--- a/src/core/thread.cc
++++ b/src/core/thread.cc
+@@ -287,7 +287,7 @@ void thread_context::stack_deleter::operator()(char* ptr) const noexcept {
+ #elif defined(__aarch64__)
+     asm(".cfi_undefined x30");
+ #elif defined(__s390x__)
+-    asm(".cfi_undefined r14");
++    asm(".cfi_undefined %r14");
+ #else
+     #warning "Backtracing from seastar threads may be broken"
+ #endif
