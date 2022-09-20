@@ -269,7 +269,7 @@ case "$DISTRO" in
 	source /opt/rh/devtoolset-7/enable
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-8.4" | "rhel-8.6" )
+"rhel-8.4" | "rhel-8.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget maven golang |& tee -a "${LOG_FILE}"
@@ -284,7 +284,7 @@ case "$DISTRO" in
 	sudo ln -sf /usr/bin/gcc /usr/bin/cc
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"sles-15.3")
+"sles-15.3" | "sles-15.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper install -y awk ninja cmake perl libopenssl-devel apr-devel autoconf automake libtool make tar git wget gcc gcc-c++ gzip |& tee -a "${LOG_FILE}"
