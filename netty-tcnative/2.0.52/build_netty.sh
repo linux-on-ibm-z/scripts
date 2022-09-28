@@ -179,7 +179,7 @@ function configureAndInstall() {
 	sed -i '54,54 s/boringssl.googlesource.com/github.com\/linux-on-ibm-z/g' boringssl-static/pom.xml
 	sed -i '55,55 s/chromium-stable/patch-s390x-Jan2021/g' boringssl-static/pom.xml
 	
-	if [[ "${DISTRO}" == "ubuntu-22.04" ]]  ;then 
+	if [[ "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "rhel-9.0" ]]  ;then 
 	curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff 
 	cp gcc_patch.diff /tmp/gcc_patch.diff
 	
@@ -269,7 +269,7 @@ case "$DISTRO" in
 	source /opt/rh/devtoolset-7/enable
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-8.4" | "rhel-8.6")
+"rhel-8.4" | "rhel-8.6" | "rhel-9.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget maven golang |& tee -a "${LOG_FILE}"
