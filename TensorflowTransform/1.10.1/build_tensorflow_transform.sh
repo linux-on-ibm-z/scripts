@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="tensorflow_transform"
 PACKAGE_VERSION="1.10.1"
 CURDIR="$(pwd)"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Tensorflow-Transform/1.10.1/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/TensorflowTransform/1.10.1/patch"
 TENSORFLOW_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Tensorflow/2.9.1/build_tensorflow.sh"
 
 FORCE="false"
