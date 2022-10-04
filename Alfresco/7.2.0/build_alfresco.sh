@@ -262,7 +262,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT/SearchServices/search-services
     mvn clean install -DskipTests=true
     cd packaging/target/docker-resources/
-    sed -i "s/YourKit-JavaProfiler-2019.8-b142-docker/YourKit-JavaProfiler-2021.3-docker/g" Dockerfile
+    sed -i "s/YourKit-JavaProfiler-2019.8-b142-docker/YourKit-JavaProfiler-2022.3-docker/g" Dockerfile
     sed -i "220 s/download.yourkit.com\/yjp\/2019.8/www.yourkit.com\/download\/docker/g" Dockerfile
     sed -i "64 s/download.yourkit.com\/yjp\/2019.8/www.yourkit.com\/download\/docker/g" Dockerfile
     docker build -t alfresco/alfresco-search-services:2.0.3 .
