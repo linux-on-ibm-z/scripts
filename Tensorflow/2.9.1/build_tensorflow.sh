@@ -252,7 +252,7 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
-	sudo apt-get install wget git unzip zip python3-dev python3-pip openjdk-11-jdk pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran curl -y |& tee -a "${LOG_FILE}"
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install wget git unzip zip python3-dev python3-pip openjdk-11-jdk pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran curl -y |& tee -a "${LOG_FILE}"
 	sudo ldconfig
 	sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
 	sudo pip3 install --no-cache-dir numpy==1.22.3 wheel scipy==1.6.3 portpicker protobuf==3.13.0 packaging |& tee -a "${LOG_FILE}"
