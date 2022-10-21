@@ -598,10 +598,10 @@ case "$DISTRO" in
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
   sudo subscription-manager repos --enable=codeready-builder-for-rhel-8-s390x-rpms |& tee -a "$LOG_FILE"
-  sudo yum install -y initscripts httpd tar wget curl vim gcc make net-snmp net-snmp-devel php-mysqlnd mysql-libs git \
+  sudo yum install -y initscripts httpd tar wget curl vim gcc make net-snmp net-snmp-devel php-mysqlnd git \
         httpd php libcurl-devel libxml2-devel php-xml php-gd php-bcmath php-mbstring php-ldap php-json libevent-devel \
         pcre-devel policycoreutils-python-utils automake pkgconfig libcmocka-devel libyaml-devel perl-YAML-LibYAML \
-        libpath_utils-devel perl-IPC-Run3 perl-Path-Tiny mysql-devel php-fpm |& tee -a "$LOG_FILE"
+        libpath_utils-devel perl-IPC-Run3 perl-Path-Tiny php-fpm |& tee -a "$LOG_FILE"
   sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
