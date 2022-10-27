@@ -119,8 +119,13 @@ function installClang12() {
 function installV8() {
   cd "${CURDIR}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-  export PATH=$PATH:`pwd`/depot_tools
+  cd "${CURDIR}"/depot_tools
+  git checkout a0382d39be0d7bf0f0766633185f20dcdd32a459
+  export PATH=$PATH:"${CURDIR}"/depot_tools
   export VPYTHON_BYPASS="manually managed python not supported by chrome operations"
+  export DEPOT_TOOLS_UPDATE=0
+
+  cd "${CURDIR}"
   git clone https://gn.googlesource.com/gn
   cd gn
   git checkout 8948350
@@ -133,12 +138,22 @@ function installV8() {
   ninja -C out
   export PATH="${CURDIR}"/gn/out:$PATH
   sudo ldconfig /usr/local/lib64 /usr/local/lib
+
   cd "${CURDIR}"
   printf -- 'Installing V8\n'
-  fetch v8
+  cat > .gclient <<EOF
+solutions = [
+  {
+    "url": "https://chromium.googlesource.com/v8/v8.git@8.3.110.9",
+    "managed": False,
+    "name": "v8",
+    "deps_file": "DEPS",
+  },
+];
+EOF
+  gclient sync
+
   cd v8
-  git checkout 8.3.110.9
-  gclient sync -D
   wget "${PATCH_URL}"/v8.diff -P ${CURDIR}/patch
   git apply ${CURDIR}/patch/v8.diff
   mkdir out/s390x.release
