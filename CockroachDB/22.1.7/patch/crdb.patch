@@ -1,0 +1,44 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index b582ee7dd9..e46f1a78ec 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -155,10 +155,11 @@ go_download_sdk(
+         "freebsd_amd64": ("go1.17.11.freebsd-amd64.tar.gz", "da78bcd5efa24cfa8ca3ccf0d222f7d66b755c4200d404869984ebdcfc7b6aa7"),
+         "linux_amd64": ("go1.17.11.linux-amd64.tar.gz", "d69a4fe2694f795d8e525c72b497ededc209cb7185f4c3b62d7a98dd6227b3fe"),
+         "linux_arm64": ("go1.17.11.linux-arm64.tar.gz", "adefa7412c6798f9cad02d1e8336fc2242f5bade30c5b32781759181e01961b7"),
++        "linux_s390x": ("go1.17.10.linux-s390x.tar.gz", "e1df61f29fb0962b89d7bfe18b7db45eee003d5f8a1a7ff4d9e54616689076bf"),
+         "windows_amd64": ("go1.17.11.windows-amd64.zip", "88e60b92069d8e0932ca5d8bd8227d1693b9570fa2afbedadcc680749c428d54"),
+     },
+     urls = ["https://storage.googleapis.com/public-bazel-artifacts/go/{}"],
+-    version = "1.17.11",
++    version = "1.17.10",
+ )
+ 
+ # To point to a local SDK path, use the following instead. We'll call the
+@@ -198,11 +199,12 @@ node_repositories(
+         "16.13.0-linux_arm64": ("node-v16.13.0-linux-arm64.tar.xz", "node-v16.13.0-linux-arm64", "93a0d03f9f802353cb7052bc97a02cd9642b49fa985671cdc16c99936c86d7d2"),
+         "16.13.0-linux_amd64": ("node-v16.13.0-linux-x64.tar.xz", "node-v16.13.0-linux-x64", "a876ce787133149abd1696afa54b0b5bc5ce3d5ae359081d407ff776e39b7ba8"),
+         "16.13.0-windows_amd64": ("node-v16.13.0-win-x64.zip", "node-v16.13.0-win-x64", "5a39ec5d4786c2814a6c04488bebac6423c2aaa12832b24f0882456f2e4674e1"),
++        "14.18.1-linux_s390x": ("node-v14.18.1-linux-s390x.tar.xz", "node-v14.18.1-linux-s390x", "e01f11308371b4268341a1b25dfb4433ae2e2403940f5acbfeb820b128ca7e27"),
+     },
+     node_urls = [
+         "https://storage.googleapis.com/public-bazel-artifacts/js/node/v{version}/{filename}",
+     ],
+-    node_version = "16.13.0",
++    node_version = "14.18.1",
+     package_json = ["//pkg/ui:package.json"],
+     yarn_repositories = {
+         "1.22.11": ("yarn-v1.22.11.tar.gz", "yarn-v1.22.11", "2c320de14a6014f62d29c34fec78fdbb0bc71c9ccba48ed0668de452c1f5fe6c"),
+diff --git a/pkg/sql/conn_executor_test.go b/pkg/sql/conn_executor_test.go
+index 0e02935e2c..66a556564d 100644
+--- a/pkg/sql/conn_executor_test.go
++++ b/pkg/sql/conn_executor_test.go
+@@ -108,7 +108,7 @@ Error types: (1) *safedetails.withSafeDetails (2) *withstack.withStack (3) *erru
+        actSafeRedactedMessage := strings.ReplaceAll(strings.ReplaceAll(fileref.ReplaceAllString(
+                redact.Sprintf("%+v", safeErr).Redact().StripMarkers(), "...$2:NN"),
+                "asm_arm64", "asm_scrubbed"),
+-               "asm_amd64", "asm_scrubbed")
++               "asm_s390x", "asm_scrubbed")
+ 
+        if actSafeRedactedMessage != expSafeRedactedMessage {
+                diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
