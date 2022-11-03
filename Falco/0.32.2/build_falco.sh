@@ -209,7 +209,7 @@ function configureAndInstall() {
     sed -i 's/v1.4.1/v2.0.0.1/g' b64.cmake
     sed -i 's/0fa93fb9c4fb72cac5a21533e6d611521e4326f42c19cc23f8ded814b0eca071/ce8e578a953a591bd4a6f157eec310b9a4c2e6f10ade2fdda6ae6bafaf798b98/g' b64.cmake
     
-    if [[ "${DISTRO}" == "rhel-7."* ]] || [[ "${DISTRO}" == "sles-15."* ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [ "${DISTRO}" == "ubuntu-22.04" ]];
+    if [[ "${DISTRO}" == "rhel-7."* ]] || [[ "${DISTRO}" == "sles-15."* ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [ "${DISTRO}" == "ubuntu-22.04" ]]; then
 	sed -i 's+https://github.com/curl/curl/releases/download/curl-7_84_0/curl-7.84.0.tar.bz2+https://github.com/curl/curl/releases/download/curl-7_85_0/curl-7.85.0.tar.bz2+g' curl.cmake
 	sed -i 's/702fb26e73190a3bd77071aa146f507b9817cc4dfce218d2ab87f00cd3bc059d/21a7e83628ee96164ac2b36ff6bf99d467c7b0b621c1f7e317d8f0d96011539c/g' curl.cmake
     fi
