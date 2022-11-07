@@ -209,20 +209,20 @@ function configureAndInstall() {
     sed -i 's/v1.4.1/v2.0.0.1/g' b64.cmake
     sed -i 's/0fa93fb9c4fb72cac5a21533e6d611521e4326f42c19cc23f8ded814b0eca071/ce8e578a953a591bd4a6f157eec310b9a4c2e6f10ade2fdda6ae6bafaf798b98/g' b64.cmake
     
-    if [[ "${DISTRO}" == "rhel-7."* ]] || [[ "${DISTRO}" == "sles-15."* ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [ "${DISTRO}" == "ubuntu-22.04" ]]; then
-	sed -i 's+https://github.com/curl/curl/releases/download/curl-7_84_0/curl-7.84.0.tar.bz2+https://github.com/curl/curl/releases/download/curl-7_85_0/curl-7.85.0.tar.bz2+g' curl.cmake
-	sed -i 's/702fb26e73190a3bd77071aa146f507b9817cc4dfce218d2ab87f00cd3bc059d/21a7e83628ee96164ac2b36ff6bf99d467c7b0b621c1f7e317d8f0d96011539c/g' curl.cmake
+    if [[ "${DISTRO}" == "rhel-7."* ]] || [[ "${DISTRO}" == "rhel-8."* ]] || [[ "${DISTRO}" == "sles-15."* ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]]; then
+        sed -i 's+https://github.com/curl/curl/releases/download/curl-7_84_0/curl-7.84.0.tar.bz2+https://github.com/curl/curl/releases/download/curl-7_85_0/curl-7.85.0.tar.bz2+g' curl.cmake
+        sed -i 's/702fb26e73190a3bd77071aa146f507b9817cc4dfce218d2ab87f00cd3bc059d/21a7e83628ee96164ac2b36ff6bf99d467c7b0b621c1f7e317d8f0d96011539c/g' curl.cmake
     fi
 	
     if [[ "${DISTRO}" == "ubuntu-18.04" ]] || [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" == "rhel-7."* ]]; then
-	sed -i '/libabsl_low_level_hash.a/d' grpc.cmake
-	sed -i '/libabsl_cord_internal.a/d' grpc.cmake
-	sed -i '/libabsl_cordz_*/d' grpc.cmake
-	sed -i '/libabsl_random_internal_*/d' grpc.cmake
-	sed -i '/libabsl_random_seed_gen_exception.a/d' grpc.cmake
-	sed -i 's/profiling\/libabsl_exponential_biased.a/base\/libabsl_exponential_biased.a/g' grpc.cmake
-	sed -i 's/v1.44.0/v1.38.1/g' grpc.cmake
-	sed -i 's/v1.44.0/v1.38.1/g' $SOURCE_ROOT/falco/build/grpc-prefix/tmp/grpc-gitclone.cmake
+        sed -i '/libabsl_low_level_hash.a/d' grpc.cmake
+        sed -i '/libabsl_cord_internal.a/d' grpc.cmake
+        sed -i '/libabsl_cordz_*/d' grpc.cmake
+        sed -i '/libabsl_random_internal_*/d' grpc.cmake
+        sed -i '/libabsl_random_seed_gen_exception.a/d' grpc.cmake
+        sed -i 's/profiling\/libabsl_exponential_biased.a/base\/libabsl_exponential_biased.a/g' grpc.cmake
+        sed -i 's/v1.44.0/v1.38.1/g' grpc.cmake
+        sed -i 's/v1.44.0/v1.38.1/g' $SOURCE_ROOT/falco/build/grpc-prefix/tmp/grpc-gitclone.cmake
     fi
 
     cd $SOURCE_ROOT/falco/build/
@@ -361,7 +361,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc gcc make cmake autoconf automake pkg-config patch ncurses-devel lib-c++ gittool elfutils-libelf-devel diffutils which rpm-build createrepo libarchive kernel-devel-$(uname -r) wget curl glibc-static libstdc++-static kmod openssl-devel go
+    sudo yum install -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch ncurses-devel libtool elfutils-libelf-devel diffutils which createrepo libarchive wget curl glibc-static libstdc++-static openssl-devel go rpm-build kmod kernel-devel-$(uname -r)
     go version
     
     configureAndInstall | tee -a "$LOG_FILE"
