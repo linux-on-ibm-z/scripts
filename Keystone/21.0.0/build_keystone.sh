@@ -372,7 +372,7 @@ case "$DISTRO" in
     sudo apt-get install -y python3-pip wget cargo libffi-dev libssl-dev  mysql-server libmysqlclient-dev libapache2-mod-wsgi-py3 apache2  apache2-dev curl
     sudo -H pip3 install --upgrade pip
 
-    sudo pip3 install cryptography==3.3.1 python-openstackclient mysqlclient mod_wsgi keystone
+    sudo pip3 install cryptography==3.3.1 python-openstackclient mysqlclient mod_wsgi keystone==21.0.0
     configureAndInstall | tee -a "$LOG_FILE"
 
     ;;
@@ -390,7 +390,7 @@ case "$DISTRO" in
     sudo ldconfig /usr/local/lib64
 	
     sudo -H env PATH=$PATH pip3 install --upgrade pip
-    sudo env PATH=$PATH pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 mod_wsgi python-openstackclient mysqlclient keystone  jinja2==3.0.0 werkzeug==0.16.1
+    sudo env PATH=$PATH pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 mod_wsgi python-openstackclient mysqlclient keystone==21.0.0 greenlet==1.1.0 jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
@@ -401,7 +401,7 @@ case "$DISTRO" in
     sudo yum install -y python3-devel libffi-devel cargo curl wget openssl-devel gcc make gcc-c++ python3-mod_wsgi.s390x httpd httpd-devel mariadb-devel  mariadb-server procps sqlite-devel.s390x
     export PATH=/usr/local/bin:$PATH
     sudo -H pip3 install --upgrade pip
-    sudo pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient keystone mysqlclient  jinja2==3.0.0 werkzeug==0.16.1
+    sudo pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient keystone==21.0.0 mysqlclient  jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
@@ -416,7 +416,7 @@ case "$DISTRO" in
 	
     installRustc
     sudo -H env PATH=$PATH pip3 install --upgrade pip
-    sudo env PATH=$PATH pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 python-openstackclient mysqlclient keystone jinja2==3.0.0 werkzeug==0.16.1
+    sudo env PATH=$PATH pip3 install cryptography==3.3.1 flask==1.1.2 itsdangerous==2.0.1 python-openstackclient mysqlclient keystone==21.0.0 greenlet==1.1.0 jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
@@ -426,7 +426,7 @@ case "$DISTRO" in
 
     sudo zypper install -y libopenssl-devel libffi-devel cargo curl wget gcc make python3-devel python3-pip gawk apache2  apache2-devel mariadb libmariadb-devel gcc-c++
     sudo -H pip3 install --upgrade pip
-    sudo pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient mysqlclient keystone mod_wsgi jinja2==3.0.0 werkzeug==0.16.1
+    sudo pip3 install cryptography==3.3.1 flask==1.1.2 python-openstackclient mysqlclient keystone==21.0.0 mod_wsgi jinja2==3.0.0 werkzeug==0.16.1
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 *)
