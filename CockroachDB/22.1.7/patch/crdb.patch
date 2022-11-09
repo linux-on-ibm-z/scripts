@@ -34,11 +34,11 @@ index 0e02935e2c..66a556564d 100644
 --- a/pkg/sql/conn_executor_test.go
 +++ b/pkg/sql/conn_executor_test.go
 @@ -108,7 +108,7 @@ Error types: (1) *safedetails.withSafeDetails (2) *withstack.withStack (3) *erru
-        actSafeRedactedMessage := strings.ReplaceAll(strings.ReplaceAll(fileref.ReplaceAllString(
-                redact.Sprintf("%+v", safeErr).Redact().StripMarkers(), "...$2:NN"),
-                "asm_arm64", "asm_scrubbed"),
--               "asm_amd64", "asm_scrubbed")
-+               "asm_s390x", "asm_scrubbed")
+ 	actSafeRedactedMessage := strings.ReplaceAll(strings.ReplaceAll(fileref.ReplaceAllString(
+ 		redact.Sprintf("%+v", safeErr).Redact().StripMarkers(), "...$2:NN"),
+ 		"asm_arm64", "asm_scrubbed"),
+-		"asm_amd64", "asm_scrubbed")
++		"asm_s390x", "asm_scrubbed")
  
-        if actSafeRedactedMessage != expSafeRedactedMessage {
-                diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+ 	if actSafeRedactedMessage != expSafeRedactedMessage {
+ 		diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
