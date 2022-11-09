@@ -127,7 +127,7 @@ function configureAndInstall() {
     # Applying patches
     printf -- 'Apply patches....\n'
     cd ${CURDIR}/cockroach
-    wget -0 ${CURDIR}/cockroachdb.patch $PATCH_URL
+    wget -O ${CURDIR}/cockroachdb.patch $PATCH_URL
     git apply --reject --whitespace=fix ${CURDIR}/cockroachdb.patch
 
     # Build CockroachDB
