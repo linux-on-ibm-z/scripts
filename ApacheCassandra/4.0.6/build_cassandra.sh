@@ -334,7 +334,7 @@ case "$DISTRO" in
 	
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo zypper install -y curl git which make wget tar zip unzip words gcc7 gcc7-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi48-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo gawk gdbm-devel libbz2-devel libdb-4_8-devel libopenssl-devel libuuid-devel readline-devel sqlite3-devel xz-devel zlib-devel libffi48-devel |& tee -a "$LOG_FILE"
+    sudo zypper install -y curl git which make wget tar zip unzip words gcc7 gcc7-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi48-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo gawk gdbm-devel libbz2-devel libdb-4_8-devel libopenssl-devel libuuid-devel readline-devel xz-devel zlib-devel libffi48-devel |& tee -a "$LOG_FILE"
 	sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
 	sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
 	sudo ln -sf /usr/bin/gcc /usr/bin/cc
