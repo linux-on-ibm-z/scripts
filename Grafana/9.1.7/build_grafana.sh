@@ -312,7 +312,7 @@ case "$DISTRO" in
 
 "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo zypper install -y make gcc7 gcc7-c++ wget tar git xz gzip curl patch python3 |& tee -a "$LOG_FILE"
+	sudo zypper install -y make gcc7 gcc7-c++ wget tar git xz gzip curl patch python36 |& tee -a "$LOG_FILE"
 	setupGCC_PYTHON |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
