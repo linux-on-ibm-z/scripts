@@ -167,7 +167,7 @@ function configureAndInstall() {
 	if [ ${DISTRO} == "ubuntu-18.04" ]; then
 		printf -- '\nDownloading SpiderMonkey source\n'
 		cd "${CURDIR}"
-		wget http://ftp.mozilla.org/pub/mozilla.org/js/js185-1.0.0.tar.gz
+		wget http://ftp.mozilla.org/pub/spidermonkey/releases/1.8.5/js185-1.0.0.tar.gz
 		tar zxf js185-1.0.0.tar.gz
 		cd js-1.8.5
 
