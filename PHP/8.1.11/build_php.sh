@@ -330,7 +330,7 @@ buildGCC() {
 
 
     cd "$SOURCE_ROOT"
-    url=http://ftp.mirrorservice.org/sites/sourceware.org/pub/gcc/releases/gcc-${ver}/gcc-${ver}.tar.gz
+    url=https://ftp.gnu.org/gnu/gcc/gcc-${ver}/gcc-${ver}.tar.gz
     curl -sSL $url | tar xzf - || error "gcc $ver"
 
 
