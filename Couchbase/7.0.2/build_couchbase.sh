@@ -223,7 +223,7 @@ function configureAndInstall() {
     ver=10.2.0
     if [ ! -f "/usr/local/bin/gcc" ]; then
       printf -- 'Installing GCC\n'
-      wget http://ftp.mirrorservice.org/sites/sourceware.org/pub/gcc/releases/gcc-${ver}/gcc-${ver}.tar.gz
+      wget https://ftp.gnu.org/gnu/gcc/gcc-${ver}/gcc-${ver}.tar.gz
       tar xzf gcc-${ver}.tar.gz
       cd gcc-${ver}
       ./contrib/download_prerequisites
@@ -923,7 +923,7 @@ case "$DISTRO" in
   export LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib/:/usr/lib64:/usr/lib/:$LD_LIBRARY_PATH
   configureAndInstall |&  tee -a "$LOG_FILE"
   ;;
-  "rhel-8.2"  | "rhel-8.4"  | "rhel-8.5")
+  "rhel-8.4")
   printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- '\nInstalling dependencies from repository \n' |& tee -a "$LOG_FILE"
   sudo yum install -y atk-devel autoconf automake binutils-devel bison bzip2 \
