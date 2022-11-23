@@ -1,0 +1,34 @@
+diff --git a/third_party/BUILD b/third_party/BUILD
+old mode 100644
+new mode 100755
+index 93e7c848ae..f4ca5c6dda
+--- a/third_party/BUILD
++++ b/third_party/BUILD
+@@ -595,10 +595,7 @@ genrule(
+         "//conditions:default": ["netty_tcnative/netty-tcnative-boringssl-static-2.0.44.Final.jar"],
+     }),
+     outs = ["netty_tcnative/netty-tcnative-filtered.jar"],
+-    cmd = "cp $< $@ && " +
+-          # Make sure we can write the output file, even if the input isn't writable.
+-          "chmod +w $@ && " +
+-          "zip -qd $@ */license/* " + UNNECESSARY_DYNAMIC_LIBRARIES,
++    cmd = "cp $< $@",
+ )
+ 
+ distrib_java_import(
+@@ -621,6 +618,7 @@ distrib_java_import(
+         "//src/conditions:darwin_x86_64": ["netty/netty-transport-native-unix-common-4.1.69.Final-osx-x86_64.jar"],
+         "//src/conditions:linux_aarch64": ["netty/netty-transport-native-unix-common-4.1.69.Final-linux-aarch_64.jar"],
+         "//src/conditions:linux_x86_64": ["netty/netty-transport-native-unix-common-4.1.69.Final-linux-x86_64.jar"],
++        "//src/conditions:linux_s390x": ["netty/netty-transport-native-unix-common-4.1.69.Final-linux-s390_64.jar"],
+         "//conditions:default": ["netty/netty-transport-native-unix-common-4.1.69.Final.jar"],
+     }) + select({
+         "//src/conditions:darwin_arm64": ["netty/netty-transport-native-kqueue-4.1.69.Final-osx-aarch_64.jar"],
+@@ -629,6 +627,7 @@ distrib_java_import(
+     }) + select({
+         "//src/conditions:linux_aarch64": ["netty/netty-transport-native-epoll-4.1.69.Final-linux-aarch_64.jar"],
+         "//src/conditions:linux_x86_64": ["netty/netty-transport-native-epoll-4.1.69.Final-linux-x86_64.jar"],
++        "//src/conditions:linux_s390x": ["netty/netty-transport-native-epoll-4.1.69.Final-linux-s390_64.jar"],
+         "//conditions:default": ["netty/netty-transport-native-epoll-4.1.69.Final.jar"],
+     }),
+ )
