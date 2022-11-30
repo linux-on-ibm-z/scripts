@@ -621,7 +621,7 @@ function configureAndInstall() {
   if [ ! -f "/usr/local/lib/libprotobuf.a" ]; then
     printf -- 'Installing protoc\n'
     export GO111MODULE=on
-    go get github.com/golang/protobuf/protoc-gen-go@v1.2.0
+    go install github.com/golang/protobuf/protoc-gen-go@v1.2.0
     sudo cp "${HOME}"/go/bin/protoc-gen-go /usr/local/bin
     git clone https://github.com/protocolbuffers/protobuf.git
     cd protobuf
