@@ -189,7 +189,7 @@ function configureAndInstall() {
   mkdir -p ${CURDIR}/patch
 
   # Go
-  if [[ "${ID}" == "ubuntu" ]] || [[ "${DISTRO}" == "rhel-7."* ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
+  if [[ "${DISTRO}" != "sles-15.3" ]]; then
     export PATH=/usr/local/go/bin:$PATH
     cd "${CURDIR}"
     if [ ! -f "/usr/local/go/bin/go" ]; then
@@ -621,7 +621,7 @@ function configureAndInstall() {
   if [ ! -f "/usr/local/lib/libprotobuf.a" ]; then
     printf -- 'Installing protoc\n'
     export GO111MODULE=on
-    go install github.com/golang/protobuf/protoc-gen-go@v1.2.0
+    go get github.com/golang/protobuf/protoc-gen-go@v1.2.0
     sudo cp "${HOME}"/go/bin/protoc-gen-go /usr/local/bin
     git clone https://github.com/protocolbuffers/protobuf.git
     cd protobuf
@@ -927,7 +927,7 @@ case "$DISTRO" in
   printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- '\nInstalling dependencies from repository \n' |& tee -a "$LOG_FILE"
   sudo yum install -y atk-devel autoconf automake binutils-devel bison bzip2 \
-    clang cmake cups-devel flex gcc gcc-c++ git gnome-keyring golang \
+    clang cmake cups-devel flex gcc gcc-c++ git gnome-keyring \
     libcurl-devel libev-devel libevent-devel libuv libuv-devel \
     libtool lz4-devel make ncurses-devel ninja-build numactl-devel openssl-devel openssl-perl\
     pcre-devel python2 python3 python3-devel python3-httplib2 snappy-devel tar texinfo \
