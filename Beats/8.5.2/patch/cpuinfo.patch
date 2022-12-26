@@ -1,0 +1,76 @@
+diff --git a/metricbeat/module/system/test_system.py b/metricbeat/module/system/test_system.py
+index 9bf15c8244..9d2db962c4 100644
+--- a/metricbeat/module/system/test_system.py
++++ b/metricbeat/module/system/test_system.py
+@@ -3,6 +3,7 @@ Metricbeat system module tests
+ """
+ import getpass
+ import os
++import platform
+ import re
+ import sys
+ import unittest
+@@ -36,16 +37,16 @@ SYSTEM_CPU_ALL[metricbeat.P_LINUX] = SYSTEM_CPU[metricbeat.P_LINUX] + ["idle.tic
+                                                                        "system.norm.pct", "user.norm.pct",
+                                                                        "total.norm.pct", "total.value"]
+ 
+-
++SYSTEM_CORE_CPUINFO_FIELDS = ["model_name", "model_number", "mhz",
++                              "core_id", "physical_id"]
+ SYSTEM_CORE = {
+     metricbeat.P_WIN: ["id", "idle.pct",
+                        "system.pct", "user.pct", "total.pct"]
+ }
+ SYSTEM_CORE[metricbeat.P_DARWIN] = SYSTEM_CORE[metricbeat.P_WIN] + ["nice.pct"]
+ SYSTEM_CORE[metricbeat.P_LINUX] = SYSTEM_CORE[metricbeat.P_DARWIN] + \
+-    ["iowait.pct", "irq.pct", "softirq.pct", "steal.pct",
+-     "model_name", "model_number", "mhz",
+-     "core_id", "physical_id"]
++    ["iowait.pct", "irq.pct", "softirq.pct", "steal.pct"] + \
++    SYSTEM_CORE_CPUINFO_FIELDS
+ 
+ SYSTEM_CORE_ALL = {
+     metricbeat.P_WIN: SYSTEM_CORE[metricbeat.P_WIN] + ["idle.ticks", "system.ticks", "user.ticks",
+@@ -114,6 +115,12 @@ SYSTEM_DISK_HOST_FIELDS = ["read.bytes", "write.bytes"]
+ # cgroup is only available on linux.
+ SYSTEM_PROCESS_FIELDS = ["cpu", "memory", "state"]
+ 
++# metrics from /proc/cpuinfo are currently only available on Linux x86-ish platforms
++def is_cpuinfo_supported():
++    return platform.machine() in {'i386', 'i686', 'x86_64', 'amd64'}
++
++def filter_cpuinfo_fields(l):
++    return filter(lambda v: v not in SYSTEM_CORE_CPUINFO_FIELDS, l)
+ 
+ class Test(metricbeat.BaseTest):
+     """
+@@ -186,7 +193,13 @@ class Test(metricbeat.BaseTest):
+         for evt in output:
+             self.assert_fields_are_documented(evt)
+             core_stats = evt["system"]["core"]
+-            self.assert_fields_for_platform(SYSTEM_CORE, core_stats)
++            if sys.platform == metricbeat.P_LINUX and not is_cpuinfo_supported():
++                for f in SYSTEM_CORE_CPUINFO_FIELDS:
++                    core_stats.pop(f, None)
++                self.assertCountEqual(self.de_dot(
++                    filter_cpuinfo_fields(SYSTEM_CORE[metricbeat.P_LINUX])), core_stats)
++            else:
++                self.assert_fields_for_platform(SYSTEM_CORE, core_stats)
+ 
+     @unittest.skipUnless(re.match("(?i)win|linux|darwin|freebsd|openbsd", sys.platform), "os")
+     def test_core_with_cpu_ticks(self):
+@@ -209,7 +222,13 @@ class Test(metricbeat.BaseTest):
+         for evt in output:
+             self.assert_fields_are_documented(evt)
+             core_stats = evt["system"]["core"]
+-            self.assert_fields_for_platform(SYSTEM_CORE_ALL, core_stats)
++            if sys.platform == metricbeat.P_LINUX and not is_cpuinfo_supported():
++                for f in SYSTEM_CORE_CPUINFO_FIELDS:
++                    core_stats.pop(f, None)
++                self.assertCountEqual(self.de_dot(
++                    filter_cpuinfo_fields(SYSTEM_CORE_ALL[metricbeat.P_LINUX])), core_stats)
++            else:
++                self.assert_fields_for_platform(SYSTEM_CORE_ALL, core_stats)
+ 
+     @unittest.skipUnless(re.match("(?i)linux|darwin|freebsd|openbsd", sys.platform), "os")
+     def test_load(self):
