@@ -1,0 +1,766 @@
+diff --git a/metricbeat/helper/openmetrics/metric.go b/metricbeat/helper/openmetrics/metric.go
+index d2083ca4a6..d92a26574f 100644
+--- a/metricbeat/helper/openmetrics/metric.go
++++ b/metricbeat/helper/openmetrics/metric.go
+@@ -248,7 +248,7 @@ func (m *commonMetric) GetValue(metric *OpenMetric) interface{} {
+ 		value := mapstr.M{}
+ 		if !math.IsNaN(summary.GetSampleSum()) && !math.IsInf(summary.GetSampleSum(), 0) {
+ 			value["sum"] = summary.GetSampleSum()
+-			value["count"] = summary.GetSampleCount()
++			value["count"] = uint64(summary.GetSampleCount())
+ 		}
+ 
+ 		quantiles := summary.GetQuantile()
+@@ -272,15 +272,15 @@ func (m *commonMetric) GetValue(metric *OpenMetric) interface{} {
+ 		value := mapstr.M{}
+ 		if !math.IsNaN(histogram.GetSampleSum()) && !math.IsInf(histogram.GetSampleSum(), 0) {
+ 			value["sum"] = histogram.GetSampleSum()
+-			value["count"] = histogram.GetSampleCount()
++			value["count"] = uint64(histogram.GetSampleCount())
+ 		}
+ 
+ 		buckets := histogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if !math.IsNaN(bucket.GetCumulativeCount()) && !math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+-				bucketMap[key] = bucket.GetCumulativeCount()
++				bucketMap[key] = uint64(bucket.GetCumulativeCount())
+ 			}
+ 		}
+ 
+@@ -296,15 +296,15 @@ func (m *commonMetric) GetValue(metric *OpenMetric) interface{} {
+ 		value := mapstr.M{}
+ 		if !math.IsNaN(gaugehistogram.GetSampleSum()) && !math.IsInf(gaugehistogram.GetSampleSum(), 0) {
+ 			value["gsum"] = gaugehistogram.GetSampleSum()
+-			value["gcount"] = gaugehistogram.GetSampleCount()
++			value["gcount"] = uint64(gaugehistogram.GetSampleCount())
+ 		}
+ 
+ 		buckets := gaugehistogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if !math.IsNaN(bucket.GetCumulativeCount()) && !math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+-				bucketMap[key] = bucket.GetCumulativeCount()
++				bucketMap[key] = uint64(bucket.GetCumulativeCount())
+ 			}
+ 		}
+ 
+diff --git a/metricbeat/helper/openmetrics/openmetrics.go b/metricbeat/helper/openmetrics/openmetrics.go
+index 2aea45b8e0..b7a959e4ac 100644
+--- a/metricbeat/helper/openmetrics/openmetrics.go
++++ b/metricbeat/helper/openmetrics/openmetrics.go
+@@ -120,12 +120,12 @@ func (m *Quantile) GetValue() float64 {
+ }
+ 
+ type Summary struct {
+-	SampleCount *uint64
++	SampleCount *float64
+ 	SampleSum   *float64
+ 	Quantile    []*Quantile
+ }
+ 
+-func (m *Summary) GetSampleCount() uint64 {
++func (m *Summary) GetSampleCount() float64 {
+ 	if m != nil && m.SampleCount != nil {
+ 		return *m.SampleCount
+ 	}
+@@ -158,12 +158,12 @@ func (m *Unknown) GetValue() float64 {
+ }
+ 
+ type Bucket struct {
+-	CumulativeCount *uint64
++	CumulativeCount *float64
+ 	UpperBound      *float64
+ 	Exemplar        *exemplar.Exemplar
+ }
+ 
+-func (m *Bucket) GetCumulativeCount() uint64 {
++func (m *Bucket) GetCumulativeCount() float64 {
+ 	if m != nil && m.CumulativeCount != nil {
+ 		return *m.CumulativeCount
+ 	}
+@@ -178,13 +178,13 @@ func (m *Bucket) GetUpperBound() float64 {
+ }
+ 
+ type Histogram struct {
+-	SampleCount      *uint64
++	SampleCount      *float64
+ 	SampleSum        *float64
+ 	Bucket           []*Bucket
+ 	IsGaugeHistogram bool
+ }
+ 
+-func (m *Histogram) GetSampleCount() uint64 {
++func (m *Histogram) GetSampleCount() float64 {
+ 	if m != nil && m.SampleCount != nil {
+ 		return *m.SampleCount
+ 	}
+@@ -445,8 +445,7 @@ func summaryMetricName(name string, s float64, qv string, lbls string, t *int64,
+ 
+ 	switch {
+ 	case isCount(name):
+-		u := uint64(s)
+-		summary.SampleCount = &u
++		summary.SampleCount = &s
+ 		name = name[:len(name)-6]
+ 	case isSum(name):
+ 		summary.SampleSum = &s
+@@ -490,15 +489,13 @@ func histogramMetricName(name string, s float64, qv string, lbls string, t *int6
+ 
+ 	switch {
+ 	case isCount(name):
+-		u := uint64(s)
+-		histogram.SampleCount = &u
++		histogram.SampleCount = &s
+ 		name = name[:len(name)-6]
+ 	case isSum(name):
+ 		histogram.SampleSum = &s
+ 		name = name[:len(name)-4]
+ 	case isGaugeHistogram && isGCount(name):
+-		u := uint64(s)
+-		histogram.SampleCount = &u
++		histogram.SampleCount = &s
+ 		name = name[:len(name)-7]
+ 	case isGaugeHistogram && isGSum(name):
+ 		histogram.SampleSum = &s
+@@ -511,9 +508,8 @@ func histogramMetricName(name string, s float64, qv string, lbls string, t *int6
+ 		if err != nil {
+ 			f = math.MaxUint64
+ 		}
+-		cnt := uint64(s)
+ 		bkt.UpperBound = &f
+-		bkt.CumulativeCount = &cnt
++		bkt.CumulativeCount = &s
+ 
+ 		if e != nil {
+ 			if !e.HasTs {
+diff --git a/metricbeat/helper/prometheus/floatcast.go b/metricbeat/helper/prometheus/floatcast.go
+new file mode 100644
+index 0000000000..ecbc837d76
+--- /dev/null
++++ b/metricbeat/helper/prometheus/floatcast.go
+@@ -0,0 +1,65 @@
++// Licensed to Elasticsearch B.V. under one or more contributor
++// license agreements. See the NOTICE file distributed with
++// this work for additional information regarding copyright
++// ownership. Elasticsearch B.V. licenses this file to you under
++// the Apache License, Version 2.0 (the "License"); you may
++// not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing,
++// software distributed under the License is distributed on an
++// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++// KIND, either express or implied.  See the License for the
++// specific language governing permissions and limitations
++// under the License.
++
++package prometheus
++
++import (
++	"math"
++)
++
++var (
++	uint64NaN               = uint64(math.NaN())
++	uint64PlusInf           = uint64(math.Inf(0))
++	uint64MinusInf          = uint64(math.Inf(-1))
++	haveValidUint64NaN      = true
++	haveValidUint64PlusInf  = true
++	haveValidUint64MinusInf = true
++)
++
++func init() {
++	if uint64NaN == 0 {
++		haveValidUint64NaN = false
++	}
++	if uint64PlusInf == 0 {
++		haveValidUint64PlusInf = false
++	}
++	if uint64MinusInf == 0 {
++		haveValidUint64MinusInf = false
++	}
++}
++
++// IsNaN returns whether v is equal to the arch dependent
++// value of uint64(math.NaN()) or false if that arch
++// dependent value equals 0.
++//
++// This avoids filtering out all prometheus metric values of
++// 0 on some platforms.
++func IsNaN(v uint64) bool {
++	return haveValidUint64NaN && v == uint64NaN
++}
++
++// IsInf returns whether v is equal to the arch dependent
++// value of uint64(math.Inf(0)) or uint64(math.Inf(-1)).
++// If either of those values is 0 on the current arch then
++// false is used for that part of the comparision instead.
++//
++// This avoids filtering out all prometheus metric values of
++// 0 on some platforms.
++func IsInf(v uint64) bool {
++	return (haveValidUint64PlusInf && v == uint64PlusInf) ||
++		(haveValidUint64MinusInf && v == uint64MinusInf)
++}
+diff --git a/metricbeat/helper/prometheus/floatcast_test.go b/metricbeat/helper/prometheus/floatcast_test.go
+new file mode 100644
+index 0000000000..d708937c60
+--- /dev/null
++++ b/metricbeat/helper/prometheus/floatcast_test.go
+@@ -0,0 +1,84 @@
++// Licensed to Elasticsearch B.V. under one or more contributor
++// license agreements. See the NOTICE file distributed with
++// this work for additional information regarding copyright
++// ownership. Elasticsearch B.V. licenses this file to you under
++// the Apache License, Version 2.0 (the "License"); you may
++// not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing,
++// software distributed under the License is distributed on an
++// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++// KIND, either express or implied.  See the License for the
++// specific language governing permissions and limitations
++// under the License.
++
++package prometheus
++
++import (
++	"math"
++	"runtime"
++	"testing"
++)
++
++type testCase struct {
++	f        func(uint64) bool
++	v        uint64
++	expected bool
++	name     string
++}
++
++// On amd64, uint64(math.Inf(1)) == uint64(math.Inf(-1))
++// == uint64(math.NaN()) == 0x80000000_00000000.
++// All of the above are considered valid.
++var amd64NaNTestCases = []testCase{
++	{IsNaN, uint64(math.Inf(1)), true, "IsNaN(uint64(+Inf))"},
++	{IsNaN, uint64(math.Inf(-1)), true, "IsNaN(uint64(-Inf))"},
++	{IsNaN, uint64(math.NaN()), true, "IsNaN(uint64(NaN))"},
++	{IsNaN, uint64(0), false, "IsNaN(0)"},
++	{IsNaN, uint64(math.MaxUint64), false, "IsNaN(MaxUint64)"},
++	{IsNaN, uint64(math.MaxInt64), false, "IsNaN(MaxInt64)"},
++	{IsInf, uint64(math.Inf(1)), true, "IsInf(uint64(+Inf))"},
++	{IsInf, uint64(math.Inf(-1)), true, "IsInf(uint64(-Inf))"},
++	{IsInf, uint64(math.NaN()), true, "IsInf(uint64(NaN))"},
++	{IsInf, uint64(0), false, "IsInf(0)"},
++	{IsInf, uint64(math.MaxUint64), false, "IsInf(MaxUint64)"},
++	{IsInf, uint64(math.MaxInt64), false, "IsInf(MaxInt64)"},
++}
++
++// On s390x, uint64(math.Inf(1)) == math.MaxUint64
++// and uint64(math.Inf(-1)) == uint64(math.NaN()) == 0.
++// Only uint64(math.Inf(1)) is considered valid.
++var s390xNaNTestCases = []testCase{
++	{IsNaN, uint64(math.Inf(1)), false, "IsNaN(uint64(+Inf))"},
++	{IsNaN, uint64(math.Inf(-1)), false, "IsNaN(uint64(-Inf))"},
++	{IsNaN, uint64(math.NaN()), false, "IsNaN(uint64(NaN))"},
++	{IsNaN, uint64(0), false, "IsNaN(0)"},
++	{IsNaN, uint64(math.MaxUint64), false, "IsNaN(MaxUint64)"},
++	{IsNaN, uint64(math.MaxInt64), false, "IsNaN(MaxInt64)"},
++	{IsInf, uint64(math.Inf(1)), true, "IsInf(uint64(+Inf))"},
++	{IsInf, uint64(math.Inf(-1)), false, "IsInf(uint64(-Inf))"},
++	{IsInf, uint64(math.NaN()), false, "IsInf(uint64(NaN))"},
++	{IsInf, uint64(0), false, "IsInf(0)"},
++	{IsInf, uint64(math.MaxUint64), true, "IsInf(MaxUint64)"},
++	{IsInf, uint64(math.MaxInt64), false, "IsInf(MaxInt64)"},
++}
++
++func TestIsNaNIsInf(t *testing.T) {
++	testCases := amd64NaNTestCases
++	switch runtime.GOARCH {
++	case "s390x":
++		testCases = s390xNaNTestCases
++	}
++
++	for _, tt := range testCases {
++		t.Run(tt.name, func(t *testing.T) {
++			r := tt.f(tt.v)
++			if r != tt.expected {
++				t.Errorf("%s\n  want: %v\n  got:  %v", tt.name, tt.expected, r)
++			}
++		})
++	}
++}
+diff --git a/metricbeat/helper/prometheus/metric.go b/metricbeat/helper/prometheus/metric.go
+index 815881c5b5..2dd0ebf4a2 100644
+--- a/metricbeat/helper/prometheus/metric.go
++++ b/metricbeat/helper/prometheus/metric.go
+@@ -255,7 +255,7 @@ func (m *commonMetric) GetValue(metric *dto.Metric) interface{} {
+ 		buckets := histogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if !IsNaN(bucket.GetCumulativeCount()) && !IsInf(bucket.GetCumulativeCount()) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+ 				bucketMap[key] = bucket.GetCumulativeCount()
+ 			}
+diff --git a/metricbeat/helper/prometheus/prometheus_test.go b/metricbeat/helper/prometheus/prometheus_test.go
+index 53baf2a377..d162071781 100644
+--- a/metricbeat/helper/prometheus/prometheus_test.go
++++ b/metricbeat/helper/prometheus/prometheus_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"compress/gzip"
+ 	"io/ioutil"
+ 	"net/http"
++	"runtime"
+ 	"sort"
+ 	"testing"
+ 
+@@ -969,6 +970,11 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 	}
+ 
+ 	for _, tc := range testCases {
++		if runtime.GOARCH == "s390x" && tc.testName == "Test histogram with KeyLabel With NaN Inf" {
++			t.Logf("Skipping test case \"%s\" which uses arch dependent NaN and Inf filtering that is not valid on s390x", tc.testName)
++			continue
++		}
++
+ 		r := &mbtest.CapturingReporterV2{}
+ 		p := &prometheus{mockFetcher{response: tc.prometheusResponse}, logp.NewLogger("test")}
+ 		p.ReportProcessedMetrics(tc.mapping, r)
+diff --git a/metricbeat/mb/testing/data/data_test.go b/metricbeat/mb/testing/data/data_test.go
+index d855b18b75..c1b158b106 100644
+--- a/metricbeat/mb/testing/data/data_test.go
++++ b/metricbeat/mb/testing/data/data_test.go
+@@ -46,7 +46,8 @@ func TestAll(t *testing.T) {
+ 
+ 			if runtime.GOOS == "aix" && (moduleName == "docker" || moduleName == "kubernetes") {
+ 				t.Skipf("%s module not available on AIX", moduleName)
+-
++			} else if runtime.GOARCH == "s390x" && moduleName == "prometheus" && metricSetName == "collector" {
++				t.Skipf("%s/%s uses arch dependent NaN and Inf filtering that is not valid on s390x", moduleName, metricSetName)
+ 			} else {
+ 				config := mbtest.ReadDataConfig(t, f)
+ 				mbtest.TestDataFilesWithConfig(t, moduleName, metricSetName, config)
+diff --git a/metricbeat/module/openmetrics/collector/_meta/testdata/openmetrics-with-naninf.plain b/metricbeat/module/openmetrics/collector/_meta/testdata/openmetrics-with-naninf.plain
+new file mode 100644
+index 0000000000..1a6a6cea95
+--- /dev/null
++++ b/metricbeat/module/openmetrics/collector/_meta/testdata/openmetrics-with-naninf.plain
+@@ -0,0 +1,19 @@
++# HELP net_conntrack_listener_conn_accepted Total number of connections opened to the listener of a given name.
++# TYPE net_conntrack_listener_conn_accepted counter
++net_conntrack_listener_conn_accepted_total{listener_name="http"} 3
++# HELP net_conntrack_listener_conn_closed Total number of connections closed that were made to the listener of a given name.
++# TYPE net_conntrack_listener_conn_closed counter
++net_conntrack_listener_conn_closed_total{listener_name="http"} NaN
++# HELP http_request_duration_seconds request duration histogram
++# TYPE http_request_duration_seconds histogram
++http_request_duration_seconds_bucket{le="0.1"} +Inf
++http_request_duration_seconds_bucket{le="0.2"} -Inf
++http_request_duration_seconds_bucket{le="0.5"} NaN
++http_request_duration_seconds_bucket{le="1"} 0
++http_request_duration_seconds_bucket{le="2"} 2
++http_request_duration_seconds_bucket{le="3"} 3
++http_request_duration_seconds_bucket{le="5"} 3
++http_request_duration_seconds_bucket{le="+Inf"} 3
++http_request_duration_seconds_count 3
++http_request_duration_seconds_sum 6
++http_request_duration_seconds_created 1520430000.123
+diff --git a/metricbeat/module/openmetrics/collector/_meta/testdata/openmetrics-with-naninf.plain-expected.json b/metricbeat/module/openmetrics/collector/_meta/testdata/openmetrics-with-naninf.plain-expected.json
+new file mode 100644
+index 0000000000..dd3151d7dc
+--- /dev/null
++++ b/metricbeat/module/openmetrics/collector/_meta/testdata/openmetrics-with-naninf.plain-expected.json
+@@ -0,0 +1,206 @@
++[
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics",
++                "le": "1"
++            },
++            "metrics": {
++                "http_request_duration_seconds_bucket": 0
++            }
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics",
++                "le": "5"
++            },
++            "metrics": {
++                "http_request_duration_seconds_bucket": 3
++            }
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "help": "request duration histogram",
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics"
++            },
++            "metrics": {
++                "http_request_duration_seconds_count": 3,
++                "http_request_duration_seconds_sum": 6
++            },
++            "type": "histogram"
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics",
++                "le": "+Inf"
++            },
++            "metrics": {
++                "http_request_duration_seconds_bucket": 3
++            }
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics"
++            },
++            "metrics": {
++                "up": 1
++            },
++            "type": "gauge"
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics",
++                "le": "2"
++            },
++            "metrics": {
++                "http_request_duration_seconds_bucket": 2
++            }
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics",
++                "le": "3"
++            },
++            "metrics": {
++                "http_request_duration_seconds_bucket": 3
++            }
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    },
++    {
++        "event": {
++            "dataset": "openmetrics.collector",
++            "duration": 115000,
++            "module": "openmetrics"
++        },
++        "metricset": {
++            "name": "collector",
++            "period": 10000
++        },
++        "openmetrics": {
++            "help": "Total number of connections opened to the listener of a given name.",
++            "labels": {
++                "instance": "127.0.0.1:41121",
++                "job": "openmetrics",
++                "listener_name": "http"
++            },
++            "metrics": {
++                "net_conntrack_listener_conn_accepted_total": 3
++            },
++            "type": "counter"
++        },
++        "service": {
++            "address": "127.0.0.1:55555",
++            "type": "openmetrics"
++        }
++    }
++]
+\ No newline at end of file
+diff --git a/metricbeat/module/openmetrics/collector/collector_test.go b/metricbeat/module/openmetrics/collector/collector_test.go
+index 069bd36f8c..6eb28ea554 100644
+--- a/metricbeat/module/openmetrics/collector/collector_test.go
++++ b/metricbeat/module/openmetrics/collector/collector_test.go
+@@ -121,7 +121,7 @@ func TestGetOpenMetricsEventsFromMetricFamily(t *testing.T) {
+ 				Metric: []*openmetrics.OpenMetric{
+ 					{
+ 						Summary: &openmetrics.Summary{
+-							SampleCount: proto.Uint64(10),
++							SampleCount: proto.Float64(10),
+ 							SampleSum:   proto.Float64(10),
+ 							Quantile: []*openmetrics.Quantile{
+ 								{
+@@ -165,12 +165,12 @@ func TestGetOpenMetricsEventsFromMetricFamily(t *testing.T) {
+ 				Metric: []*openmetrics.OpenMetric{
+ 					{
+ 						Histogram: &openmetrics.Histogram{
+-							SampleCount: proto.Uint64(10),
++							SampleCount: proto.Float64(10),
+ 							SampleSum:   proto.Float64(10),
+ 							Bucket: []*openmetrics.Bucket{
+ 								{
+ 									UpperBound:      proto.Float64(0.99),
+-									CumulativeCount: proto.Uint64(10),
++									CumulativeCount: proto.Float64(10),
+ 								},
+ 							},
+ 						},
+@@ -298,7 +298,7 @@ func TestSkipMetricFamily(t *testing.T) {
+ 			Metric: []*openmetrics.OpenMetric{
+ 				{
+ 					Summary: &openmetrics.Summary{
+-						SampleCount: proto.Uint64(10),
++						SampleCount: proto.Float64(10),
+ 						SampleSum:   proto.Float64(10),
+ 						Quantile: []*openmetrics.Quantile{
+ 							{
+@@ -317,12 +317,12 @@ func TestSkipMetricFamily(t *testing.T) {
+ 			Metric: []*openmetrics.OpenMetric{
+ 				{
+ 					Histogram: &openmetrics.Histogram{
+-						SampleCount: proto.Uint64(10),
++						SampleCount: proto.Float64(10),
+ 						SampleSum:   proto.Float64(10),
+ 						Bucket: []*openmetrics.Bucket{
+ 							{
+ 								UpperBound:      proto.Float64(0.99),
+-								CumulativeCount: proto.Uint64(10),
++								CumulativeCount: proto.Float64(10),
+ 							},
+ 						},
+ 					},
+diff --git a/metricbeat/module/openmetrics/collector/data.go b/metricbeat/module/openmetrics/collector/data.go
+index 836b6107c8..2300dd667c 100644
+--- a/metricbeat/module/openmetrics/collector/data.go
++++ b/metricbeat/module/openmetrics/collector/data.go
+@@ -185,7 +185,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.OpenMetricFam
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+ 							name + "_sum":   summary.GetSampleSum(),
+-							name + "_count": summary.GetSampleCount(),
++							name + "_count": uint64(summary.GetSampleCount()),
+ 						},
+ 					},
+ 					Labels: labels,
+@@ -229,7 +229,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.OpenMetricFam
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+ 							name + sum:   histogram.GetSampleSum(),
+-							name + count: histogram.GetSampleCount(),
++							name + count: uint64(histogram.GetSampleCount()),
+ 						},
+ 					},
+ 					Labels: labels,
+@@ -237,7 +237,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.OpenMetricFam
+ 			}
+ 
+ 			for _, bucket := range histogram.GetBucket() {
+-				if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++				if math.IsNaN(bucket.GetCumulativeCount()) || math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 					continue
+ 				}
+ 
+@@ -259,7 +259,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.OpenMetricFam
+ 				events = append(events, OpenMetricEvent{
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+-							name + "_bucket": bucket.GetCumulativeCount(),
++							name + "_bucket": uint64(bucket.GetCumulativeCount()),
+ 						},
+ 					},
+ 					Labels:    bucketLabels,
+diff --git a/metricbeat/module/prometheus/collector/collector_test.go b/metricbeat/module/prometheus/collector/collector_test.go
+index 4ccea35355..d2d67c3307 100644
+--- a/metricbeat/module/prometheus/collector/collector_test.go
++++ b/metricbeat/module/prometheus/collector/collector_test.go
+@@ -21,6 +21,7 @@
+ package collector
+ 
+ import (
++	"runtime"
+ 	"testing"
+ 
+ 	"github.com/elastic/beats/v7/metricbeat/mb"
+@@ -378,5 +379,8 @@ func TestSkipMetricFamily(t *testing.T) {
+ }
+ 
+ func TestData(t *testing.T) {
++	if runtime.GOARCH == "s390x" {
++		t.Skipf("prometheus/collector uses arch dependent NaN and Inf filtering that is not valid on s390x")
++	}
+ 	mbtest.TestDataFiles(t, "prometheus", "collector")
+ }
+diff --git a/metricbeat/module/prometheus/collector/data.go b/metricbeat/module/prometheus/collector/data.go
+index aed18a21f5..3715bca186 100644
+--- a/metricbeat/module/prometheus/collector/data.go
++++ b/metricbeat/module/prometheus/collector/data.go
+@@ -22,6 +22,7 @@ import (
+ 	"strconv"
+ 
+ 	"github.com/elastic/beats/v7/metricbeat/helper/labelhash"
++	"github.com/elastic/beats/v7/metricbeat/helper/prometheus"
+ 	"github.com/elastic/beats/v7/metricbeat/mb"
+ 	"github.com/elastic/elastic-agent-libs/mapstr"
+ 
+@@ -142,7 +143,7 @@ func (p *promEventGenerator) GeneratePromEvents(mf *dto.MetricFamily) []PromEven
+ 			}
+ 
+ 			for _, bucket := range histogram.GetBucket() {
+-				if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++				if prometheus.IsNaN(bucket.GetCumulativeCount()) || prometheus.IsInf(bucket.GetCumulativeCount()) {
+ 					continue
+ 				}
+ 
+diff --git a/x-pack/metricbeat/module/prometheus/collector/histogram.go b/x-pack/metricbeat/module/prometheus/collector/histogram.go
+index ebae19c09c..dee4db9cc1 100644
+--- a/x-pack/metricbeat/module/prometheus/collector/histogram.go
++++ b/x-pack/metricbeat/module/prometheus/collector/histogram.go
+@@ -10,6 +10,7 @@ import (
+ 
+ 	dto "github.com/prometheus/client_model/go"
+ 
++	"github.com/elastic/beats/v7/metricbeat/helper/prometheus"
+ 	"github.com/elastic/elastic-agent-libs/mapstr"
+ )
+ 
+@@ -17,14 +18,14 @@ import (
+ //
+ // ES histograms look like this:
+ //
+-//   "histogram_field" : {
+-//      "values" : [0.1, 0.2, 0.3, 0.4, 0.5],
+-//      "counts" : [3, 7, 23, 12, 6]
+-//   }
++//	"histogram_field" : {
++//	   "values" : [0.1, 0.2, 0.3, 0.4, 0.5],
++//	   "counts" : [3, 7, 23, 12, 6]
++//	}
+ //
+ // This code takes a Prometheus histogram and tries to accomodate it into an ES histogram by:
+-//  - calculating centroids for each bucket (values)
+-//  - undoing counters accumulation for each bucket (counts)
++//   - calculating centroids for each bucket (values)
++//   - undoing counters accumulation for each bucket (counts)
+ //
+ // https://www.elastic.co/guide/en/elasticsearch/reference/master/histogram.html
+ func PromHistogramToES(cc CounterCache, name string, labels mapstr.M, histogram *dto.Histogram) mapstr.M {
+@@ -36,7 +37,7 @@ func PromHistogramToES(cc CounterCache, name string, labels mapstr.M, histogram
+ 	var sumCount, prevCount uint64
+ 	for _, bucket := range histogram.GetBucket() {
+ 		// Ignore non-numbers
+-		if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++		if prometheus.IsNaN(bucket.GetCumulativeCount()) || prometheus.IsInf(bucket.GetCumulativeCount()) {
+ 			continue
+ 		}
+ 
