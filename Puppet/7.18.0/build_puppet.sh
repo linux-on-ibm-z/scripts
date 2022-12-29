@@ -89,10 +89,6 @@ function buildAgent() {
         #Install Puppet
         cd "$SOURCE_ROOT"
         sudo -E env PATH="$PATH" gem install puppet -v $AGENT_VERSION
-
-        if [[ "$DISTRO" == "sles-15.3" || "$DISTRO" == "sles-15.4" ]]; then
-                sudo ln -s /usr/lib64/ruby/gems/2.5.0/gems/puppet-$AGENT_VERSION/bin/puppet /usr/local/bin/puppet
-        fi
         printf -- 'Completed Puppet agent setup \n'
 }
 
@@ -172,7 +168,7 @@ function runTest() {
 function configureAndInstall() {
         printf -- 'Configuration and Installation started \n'
         # Download and install Ruby
-        if [[ "$DISTRO" == "rhel-7.8" || "$DISTRO" == "rhel-7.9" || "$DISTRO" == "sles-12.5" ]]; then
+        if [[ "$DISTRO" == "rhel-7.8" || "$DISTRO" == "rhel-7.9" || "$DISTRO" == "sles"* || "$DISTRO" == "rhel-8."* || "$DISTRO" == "ubuntu-18.04" ]]; then
                 cd "$SOURCE_ROOT"
                 wget http://cache.ruby-lang.org/pub/ruby/$RUBY_VERSION/ruby-$RUBY_FULL_VERSION.tar.gz
                 # Avoid conflict when script runs twice
@@ -279,7 +275,14 @@ checkPrequisites #Check Prequisites
 
 if [[ "$USEAS" == "server" ]]; then
         case "$DISTRO" in
-        "ubuntu-18.04" | "ubuntu-20.04")
+        "ubuntu-18.04")
+                printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+                printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
+                sudo apt-get update >/dev/null
+                sudo apt-get install -y g++ tar git make wget locales locales-all unzip zip gzip gawk ant bison flex openssl libssl-dev libdb-dev libgdbm-dev libreadline-dev zlib1g zlib1g-dev |& tee -a "$LOG_FILE"
+                configureAndInstall |& tee -a "$LOG_FILE"
+                ;;
+        "ubuntu-20.04")
                 printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo apt-get update >/dev/null
@@ -323,7 +326,15 @@ if [[ "$USEAS" == "server" ]]; then
 
 elif [[ "$USEAS" == "agent" ]]; then
         case "$DISTRO" in
-        "ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.04")
+        "ubuntu-18.04")
+                printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+                printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
+                sudo apt-get update >/dev/null
+                sudo apt-get install -y g++ tar make wget gzip gawk ant bison flex openssl libssl-dev libdb-dev libgdbm-dev libreadline-dev zlib1g zlib1g-dev |& tee -a "$LOG_FILE"
+                configureAndInstall |& tee -a "$LOG_FILE"
+                ;;
+
+        "ubuntu-20.04" | "ubuntu-22.04")
                 printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo apt-get update >/dev/null
@@ -338,10 +349,10 @@ elif [[ "$USEAS" == "agent" ]]; then
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
-        "rhel-8.4" | "rhel-8.5" | "rhel-8.6" | "rhel-9.0")
+        "rhel-8.4" | "rhel-8.6" | "rhel-9.0")
                 printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-                sudo yum install -y gcc-c++ tar make wget ruby-devel gzip gawk |& tee -a "$LOG_FILE"
+                sudo yum install -y gcc-c++ tar make wget openssl-devel ruby-devel gzip gawk |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
@@ -355,7 +366,7 @@ elif [[ "$USEAS" == "agent" ]]; then
         "sles-15.3" | "sles-15.4")
                 printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-                sudo zypper install -y gcc-c++ tar make wget ruby-devel gzip gawk |& tee -a "$LOG_FILE"
+                sudo zypper install -y gcc-c++ tar make wget libopenssl-devel ruby-devel gzip gawk |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
