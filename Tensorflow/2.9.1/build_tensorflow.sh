@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2022.
+# © Copyright IBM Corporation 2022, 2023.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -240,6 +240,9 @@ case "$DISTRO" in
 	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.10.4/build_python3.sh
 	sed -i 's/apt-get install/DEBIAN_FRONTEND=noninteractive apt-get install/g' build_python3.sh
 	bash build_python3.sh -y
+	sudo apt-get install -y gcc-8 g++-8
+   	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+   	sudo update-alternatives --auto gcc
 	sudo update-alternatives --install /usr/local/bin/python python /usr/local/bin/python3 40
 	sudo ldconfig
 	sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
