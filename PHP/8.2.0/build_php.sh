@@ -551,8 +551,8 @@ case "$DISTRO" in
         libxml2-devel readline readline-devel libcurl4 \
         libcurl-devel libreadline6 nginx \
         libzip-devel libzip2 pkg-config oniguruma-devel git \
-        tar postgresql10-devel=10.17-4.16.4 postgresql10 \
-        sqlite3-devel=3.36.0 zlib-devel gcc gcc-c++ bzip2 \
+        tar postgresql10-devel postgresql10 \
+        sqlite3-devel zlib-devel gcc gcc-c++ bzip2 \
         make gmp-devel mpfr-devel mpc-devel wget |& tee -a "$LOG_FILE"
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
