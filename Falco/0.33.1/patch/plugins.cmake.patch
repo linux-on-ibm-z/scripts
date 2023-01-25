@@ -1,0 +1,63 @@
+diff --git a/cmake/modules/plugins.cmake b/cmake/modules/plugins.cmake
+index 8a4a1d28..60c1280b 100644
+--- a/cmake/modules/plugins.cmake
++++ b/cmake/modules/plugins.cmake
+@@ -28,13 +28,13 @@ endif()
+ 
+ ExternalProject_Add(
+   k8saudit-plugin
+-  URL "https://download.falco.org/plugins/stable/k8saudit-${PLUGIN_K8S_AUDIT_VERSION}-${PLUGINS_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}.tar.gz"
+-  URL_HASH "SHA256=${PLUGIN_K8S_AUDIT_HASH}"
++  URL "https://github.com/falcosecurity/plugins/archive/refs/tags/k8saudit-0.4.0.tar.gz"
++  URL_HASH "SHA256=5efdbf1e642d5ec4edfa1d618a3d37a9d06e82d8911ff6b8e4ae135adb8a46d6"
++  SOURCE_DIR "${PROJECT_BINARY_DIR}/k8saudit-plugin-src"
++  BINARY_DIR "${PROJECT_BINARY_DIR}/k8saudit-plugin-build"
+   CONFIGURE_COMMAND ""
+-  BUILD_COMMAND ""
+-  INSTALL_COMMAND "")
+-
+-install(FILES "${PROJECT_BINARY_DIR}/k8saudit-plugin-prefix/src/k8saudit-plugin/libk8saudit.so" DESTINATION "${FALCO_PLUGINS_DIR}" COMPONENT "${PLUGINS_COMPONENT_NAME}")
++  BUILD_COMMAND cd ${PROJECT_BINARY_DIR}/k8saudit-plugin-src/plugins/k8saudit && make
++  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_BINARY_DIR}/k8saudit-plugin-src/plugins/k8saudit/libk8saudit.so ${FALCO_PLUGINS_DIR})
+ 
+ ExternalProject_Add(
+   k8saudit-rules
+@@ -55,13 +55,15 @@ endif()
+ 
+ ExternalProject_Add(
+   cloudtrail-plugin
+-  URL "https://download.falco.org/plugins/stable/cloudtrail-${PLUGIN_CLOUDTRAIL_VERSION}-${PLUGINS_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}.tar.gz"
+-  URL_HASH "SHA256=${PLUGIN_CLOUDTRAIL_HASH}"
++  URL "https://github.com/falcosecurity/plugins/archive/refs/tags/cloudtrail-0.6.0.tar.gz"
++  URL_HASH "SHA256=fe97cf696f5de35d6f9fbe97f8fe5b0ff357bb4b8f09da9acd92a334abb05e30"
++  SOURCE_DIR "${PROJECT_BINARY_DIR}/cloudtrail-plugin-src"
++  BINARY_DIR "${PROJECT_BINARY_DIR}/cloudtrail-plugin-build"
+   CONFIGURE_COMMAND ""
+-  BUILD_COMMAND ""
+-  INSTALL_COMMAND "")
++  BUILD_COMMAND cd ${PROJECT_BINARY_DIR}/cloudtrail-plugin-src/plugins/cloudtrail && make
++  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_BINARY_DIR}/cloudtrail-plugin-src/plugins/cloudtrail/libcloudtrail.so ${FALCO_PLUGINS_DIR})
++
+ 
+-install(FILES "${PROJECT_BINARY_DIR}/cloudtrail-plugin-prefix/src/cloudtrail-plugin/libcloudtrail.so" DESTINATION "${FALCO_PLUGINS_DIR}" COMPONENT "${PLUGINS_COMPONENT_NAME}")
+ 
+ ExternalProject_Add(
+   cloudtrail-rules
+@@ -82,10 +84,12 @@ endif()
+ 
+ ExternalProject_Add(
+   json-plugin
+-  URL "https://download.falco.org/plugins/stable/json-${PLUGIN_JSON_VERSION}-${PLUGINS_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}.tar.gz"
+-  URL_HASH "SHA256=${PLUGIN_JSON_HASH}"
++  URL "https://github.com/falcosecurity/plugins/archive/refs/tags/json-0.6.0.tar.gz"
++  URL_HASH "SHA256=135768c180c90612adea4388444c75d16e95da9fc4457a07c3d63acf6aa54df3"
++  SOURCE_DIR "${PROJECT_BINARY_DIR}/json-plugin-src"
++  BINARY_DIR "${PROJECT_BINARY_DIR}/json-plugin-build"
+   CONFIGURE_COMMAND ""
+-  BUILD_COMMAND ""
+-  INSTALL_COMMAND "")
++  BUILD_COMMAND cd ${PROJECT_BINARY_DIR}/json-plugin-src/plugins/json && make
++  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_BINARY_DIR}/json-plugin-src/plugins/json/libjson.so ${FALCO_PLUGINS_DIR})
++
+ 
+-install(FILES "${PROJECT_BINARY_DIR}/json-plugin-prefix/src/json-plugin/libjson.so" DESTINATION "${FALCO_PLUGINS_DIR}" COMPONENT "${PLUGINS_COMPONENT_NAME}")
