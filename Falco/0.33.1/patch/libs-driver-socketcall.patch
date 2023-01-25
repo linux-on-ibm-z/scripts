@@ -1,0 +1,48 @@
+diff --git a/driver/main.c b/driver/main.c
+index a5d87cf7..13e11511 100644
+--- a/driver/main.c
++++ b/driver/main.c
+@@ -1790,8 +1790,25 @@ static int record_event_consumer(struct ppm_consumer_t *consumer,
+ 	int32_t cbres = PPM_SUCCESS;
+ 	int cpu;
+ 
++#ifdef _HAS_SOCKETCALL
++	/*
++	 * Socketcall events need special handling since they use
++	 * the generic event type which may not be in the interesting
++	 * set even though other EC_NET category syscalls are. This
++	 * happens by default with the simple set.
++	 *
++	 * Later, when the socketcall's underlying call type is known,
++	 * we will have the final event type and it will be checked there
++	 * to see if it is interesting.
++	 */
++	if (!test_bit(event_type, consumer->events_mask)) {
++		if (event_datap->category != PPMC_SYSCALL || event_datap->event_info.syscall_data.id != event_datap->socketcall_syscall)
++			return res;
++	}
++#else
+ 	if (!test_bit(event_type, consumer->events_mask))
+ 		return res;
++#endif
+ 
+ 	if (event_type != PPME_DROP_E && event_type != PPME_DROP_X) {
+ 		if (consumer->need_to_insert_drop_e == 1)
+@@ -1891,6 +1908,17 @@ static int record_event_consumer(struct ppm_consumer_t *consumer,
+ 		args.compat = event_datap->compat;
+ 		tet = parse_socketcall(&args, event_datap->event_info.syscall_data.regs);
+ 
++		/*
++		 * Check if the event type of the socketcall's call type
++		 * is in the interesting set and discard it if not.
++		 */
++		if (!test_bit(tet, consumer->events_mask)) {
++			ring_info->n_evts--;
++			atomic_dec(&ring->preempt_count);
++			put_cpu();
++			return res;
++		}
++
+ 		if (event_type == PPME_GENERIC_E)
+ 			event_type = tet;
+ 		else
