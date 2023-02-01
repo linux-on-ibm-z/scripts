@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021, 2022.
+# © Copyright IBM Corporation 2021, 2023.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -69,9 +69,7 @@ function configureAndInstall() {
     git clone  https://github.com/linux-on-ibm-z/test-infra.git
     cd test-infra/
     git checkout s390x-prow-20201124
-    bazel --output_base=/tmp/bazel/output build "--host_javabase=@local_jdk//:jdk" //prow/... 2>&1 | tee buildlog
-    wget https://raw.githubusercontent.com/bazelbuild/rules_go/v0.24.3/go/private/sdk_list.bzl
-    cp sdk_list.bzl /tmp/bazel/output/external/io_bazel_rules_go/go/private/sdk_list.bzl
+    sed -i "s|1.15.2|1.14.4|g" WORKSPACE
     bazel --output_base=/tmp/bazel/output build "--host_javabase=@local_jdk//:jdk" //prow/...
     
     cd $SOURCE_ROOT/test-infra/
@@ -159,7 +157,11 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update  
-    sudo apt-get install -y zip tar unzip git vim wget make curl python2.7-dev python3.6-dev gcc g++ python3-distutils
+    sudo apt-get install -y zip tar unzip git vim wget make curl python2.7-dev python3.8-dev gcc g++ python3-distutils golang-1.18
+    sudo update-alternatives --install /usr/bin/go go /usr/lib/go-1.18/bin/go 50
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 50
+    go version
+    python -V
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
