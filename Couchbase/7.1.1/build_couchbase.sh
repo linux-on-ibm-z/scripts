@@ -1657,22 +1657,18 @@ function buildCouchbase() {
     cd $SOURCE_ROOT/couchbase/tlm
     wget "${PATCH_URL}"/tlm.diff
     git apply tlm.diff
-    git apply $SOURCE_ROOT/patch/tlm.diff
 
     cd $SOURCE_ROOT/couchbase/couchstore
     wget "${PATCH_URL}"/couchstore.diff
     git apply couchstore.diff
-    git apply $SOURCE_ROOT/patch/couchstore.diff
 
     cd $SOURCE_ROOT/couchbase/kv_engine
     wget "${PATCH_URL}"/kv_engine.diff
     git apply kv_engine.diff
-    git apply $SOURCE_ROOT/patch/kv_engine.diff
 
     cd $SOURCE_ROOT/couchbase/platform
     wget "${PATCH_URL}"/platform.diff
     git apply platform.diff
-    git apply $SOURCE_ROOT/patch/platform.diff
 
     # replace icudtl with icudtb in couchdb with this command
     sed -i 's/icudtl/icudtb/g' $SOURCE_ROOT/couchbase/couchdb/src/mapreduce/CMakeLists.txt
