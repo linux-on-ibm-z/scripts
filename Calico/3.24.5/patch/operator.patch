@@ -1,0 +1,21 @@
+diff --git a/Makefile b/Makefile
+index ab70f591..5e4669e5 100644
+--- a/Makefile
++++ b/Makefile
+@@ -57,6 +57,7 @@ endif
+ ifeq ($(ARCH),amd64)
+ 	TARGET_PLATFORM=amd64
+ endif
++TARGET_PLATFORM=s390x
+ EXTRA_DOCKER_ARGS += --platform=linux/$(TARGET_PLATFORM)
+ 
+ # location of docker credentials to push manifests
+@@ -233,7 +234,7 @@ image: build $(BUILD_IMAGE)
+ 
+ $(BUILD_IMAGE): $(BUILD_IMAGE)-$(ARCH)
+ $(BUILD_IMAGE)-$(ARCH): register $(BINDIR)/operator-$(ARCH)
+-	docker build --pull -t $(BUILD_IMAGE):latest-$(ARCH) --platform=linux/$(TARGET_PLATFORM) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./build/Dockerfile.$(ARCH) .
++	docker build -t $(BUILD_IMAGE):latest-$(ARCH) --platform=linux/$(TARGET_PLATFORM) --build-arg GIT_VERSION=$(GIT_VERSION) -f ./build/Dockerfile.$(ARCH) .
+ ifeq ($(ARCH),amd64)
+ 	docker tag $(BUILD_IMAGE):latest-$(ARCH) $(BUILD_IMAGE):latest
+ endif
