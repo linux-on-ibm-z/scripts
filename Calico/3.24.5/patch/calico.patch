@@ -1,0 +1,142 @@
+diff --git a/apiserver/Makefile b/apiserver/Makefile
+index d64339b75..2c5b0d3ee 100644
+--- a/apiserver/Makefile
++++ b/apiserver/Makefile
+@@ -72,6 +72,8 @@ CALICO_BUILD:=$(CALICO_BUILD)-$(ARCH)
+ # TODO: re-enable these linters !
+ LINT_ARGS := --disable gosimple,govet,structcheck,errcheck,goimports,unused,ineffassign,staticcheck,deadcode,typecheck --timeout 5m
+ 
++LOCAL_IP_ENV:=$(shell ip route get 8.8.8.8 | head -1 | awk '{print $$7}')
++
+ ###############################################################################
+ # CI/CD
+ ###############################################################################
+diff --git a/app-policy/Makefile b/app-policy/Makefile
+index 335821dae..56e169429 100644
+--- a/app-policy/Makefile
++++ b/app-policy/Makefile
+@@ -113,7 +113,7 @@ proto/felixbackend.pb.go: proto/felixbackend.proto
+ 		      $(PROTOC_CONTAINER) \
+ 		      $(PROTOC_IMPORTS) \
+ 		      proto/*.proto \
+-		      --gogofast_out=plugins=grpc:proto
++		      --gogofaster_out=plugins=grpc:proto
+ 	$(MAKE) fix
+ 
+ proto/healthz.pb.go: proto/healthz.proto
+@@ -121,7 +121,7 @@ proto/healthz.pb.go: proto/healthz.proto
+ 		      $(PROTOC_CONTAINER) \
+ 		      $(PROTOC_IMPORTS) \
+ 		      proto/*.proto \
+-		      --gogofast_out=plugins=grpc:proto
++		      --gogofaster_out=plugins=grpc:proto
+ 	$(MAKE) fix
+ 
+ 
+diff --git a/calicoctl/tests/fv/utils/calicoctl.go b/calicoctl/tests/fv/utils/calicoctl.go
+index b729769d7..161c248df 100644
+--- a/calicoctl/tests/fv/utils/calicoctl.go
++++ b/calicoctl/tests/fv/utils/calicoctl.go
+@@ -24,7 +24,7 @@ import (
+ 	log "github.com/sirupsen/logrus"
+ )
+ 
+-var calicoctl = "/go/src/github.com/projectcalico/calico/calicoctl/bin/calicoctl-linux-amd64"
++var calicoctl = "/go/src/github.com/projectcalico/calico/calicoctl/bin/calicoctl-linux-s390x"
+ var version_helper = "/go/src/github.com/projectcalico/calico/calicoctl/tests/fv/helper/bin/calico_version_helper"
+ 
+ func getEnv(kdd bool) []string {
+diff --git a/calicoctl/tests/st/utils/utils.py b/calicoctl/tests/st/utils/utils.py
+index 837510af7..280dd32a8 100644
+--- a/calicoctl/tests/st/utils/utils.py
++++ b/calicoctl/tests/st/utils/utils.py
+@@ -242,7 +242,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+ 
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+ 
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
+diff --git a/cni-plugin/Dockerfile.s390x b/cni-plugin/Dockerfile.s390x
+index ecf1eddd8..194fd751e 100644
+--- a/cni-plugin/Dockerfile.s390x
++++ b/cni-plugin/Dockerfile.s390x
+@@ -1,4 +1,6 @@
+-FROM s390x/debian:9.8-slim
++ARG UBI_IMAGE
++
++FROM ${UBI_IMAGE} as ubi
+ 
+ LABEL maintainer "LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)"
+ 
+diff --git a/felix/fv/utils/utils.go b/felix/fv/utils/utils.go
+index 1a16c1335..bddd841ce 100644
+--- a/felix/fv/utils/utils.go
++++ b/felix/fv/utils/utils.go
+@@ -45,7 +45,7 @@ type EnvConfig struct {
+ 	// Note: These are overridden in the Makefile!
+ 	FelixImage   string `default:"calico/felix:latest"`
+ 	EtcdImage    string `default:"quay.io/coreos/etcd"`
+-	K8sImage     string `default:"calico/go-build:latest"`
++	K8sImage     string `default:"calico/go-build:v0.75"`
+ 	TyphaImage   string `default:"calico/typha:latest"`
+ 	BusyboxImage string `default:"busybox:latest"`
+ }
+diff --git a/lib.Makefile b/lib.Makefile
+index 975231242..e807e4e11 100644
+--- a/lib.Makefile
++++ b/lib.Makefile
+@@ -235,9 +235,12 @@ endif
+ ifeq ($(ARCH),ppc64le)
+ TARGET_PLATFORM=--platform=linux/ppc64le
+ endif
++ifeq ($(ARCH),s390x)
++TARGET_PLATFORM=--platform=linux/s390x
++endif
+ 
+ # DOCKER_BUILD is the base build command used for building all images.
+-DOCKER_BUILD=docker buildx build --pull \
++DOCKER_BUILD=docker buildx build \
+ 	     --build-arg QEMU_IMAGE=$(CALICO_BUILD) \
+ 	     --build-arg UBI_IMAGE=$(UBI_IMAGE) \
+ 	     --build-arg GIT_VERSION=$(GIT_VERSION) $(TARGET_PLATFORM)
+@@ -1235,9 +1238,9 @@ kubectl $(KUBECTL):
+ bin/helm:
+ 	mkdir -p bin
+ 	$(eval TMP := $(shell mktemp -d))
+-	wget -q https://get.helm.sh/helm-v3.3.1-linux-amd64.tar.gz -O $(TMP)/helm3.tar.gz
++	wget -q https://get.helm.sh/helm-v3.3.1-linux-s390x.tar.gz -O $(TMP)/helm3.tar.gz
+ 	tar -zxvf $(TMP)/helm3.tar.gz -C $(TMP)
+-	mv $(TMP)/linux-amd64/helm bin/helm
++	mv $(TMP)/linux-s390x/helm bin/helm
+ 
+ ###############################################################################
+ # Common functions for launching a local etcd instance.
+diff --git a/node/calico_test/Dockerfile.s390x.calico_test b/node/calico_test/Dockerfile.s390x.calico_test
+index 6601a03c3..974233ef6 100644
+--- a/node/calico_test/Dockerfile.s390x.calico_test
++++ b/node/calico_test/Dockerfile.s390x.calico_test
+@@ -59,7 +59,7 @@ RUN apk update \
+ 
+ # Install etcdctl
+ COPY pkg /pkg/
+-RUN tar -xzf pkg/etcd-v3.3.7-linux-s390x.tar.gz -C /usr/local/bin/
++RUN tar -xzf pkg/etcd-v3.5.3-linux-s390x.tar.gz -C /usr/local/bin/
+ 
+ # The container is used by mounting the code-under-test to /code
+ WORKDIR /code/
+diff --git a/pod2daemon/Makefile b/pod2daemon/Makefile
+index edb4458fc..c88cc4a81 100644
+--- a/pod2daemon/Makefile
++++ b/pod2daemon/Makefile
+@@ -109,7 +109,7 @@ bin/node-driver-registrar-%: clone-registrar-upstream
+ clone-registrar-upstream:
+ ifeq ("$(wildcard ./$(REGISTRAR_IMAGE))", "")
+ 	@echo "Directory does not exist."
+-	git clone --depth 1 --branch $(UPSTREAM_REGISTRAR_TAG) --single-branch git@github.com:$(UPSTREAM_REGISTRAR_PROJECT).git
++	git clone --depth 1 --branch $(UPSTREAM_REGISTRAR_TAG) --single-branch https://github.com/kubernetes-csi/node-driver-registrar.git
+ else
+ 	@echo "Upstream repo already cloned."
+ endif
