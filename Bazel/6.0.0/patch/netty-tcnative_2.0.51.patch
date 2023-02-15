@@ -1,0 +1,33 @@
+diff --git a/boringssl-static/pom.xml b/boringssl-static/pom.xml
+index 9bee744..6b1f6f9 100644
+--- a/boringssl-static/pom.xml
++++ b/boringssl-static/pom.xml
+@@ -51,8 +51,8 @@
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+     <boringsslHome>${boringsslSourceDir}/build</boringsslHome>
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+-    <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
+-    <boringsslBranch>chromium-stable</boringsslBranch>
++    <boringsslRepository>https://github.com/linux-on-ibm-z/boringssl</boringsslRepository>
++    <boringsslBranch>patch-s390x-Jan2021</boringsslBranch>
+     <linkStatic>true</linkStatic>
+     <compileLibrary>true</compileLibrary>
+     <msvcSslIncludeDirs>${boringsslSourceDir}/include</msvcSslIncludeDirs>
+diff --git a/pom.xml b/pom.xml
+index 040b7cc..7642a7a 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -83,11 +83,11 @@
+     <nativeLibOsParts>${os.detected.name}_${os.detected.arch}</nativeLibOsParts>
+     <aprVersion>1.7.0</aprVersion>
+     <aprSha256>48e9dbf45ae3fdc7b491259ffb6ccf7d63049ffacbc1c0977cced095e4c2d5a2</aprSha256>
+-    <boringsslBranch>chromium-stable</boringsslBranch>
++    <boringsslBranch>patch-s390x-Jan2021</boringsslBranch>         
+     <!--
+       See https://boringssl.googlesource.com/boringssl/+/refs/heads/chromium-stable for the latest commit
+     -->
+-    <boringsslCommitSha>3a667d10e94186fd503966f5638e134fe9fb4080</boringsslCommitSha>
++    <boringsslCommitSha>d83fd4af80af244ac623b99d8152c2e53287b9ad</boringsslCommitSha>
+     <libresslVersion>3.3.5</libresslVersion>
+     <!--
+       See https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/SHA256 for the SHA256 signature
