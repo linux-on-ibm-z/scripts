@@ -1,0 +1,37 @@
+--- a/src/main/java/net/openhft/chronicle/bytes/MappedBytes.java
++++ b/src/main/java/net/openhft/chronicle/bytes/MappedBytes.java
+@@ -36,6 +36,7 @@ import java.io.IOException;
+ import java.nio.BufferOverflowException;
+ import java.nio.BufferUnderflowException;
+
++import static net.openhft.chronicle.bytes.algo.OptimisedBytesStoreHash.IS_LITTLE_ENDIAN;
+ import static net.openhft.chronicle.core.util.StringUtils.*;
+
+ /**
+@@ -652,7 +653,11 @@ public class MappedBytes extends AbstractBytes<Void> implements Closeable {
+                 int c1 = bytes[i + start + 1] & 0xff;
+                 int c2 = bytes[i + start + 2] & 0xff;
+                 int c3 = bytes[i + start + 3] & 0xff;
+-                memory.writeInt(address, (c3 << 24) | (c2 << 16) | (c1 << 8) | c0);
++                if (IS_LITTLE_ENDIAN) {
++                     memory.writeInt(address, (c3 << 24) | (c2 << 16) | (c1 << 8) | c0);
++                } else {
++                     memory.writeInt(address, (c0 << 24) | (c1 << 16) | (c2 << 8) | c3);
++                }
+                 address += 4;
+             }
+             for (; i < length; i++) {
+@@ -670,7 +675,11 @@ public class MappedBytes extends AbstractBytes<Void> implements Closeable {
+                 int c1 = chars[i + start + 1] & 0xff;
+                 int c2 = chars[i + start + 2] & 0xff;
+                 int c3 = chars[i + start + 3] & 0xff;
+-                memory.writeInt(address, (c3 << 24) | (c2 << 16) | (c1 << 8) | c0);
++                if (IS_LITTLE_ENDIAN) {
++                      memory.writeInt(address, (c3 << 24) | (c2 << 16) | (c1 << 8) | c0);
++                } else {
++                      memory.writeInt(address, (c0 << 24) | (c1 << 16) | (c2 << 8) | c3);
++                }
+                 address += 4;
+             }
+             for (; i < length; i++) {
+
