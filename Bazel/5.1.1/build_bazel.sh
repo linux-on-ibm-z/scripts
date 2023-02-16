@@ -79,10 +79,10 @@ function buildNetty() {
 	cd netty-tcnative
 	git checkout netty-tcnative-parent-2.0.44.Final
 	curl -sSL $PATCH_URL/netty-tcnative.patch | git apply || error "Patch netty tcnative"
-	if [[ $DISTRO == ubuntu-21.10 || $DISTRO == ubuntu-22.04 ]]; then
+	if [[ $DISTRO == ubuntu-22.10 || $DISTRO == ubuntu-22.04 ]]; then
 		curl -sSL $PATCH_URL/netty-tcnative-gcc.patch | git apply || error "Patch netty tcnative gcc"
 	fi
-	if [[ $DISTRO == ubuntu-22.04 ]]; then
+	if [[ $DISTRO == ubuntu-22.10 || $DISTRO == ubuntu-22.04 ]]; then
 		curl -sSL https://github.com/netty/netty-tcnative/commit/05718d27977c6a8865a00c3b0a994331c7963128.patch | git apply || error "Patch netty tcnative openssl 3"
 	fi
 	mvn install
@@ -253,7 +253,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-21.10" | "ubuntu-22.04")
+"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.10" | "ubuntu-22.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
