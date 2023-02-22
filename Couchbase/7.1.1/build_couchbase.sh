@@ -40,7 +40,7 @@ function prepareUB20() {
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y \
         autoconf automake autotools-dev binutils-dev bison ccache cmake curl flex \
-        git libssl-dev ncurses-dev ninja-build python python3 \
+        git libssl-dev ncurses-dev ninja-build python python3 locales locales-all \
         python3-httplib2 python3-six pkg-config re2c texinfo tzdata unzip wget \
         g++-10 gcc-10 gcc-10-multilib g++-10-multilib libglib2.0-dev libtool
 
@@ -59,7 +59,7 @@ function prepareUB18() {
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y \
         autoconf automake autotools-dev binutils-dev bison ccache cmake curl flex \
-        git libssl-dev ncurses-dev ninja-build python python3 \
+        git libssl-dev ncurses-dev ninja-build python python3 locales locales-all \
         python3-httplib2 python3-six pkg-config re2c texinfo tzdata unzip wget \
         libtool libglib2.0-dev
 
@@ -89,7 +89,7 @@ function prepareRHEL8() {
     sudo ln -sf /opt/rh/gcc-toolset-10/root/usr/bin/gcc /usr/local/bin/gcc
     sudo ln -sf /opt/rh/gcc-toolset-10/root/usr/bin/g++ /usr/local/bin/g++
     sudo yum install -y atk-devel autoconf automake binutils-devel bison bzip2 \
-        cmake cups-devel flex git gnome-keyring libcurl-devel \
+        cmake cups-devel flex git gnome-keyring libcurl-devel langpacks-en glibc-all-langpacks \
         libev-devel libtool make ncurses-devel ninja-build openssl-devel openssl-perl \
         python2 python3 python3-devel python3-httplib2 tar texinfo unzip wget which xz xz-devel glib2-devel
 
@@ -105,7 +105,7 @@ function prepareRHEL7() {
     sudo subscription-manager repos --enable=rhel-7-server-for-system-z-rhscl-rpms
     sudo yum install -y gcc gcc-c++ libatomic atk-devel autoconf automake bison bzip2 perl-CPAN perl-devel \
     ca-certificates cmake cups-devel flex gnome-keyring libcurl-devel libtool make ncurses-devel python2 python3 \
-    python3-devel tar texinfo unzip wget which xmlto xz xz-devel zlib-devel gettext
+    python3-devel tar texinfo unzip wget which xmlto xz xz-devel zlib-devel gettext langpacks-en glibc-all-langpacks
 
     sudo pip3 install six httplib2
     sudo ln -sf /usr/bin/python2 /usr/bin/python
@@ -146,8 +146,8 @@ function prepareSUSE12() {
 
 function prepareSUSE15() {
     sudo zypper install -y asciidoc autoconf automake cmake curl flex \
-        gcc gcc-c++ gcc10-c++-10.3.0+git1587 gcc10-10.3.0+git1587 git-core glib2 glib2-devel glibc-locale \
-        libopenssl-devel libncurses6 \
+        gcc gcc-c++ gcc10-c++-10.3.0+git1587 gcc10-10.3.0+git1587 git-core glib2 glib2-devel \
+        libopenssl-devel libncurses6 xz glibc-locale \
         libtirpc-devel libtool libxml2-tools libxslt-tools \
         make makedepend ncurses-devel ninja patch pkg-config \
         python python-xml python3-httplib2 re2c ruby sqlite3 tar \
