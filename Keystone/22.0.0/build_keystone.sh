@@ -340,8 +340,8 @@ case "$DISTRO" in
     sudo yum install -y python3-devel libffi-devel cargo curl wget openssl-devel gcc make gcc-c++ python3-mod_wsgi httpd httpd-devel procps sqlite-devel python3-pip perl
     
     echo "[mariadb]" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
-    echo "name = MariaDB-10.11.1" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
-    echo "baseurl=http://mirror.mariadb.org/mariadb-10.11.1/yum/rhel9-s390x" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
+    echo "name = MariaDB-10.11.2" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
+    echo "baseurl=http://mirror.mariadb.org/mariadb-10.11.2/yum/rhel9-s390x" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
     echo "gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
     echo "gpgcheck=1" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
 
