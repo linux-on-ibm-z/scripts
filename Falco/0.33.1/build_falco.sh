@@ -298,7 +298,7 @@ case "$DISTRO" in
     SLES_KERNEL_VERSION=$(uname -r | sed 's/-default//')
     SLES_KERNEL_PKG_VERSION=$(sudo zypper se -s 'kernel-default-devel' | grep ${SLES_KERNEL_VERSION} | cut -d "|" -f 4 - | tr -d '[:space:]')
 
-	sudo zypper install -y --force-resolution gcc gcc9 gcc9-c++ git-core patch which automake autoconf libtool libopenssl-devel libcurl-devel libelf-devel "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" tar curl
+	sudo zypper install -y --force-resolution gcc gcc9 gcc9-c++ git-core patch which automake autoconf libtool libopenssl-devel libcurl-devel libelf-devel "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" tar curl make
 
     sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 50
