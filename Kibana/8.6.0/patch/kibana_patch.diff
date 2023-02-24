@@ -1,0 +1,122 @@
+diff --git a/WORKSPACE.bazel b/WORKSPACE.bazel
+index 0a7f9596abd..f04739a05a3 100644
+--- a/WORKSPACE.bazel
++++ b/WORKSPACE.bazel
+@@ -26,6 +26,7 @@ node_repositories(
+     "16.18.1-darwin_arm64": ("node-v16.18.1-darwin-arm64.tar.gz", "node-v16.18.1-darwin-arm64", "71720bb0a80cf158d8fdf492def08048befd953ad45e2458b1d095e32c612ba7"),
+     "16.18.1-linux_arm64": ("node-v16.18.1-linux-arm64.tar.xz", "node-v16.18.1-linux-arm64", "98d81a2d08f88646541d282b7ccc32429f8706ddcb30943fc3779ef9674ebb93"),
+     "16.18.1-linux_amd64": ("node-v16.18.1-linux-x64.tar.xz", "node-v16.18.1-linux-x64", "de2c694e7081c37022817d27a65b02f69ecf4c49699d65585e8e24431b7bc920"),
++    "16.18.1-linux_s390x": ("node-v16.18.1-linux-s390x.tar.xz", "node-v16.18.1-linux-s390x", "509b676199003fed89b1aee384fec3ab8b2906b4540784c032179c1b49b9c3c9"),
+     "16.18.1-windows_amd64": ("node-v16.18.1-win-x64.zip", "node-v16.18.1-win-x64", "db6a81de8e8ca3444495f1bcf04a883c076b4325d0fbaa032a190f88b38b30c5"),
+   },
+   node_version = "16.18.1",
+diff --git a/package.json b/package.json
+index e150fe385e7..24943ba4f5e 100644
+--- a/package.json
++++ b/package.json
+@@ -815,7 +815,7 @@
+     "@types/base64-js": "^1.2.5",
+     "@types/chance": "^1.0.0",
+     "@types/chroma-js": "^1.4.2",
+-    "@types/chromedriver": "^81.0.1",
++    "@types/chromedriver": "^2.38.0",
+     "@types/classnames": "^2.2.9",
+     "@types/color": "^3.0.3",
+     "@types/compression-webpack-plugin": "^2.0.2",
+@@ -978,7 +978,7 @@
+     "callsites": "^3.1.0",
+     "chance": "1.0.18",
+     "chokidar": "^3.5.3",
+-    "chromedriver": "^108.0.0",
++    "chromedriver": "2.33.2",
+     "clean-webpack-plugin": "^3.0.0",
+     "compression-webpack-plugin": "^4.0.0",
+     "copy-webpack-plugin": "^6.0.2",
+diff --git a/src/dev/build/lib/platform.ts b/src/dev/build/lib/platform.ts
+index 4c4ec271318..6bc68a1b569 100644
+--- a/src/dev/build/lib/platform.ts
++++ b/src/dev/build/lib/platform.ts
+@@ -7,7 +7,7 @@
+  */
+
+ export type PlatformName = 'win32' | 'darwin' | 'linux';
+-export type PlatformArchitecture = 'x64' | 'arm64';
++export type PlatformArchitecture = 'x64' | 'arm64' | 's390x';
+
+ export class Platform {
+   constructor(
+@@ -48,6 +48,7 @@ export class Platform {
+ export const ALL_PLATFORMS = [
+   new Platform('linux', 'x64', 'linux-x86_64'),
+   new Platform('linux', 'arm64', 'linux-aarch64'),
++  new Platform('linux', 's390x', 'linux-s390x'),
+   new Platform('darwin', 'x64', 'darwin-x86_64'),
+   new Platform('darwin', 'arm64', 'darwin-aarch64'),
+   new Platform('win32', 'x64', 'windows-x86_64'),
+diff --git a/src/dev/build/tasks/nodejs/node_download_info.ts b/src/dev/build/tasks/nodejs/node_download_info.ts
+index 821cdb6973c..700afd52d43 100644
+--- a/src/dev/build/tasks/nodejs/node_download_info.ts
++++ b/src/dev/build/tasks/nodejs/node_download_info.ts
+@@ -17,8 +17,7 @@ export function getNodeDownloadInfo(config: Config, platform: Platform) {
+   const downloadName = platform.isWindows()
+     ? 'win-x64/node.exe'
+     : `node-v${version}-${arch}.tar.gz`;
+-
+-  const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v${version}/${downloadName}`;
++  const url = `https://nodejs.org/dist/v${version}/${downloadName}`;
+   const downloadPath = config.resolveFromRepo('.node_binaries', version, basename(downloadName));
+   const extractDir = config.resolveFromRepo('.node_binaries', version, arch);
+
+diff --git a/src/dev/build/tasks/patch_native_modules_task.ts b/src/dev/build/tasks/patch_native_modules_task.ts
+index 1c1bebfa86c..8fa4078e06b 100644
+--- a/src/dev/build/tasks/patch_native_modules_task.ts
++++ b/src/dev/build/tasks/patch_native_modules_task.ts
+@@ -22,6 +22,9 @@ import {
+   read,
+ } from '../lib';
+
++const zUrl = require('url');
++var zFile:string = zUrl.pathToFileURL('linux-s390x-93.gz').toString();
++
+ const DOWNLOAD_DIRECTORY = '.native_modules';
+
+ interface Package {
+@@ -82,6 +85,10 @@ const packages: Package[] = [
+         sha256: 'd4b708749ddef1c87019f6b80e051ed0c29ccd1de34f233c47d8dcaddf803872',
+       },
+
++      'linux-s390x': {
++        url: zFile,
++      },
++
+       'win32-x64': {
+         url: 'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2/uhop/node-re2/releases/download/1.17.4/win32-x64-93.gz',
+         sha256: '0320d0c0385432944c6fb3c8c8fcd78d440ce5626f7618f9ec71d88e44820674',
+@@ -120,14 +127,19 @@ async function patchModule(
+   log.debug(`Patching ${pkg.name} binaries from ${archive.url} to ${extractPath}`);
+
+   await deleteAll([extractPath], log);
+-  await downloadToDisk({
+-    log,
+-    url: archive.url,
+-    destination: downloadPath,
+-    shaChecksum: archive.sha256,
+-    shaAlgorithm: 'sha256',
+-    maxAttempts: 3,
+-  });
++  if (platformName == "linux-s390x") {
++         console.log("Using locally built re2");
++  }
++  else {
++    await downloadToDisk({
++      log,
++      url: archive.url,
++      destination: downloadPath,
++      shaChecksum: archive.sha256,
++      shaAlgorithm: 'sha256',
++      maxAttempts: 3,
++    });
++  }
+   switch (pkg.extractMethod) {
+     case 'gunzip':
+       await gunzip(downloadPath, extractPath);
