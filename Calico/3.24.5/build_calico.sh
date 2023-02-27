@@ -482,12 +482,20 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-12.5" | "sles-15.4")
+"sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch 2>&1 | tee -a "$LOG_FILE"
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
+    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch docker-20.10.6_ce-98.66.1 2>&1 | tee -a "$LOG_FILE"
+    sudo wget -O /usr/local/bin/yq.v2 https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_s390x
+    sudo chmod 755 /usr/local/bin/yq.v2
+    export CC=gcc
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+
+"sles-15.4")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- "Installing dependencies ... it may take some time.\n"
+    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch docker-20.10.6_ce-6.49.3 2>&1 | tee -a "$LOG_FILE"
     sudo wget -O /usr/local/bin/yq.v2 https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_s390x
     sudo chmod 755 /usr/local/bin/yq.v2
     export CC=gcc
