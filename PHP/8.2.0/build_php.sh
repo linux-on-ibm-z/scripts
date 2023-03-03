@@ -222,7 +222,7 @@ eof
 eof
         ;;
 		
-    "sles-15.3" | "sles-15.4")
+    "sles-15.4")
         cat <<-eof
 	  export PKG_CONFIG_PATH=${PREFIX}/lib/pkgconfig:${PREFIX}/lib64/pkgconfig:\${PKG_CONFIG_PATH}
 	  export LD_LIBRARY_PATH=${PREFIX}/lib:${PREFIX}/lib64:\${LD_LIBRARY_PATH}
@@ -580,42 +580,6 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-    #----------------------------------------------------------
-"sles-15.3")
-
-    sudo zypper install -y \
-        autoconf curl libtool openssl-devel libxml2 \
-        libxml2-devel readline readline-devel \
-        libcurl4 libcurl-devel libreadline7 openssl \
-        libzip-devel pkg-config oniguruma-devel git \
-        tar sqlite3-devel zlib-devel gcc gcc-c++ \
-        libzip5 postgresql12 nginx postgresql12-server-devel bzip2 \
-        make gzip gawk gmp-devel mpfr-devel mpc-devel wget |& tee -a "$LOG_FILE"
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    buildGCC |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 40
-
-    buildcurl760 |& tee -a "$LOG_FILE"
-
-    PATH=${PREFIX}/bin${PATH:+:${PATH}}
-    export PATH
-    [ -f /usr/bin/pg_config ] || sudo ln -s /usr/lib/postgresql12/bin/pg_config /usr/bin/pg_config
-
-    PKG_CONFIG_PATH=${PREFIX}/lib/pkgconfig:${PREFIX}/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-    export PKG_CONFIG_PATH
-
-    LD_LIBRARY_PATH=${PREFIX}/lib:${PREFIX}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-    export LD_LIBRARY_PATH
-
-    LD_RUN_PATH=${PREFIX}/lib:${PREFIX}/lib64${LD_RUN_PATH:+:${LD_RUN_PATH}}
-    export LD_RUN_PATH
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 
     #----------------------------------------------------------
 "sles-15.4")
