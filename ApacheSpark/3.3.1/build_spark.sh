@@ -58,7 +58,7 @@ function prepare() {
         exit 1;
     fi;
 
-    if [[ "$JAVA_PROVIDED" != "Temurin11" && "$JAVA_PROVIDED" != "OpenJDK11"  && "$JAVA_PROVIDED" != "OpenJDK17"  && "$JAVA_PROVIDED" != "Temurin17"]]; then
+    if [[ "$JAVA_PROVIDED" != "Temurin11" && "$JAVA_PROVIDED" != "OpenJDK11"  && "$JAVA_PROVIDED" != "OpenJDK17"  && "$JAVA_PROVIDED" != "Temurin17" ]]; then
         printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17, OpenJDK17} only\n"
         exit 1
     fi
