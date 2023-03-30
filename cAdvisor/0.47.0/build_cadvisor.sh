@@ -15,6 +15,8 @@ CURDIR="$(pwd)"
 
 GO_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh"
 
+export PATCH_URL=https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/cAdvisor/0.47.0/patch
+
 #Default GOPATH if not present already.
 GO_DEFAULT="$HOME/go"
 
@@ -107,6 +109,7 @@ function configureAndInstall() {
     printf -- 'Cloned the cadvisor code \n'
     cd "${GOPATH}/src/github.com/google/cadvisor/"
     git checkout v${PACKAGE_VERSION}
+    curl -sSL $PATCH_URL/assets.patch | git apply
     
     # Build cAdvisor
     cd "${GOPATH}/src/github.com/google/cadvisor/"
