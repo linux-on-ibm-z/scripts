@@ -281,11 +281,13 @@ function installOpenssl() {
     export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
     export LD_LIBRARY_PATH="/usr/local/lib/:/usr/local/lib64/"
     export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
+    export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH
 
     printf -- 'export PATH="/usr/local/bin:${PATH}"\n' >>"${BUILD_ENV}"
     printf -- "export LDFLAGS=\"$LDFLAGS\"\n" >>"${BUILD_ENV}"
     printf -- "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"\n" >>"${BUILD_ENV}"
     printf -- "export CPPFLAGS=\"$CPPFLAGS\"\n" >>"${BUILD_ENV}"
+    printf -- "export PKG_CONFIG_PATH=\"$PKG_CONFIG_PATH\"\n" >>"${BUILD_ENV}"
 }
 
 function runTest() {
