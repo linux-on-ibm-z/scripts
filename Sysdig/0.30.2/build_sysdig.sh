@@ -18,7 +18,6 @@ source "/etc/os-release"
 DISTRO="$ID-$VERSION_ID"
 LOG_FILE="$SOURCE_ROOT/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-${DISTRO}-$(date +"%F-%T").log"
 
-SLES_KERNEL_VERSION=$(uname -r | sed 's/-default//g')
 trap cleanup 0 1 2 ERR
 #Check if directory exists
 if [ ! -d "$SOURCE_ROOT/logs/" ]; then
@@ -51,7 +50,7 @@ function configureAndInstall() {
     printf -- 'User responded with Yes. \n'
     printf -- 'Building dependencies\n'
 
-    if [[ ${DISTRO} =~ rhel-7\.[8-9] ]] || [[ "$DISTRO" = "sles-12.5" ]]; then
+    if [[ ${DISTRO} =~ rhel-7\.[8-9] ]] ; then
         printf -- 'Building openssl v1.1.1l\n'
         cd $SOURCE_ROOT
         wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz --no-check-certificate
@@ -77,9 +76,6 @@ function configureAndInstall() {
         ./bootstrap
         make
         sudo make install
-        if [[ "$DISTRO" = "sles-12.5"  ]]; then
-            sudo ln -s /usr/local/bin/cmake /usr/bin/cmake
-        fi
         cmake --version
         printf -- 'cmake installed successfully\n'
     fi
@@ -209,24 +205,6 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo yum install -y gcc gcc-c++ git cmake pkg-config elfutils-libelf-devel kernel-devel-$(uname -r) kmod perl |& tee -a "$LOG_FILE"
-    configureAndInstall | tee -a "$LOG_FILE"
-    ;;
-
-"sles-12.5")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo zypper install -y gcc7 gcc7-c++ git make wget pkg-config libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod tar |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-7 40
-    configureAndInstall | tee -a "$LOG_FILE"
-    ;;
-
- "sles-15.4")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo zypper install -y gcc gcc-c++ git cmake wget pkg-config libelf-devel "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod tar |& tee -a "$LOG_FILE"
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 *)
