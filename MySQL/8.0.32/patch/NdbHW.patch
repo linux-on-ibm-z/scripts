@@ -1,14 +1,13 @@
 diff --git a/storage/ndb/src/common/portlib/NdbHW.cpp b/storage/ndb/src/common/portlib/NdbHW.cpp
-index 4f6850d..611e4da 100644
+index 4f6850df1cc..611e4da23ab 100644
 --- a/storage/ndb/src/common/portlib/NdbHW.cpp
 +++ b/storage/ndb/src/common/portlib/NdbHW.cpp
 @@ -2127,7 +2127,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
-   {
-     Uint32 val;
-     char * p = nullptr;
--    if (sscanf(buf, "processor : %u", &val) == 1)
-+    if (sscanf(buf, "processor %u:", &val) == 1)
-     {
-       if (val > max_cpu_no)
-       {
- 
+   {
+     Uint32 val;
+     char * p = nullptr;
+-    if (sscanf(buf, "processor : %u", &val) == 1)
++    if (sscanf(buf, "processor %u:", &val) == 1)
+     {
+       if (val > max_cpu_no)
+       {
