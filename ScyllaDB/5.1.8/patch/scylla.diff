@@ -1,0 +1,247 @@
+diff --git a/alternator/auth.cc b/alternator/auth.cc
+index 195f8ed2e..38cb9bf3e 100644
+--- a/alternator/auth.cc
++++ b/alternator/auth.cc
+@@ -10,6 +10,7 @@
+ #include "log.hh"
+ #include <string>
+ #include <string_view>
++#include <gnutls/gnutls.h>
+ #include <gnutls/crypto.h>
+ #include "hashers.hh"
+ #include "bytes.hh"
+diff --git a/configure.py b/configure.py
+index 4de39b56c..ff78ac2f5 100755
+--- a/configure.py
++++ b/configure.py
+@@ -183,11 +183,11 @@ def flag_supported(flag, compiler):
+ 
+ def linker_flags(compiler):
+     src_main = 'int main(int argc, char **argv) { return 0; }'
+-    link_flags = ['-fuse-ld=lld']
++    link_flags = ['-fuse-ld=bfd']
+     if try_compile_and_link(source=src_main, flags=link_flags, compiler=compiler):
+-        print('Note: using the lld linker')
++        print('Note: using the bfd linker')
+         return ' '.join(link_flags)
+-    link_flags = ['-fuse-ld=gold']
++    link_flags = ['-fuse-ld=bfd']
+     if try_compile_and_link(source=src_main, flags=link_flags, compiler=compiler):
+         print('Note: using the gold linker')
+         threads_flag = '-Wl,--threads'
+@@ -1327,8 +1327,7 @@ deps['utils/gz/gen_crc_combine_table'] = ['utils/gz/gen_crc_combine_table.cc']
+ 
+ 
+ warnings = [
+-    '-Wall',
+-    '-Werror',
++    '-Wno-deprecated-builtins',
+     '-Wno-mismatched-tags',  # clang-only
+     '-Wno-maybe-uninitialized',  # false positives on gcc 5
+     '-Wno-tautological-compare',
+@@ -1390,8 +1389,8 @@ for mode_level in args.mode_o_levels:
+         raise Exception(f'Mode {mode} is missing, cannot configure optimization level for it')
+     modes[mode]['optimization-level'] = level
+ 
+-for mode in modes:
+-    modes[mode]['cxxflags'] += f' -O{modes[mode]["optimization-level"]}'
++#for mode in modes:
++#    modes[mode]['cxxflags'] += f' -O{modes[mode]["optimization-level"]}'
+ 
+ optimization_flags = [
+     '--param inline-unit-growth=300', # gcc
+@@ -1717,8 +1716,8 @@ abseil_libs = ['absl/' + lib for lib in [
+     'time/libabsl_time.a',
+     'time/libabsl_time_zone.a',
+     'numeric/libabsl_int128.a',
+-    'hash/libabsl_city.a',
+     'hash/libabsl_hash.a',
++    'hash/libabsl_city.a',
+     'hash/libabsl_low_level_hash.a',
+     'base/libabsl_malloc_internal.a',
+     'base/libabsl_spinlock_wait.a',
+@@ -1835,14 +1834,16 @@ with open(buildfile, 'w') as f:
+     for mode in build_modes:
+         modeval = modes[mode]
+         fmt_lib = 'fmt'
++        optimize = f' -O{modes[mode]["optimization-level"]}'
+         f.write(textwrap.dedent('''\
+             cxx_ld_flags_{mode} = {cxx_ld_flags}
+             ld_flags_{mode} = $cxx_ld_flags_{mode}
++            optimize = {optimize}
+             cxxflags_{mode} = $cxx_ld_flags_{mode} {cxxflags} -iquote. -iquote $builddir/{mode}/gen
+             libs_{mode} = -l{fmt_lib}
+             seastar_libs_{mode} = {seastar_libs}
+             rule cxx.{mode}
+-              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags_{mode} $cxxflags $obj_cxxflags -c -o $out $in
++              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags_{mode} $optimize $cxxflags $obj_cxxflags -c -o $out $in
+               description = CXX $out
+               depfile = $out.d
+             rule link.{mode}
+@@ -1882,7 +1883,7 @@ with open(buildfile, 'w') as f:
+                         $builddir/{mode}/gen/${{stem}}Parser.cpp
+                 description = ANTLR3 $in
+             rule checkhh.{mode}
+-              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags $cxxflags_{mode} $obj_cxxflags --include $in -c -o $out $builddir/{mode}/gen/empty.cc
++              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags $cxxflags_{mode} $optimize $obj_cxxflags --include $in -c -o $out $builddir/{mode}/gen/empty.cc
+               description = CHECKHH $in
+               depfile = $out.d
+             rule test.{mode}
+@@ -1892,7 +1893,7 @@ with open(buildfile, 'w') as f:
+             rule rust_lib.{mode}
+               command = CARGO_HOME=build/{mode}/rust/.cargo cargo build --release --manifest-path=rust/Cargo.toml --target-dir=build/{mode}/rust -p ${{pkg}}
+               description = RUST_LIB $out
+-            ''').format(mode=mode, antlr3_exec=antlr3_exec, fmt_lib=fmt_lib, test_repeat=test_repeat, test_timeout=test_timeout, **modeval))
++            ''').format(mode=mode, antlr3_exec=antlr3_exec, fmt_lib=fmt_lib, test_repeat=test_repeat, test_timeout=test_timeout, **modeval, optimize=optimize))
+         f.write(
+             'build {mode}-build: phony {artifacts}\n'.format(
+                 mode=mode,
+@@ -2038,7 +2039,7 @@ with open(buildfile, 'w') as f:
+             src = compiles[obj]
+             f.write('build {}: cxx.{} {} || {} {}\n'.format(obj, mode, src, seastar_dep, gen_headers_dep))
+             if src in modeval['per_src_extra_cxxflags']:
+-                f.write('    cxxflags = {seastar_cflags} $cxxflags $cxxflags_{mode} {extra_cxxflags}\n'.format(mode=mode, extra_cxxflags=modeval["per_src_extra_cxxflags"][src], **modeval))
++                f.write('    cxxflags = {seastar_cflags} $cxxflags $cxxflags_{mode} $optimize {extra_cxxflags}\n'.format(mode=mode, extra_cxxflags=modeval["per_src_extra_cxxflags"][src], **modeval))
+         for swagger in swaggers:
+             hh = swagger.headers(gen_dir)[0]
+             cc = swagger.sources(gen_dir)[0]
+@@ -2165,7 +2169,7 @@ with open(buildfile, 'w') as f:
+         build dist-server: phony dist-server-tar dist-server-compat dist-server-compat-arch dist-server-rpm dist-server-deb
+ 
+         rule build-submodule-reloc
+-          command = cd $reloc_dir && ./reloc/build_reloc.sh --version $$(<../../build/SCYLLA-PRODUCT-FILE)-$$(sed 's/-/~/' <../../build/SCYLLA-VERSION-FILE)-$$(<../../build/SCYLLA-RELEASE-FILE) --nodeps $args
++          command = cd $reloc_dir && ./reloc/build_reloc.sh --version {scylla_product}-{scylla_version}-{scylla_release} --nodeps $args
+         rule build-submodule-rpm
+           command = cd $dir && ./reloc/build_rpm.sh --reloc-pkg $artifact
+         rule build-submodule-deb
+diff --git a/utils/exceptions.hh b/utils/exceptions.hh
+index cd4bc11a1..bf5a794ae 100644
+--- a/utils/exceptions.hh
++++ b/utils/exceptions.hh
+@@ -10,7 +10,7 @@
+ 
+ #include <cstddef>
+ 
+-#if defined(__GLIBCXX__) && (defined(__x86_64__) || defined(__aarch64__))
++#if defined(__GLIBCXX__) && (defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__))
+   #define OPTIMIZED_EXCEPTION_HANDLING_AVAILABLE
+ #endif
+ 
+diff --git a/test/conftest.py b/test/conftest.py
+index ce6c67e23..3c4c8c506 100644
+--- a/test/conftest.py
++++ b/test/conftest.py
+@@ -19,6 +19,7 @@ from cassandra.policies import RoundRobinPolicy                          # type:
+ from test.pylib.util import unique_name                                  # type: ignore
+ import pytest
+ import ssl
++import pytest_asyncio
+ from typing import AsyncGenerator
+ from test.pylib.random_tables import RandomTables                        # type: ignore
+ 
+@@ -163,7 +164,7 @@ async def fails_without_raft(request, check_pre_raft):
+ # used in tests that need a keyspace. The keyspace is created with RF=1,
+ # and automatically deleted at the end. We use scope="session" so that all
+ # tests will reuse the same keyspace.
+-@pytest.fixture(scope="session")
++@pytest_asyncio.fixture(scope="session")
+ async def keyspace(cql, this_dc):
+     name = unique_name()
+     await cql.run_async("CREATE KEYSPACE " + name + " WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', '" +
+@@ -174,7 +175,7 @@ async def keyspace(cql, this_dc):
+ 
+ # "random_tables" fixture: Creates and returns a temporary RandomTables object
+ # used in tests to make schema changes. Tables are dropped after finished.
+-@pytest.fixture(scope="function")
++@pytest_asyncio.fixture(scope="function")
+ async def random_tables(request, cql, keyspace) -> AsyncGenerator:
+     tables = RandomTables(request.node.name, cql, keyspace)
+     yield tables
+
+diff --git a/test/cql/lwt_test.cql b/test/cql/lwt_test.cql
+index 1199efb38..849a59876 100644
+--- a/test/cql/lwt_test.cql
++++ b/test/cql/lwt_test.cql
+@@ -633,7 +633,7 @@ select s from lwt where a= 1;
+ drop table lwt;
+ -- collections of collections
+ -- non-frozen nested sets are not supported
+-create table lwt (a int, b set<map<int,int>>, c list<set<int>>, primary key (a));
++create table lwt (a int, b set<map<int,int>>, primary key (a));
+ -- frozen collection elements are however ok
+ create table lwt (a int, b set<frozen<list<int>>>, c list<frozen<set<int>>>, primary key (a));
+ insert into lwt (a, b, c) values (1, {[1,2], [1,2]}, [{1,2}, {1,2}]);
+diff --git a/test/cql/lwt_test.result b/test/cql/lwt_test.result
+index 7688efe47..aa36302d5 100644
+--- a/test/cql/lwt_test.result
++++ b/test/cql/lwt_test.result
+@@ -2288,7 +2288,7 @@ Error from server: code=2200 [Invalid query] message="Invalid comparison with nu
+ OK
+ > -- collections of collections
+ > -- non-frozen nested sets are not supported
+-> create table lwt (a int, b set<map<int,int>>, c list<set<int>>, primary key (a));
++> create table lwt (a int, b set<map<int,int>>, primary key (a));
+ Error from server: code=2200 [Invalid query] message="Non-frozen user types or collections are not allowed inside collections: set<map<int, int>>"
+ > -- frozen collection elements are however ok
+ > create table lwt (a int, b set<frozen<list<int>>>, c list<frozen<set<int>>>, primary key (a));
+
+diff --git a/test/raft/fsm_test.cc b/test/raft/fsm_test.cc
+index 6e87896ff..bb201ee8c 100644
+--- a/test/raft/fsm_test.cc
++++ b/test/raft/fsm_test.cc
+@@ -1893,6 +1893,7 @@ BOOST_AUTO_TEST_CASE(test_leader_transferee_dies_upon_receiving_timeout_now) {
+     auto first_fsm = map.begin();
+     auto second_fsm = ++map.begin();
+     election_timeout(*first_fsm->second);
++    election_timeout(*first_fsm->second); // RHEL8 needs more time!
+     election_threshold(*second_fsm->second);
+     communicate(B, C, D);
+     auto final_leader = select_leader(B, C, D);
+
+     diff --git a/test/unit/cross_shard_barrier_test.cc b/test/unit/cross_shard_barrier_test.cc
+index 949ac58c5..237922dd2 100644
+--- a/test/unit/cross_shard_barrier_test.cc
++++ b/test/unit/cross_shard_barrier_test.cc
+@@ -21,7 +21,7 @@ static constexpr unsigned phases_scale = 11;
+ class worker : public seastar::peering_sharded_service<worker> {
+     utils::cross_shard_barrier _barrier;
+     std::atomic<unsigned> _phase;
+-    std::random_device _rndgen;
++    std::mt19937 _rndgen; // random_device doesn't work properly on RHEL
+     timer<> _watchdog;
+     unsigned _last_wdog_phase;
+ 
+diff --git a/dist/common/scripts/scylla_io_setup b/dist/common/scripts/scylla_io_setup
+index 3ef3f6c86..d02763349 100755
+--- a/dist/common/scripts/scylla_io_setup
++++ b/dist/common/scripts/scylla_io_setup
+@@ -60,13 +60,14 @@ class scylla_cpuinfo:
+         f = open("/proc/cpuinfo", "r")
+         results = {}
+         for line in f:
+-            if line == '\n':
++            if not line.startswith("processor"):
+                 continue
+             key, value = [x.strip() for x in line.split(":")]
+-            if key == "processor":
+-                cur_proc = int(value)
+-                results[cur_proc] = {}
+-            results[cur_proc][key] = value
++            cur_proc = int(key[10:])
++            results[cur_proc] = {}
++            for x in value.split(","):
++                key2, value2 = [y.strip() for y in x.split("=")]
++                results[cur_proc][key2] = value2
+         return results
+ 
+     def __init__(self):
+@@ -83,7 +84,7 @@ class scylla_cpuinfo:
+ 
+     def system_nr_cores(self):
+         """Returns the number of cores available in the system"""
+-        return len(set([x['core id'] for x in list(self._cpu_data["system"].values())]))
++        return len(set([x['identification'] for x in list(self._cpu_data["system"].values())]))
+ 
+     def cpuset(self):
+         """Returns the current cpuset Scylla is configured to use. Returns None if no constraints exist"""
+
