@@ -1,0 +1,149 @@
+diff --git a/.bazelrc b/.bazelrc
+index e9acfaa7..b8fc83ad 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -79,3 +79,18 @@ build --define no_absl_statusor=1
+ # TensorFlow Decision Forests does not use Absl concurrency primitives on MacOs.
+ # Reason: TensorFlow/ABSL ODR violation (b/214189609) # copybara:strip
+ build:macos --define std_synchronization_primitives=1
++
++build --action_env TF_SYSTEM_LIBS="boringssl"
++startup --host_jvm_args=-Xms_MEMSIZE_G
++startup --host_jvm_args=-Xmx_MEMSIZE_G
++build --jobs=JOB_COUNT
++build --copt=-march=native
++build --host_copt=-march=native
++build --copt=-fno-ipa-cp
++build --host_copt=-fno-ipa-cp
++build --color=yes --curses=yes
++build --host_javabase="@local_jdk//:jdk"
++build --define=tflite_with_xnnpack=false
++build --output_filter=DONT_MATCH_ANYTHING
++test --test_tag_filters=-gpu,-benchmark-test
++test -k --build_tests_only --test_output=errors
+diff --git a/WORKSPACE b/WORKSPACE
+index 34ab9e33..47a17b56 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -13,10 +13,12 @@ workspace(name = "tf_serving")
+ # 3. Request the new archive to be mirrored on mirror.bazel.build for more
+ #    reliable downloads.
+ load("//tensorflow_serving:repo.bzl", "tensorflow_http_archive")
+-tensorflow_http_archive(
++# tensorflow_http_archive(
++local_repository(
+     name = "org_tensorflow",
+-    sha256 = "37abf3d45a34e11012ef60ee6dcd79e317384b62d319b6346cc2a94eb447e172",
+-    git_commit = "d5b57ca93e506df258271ea00fc29cf98383a374",
++    # sha256 = "37abf3d45a34e11012ef60ee6dcd79e317384b62d319b6346cc2a94eb447e172",
++    # git_commit = "d5b57ca93e506df258271ea00fc29cf98383a374",
++    path = "SOURCE_ROOT/tensorflow",
+ )
+ 
+ # Import all of TensorFlow Serving's external dependencies.
+diff --git a/tensorflow_serving/servables/tensorflow/saved_model_bundle_factory.cc b/tensorflow_serving/servables/tensorflow/saved_model_bundle_factory.cc
+index ec060130..21fe2a0e 100644
+--- a/tensorflow_serving/servables/tensorflow/saved_model_bundle_factory.cc
++++ b/tensorflow_serving/servables/tensorflow/saved_model_bundle_factory.cc
+@@ -62,6 +62,9 @@ Status LoadTfLiteModel(const string& model_dir, SavedModelBundle* bundle,
+   model_bytes.resize(size);
+   absl::string_view sv;
+   TF_RETURN_IF_ERROR(file->Read(0, size, &sv, &model_bytes[0]));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+ 
+   std::unique_ptr<TfLiteSession> tflite_session;
+   TF_RETURN_IF_ERROR(TfLiteSession::Create(
+diff --git a/tensorflow_serving/servables/tensorflow/tflite_interpreter_pool_test.cc b/tensorflow_serving/servables/tensorflow/tflite_interpreter_pool_test.cc
+index 98995b2a..dc43168f 100644
+--- a/tensorflow_serving/servables/tensorflow/tflite_interpreter_pool_test.cc
++++ b/tensorflow_serving/servables/tensorflow/tflite_interpreter_pool_test.cc
+@@ -44,6 +44,9 @@ TEST(TfLiteInterpreterPool, CreateTfLiteInterpreterPoolTest) {
+   TF_ASSERT_OK(ReadFileToString(Env::Default(),
+                                 test_util::TestSrcDirPath(kParseExampleModel),
+                                 &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+   auto model = tflite::FlatBufferModel::BuildFromModel(
+       flatbuffers::GetRoot<tflite::Model>(model_bytes.data()));
+   int pool_size = 1;
+@@ -99,6 +102,9 @@ TEST(TfLiteInterpreterWrapper, TfLiteInterpreterWrapperTest) {
+   TF_ASSERT_OK(ReadFileToString(Env::Default(),
+                                 test_util::TestSrcDirPath(kParseExampleModel),
+                                 &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+   auto model = tflite::FlatBufferModel::BuildFromModel(
+       flatbuffers::GetRoot<tflite::Model>(model_bytes.data()));
+   tflite::ops::builtin::BuiltinOpResolver resolver;
+diff --git a/tensorflow_serving/servables/tensorflow/tflite_session_main.cc b/tensorflow_serving/servables/tensorflow/tflite_session_main.cc
+index 5219db7b..a8d51d4b 100644
+--- a/tensorflow_serving/servables/tensorflow/tflite_session_main.cc
++++ b/tensorflow_serving/servables/tensorflow/tflite_session_main.cc
+@@ -36,6 +36,9 @@ int main(int argc, char** argv) {
+   std::string model_bytes;
+   auto status =
+       ReadFileToString(tensorflow::Env::Default(), filename, &model_bytes);
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+   if (!status.ok()) {
+     std::cerr << "ERROR: Failed to read model file: " << filename
+               << " with error: " << status << std::endl;
+diff --git a/tensorflow_serving/servables/tensorflow/tflite_session_test.cc b/tensorflow_serving/servables/tensorflow/tflite_session_test.cc
+index 2f44aba4..7db89d6f 100644
+--- a/tensorflow_serving/servables/tensorflow/tflite_session_test.cc
++++ b/tensorflow_serving/servables/tensorflow/tflite_session_test.cc
+@@ -81,6 +81,9 @@ TEST(TfLiteSession, BasicTest) {
+   TF_ASSERT_OK(ReadFileToString(tensorflow::Env::Default(),
+                                 test_util::TestSrcDirPath(kTestModel),
+                                 &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+ 
+   ::google::protobuf::Map<string, SignatureDef> signatures;
+   std::unique_ptr<TfLiteSession> session;
+@@ -139,6 +142,9 @@ TEST(TfLiteSession, ResizeWithSameNumElementsTest) {
+   TF_ASSERT_OK(ReadFileToString(tensorflow::Env::Default(),
+                                 test_util::TestSrcDirPath(kTestModel),
+                                 &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+ 
+   ::google::protobuf::Map<string, SignatureDef> signatures;
+   std::unique_ptr<TfLiteSession> session;
+@@ -192,6 +198,9 @@ TEST(TfLiteSession, ModelFromLegacyConverterWithSigdef) {
+   TF_ASSERT_OK(ReadFileToString(tensorflow::Env::Default(),
+                                 test_util::TestSrcDirPath(kTestModelWithSigdef),
+                                 &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+ 
+   ::google::protobuf::Map<string, SignatureDef> signatures;
+   std::unique_ptr<TfLiteSession> session;
+@@ -640,6 +649,9 @@ Status BuildSessionInBatch(std::unique_ptr<TfLiteSession>* sess,
+   std::string model_bytes;
+   TF_RETURN_IF_ERROR(ReadFileToString(
+       Env::Default(), test_util::TestSrcDirPath(model_path), &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+   auto model = tflite::FlatBufferModel::BuildFromModel(
+       flatbuffers::GetRoot<tflite::Model>(model_bytes.data()));
+   const int model_batch_size = 5;
+@@ -777,6 +789,9 @@ TEST(TfLiteSession, TestSetScheduler) {
+   TF_ASSERT_OK(ReadFileToString(Env::Default(),
+                                 test_util::TestSrcDirPath(kParseExampleModel),
+                                 &model_bytes));
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&model_bytes, false);
++#endif
+   auto model = tflite::FlatBufferModel::BuildFromModel(
+       flatbuffers::GetRoot<tflite::Model>(model_bytes.data()));
+   auto model_signature_def_map = GetTestSignatureDefMap();
