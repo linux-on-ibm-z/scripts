@@ -56,10 +56,10 @@ function checkPrequisites() {
 }
 
 function buildPython2(){
-    cd $SOURCE_ROOT
+    cd $CURDIR
     wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz
     tar -xvf Python-2.7.18.tar.xz
-	cd $SOURCE_ROOT/Python-2.7.18
+	cd $CURDIR/Python-2.7.18
 	./configure --prefix=/usr/local --exec-prefix=/usr/local
 	make
 	sudo make install
