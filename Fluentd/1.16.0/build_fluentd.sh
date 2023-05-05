@@ -69,6 +69,9 @@ function install_ruby() {
     if [[ "${ID}" == "rhel" ]]; then
         export GEM_HOME=$HOME/.gem/ruby
         export PATH=$HOME/.gem/ruby/bin:$PATH
+        if [[ "${VERSION_ID}" == "7.8" ]] || [[ "${VERSION_ID}" == "7.9" ]]; then
+            source /opt/rh/devtoolset-7/enable
+        fi
     fi
     echo $PATH
 
