@@ -176,7 +176,7 @@ EOF
     curl -s $PATCH_URL/go-build.patch | patch -p1
     ARCH=s390x VERSION=v0.75 ARCHIMAGE='$(DEFAULTIMAGE)' make image | tee -a "$GOBUILD_LOG"
     docker tag calico/go-build:v0.75 calico/go-build:v0.75-s390x
-    if grep -Fxq "Successfully tagged calico/go-build:v0.75" $GOBUILD_LOG; then
+    if [ $(docker images 'calico/go-build:v0.75' | wc -l) == 2 ]; then
         echo "Successfully built calico/go-build:v0.75" | tee -a "$GOBUILD_LOG"
     else
         echo "go-build FAILED, Stopping further build !!! Check logs at $GOBUILD_LOG" | tee -a "$GOBUILD_LOG"
@@ -186,6 +186,7 @@ EOF
     # Build Protobuf
     mkdir $GOPATH/tmp
     cd $GOPATH/tmp && wget https://raw.githubusercontent.com/projectcalico/docker-protobuf/master/Dockerfile-s390x
+    sed -i 's/golang:1.9.2/golang:1.16/g' Dockerfile-s390x
     docker build -t calico/protoc:v0.1-s390x -f Dockerfile-s390x .
     cd $GOPATH
     rm -rf $GOPATH/tmp
