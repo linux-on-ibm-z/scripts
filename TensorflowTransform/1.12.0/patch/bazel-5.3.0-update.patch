@@ -1,0 +1,205 @@
+From 90b85a46341b21ad5ecd9b1c77e6bc2568289fdc Mon Sep 17 00:00:00 2001
+From: tfx-bsl-team <tensorflow-extended-nonhuman@googlegroups.com>
+Date: Wed, 22 Feb 2023 10:48:23 -0800
+Subject: [PATCH] Update minimum Bazel version required to build TFX-BSL to
+ 5.3.0.
+
+PiperOrigin-RevId: 511538837
+---
+ .bazelrc                          |  8 +++----
+ RELEASE.md                        | 18 +++++++++++++++
+ WORKSPACE                         | 38 ++++++++++++++++++++++++-------
+ tfx_bsl/cc/arrow/sql_util.cc      |  4 ++--
+ tfx_bsl/cc/statistics/sql_util.cc |  2 +-
+ third_party/python_configure.bzl  | 10 +++++---
+ 6 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/.bazelrc b/.bazelrc
+index 32cb2ff..acfb12c 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -4,14 +4,12 @@
+ build --copt=-DTFX_BSL_USE_ARROW_C_ABI
+ build --cxxopt="-std=c++17"
+ 
+-# Due to the invalid escape sequence in rules_foreign_cc
+-# (e.g. "\(" in windows_commands.bzl) and the bazel 4.0.0 updates
+-# (https://github.com/bazelbuild/bazel/commit/73402fa4aa5b9de46c9a4042b75e6fb332ad4a7f).
+-build --incompatible_restrict_string_escapes=false
++# Needed to avoid zetasql proto error.
++build --protocopt=--experimental_allow_proto3_optional
+ 
+ # icu@: In create_linking_context: in call to create_linking_context(),
+ # parameter 'user_link_flags' is deprecated and will be removed soon.
+ # It may be temporarily re-enabled by setting --incompatible_require_linker_input_cc_api=false
+ build --incompatible_require_linker_input_cc_api=false
+ build:macos --apple_platform_type=macos
+-build:macos_arm64 --cpu=darwin_arm64
+\ No newline at end of file
++build:macos_arm64 --cpu=darwin_arm64
+diff --git a/RELEASE.md b/RELEASE.md
+index 3b5dc66..e3e0988 100644
+--- a/RELEASE.md
++++ b/RELEASE.md
+@@ -1,3 +1,21 @@
++<!-- mdlint off(HEADERS_TOO_MANY_H1) -->
++
++# Current Version (not yet released; still in development)
++
++## Major Features and Improvements
++
++*   `RaggedTensor`s can now be automatically inferred for variable length
++    features by setting `represent_variable_length_as_ragged=true` in TFMD
++    schema.
++
++## Bug Fixes and Other Changes
++
++*   Bumped the mininum bazel version required to build `tfx_bsl` to 5.3.0.
++
++## Breaking Changes
++
++## Deprecations
++
+ # Version 1.12.0
+ 
+ ## Major Features and Improvements
+diff --git a/WORKSPACE b/WORKSPACE
+index 477120f..8529974 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -2,6 +2,21 @@ workspace(name = "tfx_bsl")
+ 
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+ 
++# Install version 0.9.0 of rules_foreign_cc, as default version causes an
++# invalid escape sequence error to be raised, which can't be avoided with
++# the --incompatible_restrict_string_escapes=false flag (flag was removed in
++# Bazel 5.0).
++RULES_FOREIGN_CC_VERSION = "0.9.0"
++http_archive(
++    name = "rules_foreign_cc",
++    sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
++    strip_prefix = "rules_foreign_cc-%s" % RULES_FOREIGN_CC_VERSION,
++    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/refs/tags/%s.tar.gz" % RULES_FOREIGN_CC_VERSION,
++)
++
++load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
++rules_foreign_cc_dependencies()
++
+ http_archive(
+     name = "bazel_skylib",
+     sha256 = "97e70364e9249702246c0e9444bccdc4b847bed1eb03c5a3ece4f83dfe6abc44",
+@@ -53,12 +68,12 @@ http_archive(
+     patches = ["//third_party:arrow.patch"],
+ )
+ 
+-ABSL_COMMIT = "e1d388e7e74803050423d035e4374131b9b57919"  # lts_20210324.1
++COM_GOOGLE_ABSL_COMMIT = "9aa7d0bd2079f287162d4fd0722a1b9032e39a6a" # 2022-01-19
+ http_archive(
+-    name = "com_google_absl",
+-    urls = ["https://github.com/abseil/abseil-cpp/archive/%s.zip" % ABSL_COMMIT],
+-    sha256 = "baebd1536bec56ae7d7c060c20c01af89ecba2c0b1bc8992b652520655395f94",
+-    strip_prefix = "abseil-cpp-%s" % ABSL_COMMIT,
++  name = "com_google_absl",
++  url = "https://github.com/abseil/abseil-cpp/archive/%s.tar.gz" % COM_GOOGLE_ABSL_COMMIT,
++  sha256 = "1a924c31174f5e5812537b7e4c94d380355c06cb9a18c258de99a3e90b32b98c",
++  strip_prefix = "abseil-cpp-%s" % COM_GOOGLE_ABSL_COMMIT
+ )
+ 
+ 
+@@ -107,12 +122,12 @@ http_archive(
+     ],
+ )
+ 
+-ZETASQL_COMMIT = "5ccb05880e72ab9ff75dd6b05d7b0acce53f1ea2" # 04/22/2021
++ZETASQL_COMMIT = "ac37cf5c0d80b5605176fc0f29e87b12f00be693"  # 08/10/2022
+ http_archive(
+     name = "com_google_zetasql",
+     urls = ["https://github.com/google/zetasql/archive/%s.zip" % ZETASQL_COMMIT],
+     strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
+-    sha256 = '4ca4e45f457926484822701ec15ca4d0172b01d7ce43c0b34c6f3ab98c95b241'
++    sha256 = "651a768cd51627f58aa6de7039aba9ddab22f4b0450521169800555269447840",
+ )
+ 
+ load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")
+@@ -125,6 +140,13 @@ zetasql_deps_step_2(
+     java_deps = False,
+     testing_deps = False)
+ 
++# This is part of what zetasql_deps_step_3() does.
++load("@com_google_googleapis//:repository_rules.bzl", "switched_rules_by_language")
++switched_rules_by_language(
++    name = "com_google_googleapis_imports",
++    cc = True,
++)
++
+ # Specify the minimum required bazel version.
+ load("@bazel_skylib//lib:versions.bzl", "versions")
+-versions.check("3.7.2")
++versions.check("5.3.0")
+diff --git a/tfx_bsl/cc/arrow/sql_util.cc b/tfx_bsl/cc/arrow/sql_util.cc
+index f2437b5..2601407 100644
+--- a/tfx_bsl/cc/arrow/sql_util.cc
++++ b/tfx_bsl/cc/arrow/sql_util.cc
+@@ -489,14 +489,14 @@ absl::Status RecordBatchSQLSliceQuery::Execute(
+   // Add record batch to the table.
+   table_->SetEvaluatorTableIteratorFactory(
+       [&record_batch, this](absl::Span<const int> columns)
+-          -> zetasql_base::StatusOr<
++          -> absl::StatusOr<
+               std::unique_ptr<zetasql::EvaluatorTableIterator>> {
+         return std::make_unique<RecordBatchEvaluatorTableIterator>(
+             record_batch, this->columns_name_and_type_);
+       });
+ 
+   // Excute.
+-  zetasql_base::StatusOr<std::unique_ptr<zetasql::EvaluatorTableIterator>>
++  absl::StatusOr<std::unique_ptr<zetasql::EvaluatorTableIterator>>
+       query_result_iterator = query_->Execute();
+   TFX_BSL_RETURN_IF_ERROR(query_result_iterator.status());
+ 
+diff --git a/tfx_bsl/cc/statistics/sql_util.cc b/tfx_bsl/cc/statistics/sql_util.cc
+index 8b9ace7..c3cc9b2 100644
+--- a/tfx_bsl/cc/statistics/sql_util.cc
++++ b/tfx_bsl/cc/statistics/sql_util.cc
+@@ -30,7 +30,7 @@ using tensorflow::metadata::v0::FeatureNameStatistics;
+ namespace {
+ 
+ absl::StatusOr<bool> GetResult(
+-    const zetasql_base::StatusOr<zetasql::Value>& result_or) {
++    const absl::StatusOr<zetasql::Value>& result_or) {
+   // Potentially convert from zetasql to absl on OSS.
+   if (!result_or.ok()) return absl::StatusOr<bool>(result_or.status());
+   zetasql::Value value = result_or.value();
+diff --git a/third_party/python_configure.bzl b/third_party/python_configure.bzl
+index 5340ac2..7f452ef 100644
+--- a/third_party/python_configure.bzl
++++ b/third_party/python_configure.bzl
+@@ -369,10 +369,13 @@ def _get_python_include(repository_ctx, python_bin):
+         repository_ctx,
+         [
+             python_bin,
++            "-Wignore",
+             "-c",
+-            "from __future__ import print_function;" +
+-            "from distutils import sysconfig;" +
+-            "print(sysconfig.get_python_inc())",
++            "import importlib; " +
++            "import importlib.util; " +
++            "print(importlib.import_module('distutils.sysconfig').get_python_inc() " +
++            "if importlib.util.find_spec('distutils.sysconfig') " +
++            "else importlib.import_module('sysconfig').get_path('include'))",
+         ],
+         error_msg = "Problem getting python include path.",
+         error_details = ("Is the Python binary path set up right? " +
+@@ -438,6 +441,7 @@ def _create_local_python_repository(repository_ctx):
+     # To build Python C/C++ extension on Windows, we need to link to python import library pythonXY.lib
+     # See https://docs.python.org/3/extending/windows.html
+     if _is_windows(repository_ctx):
++        python_bin = python_bin.replace("\\", "/")
+         python_include = _norm_path(python_include)
+         python_import_lib_name = _get_python_import_lib_name(repository_ctx, python_bin)
+         python_import_lib_src = python_include.rsplit("/", 1)[0] + "/libs/" + python_import_lib_name
+-- 
+2.34.1
+
