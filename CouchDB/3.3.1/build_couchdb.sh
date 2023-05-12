@@ -12,7 +12,6 @@ set -e -o pipefail
 PACKAGE_NAME="couchdb"
 PACKAGE_VERSION="3.3.1"
 CURDIR="$(pwd)"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CouchDB/3.3.1/patch"
 DATE_AND_TIME="$(date +"%F-%T")"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-${DATE_AND_TIME}.log"
 FORCE="false"
@@ -61,48 +60,15 @@ function prepare() {
 function runTest() {
 	set +e
 	cd "${CURDIR}"/couchdb
-	
-    if [[ "$TESTS" == "true" ]]; then
-    export PATH=$PATH:/usr/local/bin
-    export LD_LIBRARY_PATH=/usr/lib
-    case "$DISTRO" in
-    "ubuntu-20.04")
-      ./configure --spidermonkey-version 68
-      ;;
-    "ubuntu-22.04" | "ubuntu-22.10" | "rhel-9.0" | "rhel-9.1")
-      ./configure --spidermonkey-version 78
-      ;;
-    "rhel-8.4" | "rhel-8.6" | "rhel-8.7")
-      ./configure --spidermonkey-version 60
-      ;;
-    *)
-      ./configure
-      ;;
-    esac
-		make check
+	if [[ "$TESTS" == "true" ]]; then
+	   make check
 	fi
 	set -e
 }
 
 function cleanup() {
 	printf -- '\nCleaned up the artifacts\n' |& tee -a "$LOG_FILE"
-	rm -rf "${CURDIR}/jsval.h.diff"
-	rm -rf "${CURDIR}/jsvalue.h.diff"
-	rm -rf "${CURDIR}/Makefile.in.diff"
-	rm -rf "${CURDIR}/couch_compress_tests.erl.diff"
-}
-
-function installPython() {
- cd "${CURDIR}"
-  printf -- 'Installing python3 from source:\n' |& tee -a "$LOG_FILE"
-  wget https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tgz
-  tar -xzf Python-3.8.2.tgz
-  cd Python-3.8.2
-  ./configure --prefix=/usr --exec-prefix=/usr
-  make
-  sudo make install
-  printf -- 'Python installed, version:\n' |& tee -a "$LOG_FILE"
-  python3 -V |& tee -a "$LOG_FILE"
+	sudo rm -rf $CURDIR/*.tar.gz
 }
 
 function configureAndInstall() {
@@ -126,10 +92,10 @@ function configureAndInstall() {
 
   #Install Erlang
   cd "${CURDIR}"
-  wget http://www.erlang.org/download/otp_src_24.3.tar.gz
-  tar zxf otp_src_24.3.tar.gz
-  cd otp_src_24.3
-  export ERL_TOP="${CURDIR}/otp_src_24.3"
+  wget https://github.com/erlang/otp/releases/download/OTP-24.3.4.10/otp_src_24.3.4.10.tar.gz
+  tar zxf otp_src_24.3.4.10.tar.gz
+  cd otp_src_24.3.4.10
+  export ERL_TOP="${CURDIR}/otp_src_24.3.4.10"
   ./configure --prefix=/usr
   make
   sudo make install
@@ -139,7 +105,7 @@ function configureAndInstall() {
   cd "${CURDIR}"
   git clone https://github.com/elixir-lang/elixir.git
   cd elixir
-  git checkout v1.14.3
+  git checkout v1.13.4
   export LANG=en_US.UTF-8 
   if [[ "${ID}" == "ubuntu" ]]; then
   sudo locale-gen en_US.UTF-8
@@ -155,64 +121,39 @@ function configureAndInstall() {
   cd "${CURDIR}"
   printf -- 'Installing nodejs\n'
   sudo mkdir -p /usr/local/lib/nodejs
-  wget https://nodejs.org/dist/v16.19.0/node-v16.19.0-linux-s390x.tar.gz
-  sudo tar xzvf node-v16.19.0-linux-s390x.tar.gz -C /usr/local/lib/nodejs
-  sudo ln -s /usr/local/lib/nodejs/node-v16.19.0-linux-s390x/bin/* /usr/bin/
+  wget https://nodejs.org/dist/v14.21.3/node-v14.21.3-linux-s390x.tar.gz
+  sudo tar xzvf node-v14.21.3-linux-s390x.tar.gz -C /usr/local/lib/nodejs
+  sudo ln -s /usr/local/lib/nodejs/node-v14.21.3-linux-s390x/bin/* /usr/bin/
   printf -- 'node version\n'
   node -v
   printf -- 'npm version\n'
   npm -v
 
-
-  
-  
-	#Install SpiderMonkey 1.8.5 (Only for Ubuntu 18.04)
-	if [ ${DISTRO} == "ubuntu-18.04" ]; then
-		printf -- '\nDownloading SpiderMonkey source\n'
-		cd "${CURDIR}"
-		wget http://ftp.mozilla.org/pub/spidermonkey/releases/1.8.5/js185-1.0.0.tar.gz
-		tar zxf js185-1.0.0.tar.gz
-		cd js-1.8.5
-
-		cd "${CURDIR}"
-		curl -o jsval.h.diff $PATCH_URL/jsval.h.diff
-		patch "${CURDIR}/js-1.8.5/js/src/jsval.h" jsval.h.diff
-
-		curl -o jsvalue.h.diff $PATCH_URL/jsvalue.h.diff
-		patch "${CURDIR}/js-1.8.5/js/src/jsvalue.h" jsvalue.h.diff
-
-		curl -o Makefile.in.diff $PATCH_URL/Makefile.in.diff
-		patch "${CURDIR}/js-1.8.5/js/src/Makefile.in" Makefile.in.diff
-
-		#Preparing the source code
-		cd "${CURDIR}/js-1.8.5/js/src"
-
-		autoconf2.13
-	
-		#Configure, build & install SpiderMonkey
-		mkdir -p "${CURDIR}/js-1.8.5/js/src/build_OPT.OBJ"
-		cd "${CURDIR}/js-1.8.5/js/src/build_OPT.OBJ"
-		../configure --prefix=/usr
-		make
-		sudo make install
-
-		printf -- 'SpiderMonkey installed succesfully\n'
-	fi
-	#Download the CouchDB source code
+  #Build chromedriver 
+   cd "${CURDIR}"
+   printf -- 'Installing chromedriver\n'
+   npm install @testim/chrome-version@^1.1.2 axios@^0.27.2 tcp-port-used@^1.0.1 del@^6.0.0 extract-zip@^2.0.1 https-proxy-agent@^5.0.0 proxy-from-env@^1.1.0
+   git clone -b 105.0.0 https://github.com/giggio/node-chromedriver.git
+   cd node-chromedriver
+   sed -i "s#process.arch === 'arm64' || process.arch === 'x64'#process.arch === 'arm64' || process.arch === 's390x' || process.arch === 'x64'#g" install.js
+   npm pack
+   
+   
+  #Download the CouchDB source code
 	cd "${CURDIR}"
 	printf -- '\nDownloading  CouchDB. Please wait.\n'
-	git clone -b $PACKAGE_VERSION https://github.com/apache/couchdb.git
+	git clone https://github.com/apache/couchdb.git
+	cd couchdb
+	git checkout $PACKAGE_VERSION
 
 	#Configure and build CouchDB
-	cd "${CURDIR}/couchdb"
-	export LD_LIBRARY_PATH=/usr/lib
-	sed -i '151,151 s/v1.2.9/v1.2.8/g' rebar.config.script
-	sed -i '499,499 s/npm/sudo npm/g' Makefile
+	export LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH
+	
 	case "$DISTRO" in
 	"ubuntu-20.04")
 	  ./configure  --spidermonkey-version 68
 	  ;;
-	"rhel-8.4" | "rhel-8.6" | "rhel-8.7")
+	"rhel-8.6" | "rhel-8.7")
 	  ./configure  --spidermonkey-version 60
 	  ;;
 	"ubuntu-22.04" | "ubuntu-22.10" | "rhel-9.0" | "rhel-9.1")
@@ -222,7 +163,11 @@ function configureAndInstall() {
 	  ./configure 
 	  ;;
 	esac
-
+	
+	cd src/fauxton/
+	npm i $CURDIR/node-chromedriver/chromedriver-105.0.0.tgz
+	
+	cd "${CURDIR}/couchdb"
   	make release
 	
 	# Add CouchDB group 
@@ -245,8 +190,7 @@ function configureAndInstall() {
 	printf -- 'Build process completed successfully\n' | tee -a "$LOG_FILE"
 	
 	#Run tests
-	runTest |& tee -a "$LOG_FILE"
-	printf -- 'Couchdb built succesfully\n'
+	runTest	
 }
 
 function logDetails() {
@@ -298,55 +242,36 @@ prepare |& tee -a "$LOG_FILE"
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	sudo apt-get update
-	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config ncurses-base g++-5 gcc-5 python python3 python3-pip python3-venv python3-markupsafe hostname curl git patch wget tar make zip autoconf2.13 automake libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-dev openjdk-8-jdk xsltproc libxml2-utils libbz2-dev libdb-dev libffi-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libssl-dev make tar tk-dev uuid-dev wget xz-utils zlib1g-dev |& tee -a "$LOG_FILE"
-
-	sudo rm -rf /usr/bin/gcc /usr/bin/g++ /usr/bin/cc
-	sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc
-	sudo ln -s /usr/bin/g++-5 /usr/bin/g++
-	sudo ln -s /usr/bin/gcc /usr/bin/cc
-	installPython
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
 "ubuntu-20.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config ncurses-base g++ gcc python python3 python3-pip python3-venv hostname curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-8-jdk xsltproc libxml2-utils libmozjs-68-dev |& tee -a "$LOG_FILE"
-
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config ncurses-base python3 python3-pip python3-venv hostname curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-11-jdk xsltproc libxml2-utils libmozjs-68-dev |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 "ubuntu-22.04" | "ubuntu-22.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update
-	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config ncurses-base g++ gcc hostname curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libncurses-dev libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-8-jdk xsltproc libxml2-utils libmozjs-78-dev libbz2-dev libdb-dev libffi-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libssl-dev make tar tk-dev uuid-dev wget xz-utils zlib1g-dev  |& tee -a "$LOG_FILE"
-        installPython
-	configureAndInstall |& tee -a "$LOG_FILE"
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config ncurses-base python3 python3-pip python3-venv hostname curl git patch wget tar make zip libicu-dev libcurl4-openssl-dev libncurses5-dev locales libssl-dev unixodbc-dev libwxgtk3.0-gtk3-dev openjdk-11-jdk xsltproc libxml2-utils libmozjs-78-dev |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
 	;;	
 "rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch js-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel |&  tee -a "$LOG_FILE"
-	# For Python
-	sudo yum install -y bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel |& tee -a "$LOG_FILE"
-	installPython
+	sudo yum install -y libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch js-devel java-11-openjdk-devel perl-devel gettext-devel unixODBC-devel python3-devel ncurses-devel procps-ng |&  tee -a "$LOG_FILE"
 	configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
-"rhel-8.4"  | "rhel-8.6" | "rhel-8.7")
+"rhel-8.6" | "rhel-8.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python38 python38-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
+	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs60-devel java-11-openjdk-devel perl-devel gettext-devel unixODBC-devel python38 python38-devel git ncurses-devel glibc-common procps-ng |& tee -a "$LOG_FILE"
 	configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
 "rhel-9.0"  | "rhel-9.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for couchdb from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs78-devel java-1.8.0-openjdk-devel perl-devel gettext-devel unixODBC-devel python3 python3-devel git ncurses-devel glibc-common |& tee -a "$LOG_FILE"
+	sudo yum install -y autoconf flex flex-devel gawk gzip hostname libxml2-devel libxslt libicu-devel libcurl-devel wget tar m4 pkgconfig make libtool which gcc-c++ gcc openssl openssl-devel patch mozjs78-devel java-11-openjdk-devel perl-devel gettext-devel unixODBC-devel python3 python3-devel git ncurses-devel glibc-common procps-ng |& tee -a "$LOG_FILE"
 	configureAndInstall |&  tee -a "$LOG_FILE"
 	;;
 
