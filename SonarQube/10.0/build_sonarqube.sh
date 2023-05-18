@@ -127,7 +127,7 @@ function installElasticsearch() {
     source "$BUILD_ENV"
     printf -- "Installing Java \n"
     cd $SOURCE_ROOT
-    PATCH_URL=https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/SonarQube/10.0/patches/elasticsearch.diff
+    PATCH_URL=https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/SonarQube/10.0/patch/elasticsearch.diff
     export LANG="en_US.UTF-8"
     export ES_JAVA_HOME=$JAVA_HOME
     export JAVA17_HOME=$JAVA_HOME
