@@ -107,20 +107,17 @@ function configureAndInstallPython() {
 }
 
 function packetbeatSupported() {
-    [[ "${DISTRO}" == "ubuntu-18.04" ]] ||
         [[ "${DISTRO}" == "ubuntu-20.04" ]] ||
         [[ "${DISTRO}" =~ ^rhel-8 ]] ||
         [[ "${DISTRO}" =~ ^sles ]]
 }
 
 function heartbeatSupported() {
-    [[ "${DISTRO}" == "ubuntu-18.04" ]] ||
         [[ "${DISTRO}" =~ ^rhel-8 ]] ||
         [[ "${DISTRO}" =~ ^sles ]]
 }
 
 function auditbeatSupported() {
-    [[ "${DISTRO}" == "ubuntu-18.04" ]] ||
         [[ "${DISTRO}" == "ubuntu-20.04" ]] ||
         [[ "${DISTRO}" =~ ^rhel-8 ]] ||
         [[ "${DISTRO}" =~ ^sles ]]
@@ -399,7 +396,7 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.04")
+"ubuntu-20.04" | "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -421,7 +418,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 
-"rhel-8.4" | "rhel-8.6" | "rhel-8.7")
+"rhel-8.6" | "rhel-8.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python39 python39-devel bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel |& tee -a "${LOG_FILE}"
@@ -440,7 +437,7 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git curl gawk make wget tar gcc7 gcc7-c++ libpcap1 libpcap-devel libffi48-devel acl patch libsystemd0 systemd-devel libjpeg62-devel gdbm-devel libbz2-devel libdb-4_8-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip |& tee -a "${LOG_FILE}"
+    sudo zypper install -y git curl gawk make wget tar gcc7 gcc7-c++ libpcap1 libpcap-devel libffi48-devel acl patch libsystemd0 systemd-devel libjpeg62-devel gdbm-devel libbz2-devel libdb-4_8-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip libnghttp2-devel |& tee -a "${LOG_FILE}"
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 100
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 100
     sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 100
