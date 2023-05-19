@@ -118,7 +118,7 @@ function configureAndInstall() {
         sudo sed -i 's/-fdump-ipa-clones//g' /usr/src/linux-"$SLES_KERNEL_VERSION"/Makefile
     fi
 
-    if [[ "${DISTRO}" == "ubuntu-18.04" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
+    if [[ "${DISTRO}" == "sles-12.5" ]]; then
         CMAKE_FLAGS="-DUSE_BUNDLED_DEPS=ON -DUSE_BUNDLED_CURL=OFF"
     elif [[ "${DISTRO}" =~ ^rhel-7 ]]; then
         CMAKE_FLAGS="-DUSE_BUNDLED_DEPS=ON"
@@ -131,7 +131,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT/falco/build/falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules
     
     # Upgrade curl version
-    if [[ "${DISTRO}" =~ ^rhel-[789] ]] || [[ "${DISTRO}" =~ ^sles-15 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [[ "${DISTRO}" =~ ^ubuntu-22 ]]; then
+    if [[ "${DISTRO}" =~ ^rhel-[789] ]] || [[ "${DISTRO}" =~ ^sles-15 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [[ "${DISTRO}" =~ ^ubuntu-22 ]] || [[ "${DISTRO}" == "ubuntu-23.04" ]]; then
         sed -i 's+https://github.com/curl/curl/releases/download/curl-7_84_0/curl-7.84.0.tar.bz2+https://github.com/curl/curl/releases/download/curl-7_85_0/curl-7.85.0.tar.bz2+g' curl.cmake
         sed -i 's/702fb26e73190a3bd77071aa146f507b9817cc4dfce218d2ab87f00cd3bc059d/21a7e83628ee96164ac2b36ff6bf99d467c7b0b621c1f7e317d8f0d96011539c/g' curl.cmake
     fi
@@ -233,16 +233,6 @@ prepare
 
 case "$DISTRO" in
 
-"ubuntu-18.04")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-
-    sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl kmod git cmake build-essential pkg-config autoconf libtool libelf-dev libcurl4-openssl-dev patch wget rpm linux-headers-generic gcc
-
-    configureAndInstall | tee -a "$LOG_FILE"
-    ;;
-
 "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-22.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
@@ -262,7 +252,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.4" | "rhel-8.6" | "rhel-8.7")
+"rhel-8.6" | "rhel-8.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
@@ -285,9 +275,9 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    SLES_KERNEL_PKG_VERSION=$(sudo zypper se -s 'kernel-default-devel' | grep ${SLES_KERNEL_VERSION} | cut -d "|" -f 4 - | tr -d '[:space:]')
-
-	sudo zypper install -y --force-resolution gcc gcc9 gcc9-c++ git-core patch which automake autoconf libtool libopenssl-devel libcurl-devel libelf-devel "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" tar curl make
+    export SLES_KERNEL_PKG_VERSION=$(sudo zypper info kernel-default-devel | grep Version | cut -d ':' -f 2-)
+    export SLES_KERNEL_VERSION=$(echo $SLES_KERNEL_PKG_VERSION | sed 's/..$//')
+    sudo zypper install -y --force-resolution gcc gcc9 gcc9-c++ git-core patch which automake autoconf libtool libopenssl-devel libcurl-devel libelf-devel "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" tar curl make
 
     sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 50
@@ -303,7 +293,8 @@ case "$DISTRO" in
 "sles-15.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-
+    export SLES_KERNEL_PKG_VERSION=$(sudo zypper info kernel-default-devel | grep Version | cut -d ':' -f 2-)
+    export SLES_KERNEL_VERSION=$(echo $SLES_KERNEL_PKG_VERSION | sed 's/..$//')
     sudo zypper install -y gcc gcc-c++ git-core cmake patch which automake autoconf libtool libelf-devel tar curl vim wget pkg-config glibc-devel-static go1.18 "kernel-default-devel=${SLES_KERNEL_VERSION}" kmod
     go version
 	
