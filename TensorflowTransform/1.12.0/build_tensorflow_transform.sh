@@ -184,7 +184,7 @@ function configureAndInstall() {
         rm -rf $CURDIR/tfx-bsl
     fi
 
-    curl -o tfx-bsl.diff $PATCH_URL/bazel-5.3.0-update.patch
+    curl -o bazel-5.3.0-update.patch $PATCH_URL/bazel-5.3.0-update.patch
     curl -o tfx-bsl.diff $PATCH_URL/tfx-bsl.diff
     git clone https://github.com/tensorflow/tfx-bsl.git
     cd tfx-bsl
