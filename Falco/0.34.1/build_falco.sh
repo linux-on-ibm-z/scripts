@@ -131,7 +131,7 @@ function configureAndInstall() {
     cd $SOURCE_ROOT/falco/build/falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules
     
     # Upgrade curl version
-    if [[ "${DISTRO}" =~ ^rhel-[789] ]] || [[ "${DISTRO}" =~ ^sles-15 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [[ "${DISTRO}" =~ ^ubuntu-22 ]] || [[ "${DISTRO}" == "ubuntu-23.04" ]]; then
+    if [[ "${DISTRO}" =~ ^rhel-[789] ]] || [[ "${DISTRO}" =~ ^sles-15 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]] || [[ "${DISTRO}" =~ ^ubuntu-22 ]]; then
         sed -i 's+https://github.com/curl/curl/releases/download/curl-7_84_0/curl-7.84.0.tar.bz2+https://github.com/curl/curl/releases/download/curl-7_85_0/curl-7.85.0.tar.bz2+g' curl.cmake
         sed -i 's/702fb26e73190a3bd77071aa146f507b9817cc4dfce218d2ab87f00cd3bc059d/21a7e83628ee96164ac2b36ff6bf99d467c7b0b621c1f7e317d8f0d96011539c/g' curl.cmake
     fi
