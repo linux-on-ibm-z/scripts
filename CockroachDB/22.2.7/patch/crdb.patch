@@ -1,0 +1,127 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index a408d417ca3..af598b3c495 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -176,8 +176,9 @@ go_download_sdk(
+         "linux_amd64": ("go1.19.6.linux-amd64.tar.gz", "d78cb765b95fe10f559cc6a5d59841f23b9252911af4f2a322ba3f804e2bbcda"),
+         "linux_arm64": ("go1.19.6.linux-arm64.tar.gz", "2ae769c5367b21f82a4fb25a1cf5cb42625431b82a6d34e7aa120083d607b316"),
+         "windows_amd64": ("go1.19.6.windows-amd64.tar.gz", "1f8233566b6604d72b73665e0047c9647a226581892e64d4b460cec1cb39657e"),
++       "linux_s390x": ("go1.19.6.linux-s390x.tar.gz", "1673f748e25acbb2504536f41239231ac658c99e06d04ba68d51123ee62108a5"),
+     },
+-    urls = ["https://storage.googleapis.com/public-bazel-artifacts/go/20230227-221815/{}"],
++    urls = ["https://go.dev/dl/{}"],
+     version = "1.19.6",
+ )
+
+@@ -226,10 +227,11 @@ node_repositories(
+         "16.13.0-darwin_amd64": ("node-v16.13.0-darwin-x64.tar.gz", "node-v16.13.0-darwin-x64", "37e09a8cf2352f340d1204c6154058d81362fef4ec488b0197b2ce36b3f0367a"),
+         "16.13.0-linux_arm64": ("node-v16.13.0-linux-arm64.tar.xz", "node-v16.13.0-linux-arm64", "93a0d03f9f802353cb7052bc97a02cd9642b49fa985671cdc16c99936c86d7d2"),
+         "16.13.0-linux_amd64": ("node-v16.13.0-linux-x64.tar.xz", "node-v16.13.0-linux-x64", "a876ce787133149abd1696afa54b0b5bc5ce3d5ae359081d407ff776e39b7ba8"),
++        "16.13.0-linux_s390x": ("node-v16.13.0-linux-s390x.tar.xz", "node-v16.13.0-linux-s390x", "49e972bf3e969d621157df4c8f2fa18ff748c167d5ebd0efc87e1b9f0c6541cc"),
+         "16.13.0-windows_amd64": ("node-v16.13.0-win-x64.zip", "node-v16.13.0-win-x64", "5a39ec5d4786c2814a6c04488bebac6423c2aaa12832b24f0882456f2e4674e1"),
+     },
+     node_urls = [
+-        "https://storage.googleapis.com/public-bazel-artifacts/js/node/v{version}/{filename}",
++        "https://nodejs.org/download/release/v{version}/{filename}",
+     ],
+     node_version = "16.13.0",
+ )
+diff --git a/c-deps/BUILD.bazel b/c-deps/BUILD.bazel
+index 531b3f77b01..23bc0f026d5 100644
+--- a/c-deps/BUILD.bazel
++++ b/c-deps/BUILD.bazel
+@@ -218,6 +218,7 @@ configure_make(
+     ] + select({
+         "@io_bazel_rules_go//go/platform:linux_amd64": ["--host=x86_64-unknown-linux-gnu"],
+         "@io_bazel_rules_go//go/platform:linux_arm64": ["--host=aarch64-unknown-linux-gnu"],
++        "@io_bazel_rules_go//go/platform:linux_s390x": ["--host=s390x-unknown-linux-gnu"],
+         "//conditions:default": [],
+     }),
+     copts = select({
+diff --git a/pkg/ccl/gssapiccl/BUILD.bazel b/pkg/ccl/gssapiccl/BUILD.bazel
+index b5f0a1c8f79..362b9239606 100644
+--- a/pkg/ccl/gssapiccl/BUILD.bazel
++++ b/pkg/ccl/gssapiccl/BUILD.bazel
+@@ -19,7 +19,7 @@ go_library(
+     clinkopts = select({
+         # NB: On Ubuntu, res_nsearch is found in the resolv_wrapper library,
+         # found in the libresolv-wrapper package.
+-        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper"],
++        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper -lkeyutils"],
+         "@io_bazel_rules_go//go/platform:linux": ["-ldl -lresolv"],
+         "//conditions:default": [],
+     }),
+diff --git a/pkg/util/grunning/BUILD.bazel b/pkg/util/grunning/BUILD.bazel
+index e516ce296a7..37eafc04aea 100644
+--- a/pkg/util/grunning/BUILD.bazel
++++ b/pkg/util/grunning/BUILD.bazel
+@@ -161,7 +161,6 @@ go_test(
+         ],
+         "@io_bazel_rules_go//go/platform:linux_s390x": [
+             ":grunning",
+-            "//pkg/testutils/skip",
+             "@com_github_stretchr_testify//require",
+         ],
+         "@io_bazel_rules_go//go/platform:netbsd_386": [
+diff --git a/pkg/util/grunning/disabled.go b/pkg/util/grunning/disabled.go
+index 3cf943e508e..3ed5782df7c 100644
+--- a/pkg/util/grunning/disabled.go
++++ b/pkg/util/grunning/disabled.go
+@@ -10,8 +10,8 @@
+
+ // See grunning.Supported() for an explanation behind this build tag.
+ //
+-//go:build (darwin && arm64) || freebsd || !bazel
+-// +build darwin,arm64 freebsd !bazel
++//go:build (darwin && arm64) || freebsd || (linux && s390x) || !bazel
++// +build darwin,arm64 freebsd linux,s390x !bazel
+
+ package grunning
+
+diff --git a/pkg/util/grunning/disabled_test.go b/pkg/util/grunning/disabled_test.go
+index 01b8c11f7d8..9054d296df1 100644
+--- a/pkg/util/grunning/disabled_test.go
++++ b/pkg/util/grunning/disabled_test.go
+@@ -10,8 +10,8 @@
+
+ // See grunning.Supported() for an explanation behind this build tag.
+ //
+-//go:build (darwin && arm64) || freebsd || !bazel
+-// +build darwin,arm64 freebsd !bazel
++//go:build (darwin && arm64) || freebsd || (linux && s390x) || !bazel
++// +build darwin,arm64 freebsd linux,s390x !bazel
+
+ package grunning_test
+
+diff --git a/pkg/util/grunning/enabled.go b/pkg/util/grunning/enabled.go
+index 48a4aad35eb..e5f5cb623e7 100644
+--- a/pkg/util/grunning/enabled.go
++++ b/pkg/util/grunning/enabled.go
+@@ -10,9 +10,10 @@
+
+ // See grunning.Supported() for an explanation behind this build tag.
+ //
+-//go:build !((darwin && arm64) || freebsd || !bazel)
++//go:build !((darwin && arm64) || freebsd || (linux && s390x) || !bazel)
+ // +build !darwin !arm64
+ // +build !freebsd
++// +build !linux !s390x
+ // +build bazel
+
+ package grunning
+diff --git a/pkg/util/grunning/enabled_test.go b/pkg/util/grunning/enabled_test.go
+index a3b864bc073..7d14f5ca6a1 100644
+--- a/pkg/util/grunning/enabled_test.go
++++ b/pkg/util/grunning/enabled_test.go
+@@ -10,9 +10,10 @@
+
+ // See grunning.Supported() for an explanation behind this build tag.
+ //
+-//go:build !((darwin && arm64) || freebsd || !bazel)
++//go:build !((darwin && arm64) || freebsd || (linux && s390x) || !bazel)
+ // +build !darwin !arm64
+ // +build !freebsd
++// +build !linux !s390x
+ // +build bazel
+
+ package grunning_test
