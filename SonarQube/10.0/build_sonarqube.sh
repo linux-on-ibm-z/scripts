@@ -339,7 +339,12 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget git unzip tar which net-tools curl gzip patch make gcc gcc-c++ xz procps |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.4")
+"sles-12.5")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo zypper install -y git wget unzip tar which gzip xz net-tools curl patch make gcc gcc-c++ procps libnghttp2-devel |& tee -a "$LOG_FILE"
+    ;;
+"sles-15.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y git wget unzip tar which gzip xz net-tools curl patch make gcc gcc-c++ procps |& tee -a "$LOG_FILE"
