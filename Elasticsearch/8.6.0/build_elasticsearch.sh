@@ -290,7 +290,7 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.04")
+"ubuntu-20.04" | "ubuntu-22.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
@@ -299,14 +299,21 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-8.7" | "rhel-9.0" | "rhel-9.1")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.7" | "rhel-9.0" | "rhel-9.1")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y curl git gzip tar wget patch make gcc gcc-c++ |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"sles-12.5" | "sles-15.4")
+"sles-12.5")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo zypper install -y curl git gzip tar wget patch make gcc gcc-c++ libnghttp2-devel | tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
+        ;;
+
+"sles-15.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y curl git gzip tar wget patch make gcc gcc-c++ | tee -a "$LOG_FILE"
