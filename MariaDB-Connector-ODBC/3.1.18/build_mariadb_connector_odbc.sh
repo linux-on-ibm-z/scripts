@@ -68,7 +68,7 @@ function installUnixODBC() {
     cd $SOURCE_ROOT
     git clone https://github.com/lurcher/unixODBC.git
     cd unixODBC
-    git checkout v2.3.11
+    git checkout v2.3.9
     curl -o iconv.diff ${PATCH_URL}/iconv.diff
     git apply --ignore-whitespace iconv.diff
     autoreconf -fi
