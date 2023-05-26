@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2022
+# © Copyright IBM Corporation 2022, 2023
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -181,14 +181,6 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo apt-get update
-    sudo apt-get install -y git gcc g++ make wget tar cmake libssl-dev libncurses-dev bison scons libboost-dev libboost-program-options-dev check libpam0g-dev |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-
 "rhel-7.8" | "rhel-7.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
@@ -201,7 +193,7 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git gcc7 gcc7-c++ make which wget tar gzip cmake libopenssl-devel ncurses-devel bison glibc-locale boost-devel check-devel gawk pam-devel patch |& tee -a "$LOG_FILE"
+    sudo zypper install -y git gcc7 gcc7-c++ make which wget tar gzip cmake libopenssl-devel ncurses-devel bison glibc-locale boost-devel check-devel gawk pam-devel patch libnghttp2-devel |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 100
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 100
     sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 100
