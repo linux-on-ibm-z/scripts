@@ -256,7 +256,7 @@ case "$DISTRO" in
 "sles-12.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-	sudo zypper install -y git gcc7 gcc7-c++ wget which bzr tar gzip curl patch pkg-config nodejs14 make bzip2 cmake libarchive13 libopenssl-devel unzip zip |& tee -a "$LOG_FILE"
+	sudo zypper install -y git gcc7 gcc7-c++ wget which bzr tar gzip curl patch pkg-config nodejs14 make bzip2 cmake libarchive13 libopenssl-devel unzip zip libnghttp2-devel |& tee -a "$LOG_FILE"
 	sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
 	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40
