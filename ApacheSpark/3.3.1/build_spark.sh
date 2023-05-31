@@ -323,7 +323,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-    "ubuntu-18.04" | "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-22.10")
+    "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-22.10")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
@@ -331,7 +331,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-    "rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-8.7")
+    "rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum groupinstall -y 'Development Tools'  |& tee -a "${LOG_FILE}"
@@ -350,7 +350,7 @@ case "$DISTRO" in
     "sles-12.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y wget tar git libtool autoconf curl gcc make gcc-c++ zip unzip gzip gawk python36 |& tee -a "${LOG_FILE}"
+        sudo zypper install -y wget tar git libtool autoconf curl libnghttp2-devel gcc make gcc-c++ zip unzip gzip gawk python36 |& tee -a "${LOG_FILE}"
         sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 40
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
