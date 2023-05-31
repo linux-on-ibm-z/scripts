@@ -352,7 +352,7 @@ case "$DISTRO" in
 
 "sles-12.5")
         printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-        sudo zypper install -y curl git gcc-c++ gcc11 gcc11-c++ gzip make python python3 java-11-openjdk-devel unzip zip tar wget patch xz which gawk |& tee -a "${LOG_FILE}"
+        sudo zypper install -y curl libnghttp2-devel git gcc-c++ gcc11 gcc11-c++ gzip make python python3 java-11-openjdk-devel unzip zip tar wget patch xz which gawk |& tee -a "${LOG_FILE}"
         sudo zypper install -y pkg-config glib2-devel libexpat-devel |& tee -a "${LOG_FILE}"
         sudo zypper install -y python-bind bind-chrootenv coreutils curl ed expect file iproute2 iputils less libopenssl-devel netcat python2 python2-devel python3 python3-devel python3-pip python3-requests python3-setuptools python3-six python3-wheel unzip zlib-devel python3-PyYAML  |& tee -a "${LOG_FILE}"
         sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 11
