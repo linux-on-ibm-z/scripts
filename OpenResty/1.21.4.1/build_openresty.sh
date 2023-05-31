@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2022.
+# © Copyright IBM Corporation 2021, 2023.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -215,7 +215,7 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git curl tar wget make gcc7 dos2unix perl patch pcre-devel gzip zlib-devel which |& tee -a "$LOG_FILE"
+    sudo zypper install -y git curl tar wget make gcc7 dos2unix perl patch pcre-devel gzip zlib-devel libnghttp2-devel which |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
     curl -L https://cpanmin.us | perl - --sudo App::cpanminus
