@@ -237,14 +237,14 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
     sudo apt-get update >/dev/null
-    sudo apt-get install -y autoconf automake wget make libssl-dev libncurses5-dev bison xz-utils patch g++ curl git python libresolv-wrapper libkeyutils-dev openjdk-11-jdk |& tee -a "$LOG_FILE"
+    sudo apt-get install -y zip unzip autoconf automake wget make libssl-dev libncurses5-dev bison xz-utils patch g++ curl git python libresolv-wrapper libkeyutils-dev openjdk-11-jdk |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "ubuntu-22.04" | "ubuntu-22.10" | "ubuntu-23.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
     sudo apt-get update >/dev/null
-    sudo apt-get install -y autoconf automake wget make libssl-dev libncurses5-dev bison xz-utils patch g++ curl git python3 cmake netbase libresolv-wrapper libkeyutils-dev openjdk-11-jdk |& tee -a "$LOG_FILE"
+    sudo apt-get install -y zip unzip autoconf automake wget make libssl-dev libncurses5-dev bison xz-utils patch g++ curl git python3 cmake netbase libresolv-wrapper libkeyutils-dev openjdk-11-jdk |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "rhel-7.8" | "rhel-7.9")
