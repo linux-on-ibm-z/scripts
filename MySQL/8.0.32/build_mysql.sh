@@ -223,17 +223,6 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-18.04")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-   	sudo apt-get update
-	sudo apt-get install -y bison cmake gcc-8 g++-8 git hostname libncurses-dev libssl-dev make openssl pkg-config doxygen tar wget net-tools |& tee -a "$LOG_FILE"
-    sudo apt-get install -y python python-yaml |& tee -a "$LOG_FILE" # for Duktape 
-    sudo ln -sf /usr/bin/gcc-8 /usr/bin/gcc
-	
-	configureAndInstall |& tee -a "$LOG_FILE"
-
-	;;
 "rhel-7.8" | "rhel-7.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
@@ -264,7 +253,7 @@ case "$DISTRO" in
     buildCmake |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-8.4" | "rhel-8.6" | "rhel-8.7")
+"rhel-8.6" | "rhel-8.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar procps wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive gcc-toolset-11-gcc gcc-toolset-11-gcc-c++ gcc-toolset-11-binutils net-tools |& tee -a "$LOG_FILE"
@@ -289,7 +278,7 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-	sudo zypper install -y cmake bison git ncurses-devel pkg-config gawk procps doxygen tar gcc11 gcc11-c++ libtirpc-devel |& tee -a "$LOG_FILE"
+	sudo zypper install -y cmake bison git ncurses-devel pkg-config gawk procps doxygen tar gcc11 gcc11-c++ libtirpc-devel libnghttp2-devel |& tee -a "$LOG_FILE"
     sudo zypper install -y python python2-PyYAML |& tee -a "$LOG_FILE" # for Duktape
 	sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 11
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
