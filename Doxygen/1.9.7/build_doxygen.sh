@@ -116,6 +116,7 @@ function runTests() {
   if [[ "$TESTS" == "true" ]]; then
     printf -- 'Running tests \n'
     printf -- 'Run the functional test suite \n'
+    
     cd $SOURCE_ROOT/doxygen/build
     make tests
   fi
@@ -191,7 +192,7 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
     sudo subscription-manager repos --enable=rhel-7-server-for-system-z-devtools-rpms
     sudo yum install -y git flex bison make wget unzip tar qt5-qtbase-devel texlive devtoolset-7 openssl-devel |& tee -a "${LOG_FILE}"
-    scl enable devtoolset-7 bash
+    source /opt/rh/devtoolset-7/enable
     install_cmake |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
@@ -205,18 +206,17 @@ case "$DISTRO" in
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git flex bison wget tar unzip gcc8 gcc8-c++ libxml2-devel texlive-bibtex-bin make libqt5-qtbase-devel texlive openssl-devel |& tee -a "$LOG_FILE"
-    sudo ln -sf /usr/bin/gcc-8 /usr/bin/gcc
+    sudo zypper install -y git flex bison wget tar unzip gcc8 gcc8-c++ curl libnghttp2-devel libxml2-devel texlive-bibtex-bin make libqt5-qtbase-devel texlive openssl-devel |& tee -a "$LOG_FILE"
+    sudo ln -sf /usr/bin/g++-8 /usr/bin/c++
     sudo ln -sf /usr/bin/g++-8 /usr/bin/g++
-    sudo ln -sf /usr/bin/gcc /usr/bin/cc
+    sudo ln -sf /usr/bin/gcc-8 /usr/bin/cc
     install_cmake |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-15.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git flex bison wget tar unzip gcc gcc-c++ libxml2-devel texlive-bibtex-bin make libqt5-qttools-devel cmake openssl-devel |& tee -a "$LOG_FILE"
-    install_cmake |& tee -a "${LOG_FILE}"
+    sudo zypper install -y git flex bison wget tar unzip gcc gcc-c++ libxml2-devel glibc-locale texlive-bibtex-bin make libqt5-qtbase-devel cmake openssl-devel |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
