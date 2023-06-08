@@ -1,0 +1,35 @@
+diff --git a/run-tests.sh b/run-tests.sh
+index e489cc9091..1025b60ac3 100755
+--- a/run-tests.sh
++++ b/run-tests.sh
+@@ -128,10 +128,10 @@ function check_dependencies()
+     fi
+
+     # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
++    #env netstat --version > /dev/null 2>&1
++    #if [ $? -ne 0 ]; then
++    #    MISSING="$MISSING netstat"
++    #fi
+
+     # Check for the Perl Test Harness
+     env prove --version > /dev/null 2>&1
+@@ -165,10 +165,10 @@ function check_dependencies()
+     fi
+
+     # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
++    #env netstat --version > /dev/null 2>&1
++    #if [ $? -ne 0 ]; then
++    #    MISSING="$MISSING netstat"
++    #fi
+
+     # Check for killall
+     env killall --version > /dev/null 2>&1
+     

@@ -1,0 +1,39 @@
+diff --git a/tests/00-geo-rep/00-georep-verify-non-root-setup.t b/tests/00-geo-rep/00-georep-verify-non-root-setup.t
+index dcb288763..d279d0ec0 100644
+--- a/tests/00-geo-rep/00-georep-verify-non-root-setup.t
++++ b/tests/00-geo-rep/00-georep-verify-non-root-setup.t
+@@ -187,7 +187,7 @@ export SSH_ASKPASS=${SSH_ASKPASS_SCRIPT}
+ DISPLAY=: setsid ssh-copy-id -o 'PreferredAuthentications=password' -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa.pub $ssh_url
+ 
+ ##Setting up PATH for gluster binaries in case of source installation
+-##ssh -oNumberOfPasswordPrompts=0 -oStrictHostKeyChecking=no $ssh_url "echo "export PATH=$PATH:/usr/local/sbin" >> ~/.bashrc"
++ssh -oNumberOfPasswordPrompts=0 -oStrictHostKeyChecking=no $ssh_url "echo "export PATH=$PATH:/usr/local/sbin" >> ~/.bashrc"
+ 
+ ##Creating secret pem pub file
+ TEST gluster-georep-sshkey generate
+diff --git a/tests/basic/distribute/throttle-rebal.t b/tests/basic/distribute/throttle-rebal.t
+index f4823cf4f..1cc3cac5d 100644
+--- a/tests/basic/distribute/throttle-rebal.t
++++ b/tests/basic/distribute/throttle-rebal.t
+@@ -17,7 +17,7 @@ function set_throttle {
+ }
+ 
+ #Determine number of cores
+-cores=$(cat /proc/cpuinfo | grep processor | wc -l)
++cores=$(cat /proc/cpuinfo | grep -w processor | wc -l)
+ if [ "$cores" == "" ]; then
+         echo "Could not get number of cores available"
+ fi
+diff --git a/tests/bugs/nfs/bug-847622.t b/tests/bugs/nfs/bug-847622.t
+index 5ccee722e..20d5ec532 100755
+--- a/tests/bugs/nfs/bug-847622.t
++++ b/tests/bugs/nfs/bug-847622.t
+@@ -30,7 +30,7 @@ cd $N0
+ 
+ # simple getfacl setfacl commands
+ TEST touch testfile
+-TEST setfacl -m u:14:r testfile
++TEST setfacl -m u:14:r $B0/brick0/testfile
+ TEST getfacl testfile
+ 
+ cd

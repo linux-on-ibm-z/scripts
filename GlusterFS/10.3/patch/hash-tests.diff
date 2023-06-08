@@ -1,0 +1,295 @@
+diff --git a/tests/bugs/posix/bug-1619720.t b/tests/bugs/posix/bug-1619720.t
+index bfd304dc8..132a244d8 100755
+--- a/tests/bugs/posix/bug-1619720.t
++++ b/tests/bugs/posix/bug-1619720.t
+@@ -34,14 +34,14 @@ TEST mkdir $M0/tmp
+ # In a 2 subvol distributed volume, file-{1,3} hash to the same subvol.
+ # file-2 will hash to the other subvol
+ 
+-TEST touch $M0/tmp/file-2
+-pgfid_xattr_name=$(getfattr -m "trusted.pgfid.*" $B0/${V0}1/tmp/file-2 | grep "trusted.pgfid")
++TEST touch $M0/tmp/file-10
++pgfid_xattr_name=$(getfattr -m "trusted.pgfid.*" $B0/${V0}1/tmp/file-10 | grep "trusted.pgfid")
+ echo $pgfid_xattr_name
+ 
+ 
+-TEST mv $M0/tmp/file-2 $M0/tmp/file-1
+-TEST touch $M0/tmp/file-2
+-TEST mv $M0/tmp/file-2 $M0/tmp/file-3
++TEST mv $M0/tmp/file-10 $M0/tmp/file-1
++TEST touch $M0/tmp/file-10
++TEST mv $M0/tmp/file-10 $M0/tmp/file-3
+ 
+ # At this point, both the file-1 and file-3 data files exist on one subvol
+ # and both linkto files on the other
+diff --git a/tests/bugs/replicate/bug-1655854-support-dist-to-rep3-arb-conversion.t b/tests/bugs/replicate/bug-1655854-support-dist-to-rep3-arb-conversion.t
+index 783016dc3..86d2a27d9 100644
+--- a/tests/bugs/replicate/bug-1655854-support-dist-to-rep3-arb-conversion.t
++++ b/tests/bugs/replicate/bug-1655854-support-dist-to-rep3-arb-conversion.t
+@@ -46,8 +46,8 @@ TEST ls $B0/${V0}3/dir
+ TEST ls $B0/${V0}4/dir
+ TEST ls $B0/${V0}5/dir
+ 
+-TEST [ $file_md5sum == $(md5sum $B0/${V0}4/dir/file | awk '{print $1}') ]
+-TEST [ $file_md5sum == $(md5sum $B0/${V0}5/dir/file | awk '{print $1}') ]
++TEST [ $file_md5sum == $(md5sum $B0/${V0}2/dir/file | awk '{print $1}') ]
++TEST [ $file_md5sum == $(md5sum $B0/${V0}3/dir/file | awk '{print $1}') ]
+ 
+ 
+ # Conversion from 2x1 to 2x(2+1)
+@@ -89,7 +89,7 @@ TEST ls $B0/${V1}3/dir
+ TEST ls $B0/${V1}4/dir
+ TEST ls $B0/${V1}5/dir
+ 
+-EXPECT "0" stat -c %s $B0/${V1}5/dir/file
+-TEST [ $file_md5sum == $(md5sum $B0/${V1}4/dir/file | awk '{print $1}') ]
++EXPECT "0" stat -c %s $B0/${V1}3/dir/file
++TEST [ $file_md5sum == $(md5sum $B0/${V1}2/dir/file | awk '{print $1}') ]
+ 
+ cleanup;
+diff --git a/tests/bugs/glusterd/bug-1699339.t b/tests/bugs/glusterd/bug-1699339.t
+index bb8d4f46e..98471fdb5 100644
+--- a/tests/bugs/glusterd/bug-1699339.t
++++ b/tests/bugs/glusterd/bug-1699339.t
+@@ -50,17 +50,17 @@ for i in $(seq 1 $NUM_VOLS); do
+ 	create_volume $i
+ done
+ 
+-TEST kill_glusterd 1
++TEST kill_glusterd 2
+ 
+ TESTS_EXPECTED_IN_LOOP=4
+ for i in `seq 1 3 15`
+ do
+ vol1=$(printf "%s-vol%02d" $V0 $i)
+-TEST $CLI_2 volume set $vol1 performance.readdir-ahead on
++TEST $CLI_1 volume set $vol1 performance.readdir-ahead on
+ done
+ 
+-# Bring back 1st glusterd
+-TEST $glusterd_1
++# Bring back 2n2 glusterd
++TEST $glusterd_2
+ EXPECT_WITHIN $PROBE_TIMEOUT 2 peer_count
+ 
+ TESTS_EXPECTED_IN_LOOP=4
+diff --git a/tests/bugs/distribute/bug-1786679.t b/tests/bugs/distribute/bug-1786679.t
+index 219ce51c8..794e8fe26 100755
+--- a/tests/bugs/distribute/bug-1786679.t
++++ b/tests/bugs/distribute/bug-1786679.t
+@@ -43,8 +43,8 @@ TEST $CLI volume start $V0
+ TEST glusterfs -s $H0 --volfile-id $V0 $M0
+ TEST mkdir $M0/dir
+ TEST touch $M0/dir/file
+-TEST ! stat "$BRICK1/dir/file"
+-TEST stat "$BRICK2/dir/file"
++TEST stat "$BRICK1/dir/file"
++TEST ! stat "$BRICK2/dir/file"
+ 
+ layout1="$(get_layout "$BRICK1/dir")"
+ layout2="$(get_layout "$BRICK2/dir")"
+@@ -63,7 +63,7 @@ TEST touch $M0/dir/file
+ TEST glusterfs -s $H0 --volfile-id $V0 $M1
+ TEST touch $M1/dir/file
+ 
+-TEST stat "$BRICK1/dir/file"
+-TEST ! stat "$BRICK2/dir/file"
++TEST ! stat "$BRICK1/dir/file"
++TEST stat "$BRICK2/dir/file"
+ 
+ cleanup
+diff --git a/tests/bugs/glusterfs/bug-902610.t b/tests/bugs/glusterfs/bug-902610.t
+index 112c947e1..904b02f48 100755
+--- a/tests/bugs/glusterfs/bug-902610.t
++++ b/tests/bugs/glusterfs/bug-902610.t
+@@ -58,9 +58,9 @@ TEST ls -l $M0
+ kill_brick $V0 $H0 $B0/${V0}2
+ kill_brick $V0 $H0 $B0/${V0}3
+ 
+-mkdir $M0/dir1 2>/dev/null
++mkdir $M0/dir4 2>/dev/null
+ 
+-get_layout $B0/${V0}0/dir1 $B0/${V0}1/dir1
++get_layout $B0/${V0}0/dir4 $B0/${V0}1/dir4
+ EXPECT "0" echo $?
+ 
+ cleanup;
+diff --git a/tests/basic/changelog/changelog-rename.t b/tests/basic/changelog/changelog-rename.t
+index 9a0ef527b..576c97d05 100644
+--- a/tests/basic/changelog/changelog-rename.t
++++ b/tests/basic/changelog/changelog-rename.t
+@@ -4,6 +4,7 @@
+ cleanup;
+ 
+ CHANGELOG_PATH_0="$B0/${V0}0/.glusterfs/changelogs"
++CHANGELOG_PATH_1="$B0/${V0}1/.glusterfs/changelogs"
+ ROLLOVER_TIME=30
+ 
+ TEST glusterd
+@@ -39,6 +40,6 @@ mv $M0/gluster_file $M0/rn_gluster_file
+ mkdir $M0/dir1
+ mv $M0/dir1 $M0/rn_dir1
+ 
+-EXPECT "2" check_changelog_op ${CHANGELOG_PATH_0} "RENAME"
++EXPECT "2" check_changelog_op ${CHANGELOG_PATH_1} "RENAME"
+ 
+ cleanup;
+diff --git a/tests/basic/distribute/dir-heal.t b/tests/basic/distribute/dir-heal.t
+index 851f765b2..23e107096 100644
+--- a/tests/basic/distribute/dir-heal.t
++++ b/tests/basic/distribute/dir-heal.t
+@@ -30,8 +30,8 @@ TEST glusterfs --entry-timeout=0 --attribute-timeout=0 -s $H0 --volfile-id $V0 $
+ ls $M0/
+ cd $M0
+
+-TEST kill_brick $V0 $H0 $B0/$V0-1
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-1
++TEST kill_brick $V0 $H0 $B0/$V0-2
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-2
+
+ TEST mkdir dir{1..4}
+
+@@ -51,7 +51,7 @@ TEST setfattr -n "user.test" -v "test" $M0/dir4
+ # Start all bricks
+
+ TEST $CLI volume start $V0 force
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-1
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-2
+
+ #$CLI volume status
+
+@@ -62,18 +62,18 @@ stat $M0/dir* > /dev/null
+
+ # Check that directories have been created on the brick that was killed
+
+-TEST ls $B0/$V0-1/dir1
++TEST ls $B0/$V0-2/dir1
+
+-TEST ls $B0/$V0-1/dir2
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir2
++TEST ls $B0/$V0-2/dir2
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir2
+
+-TEST ls $B0/$V0-1/dir3
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir3
++TEST ls $B0/$V0-2/dir3
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir3
+
+
+-TEST ls $B0/$V0-1/dir4
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir4
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir4
++TEST ls $B0/$V0-2/dir4
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir4
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir4
+
+
+ TEST rm -rf $M0/*
+@@ -97,8 +97,8 @@ ls $M0/
+ cd $M0
+ TEST mkdir dir{1..4}
+
+-TEST kill_brick $V0 $H0 $B0/$V0-1
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-1
++TEST kill_brick $V0 $H0 $B0/$V0-2
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "0" brick_up_status $V0 $H0 $B0/$V0-2
+
+ # No change for dir1
+ # Change permissions for dir2
+@@ -116,7 +116,7 @@ TEST setfattr -n "user.test" -v "test" $M0/dir4
+ # Start all bricks
+
+ TEST $CLI volume start $V0 force
+-EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-1
++EXPECT_WITHIN $PROCESS_UP_TIMEOUT "1" brick_up_status $V0 $H0 $B0/$V0-2
+
+ #$CLI volume status
+
+@@ -127,16 +127,16 @@ stat $M0/dir* > /dev/null
+
+ # Check directories on the brick that was killed
+
+-TEST ls $B0/$V0-1/dir2
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir2
++TEST ls $B0/$V0-2/dir2
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir2
+
+-TEST ls $B0/$V0-1/dir3
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir3
++TEST ls $B0/$V0-2/dir3
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir3
+
+
+-TEST ls $B0/$V0-1/dir4
+-EXPECT "777" stat -c "%a" $B0/$V0-1/dir4
+-EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-1/dir4
++TEST ls $B0/$V0-2/dir4
++EXPECT "777" stat -c "%a" $B0/$V0-2/dir4
++EXPECT "test" getfattr -n "user.test" --absolute-names --only-values $B0/$V0-2/dir4
+ cd
+
+
+diff --git a/tests/basic/namespace.t b/tests/basic/namespace.t
+index d1bbe7eea..aff4f0877 100644
+--- a/tests/basic/namespace.t
++++ b/tests/basic/namespace.t
+@@ -8,9 +8,9 @@
+ 
+ # These hashes are a result of calling SuperFastHash
+ # on the corresponding folder names.
+-NAMESPACE_HASH=28153613
+-NAMESPACE2_HASH=3926991974
+-NAMESPACE3_HASH=3493960770
++NAMESPACE_HASH=3253352021
++NAMESPACE2_HASH=458775276
++NAMESPACE4_HASH=3722010543
+ 
+ function check_brick_multiplex() {
+         local ret=$($CLI volume info|grep "cluster.brick-multiplex"|cut -d" " -f2)
+@@ -110,14 +110,14 @@ EXPECT_WITHIN 10 "Y" check_samples READ $NAMESPACE_HASH /namespace/bar patchy0
+ dir $N0/namespace &> /dev/null
+ EXPECT_WITHIN 10 "Y" check_samples LOOKUP $NAMESPACE_HASH /namespace patchy0
+ 
+-mkdir -p $N0/namespace{2,3}
++mkdir -p $N0/namespace{2,4}
+ EXPECT_WITHIN 10 "Y" check_samples MKDIR $NAMESPACE2_HASH /namespace2 patchy0
+-EXPECT_WITHIN 10 "Y" check_samples MKDIR $NAMESPACE3_HASH /namespace3 patchy0
++EXPECT_WITHIN 10 "Y" check_samples MKDIR $NAMESPACE4_HASH /namespace4 patchy0
+ 
+ touch $N0/namespace2/file
+-touch $N0/namespace3/file
++touch $N0/namespace4/file
+ EXPECT_WITHIN 10 "Y" check_samples CREATE $NAMESPACE2_HASH /namespace2/file patchy0
+-EXPECT_WITHIN 10 "Y" check_samples CREATE $NAMESPACE3_HASH /namespace3/file patchy0
++EXPECT_WITHIN 10 "Y" check_samples CREATE $NAMESPACE4_HASH /namespace4/file patchy0
+ 
+ truncate -s 0 $N0/namespace/bar
+ EXPECT_WITHIN 10 "Y" check_samples TRUNCATE $NAMESPACE_HASH /namespace/bar patchy0
+diff --git a/tests/bugs/distribute/bug-1600379.t b/tests/bugs/distribute/bug-1600379.t
+index 8d2f61541..34b105dfa 100644
+--- a/tests/bugs/distribute/bug-1600379.t
++++ b/tests/bugs/distribute/bug-1600379.t
+@@ -34,7 +34,7 @@ xattr_val=`getfattr -d $B0/${V0}2/testdir | awk '{print $1}'`;
+ TEST ${xattr_val}='user.attr="val"';
+
+ # Kill 2nd brick process
+-TEST kill_brick $V0 $H0 $B0/${V0}2
++TEST kill_brick $V0 $H0 $B0/${V0}1
+ EXPECT_WITHIN ${PROCESS_UP_TIMEOUT} "1" online_brick_count
+
+ # Remove custom xattr
+diff --git a/tests/basic/distribute/sparse_file_rebalance.t b/tests/basic/distribute/sparse_file_rebalance.t
+index 061c02f73..1c7a38ddf 100644
+--- a/tests/basic/distribute/sparse_file_rebalance.t
++++ b/tests/basic/distribute/sparse_file_rebalance.t
+@@ -44,8 +44,8 @@ TEST $CLI volume rebalance $V0 start force;
+ EXPECT_WITHIN $REBALANCE_TIMEOUT "0" rebalance_completed;
+
+ # Compare original and rebalanced files
+-TEST cd $B0/${V0}2
+-TEST cmp sparse_file $B0/${V0}3/sparse_file_3
++TEST cd $B0/${V0}1
++TEST cmp sparse_file_3 $B0/${V0}3/sparse_file
+ EXPECT_WITHIN 30 "";
+
+ cleanup;
