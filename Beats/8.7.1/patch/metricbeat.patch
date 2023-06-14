@@ -1,0 +1,671 @@
+diff --git a/metricbeat/helper/openmetrics/metric.go b/metricbeat/helper/openmetrics/metric.go
+index e35ea5773a..b02436178f 100644
+--- a/metricbeat/helper/openmetrics/metric.go
++++ b/metricbeat/helper/openmetrics/metric.go
+@@ -250,7 +250,7 @@ func (m *commonMetric) GetValue(metric *prometheus.OpenMetric) interface{} {
+ 		value := mapstr.M{}
+ 		if !math.IsNaN(summary.GetSampleSum()) && !math.IsInf(summary.GetSampleSum(), 0) {
+ 			value["sum"] = summary.GetSampleSum()
+-			value["count"] = summary.GetSampleCount()
++			value["count"] = uint64(summary.GetSampleCount())
+ 		}
+ 
+ 		quantiles := summary.GetQuantile()
+@@ -274,15 +274,15 @@ func (m *commonMetric) GetValue(metric *prometheus.OpenMetric) interface{} {
+ 		value := mapstr.M{}
+ 		if !math.IsNaN(histogram.GetSampleSum()) && !math.IsInf(histogram.GetSampleSum(), 0) {
+ 			value["sum"] = histogram.GetSampleSum()
+-			value["count"] = histogram.GetSampleCount()
++			value["count"] = uint64(histogram.GetSampleCount())
+ 		}
+ 
+ 		buckets := histogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if !math.IsNaN(bucket.GetCumulativeCount()) && !math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+-				bucketMap[key] = bucket.GetCumulativeCount()
++				bucketMap[key] = uint64(bucket.GetCumulativeCount())
+ 			}
+ 		}
+ 
+@@ -298,15 +298,15 @@ func (m *commonMetric) GetValue(metric *prometheus.OpenMetric) interface{} {
+ 		value := mapstr.M{}
+ 		if !math.IsNaN(gaugehistogram.GetSampleSum()) && !math.IsInf(gaugehistogram.GetSampleSum(), 0) {
+ 			value["gsum"] = gaugehistogram.GetSampleSum()
+-			value["gcount"] = gaugehistogram.GetSampleCount()
++			value["gcount"] = uint64(gaugehistogram.GetSampleCount())
+ 		}
+ 
+ 		buckets := gaugehistogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if !math.IsNaN(bucket.GetCumulativeCount()) && !math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+-				bucketMap[key] = bucket.GetCumulativeCount()
++				bucketMap[key] = uint64(bucket.GetCumulativeCount())
+ 			}
+ 		}
+ 
+diff --git a/metricbeat/helper/prometheus/metric.go b/metricbeat/helper/prometheus/metric.go
+index f5c9727093..425ea528eb 100644
+--- a/metricbeat/helper/prometheus/metric.go
++++ b/metricbeat/helper/prometheus/metric.go
+@@ -253,7 +253,7 @@ func (m *commonMetric) GetValue(metric *OpenMetric) interface{} {
+ 		buckets := histogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if !math.IsNaN(bucket.GetCumulativeCount()) && !math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+ 				bucketMap[key] = bucket.GetCumulativeCount()
+ 			}
+diff --git a/metricbeat/helper/prometheus/prometheus_test.go b/metricbeat/helper/prometheus/prometheus_test.go
+index b135f0683d..14325f12bb 100644
+--- a/metricbeat/helper/prometheus/prometheus_test.go
++++ b/metricbeat/helper/prometheus/prometheus_test.go
+@@ -447,7 +447,7 @@ func TestPrometheus(t *testing.T) {
+ 					"summary": mapstr.M{
+ 						"metric": mapstr.M{
+ 							"sum":   234892394.0,
+-							"count": uint64(44000),
++							"count": float64(44000),
+ 							"percentile": mapstr.M{
+ 								"50": 29735.0,
+ 								"90": 47103.0,
+@@ -469,15 +469,15 @@ func TestPrometheus(t *testing.T) {
+ 				mapstr.M{
+ 					"histogram": mapstr.M{
+ 						"metric": mapstr.M{
+-							"count": uint64(1),
++							"count": float64(1),
+ 							"bucket": mapstr.M{
+-								"1000000000": uint64(1),
+-								"+Inf":       uint64(1),
+-								"1000":       uint64(1),
+-								"10000":      uint64(1),
+-								"100000":     uint64(1),
+-								"1000000":    uint64(1),
+-								"100000000":  uint64(1),
++								"1000000000": float64(1),
++								"+Inf":       float64(1),
++								"1000":       float64(1),
++								"10000":      float64(1),
++								"100000":     float64(1),
++								"1000000":    float64(1),
++								"100000000":  float64(1),
+ 							},
+ 							"sum": 117.0,
+ 						},
+@@ -496,13 +496,13 @@ func TestPrometheus(t *testing.T) {
+ 				mapstr.M{
+ 					"histogram": mapstr.M{
+ 						"metric": mapstr.M{
+-							"count": uint64(5),
++							"count": float64(5),
+ 							"bucket": mapstr.M{
+-								"1":    uint64(1),
+-								"10":   uint64(1),
+-								"100":  uint64(2),
+-								"1000": uint64(3),
+-								"+Inf": uint64(5),
++								"1":    float64(1),
++								"10":   float64(1),
++								"100":  float64(2),
++								"1000": float64(3),
++								"+Inf": float64(5),
+ 							},
+ 							"sum": 4310.0,
+ 						},
+@@ -739,15 +739,15 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 					"metrics": mapstr.M{
+ 						"one": mapstr.M{
+ 							"midichlorians": mapstr.M{
+-								"count": uint64(86),
++								"count": float64(86),
+ 								"sum":   1000001.0,
+ 								"bucket": mapstr.M{
+-									"2000":  uint64(52),
+-									"4000":  uint64(70),
+-									"8000":  uint64(78),
+-									"16000": uint64(84),
+-									"32000": uint64(86),
+-									"+Inf":  uint64(86),
++									"2000":  float64(52),
++									"4000":  float64(70),
++									"8000":  float64(78),
++									"16000": float64(84),
++									"32000": float64(86),
++									"+Inf":  float64(86),
+ 								},
+ 
+ 								"rank":  "youngling",
+@@ -760,15 +760,15 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 					"metrics": mapstr.M{
+ 						"one": mapstr.M{
+ 							"midichlorians": mapstr.M{
+-								"count": uint64(28),
++								"count": float64(28),
+ 								"sum":   800001.0,
+ 								"bucket": mapstr.M{
+-									"2000":  uint64(16),
+-									"4000":  uint64(20),
+-									"8000":  uint64(23),
+-									"16000": uint64(27),
+-									"32000": uint64(27),
+-									"+Inf":  uint64(28),
++									"2000":  float64(16),
++									"4000":  float64(20),
++									"8000":  float64(23),
++									"16000": float64(27),
++									"32000": float64(27),
++									"+Inf":  float64(28),
+ 								},
+ 								"rank":  "padawan",
+ 								"alive": "yes",
+@@ -796,12 +796,12 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 					"metrics": mapstr.M{
+ 						"one": mapstr.M{
+ 							"midichlorians": mapstr.M{
+-								"count": uint64(86),
++								"count": float64(86),
+ 								"sum":   1000001.0,
+ 								"bucket": mapstr.M{
+-									"16000": uint64(84),
+-									"32000": uint64(86),
+-									"+Inf":  uint64(86),
++									"16000": float64(84),
++									"32000": float64(86),
++									"+Inf":  float64(86),
+ 								},
+ 
+ 								"rank":  "youngling",
+@@ -830,7 +830,7 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 						"force": mapstr.M{
+ 							"propagation": mapstr.M{
+ 								"ms": mapstr.M{
+-									"count": uint64(651),
++									"count": float64(651),
+ 									"sum":   89.0,
+ 									"percentile": mapstr.M{
+ 										"0":   35.0,
+@@ -852,7 +852,7 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 						"force": mapstr.M{
+ 							"propagation": mapstr.M{
+ 								"ms": mapstr.M{
+-									"count": uint64(711),
++									"count": float64(711),
+ 									"sum":   112.0,
+ 									"percentile": mapstr.M{
+ 										"0":   30.0,
+@@ -889,7 +889,7 @@ func TestPrometheusKeyLabels(t *testing.T) {
+ 						"force": mapstr.M{
+ 							"propagation": mapstr.M{
+ 								"ms": mapstr.M{
+-									"count": uint64(651),
++									"count": float64(651),
+ 									"sum":   50.0,
+ 									"percentile": mapstr.M{
+ 										"75":  20.0,
+diff --git a/metricbeat/helper/prometheus/textparse.go b/metricbeat/helper/prometheus/textparse.go
+index de6cc075c4..ac00857aba 100644
+--- a/metricbeat/helper/prometheus/textparse.go
++++ b/metricbeat/helper/prometheus/textparse.go
+@@ -112,12 +112,12 @@ func (m *Quantile) GetValue() float64 {
+ }
+ 
+ type Summary struct {
+-	SampleCount *uint64
++	SampleCount *float64
+ 	SampleSum   *float64
+ 	Quantile    []*Quantile
+ }
+ 
+-func (m *Summary) GetSampleCount() uint64 {
++func (m *Summary) GetSampleCount() float64 {
+ 	if m != nil && m.SampleCount != nil {
+ 		return *m.SampleCount
+ 	}
+@@ -150,12 +150,12 @@ func (m *Unknown) GetValue() float64 {
+ }
+ 
+ type Bucket struct {
+-	CumulativeCount *uint64
++	CumulativeCount *float64
+ 	UpperBound      *float64
+ 	Exemplar        *exemplar.Exemplar
+ }
+ 
+-func (m *Bucket) GetCumulativeCount() uint64 {
++func (m *Bucket) GetCumulativeCount() float64 {
+ 	if m != nil && m.CumulativeCount != nil {
+ 		return *m.CumulativeCount
+ 	}
+@@ -170,13 +170,13 @@ func (m *Bucket) GetUpperBound() float64 {
+ }
+ 
+ type Histogram struct {
+-	SampleCount      *uint64
++	SampleCount      *float64
+ 	SampleSum        *float64
+ 	Bucket           []*Bucket
+ 	IsGaugeHistogram bool
+ }
+ 
+-func (m *Histogram) GetSampleCount() uint64 {
++func (m *Histogram) GetSampleCount() float64 {
+ 	if m != nil && m.SampleCount != nil {
+ 		return *m.SampleCount
+ 	}
+@@ -357,8 +357,7 @@ func summaryMetricName(name string, s float64, qv string, lbls string, t *int64,
+ 
+ 	switch {
+ 	case isCount(name):
+-		u := uint64(s)
+-		summary.SampleCount = &u
++		summary.SampleCount = &s
+ 		name = name[:len(name)-6]
+ 	case isSum(name):
+ 		summary.SampleSum = &s
+@@ -402,15 +401,13 @@ func histogramMetricName(name string, s float64, qv string, lbls string, t *int6
+ 
+ 	switch {
+ 	case isCount(name):
+-		u := uint64(s)
+-		histogram.SampleCount = &u
++		histogram.SampleCount = &s
+ 		name = name[:len(name)-6]
+ 	case isSum(name):
+ 		histogram.SampleSum = &s
+ 		name = name[:len(name)-4]
+ 	case isGaugeHistogram && isGCount(name):
+-		u := uint64(s)
+-		histogram.SampleCount = &u
++		histogram.SampleCount = &s
+ 		name = name[:len(name)-7]
+ 	case isGaugeHistogram && isGSum(name):
+ 		histogram.SampleSum = &s
+@@ -423,9 +420,8 @@ func histogramMetricName(name string, s float64, qv string, lbls string, t *int6
+ 		if err != nil {
+ 			f = math.MaxUint64
+ 		}
+-		cnt := uint64(s)
+ 		bkt.UpperBound = &f
+-		bkt.CumulativeCount = &cnt
++		bkt.CumulativeCount = &s
+ 
+ 		if e != nil {
+ 			if !e.HasTs {
+diff --git a/metricbeat/mb/testing/data/data_test.go b/metricbeat/mb/testing/data/data_test.go
+index d855b18b75..c1b158b106 100644
+--- a/metricbeat/mb/testing/data/data_test.go
++++ b/metricbeat/mb/testing/data/data_test.go
+@@ -46,7 +46,8 @@ func TestAll(t *testing.T) {
+ 
+ 			if runtime.GOOS == "aix" && (moduleName == "docker" || moduleName == "kubernetes") {
+ 				t.Skipf("%s module not available on AIX", moduleName)
+-
++			} else if runtime.GOARCH == "s390x" && moduleName == "prometheus" && metricSetName == "collector" {
++				t.Skipf("%s/%s uses arch dependent NaN and Inf filtering that is not valid on s390x", moduleName, metricSetName)
+ 			} else {
+ 				config := mbtest.ReadDataConfig(t, f)
+ 				mbtest.TestDataFilesWithConfig(t, moduleName, metricSetName, config)
+diff --git a/metricbeat/module/openmetrics/collector/collector_test.go b/metricbeat/module/openmetrics/collector/collector_test.go
+index d2f9ab4ff9..7604707282 100644
+--- a/metricbeat/module/openmetrics/collector/collector_test.go
++++ b/metricbeat/module/openmetrics/collector/collector_test.go
+@@ -122,7 +122,7 @@ func TestGetOpenMetricsEventsFromMetricFamily(t *testing.T) {
+ 				Metric: []*p.OpenMetric{
+ 					{
+ 						Summary: &p.Summary{
+-							SampleCount: proto.Uint64(10),
++							SampleCount: proto.Float64(10),
+ 							SampleSum:   proto.Float64(10),
+ 							Quantile: []*p.Quantile{
+ 								{
+@@ -166,12 +166,12 @@ func TestGetOpenMetricsEventsFromMetricFamily(t *testing.T) {
+ 				Metric: []*p.OpenMetric{
+ 					{
+ 						Histogram: &p.Histogram{
+-							SampleCount: proto.Uint64(10),
++							SampleCount: proto.Float64(10),
+ 							SampleSum:   proto.Float64(10),
+ 							Bucket: []*p.Bucket{
+ 								{
+ 									UpperBound:      proto.Float64(0.99),
+-									CumulativeCount: proto.Uint64(10),
++									CumulativeCount: proto.Float64(10),
+ 								},
+ 							},
+ 						},
+@@ -299,7 +299,7 @@ func TestSkipMetricFamily(t *testing.T) {
+ 			Metric: []*p.OpenMetric{
+ 				{
+ 					Summary: &p.Summary{
+-						SampleCount: proto.Uint64(10),
++						SampleCount: proto.Float64(10),
+ 						SampleSum:   proto.Float64(10),
+ 						Quantile: []*p.Quantile{
+ 							{
+@@ -318,12 +318,12 @@ func TestSkipMetricFamily(t *testing.T) {
+ 			Metric: []*p.OpenMetric{
+ 				{
+ 					Histogram: &p.Histogram{
+-						SampleCount: proto.Uint64(10),
++						SampleCount: proto.Float64(10),
+ 						SampleSum:   proto.Float64(10),
+ 						Bucket: []*p.Bucket{
+ 							{
+ 								UpperBound:      proto.Float64(0.99),
+-								CumulativeCount: proto.Uint64(10),
++								CumulativeCount: proto.Float64(10),
+ 							},
+ 						},
+ 					},
+diff --git a/metricbeat/module/openmetrics/collector/data.go b/metricbeat/module/openmetrics/collector/data.go
+index e07d6f56b4..a6133e9572 100644
+--- a/metricbeat/module/openmetrics/collector/data.go
++++ b/metricbeat/module/openmetrics/collector/data.go
+@@ -187,7 +187,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.MetricFamily)
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+ 							name + "_sum":   summary.GetSampleSum(),
+-							name + "_count": summary.GetSampleCount(),
++							name + "_count": uint64(summary.GetSampleCount()),
+ 						},
+ 					},
+ 					Labels: labels,
+@@ -232,7 +232,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.MetricFamily)
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+ 							name + sum:   histogram.GetSampleSum(),
+-							name + count: histogram.GetSampleCount(),
++							name + count: uint64(histogram.GetSampleCount()),
+ 						},
+ 					},
+ 					Labels: labels,
+@@ -240,7 +240,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.MetricFamily)
+ 			}
+ 
+ 			for _, bucket := range histogram.GetBucket() {
+-				if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++				if math.IsNaN(bucket.GetCumulativeCount()) || math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 					continue
+ 				}
+ 
+@@ -262,7 +262,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.MetricFamily)
+ 				events = append(events, OpenMetricEvent{
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+-							name + "_bucket": bucket.GetCumulativeCount(),
++							name + "_bucket": uint64(bucket.GetCumulativeCount()),
+ 						},
+ 					},
+ 					Labels:    bucketLabels,
+diff --git a/metricbeat/module/prometheus/collector/collector_test.go b/metricbeat/module/prometheus/collector/collector_test.go
+index 25648b4684..c9c975f6d0 100644
+--- a/metricbeat/module/prometheus/collector/collector_test.go
++++ b/metricbeat/module/prometheus/collector/collector_test.go
+@@ -21,6 +21,7 @@
+ package collector
+ 
+ import (
++	"runtime"
+ 	"testing"
+ 
+ 	"github.com/elastic/beats/v7/metricbeat/mb"
+@@ -107,7 +108,7 @@ func TestGetPromEventsFromMetricFamily(t *testing.T) {
+ 				Metric: []*p.OpenMetric{
+ 					{
+ 						Summary: &p.Summary{
+-							SampleCount: proto.Uint64(10),
++							SampleCount: proto.Float64(10),
+ 							SampleSum:   proto.Float64(10),
+ 							Quantile: []*p.Quantile{
+ 								{
+@@ -123,7 +124,7 @@ func TestGetPromEventsFromMetricFamily(t *testing.T) {
+ 				{
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+-							"http_request_duration_microseconds_count": uint64(10),
++							"http_request_duration_microseconds_count": float64(10),
+ 							"http_request_duration_microseconds_sum":   float64(10),
+ 						},
+ 					},
+@@ -149,12 +150,12 @@ func TestGetPromEventsFromMetricFamily(t *testing.T) {
+ 				Metric: []*p.OpenMetric{
+ 					{
+ 						Histogram: &p.Histogram{
+-							SampleCount: proto.Uint64(10),
++							SampleCount: proto.Float64(10),
+ 							SampleSum:   proto.Float64(10),
+ 							Bucket: []*p.Bucket{
+ 								{
+ 									UpperBound:      proto.Float64(0.99),
+-									CumulativeCount: proto.Uint64(10),
++									CumulativeCount: proto.Float64(10),
+ 								},
+ 							},
+ 						},
+@@ -165,7 +166,7 @@ func TestGetPromEventsFromMetricFamily(t *testing.T) {
+ 				{
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+-							"http_request_duration_microseconds_count": uint64(10),
++							"http_request_duration_microseconds_count": float64(10),
+ 							"http_request_duration_microseconds_sum":   float64(10),
+ 						},
+ 					},
+@@ -174,7 +175,7 @@ func TestGetPromEventsFromMetricFamily(t *testing.T) {
+ 				{
+ 					Data: mapstr.M{
+ 						"metrics": mapstr.M{
+-							"http_request_duration_microseconds_bucket": uint64(10),
++							"http_request_duration_microseconds_bucket": float64(10),
+ 						},
+ 					},
+ 					Labels: mapstr.M{"le": "0.99"},
+@@ -277,7 +278,7 @@ func TestSkipMetricFamily(t *testing.T) {
+ 			Metric: []*p.OpenMetric{
+ 				{
+ 					Summary: &p.Summary{
+-						SampleCount: proto.Uint64(10),
++						SampleCount: proto.Float64(10),
+ 						SampleSum:   proto.Float64(10),
+ 						Quantile: []*p.Quantile{
+ 							{
+@@ -296,12 +297,12 @@ func TestSkipMetricFamily(t *testing.T) {
+ 			Metric: []*p.OpenMetric{
+ 				{
+ 					Histogram: &p.Histogram{
+-						SampleCount: proto.Uint64(10),
++						SampleCount: proto.Float64(10),
+ 						SampleSum:   proto.Float64(10),
+ 						Bucket: []*p.Bucket{
+ 							{
+ 								UpperBound:      proto.Float64(0.99),
+-								CumulativeCount: proto.Uint64(10),
++								CumulativeCount: proto.Float64(10),
+ 							},
+ 						},
+ 					},
+@@ -379,5 +380,8 @@ func TestSkipMetricFamily(t *testing.T) {
+ }
+ 
+ func TestData(t *testing.T) {
++	if runtime.GOARCH == "s390x" {
++		t.Skipf("prometheus/collector uses arch dependent NaN and Inf filtering that is not valid on s390x")
++	}
+ 	mbtest.TestDataFiles(t, "prometheus", "collector")
+ }
+diff --git a/metricbeat/module/prometheus/collector/data.go b/metricbeat/module/prometheus/collector/data.go
+index b9934bc226..70ef7a48a4 100644
+--- a/metricbeat/module/prometheus/collector/data.go
++++ b/metricbeat/module/prometheus/collector/data.go
+@@ -143,7 +143,7 @@ func (p *promEventGenerator) GeneratePromEvents(mf *p.MetricFamily) []PromEvent
+ 			}
+ 
+ 			for _, bucket := range histogram.GetBucket() {
+-				if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++				if math.IsNaN(bucket.GetCumulativeCount()) && math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 					continue
+ 				}
+ 
+diff --git a/metricbeat/module/system/test_system.py b/metricbeat/module/system/test_system.py
+index 9bf15c8244..f7b98b111b 100644
+--- a/metricbeat/module/system/test_system.py
++++ b/metricbeat/module/system/test_system.py
+@@ -3,6 +3,7 @@ Metricbeat system module tests
+ """
+ import getpass
+ import os
++import platform
+ import re
+ import sys
+ import unittest
+@@ -36,6 +37,8 @@ SYSTEM_CPU_ALL[metricbeat.P_LINUX] = SYSTEM_CPU[metricbeat.P_LINUX] + ["idle.tic
+                                                                        "system.norm.pct", "user.norm.pct",
+                                                                        "total.norm.pct", "total.value"]
+ 
++SYSTEM_CORE_CPUINFO_FIELDS = ["model_name", "model_number", "mhz",
++                              "core_id", "physical_id"]
+ 
+ SYSTEM_CORE = {
+     metricbeat.P_WIN: ["id", "idle.pct",
+@@ -43,9 +46,8 @@ SYSTEM_CORE = {
+ }
+ SYSTEM_CORE[metricbeat.P_DARWIN] = SYSTEM_CORE[metricbeat.P_WIN] + ["nice.pct"]
+ SYSTEM_CORE[metricbeat.P_LINUX] = SYSTEM_CORE[metricbeat.P_DARWIN] + \
+-    ["iowait.pct", "irq.pct", "softirq.pct", "steal.pct",
+-     "model_name", "model_number", "mhz",
+-     "core_id", "physical_id"]
++    ["iowait.pct", "irq.pct", "softirq.pct", "steal.pct"] + \
++    SYSTEM_CORE_CPUINFO_FIELDS
+ 
+ SYSTEM_CORE_ALL = {
+     metricbeat.P_WIN: SYSTEM_CORE[metricbeat.P_WIN] + ["idle.ticks", "system.ticks", "user.ticks",
+@@ -114,6 +116,16 @@ SYSTEM_DISK_HOST_FIELDS = ["read.bytes", "write.bytes"]
+ # cgroup is only available on linux.
+ SYSTEM_PROCESS_FIELDS = ["cpu", "memory", "state"]
+ 
++# metrics from /proc/cpuinfo are currently only available on Linux x86-ish platforms
++
++
++def is_cpuinfo_supported():
++    return platform.machine() in {'i386', 'i686', 'x86_64', 'amd64'}
++
++
++def filter_cpuinfo_fields(l):
++    return filter(lambda v: v not in SYSTEM_CORE_CPUINFO_FIELDS, l)
++
+ 
+ class Test(metricbeat.BaseTest):
+     """
+@@ -186,7 +198,13 @@ class Test(metricbeat.BaseTest):
+         for evt in output:
+             self.assert_fields_are_documented(evt)
+             core_stats = evt["system"]["core"]
+-            self.assert_fields_for_platform(SYSTEM_CORE, core_stats)
++            if sys.platform == metricbeat.P_LINUX and not is_cpuinfo_supported():
++                for f in SYSTEM_CORE_CPUINFO_FIELDS:
++                    core_stats.pop(f, None)
++                self.assertCountEqual(self.de_dot(
++                    filter_cpuinfo_fields(SYSTEM_CORE[metricbeat.P_LINUX])), core_stats)
++            else:
++                self.assert_fields_for_platform(SYSTEM_CORE, core_stats)
+ 
+     @unittest.skipUnless(re.match("(?i)win|linux|darwin|freebsd|openbsd", sys.platform), "os")
+     def test_core_with_cpu_ticks(self):
+@@ -209,7 +227,13 @@ class Test(metricbeat.BaseTest):
+         for evt in output:
+             self.assert_fields_are_documented(evt)
+             core_stats = evt["system"]["core"]
+-            self.assert_fields_for_platform(SYSTEM_CORE_ALL, core_stats)
++            if sys.platform == metricbeat.P_LINUX and not is_cpuinfo_supported():
++                for f in SYSTEM_CORE_CPUINFO_FIELDS:
++                    core_stats.pop(f, None)
++                self.assertCountEqual(self.de_dot(
++                    filter_cpuinfo_fields(SYSTEM_CORE_ALL[metricbeat.P_LINUX])), core_stats)
++            else:
++                self.assert_fields_for_platform(SYSTEM_CORE_ALL, core_stats)
+ 
+     @unittest.skipUnless(re.match("(?i)linux|darwin|freebsd|openbsd", sys.platform), "os")
+     def test_load(self):
+diff --git a/x-pack/metricbeat/module/prometheus/collector/data.go b/x-pack/metricbeat/module/prometheus/collector/data.go
+index f05d599f7a..73288fc238 100644
+--- a/x-pack/metricbeat/module/prometheus/collector/data.go
++++ b/x-pack/metricbeat/module/prometheus/collector/data.go
+@@ -109,7 +109,7 @@ func (g *typedGenerator) GeneratePromEvents(mf *p.MetricFamily) []collector.Prom
+ 				events = append(events, collector.PromEvent{
+ 					Data: mapstr.M{
+ 						name + "_sum":   g.rateCounterFloat64(name, labels, summary.GetSampleSum()),
+-						name + "_count": g.rateCounterUint64(name, labels, summary.GetSampleCount()),
++						name + "_count": g.rateCounterUint64(name, labels, uint64(summary.GetSampleCount())),
+ 					},
+ 					Labels: labels,
+ 				})
+diff --git a/x-pack/metricbeat/module/prometheus/collector/histogram.go b/x-pack/metricbeat/module/prometheus/collector/histogram.go
+index 375e62def9..3d70bd2f9b 100644
+--- a/x-pack/metricbeat/module/prometheus/collector/histogram.go
++++ b/x-pack/metricbeat/module/prometheus/collector/histogram.go
+@@ -18,8 +18,8 @@ import (
+ // ES histograms look like this:
+ //
+ //	"histogram_field" : {
+-//		   "values" : [0.1, 0.2, 0.3, 0.4, 0.5],
+-//		   "counts" : [3, 7, 23, 12, 6]
++//	   "values" : [0.1, 0.2, 0.3, 0.4, 0.5],
++//	   "counts" : [3, 7, 23, 12, 6]
+ //	}
+ //
+ // This code takes a Prometheus histogram and tries to accommodate it into an ES histogram by:
+@@ -36,7 +36,7 @@ func PromHistogramToES(cc CounterCache, name string, labels mapstr.M, histogram
+ 	var sumCount, prevCount uint64
+ 	for _, bucket := range histogram.GetBucket() {
+ 		// Ignore non-numbers
+-		if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++		if math.IsNaN(bucket.GetCumulativeCount()) && math.IsInf(bucket.GetCumulativeCount(), 0) {
+ 			continue
+ 		}
+ 
+@@ -51,14 +51,14 @@ func PromHistogramToES(cc CounterCache, name string, labels mapstr.M, histogram
+ 		}
+ 
+ 		// Take count for this period (rate)
+-		countRate, found := cc.RateUint64(name+labels.String()+fmt.Sprintf("%f", bucket.GetUpperBound()), bucket.GetCumulativeCount())
++		countRate, found := cc.RateUint64(name+labels.String()+fmt.Sprintf("%f", bucket.GetUpperBound()), uint64(bucket.GetCumulativeCount()))
+ 
+ 		switch {
+ 		case !found:
+ 			// This is a new bucket, consider it zero by now, but still increase the
+ 			// sum to don't deviate following buckets that are not new.
+ 			counts = append(counts, 0)
+-			sumCount += bucket.GetCumulativeCount() - prevCount
++			sumCount += uint64(bucket.GetCumulativeCount()) - prevCount
+ 		case countRate < sumCount:
+ 			// This should never happen, this means something is wrong in the
+ 			// prometheus response. Handle it to avoid overflowing when deaccumulating.
+@@ -68,7 +68,7 @@ func PromHistogramToES(cc CounterCache, name string, labels mapstr.M, histogram
+ 			counts = append(counts, countRate-sumCount)
+ 			sumCount = countRate
+ 		}
+-		prevCount = bucket.GetCumulativeCount()
++		prevCount = uint64(bucket.GetCumulativeCount())
+ 	}
+ 
+ 	res := mapstr.M{
+diff --git a/x-pack/metricbeat/module/prometheus/remote_write/data.go b/x-pack/metricbeat/module/prometheus/remote_write/data.go
+index a1bdbd58c2..3f44093f30 100644
+--- a/x-pack/metricbeat/module/prometheus/remote_write/data.go
++++ b/x-pack/metricbeat/module/prometheus/remote_write/data.go
+@@ -165,7 +165,7 @@ func (g remoteWriteTypedGenerator) GenerateEvents(metrics model.Samples) map[str
+ 			if err != nil {
+ 				continue
+ 			}
+-			v := uint64(val)
++			v := val
+ 			b := &p.Bucket{
+ 				CumulativeCount: &v,
+ 				UpperBound:      &bucket,
