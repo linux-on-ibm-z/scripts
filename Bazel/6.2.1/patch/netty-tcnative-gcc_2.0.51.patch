@@ -1,0 +1,22 @@
+diff --git a/boringssl-static/pom.xml b/boringssl-static/pom.xml
+index f6cf318..0c34c8f 100644
+--- a/boringssl-static/pom.xml
++++ b/boringssl-static/pom.xml
+@@ -184,6 +184,17 @@
+                           <arg value="${boringsslCommitSha}" />
+                         </exec>
+ 
++                        <exec executable="curl" failonerror="true" dir="${boringsslSourceDir}" resolveexecutable="true">
++                          <arg value="-sSL" />
++                          <arg value="-o" />
++                          <arg value="gcc_patch.diff" />
++                          <arg value="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/BoringSSL/Jan2021/patch/gcc_patch.diff" />
++                        </exec>
++                        <exec executable="git" failonerror="true" dir="${boringsslSourceDir}" resolveexecutable="true">
++                          <arg value="apply" />
++                          <arg value="gcc_patch.diff" />
++                        </exec>
++
+                         <mkdir dir="${boringsslHome}" />
+ 
+                         <if>
