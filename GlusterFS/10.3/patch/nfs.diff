@@ -23,3 +23,4 @@ index b597871f27..b252f56746 100644
 +    int svc_running;
  #endif
  };
+ 
