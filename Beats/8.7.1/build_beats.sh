@@ -101,7 +101,11 @@ function configureAndInstallPython() {
     elif ! [[ "${DISTRO}" == "rhel-8."* ]]; then
         sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.9 10
     fi
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 10
+    if [[ "${DISTRO}" == "rhel-9."* ]]; then
+        sudo update-alternatives --install /usr/local/bin/python3 python3 /usr/bin/python3.9 10
+    else
+        sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 10
+    fi
     sudo update-alternatives --display python3
     python3 -V
 }
