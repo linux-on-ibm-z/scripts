@@ -307,7 +307,7 @@ if [[ "$USEAS" == "server" ]]; then
         "sles-12.5")
                 printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-                sudo zypper install -y gcc-c++ tar unzip libopenssl-devel make git wget zip gzip gawk |& tee -a "$LOG_FILE"
+                sudo zypper install -y gcc-c++ tar unzip libopenssl-devel make git wget zip gzip gawk libnghttp2-devel |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
