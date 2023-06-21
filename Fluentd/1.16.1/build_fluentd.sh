@@ -12,7 +12,7 @@ PACKAGE_NAME="fluentd"
 PACKAGE_VERSION="1.16.1"
 CURDIR="$(pwd)"
 
-RUBY_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Ruby/3.2.1/build_ruby.sh"
+RUBY_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Ruby/3.2.2/build_ruby.sh"
 
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
