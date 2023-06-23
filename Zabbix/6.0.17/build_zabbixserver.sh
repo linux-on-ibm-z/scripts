@@ -234,6 +234,9 @@ function configureAndInstall() {
     sudo cp -rf * /var/www/html/${URL_NAME}/
     sudo chown -R www-data:www-data /var/www/html/zabbix/conf
     sudo service apache2 start
+    sudo service mysql stop
+    sudo usermod -d /var/lib/mysql/ mysql
+    sudo service mysql start
   fi
 
   if [[ "$ID" == "rhel" ]]; then
@@ -274,6 +277,10 @@ function configureAndInstall() {
   fi
 
   printf -- 'Populate database with initial load... \n'
+  if [[ "$ID" == "ubuntu" ]]; then
+    printf -- 'Set MySQL setting... \n'
+    sudo mysql -e "SET GLOBAL log_bin_trust_function_creators = 1"
+  fi
   cd ${BUILD_DIR}/${URL_NAME}/database/mysql
   mysql -uzabbix zabbix < schema.sql
   mysql -uzabbix zabbix < images.sql
