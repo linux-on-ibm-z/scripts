@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2022.
+# © Copyright IBM Corporation 2022, 2023.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -178,7 +178,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"sles-12.5" | "sles-15.3" | "sles-15.4")
+"sles-12.5" | "sles-15.3" | "sles-15.4" | "sles-15.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper  install -y  tar wget gcc gzip |& tee -a "${LOG_FILE}" 
