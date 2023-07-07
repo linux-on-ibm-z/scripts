@@ -1,0 +1,392 @@
+diff --git a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/Jdk.java b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/Jdk.java
+index f66bcb51ea5..dbf4883a33f 100644
+--- a/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/Jdk.java
++++ b/build-tools-internal/src/main/java/org/elasticsearch/gradle/internal/Jdk.java
+@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
+
+ public class Jdk implements Buildable, Iterable<File> {
+
+-    private static final List<String> ALLOWED_ARCHITECTURES = List.of("aarch64", "x64");
++    private static final List<String> ALLOWED_ARCHITECTURES = List.of("aarch64", "s390x", "x64");
+     private static final List<String> ALLOWED_VENDORS = List.of("adoptium", "openjdk", "zulu");
+     private static final List<String> ALLOWED_PLATFORMS = List.of("darwin", "linux", "windows", "mac");
+     private static final Pattern VERSION_PATTERN = Pattern.compile(
+diff --git a/build-tools-internal/version.properties b/build-tools-internal/version.properties
+index 3de0b3e1d5f..8f94aaa63fc 100644
+--- a/build-tools-internal/version.properties
++++ b/build-tools-internal/version.properties
+@@ -1,8 +1,8 @@
+ elasticsearch     = 8.8.1
+ lucene            = 9.6.0
+
+-bundled_jdk_vendor = openjdk
+-bundled_jdk = 20.0.1+9@b4887098932d415489976708ad6d1a4b
++bundled_jdk_vendor = adoptium
++bundled_jdk = 17.0.7+7
+
+ # optional dependencies
+ spatial4j         = 0.7
+diff --git a/build-tools/src/main/java/org/elasticsearch/gradle/Architecture.java b/build-tools/src/main/java/org/elasticsearch/gradle/Architecture.java
+index 34874b62d94..90d91235829 100644
+--- a/build-tools/src/main/java/org/elasticsearch/gradle/Architecture.java
++++ b/build-tools/src/main/java/org/elasticsearch/gradle/Architecture.java
+@@ -11,7 +11,8 @@ package org.elasticsearch.gradle;
+ public enum Architecture {
+
+     X64("x86_64", "linux/amd64"),
+-    AARCH64("aarch64", "linux/arm64");
++    AARCH64("aarch64", "linux/arm64"),
++    S390X("s390x", "linux/s390x");
+
+     public final String classifier;
+     public final String dockerPlatform;
+@@ -26,6 +27,7 @@ public enum Architecture {
+         return switch (architecture) {
+             case "amd64", "x86_64" -> X64;
+             case "aarch64" -> AARCH64;
++            case "s390x" -> S390X;
+             default -> throw new IllegalArgumentException("can not determine architecture from [" + architecture + "]");
+         };
+     }
+diff --git a/distribution/archives/build.gradle b/distribution/archives/build.gradle
+index dcd9fbf7330..6e266695f76 100644
+--- a/distribution/archives/build.gradle
++++ b/distribution/archives/build.gradle
+@@ -97,6 +97,13 @@ distribution_archives {
+     }
+   }
+
++  linuxS390xTar {
++    archiveClassifier = 'linux-s390x'
++    content {
++      archiveFiles(modulesFiles('linux-s390x'), 'tar', 'linux', 's390x', false)
++    }
++  }
++
+   linuxTar {
+     archiveClassifier = 'linux-x86_64'
+     content {
+diff --git a/distribution/build.gradle b/distribution/build.gradle
+index 2a7ad283a81..448617d3f04 100644
+--- a/distribution/build.gradle
++++ b/distribution/build.gradle
+@@ -233,7 +233,7 @@ configure(subprojects.findAll { ['archives', 'packages'].contains(it.name) }) {
+   // Setup all required JDKs
+   project.jdks {
+     ['darwin', 'windows', 'linux'].each { platform ->
+-      (platform == 'linux' || platform == 'darwin' ? ['x64', 'aarch64'] : ['x64']).each { architecture ->
++      (platform == 'linux' || platform == 'darwin' ? ['x64', 'aarch64', 's390x'] : ['x64']).each { architecture ->
+         "bundled_${platform}_${architecture}" {
+           it.platform = platform
+           it.version = VersionProperties.bundledJdkVersion
+@@ -331,7 +331,7 @@ configure(subprojects.findAll { ['archives', 'packages'].contains(it.name) }) {
+             it.mode = 0644
+           }
+         }
+-        List excludePlatforms = ['linux-x86_64', 'linux-aarch64', 'windows-x86_64', 'darwin-x86_64', 'darwin-aarch64']
++        List excludePlatforms = ['linux-x86_64', 'linux-aarch64', 'linux-s390x', 'windows-x86_64', 'darwin-x86_64', 'darwin-aarch64']
+         if (platform != null) {
+           excludePlatforms.remove(excludePlatforms.indexOf(platform))
+         } else {
+@@ -586,10 +586,12 @@ subprojects {
+  'archives:darwin-tar',
+  'archives:darwin-aarch64-tar',
+  'archives:linux-aarch64-tar',
++ 'archives:linux-s390x-tar',
+  'archives:linux-tar',
+  'archives:integ-test-zip',
+  'packages:rpm', 'packages:deb',
+  'packages:aarch64-rpm', 'packages:aarch64-deb',
++ 'packages:s390x-rpm', 'packages:s390x-deb',
+ ].forEach { subName ->
+   Project subproject = project("${project.path}:${subName}")
+   Configuration configuration = configurations.create(subproject.name)
+diff --git a/distribution/docker/build.gradle b/distribution/docker/build.gradle
+index b61a6b818dc..59d6eb6ee65 100644
+--- a/distribution/docker/build.gradle
++++ b/distribution/docker/build.gradle
+@@ -71,6 +71,7 @@ testFixtures.useFixture()
+ configurations {
+   aarch64DockerSource
+   dockerSource
++  s390xDockerSource
+   log4jConfig
+   tini
+   allPlugins
+@@ -85,6 +86,7 @@ String tiniArch = Architecture.current() == Architecture.AARCH64 ? 'arm64' : 'am
+ dependencies {
+   aarch64DockerSource project(path: ":distribution:archives:linux-aarch64-tar", configuration: 'default')
+   dockerSource project(path: ":distribution:archives:linux-tar", configuration: 'default')
++  s390xDockerSource project(path: ":distribution:archives:linux-s390x-tar", configuration: 'default')
+   log4jConfig project(path: ":distribution", configuration: 'log4jConfig')
+   tini "krallin:tini:0.19.0:${tiniArch}"
+   allPlugins project(path: ':plugins', configuration: 'allPlugins')
+@@ -136,7 +138,7 @@ private static String toCamel(String input) {
+
+ private static String taskName(String prefix, Architecture architecture, DockerBase base, String suffix) {
+   return prefix +
+-    (architecture == Architecture.AARCH64 ? 'Aarch64' : '') +
++    (architecture == Architecture.AARCH64 ? 'Aarch64' : architecture == Architecture.S390X ? 's390x' : '') +
+     (base == DockerBase.DEFAULT ? "" : toCamel(base.name())) +
+     suffix
+ }
+@@ -195,7 +197,7 @@ tasks.register("copyNodeKeyMaterial", Sync) {
+
+ elasticsearch_distributions {
+   Architecture.values().each { eachArchitecture ->
+-    "docker_${eachArchitecture == Architecture.AARCH64 ? '_aarch64' : ''}" {
++    "docker_${eachArchitecture == Architecture.AARCH64 ? '_aarch64' : eachArchitecture == Architecture.S390X ? '_s390x' : ''}" {
+       architecture = eachArchitecture
+       type = InternalElasticsearchDistributionTypes.DOCKER
+       version = VersionProperties.getElasticsearch()
+@@ -251,7 +253,7 @@ tasks.named("composeUp").configure {
+
+ void addBuildDockerContextTask(Architecture architecture, DockerBase base) {
+   String configDirectory = base == DockerBase.IRON_BANK ? 'scripts' : 'config'
+-  String arch = architecture == Architecture.AARCH64 ? '-aarch64' : ''
++  String arch = architecture == Architecture.AARCH64 ? '-aarch64' : architecture == Architecture.S390X ? '-s390x' : ''
+
+   final TaskProvider<Tar> buildDockerContextTask =
+     tasks.register(taskName('build', architecture, base, 'DockerContext'), Tar) {
+@@ -297,7 +299,7 @@ void addTransformDockerContextTask(Architecture architecture, DockerBase base) {
+     TaskProvider<Tar> buildContextTask = tasks.named(taskName("build", architecture, base, "DockerContext"))
+     dependsOn(buildContextTask)
+
+-    String arch = architecture == Architecture.AARCH64 ? '-aarch64' : ''
++    String arch = architecture == Architecture.AARCH64 ? '-aarch64' : architecture == Architecture.S390X ? '-s390x' : ''
+     String archiveName = "elasticsearch${base.suffix}-${VersionProperties.elasticsearch}-docker-build-context${arch}"
+     String distributionName = "elasticsearch-${VersionProperties.elasticsearch}-linux-${architecture.classifier}.tar.gz"
+
+@@ -315,6 +317,8 @@ void addTransformDockerContextTask(Architecture architecture, DockerBase base) {
+     // Since we replaced the remote URL in the Dockerfile, copy in the required file
+     if (architecture == Architecture.AARCH64) {
+       from configurations.aarch64DockerSource
++    } else if (architecture == Architecture.S390X) {
++      from configurations.s390xDockerSource
+     } else {
+       from configurations.dockerSource
+     }
+@@ -413,7 +417,7 @@ void addBuildDockerImageTask(Architecture architecture, DockerBase base) {
+
+ void addBuildEssDockerImageTask(Architecture architecture) {
+   DockerBase base = DockerBase.CLOUD_ESS
+-  String arch = architecture == Architecture.AARCH64 ? '-aarch64' : ''
++  String arch = architecture == Architecture.AARCH64 ? '-aarch64' : architecture == Architecture.S390X ? '-s390x' : ''
+   String contextDir = "${project.buildDir}/docker-context/elasticsearch${base.suffix}-${VersionProperties.elasticsearch}-docker-build-context${arch}"
+
+   final TaskProvider<Sync> buildContextTask =
+@@ -485,7 +489,7 @@ subprojects { Project subProject ->
+   if (subProject.name.endsWith('-export')) {
+     apply plugin: 'distribution'
+
+-    final Architecture architecture = subProject.name.contains('aarch64-') ? Architecture.AARCH64 : Architecture.X64
++    final Architecture architecture = subProject.name.contains('aarch64-') ? Architecture.AARCH64 : subProject.name.contains('s390x-') ? Architecture.S390X : Architecture.X64
+     DockerBase base = DockerBase.DEFAULT
+     if (subProject.name.contains('ubi-')) {
+       base = DockerBase.UBI
+@@ -497,7 +501,7 @@ subprojects { Project subProject ->
+       base = DockerBase.CLOUD
+     }
+
+-    final String arch = architecture == Architecture.AARCH64 ? '-aarch64' : ''
++    final String arch = architecture == Architecture.AARCH64 ? '-aarch64' : architecture == Architecture.S390X ? '-s390x' : ''
+     final String extension = base == DockerBase.UBI ? 'ubi.tar' :
+       (base == DockerBase.IRON_BANK ? 'ironbank.tar' :
+         (base == DockerBase.CLOUD ? 'cloud.tar' :
+diff --git a/distribution/docker/src/docker/Dockerfile b/distribution/docker/src/docker/Dockerfile
+index a6ecfdaf417..4adf71aeff6 100644
+--- a/distribution/docker/src/docker/Dockerfile
++++ b/distribution/docker/src/docker/Dockerfile
+@@ -58,6 +58,7 @@ RUN set -eux ; \\
+     case "\$(arch)" in \\
+         aarch64) tini_bin='tini-arm64' ;; \\
+         x86_64)  tini_bin='tini-amd64' ;; \\
++        s390x)  tini_bin='tini-s390x' ;; \\
+         *) echo >&2 ; echo >&2 "Unsupported architecture \$(arch)" ; echo >&2 ; exit 1 ;; \\
+     esac ; \\
+     curl --retry 10 -S -L -O https://github.com/krallin/tini/releases/download/v0.19.0/\${tini_bin} ; \\
+@@ -76,7 +77,7 @@ WORKDIR /usr/share/elasticsearch
+   // Iron Bank always copies the local artifact. It uses `arch` from the
+   // template context variables.
+ %>
+-COPY elasticsearch-${version}-linux-${arch}.tar.gz /tmp/elasticsearch.tar.gz
+++COPY ../../../archives/linux-s390x-tar/build/distributions/elasticsearch-8.8.1-SNAPSHOT-linux-s390x.tar.gz /tmp/elasticsearch.tar.gz
+ <% } else {
+   // Fetch the appropriate Elasticsearch distribution for this architecture.
+   // Keep this command on one line - it is replaced with a `COPY` during local builds.
+@@ -108,7 +109,7 @@ RUN sed -i -e 's/ES_DISTRIBUTION_TYPE=tar/ES_DISTRIBUTION_TYPE=docker/' bin/elas
+     mv config/log4j2.docker.properties config/log4j2.properties && \\
+     find . -type d -exec chmod 0555 {} + && \\
+     find . -type f -exec chmod 0444 {} + && \\
+-    chmod 0555 bin/* jdk/bin/* jdk/lib/jspawnhelper modules/x-pack-ml/platform/linux-*/bin/* && \\
++    chmod 0555 bin/* jdk/bin/* jdk/lib/jspawnhelper && \\
+     chmod 0775 bin config config/jvm.options.d data logs plugins && \\
+     find config -type f -exec chmod 0664 {} +
+
+@@ -184,7 +185,7 @@ RUN <%= retry.loop(
+ RUN groupadd -g 1000 elasticsearch && \\
+     adduser --uid 1000 --gid 1000 --home /usr/share/elasticsearch elasticsearch && \\
+     adduser elasticsearch root && \\
+-    chown -R 0:0 /usr/share/elasticsearch
++    chown -R 1000:0 /usr/share/elasticsearch
+ <% } else { %>
+ RUN groupadd -g 1000 elasticsearch && \\
+     adduser -u 1000 -g 1000 -G 0 -d /usr/share/elasticsearch elasticsearch && \\
+@@ -195,7 +196,7 @@ ENV ELASTIC_CONTAINER true
+
+ WORKDIR /usr/share/elasticsearch
+
+-COPY --from=builder --chown=0:0 /usr/share/elasticsearch /usr/share/elasticsearch
++COPY --from=builder --chown=1000:0 /usr/share/elasticsearch /usr/share/elasticsearch
+ COPY --from=builder --chown=0:0 /bin/tini /bin/tini
+
+ <% if (docker_base == 'cloud') { %>
+@@ -221,6 +222,7 @@ RUN chmod g=u /etc/passwd && \\
+     chmod 0555 /usr/local/bin/docker-entrypoint.sh && \\
+     find / -xdev -perm -4000 -exec chmod ug-s {} + && \\
+     chmod 0775 /usr/share/elasticsearch && \\
++    chown -R 1000:0 /usr/share/elasticsearch && \\
+     chown elasticsearch bin config config/jvm.options.d data logs plugins
+
+ <% if (docker_base == 'default' || docker_base == 'cloud') { %>
+diff --git a/distribution/docker/docker-s390x-export/build.gradle b/distribution/docker/docker-s390x-export/build.gradle
+new file mode 100644
+index 00000000000..4f7400c7eaa
+--- /dev/null
++++ b/distribution/docker/docker-s390x-export/build.gradle
+@@ -0,0 +1,2 @@
++// This file is intentionally blank. All configuration of the
++// distribution is done in the parent project.
+\ No newline at end of file
+diff --git a/distribution/docker/src/docker/config/elasticsearch.yml b/distribution/docker/src/docker/config/elasticsearch.yml
+index 50b154702b9..599e19cbf4b 100644
+--- a/distribution/docker/src/docker/config/elasticsearch.yml
++++ b/distribution/docker/src/docker/config/elasticsearch.yml
+@@ -1,2 +1,3 @@
+ cluster.name: "docker-cluster"
+ network.host: 0.0.0.0
++xpack.ml.enabled: false
+\ No newline at end of file
+diff --git a/distribution/packages/build.gradle b/distribution/packages/build.gradle
+index c5c65282726..9c6952baa61 100644
+--- a/distribution/packages/build.gradle
++++ b/distribution/packages/build.gradle
+@@ -91,6 +91,8 @@ def commonPackageConfig(String type, String architecture) {
+     if (type == 'deb') {
+       if (architecture == 'x64') {
+         arch('amd64')
++      } else if (architecture == 's390x') {
++        arch('s390x')
+       } else {
+         assert architecture == 'aarch64' : architecture
+         arch('arm64')
+@@ -99,13 +101,15 @@ def commonPackageConfig(String type, String architecture) {
+       assert type == 'rpm' : type
+       if (architecture == 'x64') {
+         arch('X86_64')
++      } else if (architecture == 's390x') {
++        arch('s390x')
+       } else {
+         assert architecture == 'aarch64' : architecture
+         arch('aarch64')
+       }
+     }
+     // Follow elasticsearch's file naming convention
+-    String prefix = "${architecture == 'aarch64' ? 'aarch64-' : ''}${type}"
++    String prefix = "${architecture == 'aarch64' ? 'aarch64-' : 's390x' ? 's390x-' : ''}${type}"
+     destinationDirectory = file("${prefix}/build/distributions")
+     archiveFileName.value(project.provider({ "${packageName}-${project.version}-${archString}.${type}" } ))
+     String packagingFiles = "build/packaging/${type}"
+@@ -133,7 +137,7 @@ def commonPackageConfig(String type, String architecture) {
+         with libFiles
+       }
+       into('modules') {
+-        with modulesFiles('linux-' + ((architecture == 'x64') ? 'x86_64' : architecture))
++        with modulesFiles('linux-' + ((architecture == 'x64') ? 'x86_64' : (architecture == 's390x') ? 's390x' : architecture))
+       }
+       into('jdk') {
+         with jdkFiles(project, 'linux', architecture)
+@@ -316,6 +320,10 @@ tasks.register('buildAarch64Deb', Deb) {
+   configure(commonDebConfig('aarch64'))
+ }
+
++tasks.register('buildS390xDeb', Deb) {
++  configure(commonDebConfig('s390x'))
++}
++
+ tasks.register('buildDeb', Deb) {
+   configure(commonDebConfig('x64'))
+ }
+@@ -349,6 +357,10 @@ tasks.register('buildAarch64Rpm', Rpm) {
+   configure(commonRpmConfig('aarch64'))
+ }
+
++tasks.register('buildS390xRpm', Rpm) {
++  configure(commonRpmConfig('s390x'))
++}
++
+ tasks.register('buildRpm', Rpm) {
+   configure(commonRpmConfig('x64'))
+ }
+diff --git a/gradle/verification-metadata.xml b/gradle/verification-metadata.xml
+index cae74a47b42..1594e6a8a79 100644
+--- a/gradle/verification-metadata.xml
++++ b/gradle/verification-metadata.xml
+@@ -36,6 +36,11 @@
+             <sha256 value="d083479ca927dce2f586f779373d895e8bf668c632505740279390384edf03fa" origin="Generated by Gradle"/>
+          </artifact>
+       </component>
++      <component group="adoptium_17" name="linux" version="17.0.7">
++         <artifact name="linux-17.0.7-s390x.tar.gz">
++            <sha256 value="2d75540ae922d0c4162729267a8c741e2414881a468fd2ce4140b4069ba47ca9" origin="Generated by Gradle"/>
++         </artifact>
++      </component>
+       <component group="adoptium_8" name="linux" version="8u302">
+          <artifact name="linux-8u302-aarch64.tar.gz">
+             <sha256 value="f287cdc2a688c2df247ea0d8bfe2863645b73848e4e5c35b02a8a3d2d6b69551" origin="Generated by Gradle"/>
+diff --git a/server/src/main/java/org/elasticsearch/bootstrap/SystemCallFilter.java b/server/src/main/java/org/elasticsearch/bootstrap/SystemCallFilter.java
+index 0ab855d1d5f..efb2efb49f6 100644
+--- a/server/src/main/java/org/elasticsearch/bootstrap/SystemCallFilter.java
++++ b/server/src/main/java/org/elasticsearch/bootstrap/SystemCallFilter.java
+@@ -216,7 +216,9 @@ final class SystemCallFilter {
+             "amd64",
+             new Arch(0xC000003E, 0x3FFFFFFF, 57, 58, 59, 322, 317),
+             "aarch64",
+-            new Arch(0xC00000B7, 0xFFFFFFFF, 1079, 1071, 221, 281, 277)
++            new Arch(0xC00000B7, 0xFFFFFFFF, 1079, 1071, 221, 281, 277),
++            "s390x",
++            new Arch(0x80000016, 0x3FFFFFFF, 2, 190, 11, 354, 348)
+         );
+     }
+
+diff --git a/settings.gradle b/settings.gradle
+index df9beda6f00..c180cb3a66e 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -40,6 +40,7 @@ List projects = [
+   'distribution:archives:darwin-tar',
+   'distribution:archives:darwin-aarch64-tar',
+   'distribution:archives:linux-aarch64-tar',
++  'distribution:archives:linux-s390x-tar',
+   'distribution:archives:linux-tar',
+   'distribution:docker',
+   'distribution:docker:cloud-docker-export',
+@@ -47,14 +48,18 @@ List projects = [
+   'distribution:docker:cloud-ess-docker-export',
+   'distribution:docker:cloud-ess-docker-aarch64-export',
+   'distribution:docker:docker-aarch64-export',
++  'distribution:docker:docker-s390x-export',
+   'distribution:docker:docker-export',
+   'distribution:docker:ironbank-docker-aarch64-export',
+   'distribution:docker:ironbank-docker-export',
+   'distribution:docker:ubi-docker-aarch64-export',
++  'distribution:docker:ubi-docker-s390x-export',
+   'distribution:docker:ubi-docker-export',
+   'distribution:packages:aarch64-deb',
++  'distribution:packages:s390x-deb',
+   'distribution:packages:deb',
+   'distribution:packages:aarch64-rpm',
++  'distribution:packages:s390x-rpm',
+   'distribution:packages:rpm',
+   'distribution:bwc:bugfix',
+   'distribution:bwc:maintenance',
