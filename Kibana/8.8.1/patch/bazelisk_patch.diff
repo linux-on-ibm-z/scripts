@@ -1,0 +1,38 @@
+diff --git a/BUILD b/BUILD
+index 394ed85..e3eca9f 100644
+--- a/BUILD
++++ b/BUILD
+@@ -127,6 +127,20 @@ go_binary(
+     visibility = ["//visibility:public"],
+ )
+
++go_binary(
++    name = "bazelisk-linux-s390x",
++    out = "bazelisk-linux_s390x",
++    embed = [":go_default_library"],
++    gc_linkopts = [
++        "-s",
++        "-w",
++    ],
++    goarch = "s390x",
++    goos = "linux",
++    pure = "on",
++    visibility = ["//visibility:public"],
++)
++
+ go_binary(
+     name = "bazelisk-linux-arm64",
+     out = "bazelisk-linux_arm64",
+diff --git a/platforms/platforms.go b/platforms/platforms.go
+index 7a7f341..32e232f 100644
+--- a/platforms/platforms.go
++++ b/platforms/platforms.go
+@@ -57,6 +57,8 @@ func DetermineBazelFilename(version string, includeSuffix bool) (string, error)
+                machineName = "x86_64"
+        case "arm64":
+                machineName = "arm64"
++       case "s390x":
++               machineName = "s390x"
+        default:
+                return "", fmt.Errorf("unsupported machine architecture \"%s\", must be arm64 or x86_64", runtime.GOARCH)
+        }

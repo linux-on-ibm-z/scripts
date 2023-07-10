@@ -1,0 +1,10 @@
+--- /usr/local/lib/nodejs/node-v16.18.1-linux-s390x/lib/node_modules/@bazel/bazelisk/bazelisk.js        2023-01-09 10:29:36.735047617 +0530
++++ /usr/local/lib/nodejs/node-v16.18.1-linux-s390x/lib/node_modules/@bazel/bazelisk/bazelisk.js        2023-01-09 10:27:35.585047617 +0530
+@@ -24,6 +24,7 @@
+   const arch = {
+     'arm64': 'arm64',
+     'x64': 'amd64',
++    's390x': 's390x',
+   }[os.arch()];
+   // Filter the platform based on the platforms that are build/included.
+   const platform = {
