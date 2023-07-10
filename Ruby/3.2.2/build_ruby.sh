@@ -150,7 +150,7 @@ case "$DISTRO" in
 	source /opt/rh/devtoolset-7/enable
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
-"rhel-8.6" | "rhel-8.7" | "rhel-9.0" | "rhel-9.1")
+"rhel-8.6" | "rhel-8.7" | "rhel-8.8" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel readline-devel gdbm-devel gcc make wget tar libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
@@ -162,7 +162,7 @@ case "$DISTRO" in
 	sudo ln -sf /usr/bin/gcc /usr/bin/cc
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
-"sles-15.4")
+"sles-15.4" | "sles-15.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo zypper install -y bison flex libopenssl-devel readline-devel gdbm-devel gcc make wget tar gawk gzip libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
