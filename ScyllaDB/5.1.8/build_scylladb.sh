@@ -582,7 +582,7 @@ buildClang() {
   mkdir build
   cd build
 
-  if [[ $DISTRO = "rhel-8.6" ]]; then
+  if [[ $DISTRO = "rhel-8.6" || $DISTRO = "rhel-8.8" ]]; then
     cmake -DLLVM_ENABLE_PROJECTS=clang  -DCMAKE_BUILD_TYPE="Release" -G "Unix Makefiles" -DGCC_INSTALL_PREFIX="/opt/rh/gcc-toolset-11/root/" ../llvm
   else
     cmake -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_C_COMPILER="${PREFIX}/bin/gcc" -DCMAKE_CXX_COMPILER="${PREFIX}/bin/g++" \
@@ -957,14 +957,12 @@ case "$DISTRO" in
 ;;
 
 #----------------------------------------------------------
-"rhel-8.6" | "rhel-8.7")
+"rhel-8.6" | "rhel-8.8")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   sudo dnf install -y  https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 
-  gcc_toolset="gcc-toolset-12 gcc-toolset-12-libatomic-devel" #RHEL 8.7
-
-  if [ $DISTRO = "rhel-8.6" ]; then
+  if [[ $DISTRO = "rhel-8.6" || $DISTRO = "rhel-8.8" ]]; then
   gcc_toolset="gcc-toolset-11 gcc-toolset-11-libatomic-devel"
   fi
   
@@ -980,13 +978,9 @@ case "$DISTRO" in
     jsoncpp-devel protobuf rapidjson-devel stow yaml-cpp yaml-cpp-devel ragel langpacks-en \
     glibc-all-langpacks |& tee -a "$LOG_FILE"
 
-  #xxhash is not available in RHEL 8.6
-  if [ $DISTRO = "rhel-8.7" ]; then
-    sudo yum install -y clang xxhash xxhash-devel |& tee -a "$LOG_FILE"
-  else
+  #xxhash is not available in RHEL 8.x
     buildXxHash |& tee -a "$LOG_FILE"
-  fi
-
+    
   installRust
 
   # Make sure it's Python 3.8
@@ -998,7 +992,7 @@ case "$DISTRO" in
 
   buildBinutils |& tee -a "$LOG_FILE"
 
-  if [ $DISTRO = "rhel-8.6" ]; then
+  if [[ $DISTRO = "rhel-8.6" || $DISTRO = "rhel-8.8" ]]; then
     # Build clang 14
     buildClang |& tee -a "$LOG_FILE"
     clangbuild=${SOURCE_ROOT}/llvm-project-llvmorg-${CLANG_VERSION}/build
