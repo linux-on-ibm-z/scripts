@@ -1,0 +1,19 @@
+diff --git a/repository/src/main/java/org/alfresco/repo/jscript/AlfrescoScriptThreadMxBeanWrapper.java b/repository/src/main/java/org/alfresco/repo/jscript/AlfrescoScriptThreadMxBeanWrapper.java
+index fc2570269b..6746611416 100644
+--- a/repository/src/main/java/org/alfresco/repo/jscript/AlfrescoScriptThreadMxBeanWrapper.java
++++ b/repository/src/main/java/org/alfresco/repo/jscript/AlfrescoScriptThreadMxBeanWrapper.java
+@@ -61,8 +61,12 @@ public class AlfrescoScriptThreadMxBeanWrapper
+             Class<?> clazz = Class.forName(THREAD_MX_BEAN_SUN);
+             if (clazz != null)
+             {
+-                this.threadAllocatedMemorySupported = true;
+-                this.threadMXBean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
++                com.sun.management.ThreadMXBean threadMxBeanSun = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
++                if (threadMxBeanSun.isThreadAllocatedMemorySupported())
++                {
++                    this.threadAllocatedMemorySupported = true;
++                    this.threadMXBean = threadMxBeanSun;
++                }
+             }
+         }
+         catch (Exception e)
