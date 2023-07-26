@@ -25,3 +25,4 @@ index b345c057a..6aaf051dd 100644
 +
  include(CheckSymbolExists)
  check_symbol_exists(strlcpy "string.h" HAVE_STRLCPY)
+
