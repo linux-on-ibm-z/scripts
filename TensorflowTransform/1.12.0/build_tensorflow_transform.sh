@@ -142,7 +142,12 @@ function configureAndInstall() {
 
     printf -- 'Installing pyarrow... \n'
 
-    sudo pip3 install pyarrow==6.0.1
+    cd ../../python
+    sed -i "s/cython >= 0.29/cython >= 0.29, < 3/g" pyproject.toml
+    sed -i "s/cython>=0.29/cython>=0.29,<3/g" requirements-build.txt
+    sudo pip3 install -r requirements-build.txt
+    sudo python3 setup.py bdist_wheel
+    sudo pip3 install dist/*.whl
 
     printf -- 'pyarrow installed successfully \n'
     printf -- 'Apache Arrow installed successfully \n'
