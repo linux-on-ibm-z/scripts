@@ -232,15 +232,16 @@ printf -- "\nInstalling ninja . . . \n"
         git clone https://github.com/netty/netty-tcnative.git
         cd netty-tcnative
         git checkout netty-tcnative-parent-${PACKAGE_VERSION}.Final
-cd $SOURCE_ROOT/netty-tcnative
+        cd $SOURCE_ROOT/netty-tcnative
         printf -- "\nApplying  patch . . . \n"
         # Apply patch
+        
         sed -i '85,85 s/chromium-stable/patch-s390x-Jan2021/g' pom.xml
         sed -i '89,89 s/1ccef4908ce04adc6d246262846f3cd8a111fa44/d83fd4af80af244ac623b99d8152c2e53287b9ad/g' pom.xml
         sed -i '54,54 s/boringssl.googlesource.com/github.com\/linux-on-ibm-z/g' boringssl-static/pom.xml
         sed -i '55,55 s/chromium-stable/patch-s390x-Jan2021/g' boringssl-static/pom.xml
 
-        if [[ "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-22.10" || "${DISTRO}" == "ubuntu-23.04" || "${DISTRO}" == "rhel-9.0" || "${DISTRO}" == "rhel-9.1" ]]  ;then
+        if [[ "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-23.04" || "${DISTRO}" == "rhel-9.0" || "${DISTRO}" == "rhel-9.2" ]]  ;then
         curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff
         cp gcc_patch.diff /tmp/gcc_patch.diff
 
@@ -318,7 +319,7 @@ case "$DISTRO" in
         source /opt/rh/devtoolset-7/enable
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-"rhel-8.6" | "rhel-8.7" | "rhel-9.0" | "rhel-9.1")
+"rhel-8.6" | "rhel-8.8" | "rhel-9.0" | "rhel-9.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget maven golang  libstdc++-static.s390x |& tee -a "${LOG_FILE}"
@@ -331,12 +332,6 @@ case "$DISTRO" in
         sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
         sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
         sudo ln -sf /usr/bin/gcc /usr/bin/cc
-        configureAndInstall |& tee -a "${LOG_FILE}"
-        ;;
-"sles-15.4")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y awk ninja cmake perl libopenssl-devel apr-devel autoconf automake libtool make tar git wget gcc gcc-c++ gzip |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 *)
