@@ -1079,6 +1079,7 @@ case "$DISTRO" in
           traceback-with-variables scylla-api-client aiohttp tabulate pytest-asyncio
 
   buildZstd |& tee -a "$LOG_FILE"
+  buildAbseil |& tee -a "$LOG_FILE"
   
   configureAndInstall |& tee -a "$LOG_FILE"
 ;;
