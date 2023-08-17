@@ -1,0 +1,168 @@
+diff --git a/metricbeat/helper/openmetrics/metric.go b/metricbeat/helper/openmetrics/metric.go
+index e35ea5773a..20d7cdfdeb 100644
+--- a/metricbeat/helper/openmetrics/metric.go
++++ b/metricbeat/helper/openmetrics/metric.go
+@@ -280,7 +280,7 @@ func (m *commonMetric) GetValue(metric *prometheus.OpenMetric) interface{} {
+ 		buckets := histogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if bucket.GetCumulativeCount() != prometheus.FloatToUint(math.NaN()) && bucket.GetCumulativeCount() != prometheus.FloatToUint(math.Inf(0)) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+ 				bucketMap[key] = bucket.GetCumulativeCount()
+ 			}
+@@ -304,7 +304,7 @@ func (m *commonMetric) GetValue(metric *prometheus.OpenMetric) interface{} {
+ 		buckets := gaugehistogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if bucket.GetCumulativeCount() != prometheus.FloatToUint(math.NaN()) && bucket.GetCumulativeCount() != prometheus.FloatToUint(math.Inf(0)) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+ 				bucketMap[key] = bucket.GetCumulativeCount()
+ 			}
+diff --git a/metricbeat/helper/prometheus/metric.go b/metricbeat/helper/prometheus/metric.go
+index f5c9727093..8ff47f40c3 100644
+--- a/metricbeat/helper/prometheus/metric.go
++++ b/metricbeat/helper/prometheus/metric.go
+@@ -253,7 +253,7 @@ func (m *commonMetric) GetValue(metric *OpenMetric) interface{} {
+ 		buckets := histogram.GetBucket()
+ 		bucketMap := mapstr.M{}
+ 		for _, bucket := range buckets {
+-			if bucket.GetCumulativeCount() != uint64(math.NaN()) && bucket.GetCumulativeCount() != uint64(math.Inf(0)) {
++			if bucket.GetCumulativeCount() != FloatToUint(math.NaN())  && bucket.GetCumulativeCount() != FloatToUint(math.Inf(0)) {
+ 				key := strconv.FormatFloat(bucket.GetUpperBound(), 'f', -1, 64)
+ 				bucketMap[key] = bucket.GetCumulativeCount()
+ 			}
+diff --git a/metricbeat/helper/prometheus/textparse.go b/metricbeat/helper/prometheus/textparse.go
+index de6cc075c4..0a0ead5db0 100644
+--- a/metricbeat/helper/prometheus/textparse.go
++++ b/metricbeat/helper/prometheus/textparse.go
+@@ -45,6 +45,16 @@ type Gauge struct {
+ 	Value *float64
+ }
+ 
++func FloatToUint(f float64) uint64 {
++	result := uint64(f)
++	if math.IsInf(f, 0) || math.IsNaN(f) {
++		// To have a consistent behaviour across architectures, enfors x64 conversion behaviour.
++		result = 0x8000000000000000
++	}
++
++	return result
++}
++
+ func (m *Gauge) GetValue() float64 {
+ 	if m != nil && m.Value != nil {
+ 		return *m.Value
+@@ -357,7 +367,7 @@ func summaryMetricName(name string, s float64, qv string, lbls string, t *int64,
+ 
+ 	switch {
+ 	case isCount(name):
+-		u := uint64(s)
++		u := FloatToUint(s)
+ 		summary.SampleCount = &u
+ 		name = name[:len(name)-6]
+ 	case isSum(name):
+@@ -402,14 +412,14 @@ func histogramMetricName(name string, s float64, qv string, lbls string, t *int6
+ 
+ 	switch {
+ 	case isCount(name):
+-		u := uint64(s)
++		u := FloatToUint(s)
+ 		histogram.SampleCount = &u
+ 		name = name[:len(name)-6]
+ 	case isSum(name):
+ 		histogram.SampleSum = &s
+ 		name = name[:len(name)-4]
+ 	case isGaugeHistogram && isGCount(name):
+-		u := uint64(s)
++		u := FloatToUint(s)
+ 		histogram.SampleCount = &u
+ 		name = name[:len(name)-7]
+ 	case isGaugeHistogram && isGSum(name):
+@@ -423,7 +433,7 @@ func histogramMetricName(name string, s float64, qv string, lbls string, t *int6
+ 		if err != nil {
+ 			f = math.MaxUint64
+ 		}
+-		cnt := uint64(s)
++		cnt := FloatToUint(s)
+ 		bkt.UpperBound = &f
+ 		bkt.CumulativeCount = &cnt
+ 
+diff --git a/metricbeat/module/openmetrics/collector/data.go b/metricbeat/module/openmetrics/collector/data.go
+index e07d6f56b4..a8c9409749 100644
+--- a/metricbeat/module/openmetrics/collector/data.go
++++ b/metricbeat/module/openmetrics/collector/data.go
+@@ -40,6 +40,10 @@ type OpenMetricEvent struct {
+ 	Exemplars mapstr.M
+ }
+ 
++func FloatToUint(f float64) uint64 {
++        return p.FloatToUint(f)
++}
++
+ // LabelsHash returns a repeatable string that is unique for the set of labels in this event
+ func (p *OpenMetricEvent) LabelsHash() string {
+ 	return labelhash.LabelHash(p.Labels)
+@@ -240,7 +244,7 @@ func (p *openmetricEventGenerator) GenerateOpenMetricsEvents(mf *p.MetricFamily)
+ 			}
+ 
+ 			for _, bucket := range histogram.GetBucket() {
+-				if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++				if bucket.GetCumulativeCount() == FloatToUint(math.NaN()) || bucket.GetCumulativeCount() == FloatToUint(math.Inf(0)) {
+ 					continue
+ 				}
+ 
+diff --git a/metricbeat/module/prometheus/collector/data.go b/metricbeat/module/prometheus/collector/data.go
+index b9934bc226..1bb1c245f1 100644
+--- a/metricbeat/module/prometheus/collector/data.go
++++ b/metricbeat/module/prometheus/collector/data.go
+@@ -34,6 +34,10 @@ type PromEvent struct {
+ 	Labels mapstr.M
+ }
+ 
++func FloatToUint(f float64) uint64 {
++        return p.FloatToUint(f)
++}
++
+ // LabelsHash returns a repeatable string that is unique for the set of labels in this event
+ func (p *PromEvent) LabelsHash() string {
+ 	return labelhash.LabelHash(p.Labels)
+@@ -143,7 +147,7 @@ func (p *promEventGenerator) GeneratePromEvents(mf *p.MetricFamily) []PromEvent
+ 			}
+ 
+ 			for _, bucket := range histogram.GetBucket() {
+-				if bucket.GetCumulativeCount() == uint64(math.NaN()) || bucket.GetCumulativeCount() == uint64(math.Inf(0)) {
++				if bucket.GetCumulativeCount() == FloatToUint(math.NaN()) || bucket.GetCumulativeCount() == FloatToUint(math.Inf(0)) {
+ 					continue
+ 				}
+ 
+
+diff --git a/metricbeat/module/system/test_system.py b/metricbeat/module/system/test_system.py
+index 9bf15c8244..b99cb885af 100644
+--- a/metricbeat/module/system/test_system.py
++++ b/metricbeat/module/system/test_system.py
+@@ -8,6 +8,7 @@ import sys
+ import unittest
+ import six
+ import metricbeat  # pylint: disable=import-error
++import platform
+ 
+ SYSTEM_CPU = {
+     metricbeat.P_WIN: ["cores", "idle.pct",
+@@ -43,10 +44,11 @@ SYSTEM_CORE = {
+ }
+ SYSTEM_CORE[metricbeat.P_DARWIN] = SYSTEM_CORE[metricbeat.P_WIN] + ["nice.pct"]
+ SYSTEM_CORE[metricbeat.P_LINUX] = SYSTEM_CORE[metricbeat.P_DARWIN] + \
+-    ["iowait.pct", "irq.pct", "softirq.pct", "steal.pct",
+-     "model_name", "model_number", "mhz",
+-     "core_id", "physical_id"]
+-
++    ["iowait.pct", "irq.pct", "softirq.pct", "steal.pct"]
++# s390x systems don't have the following information in /proc/cpuinfo file!
++if platform.processor() != "s390x" :
++    SYSTEM_CORE[metricbeat.P_LINUX].extend(["model_name", "model_number", "mhz", "core_id", "physical_id"])
++    
+ SYSTEM_CORE_ALL = {
+     metricbeat.P_WIN: SYSTEM_CORE[metricbeat.P_WIN] + ["idle.ticks", "system.ticks", "user.ticks",
+                                                        "idle.norm.pct", "system.norm.pct", "user.norm.pct"]
