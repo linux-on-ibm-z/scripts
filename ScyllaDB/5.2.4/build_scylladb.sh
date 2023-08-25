@@ -407,7 +407,7 @@ buildCmake()
 #==============================================================================
 buildAnt()
 {
-  local ver=1.10.12
+  local ver=1.10.14
   msglog "Installing ant $ver"
 
   cd "$SOURCE_ROOT"
@@ -820,7 +820,12 @@ case "$DISTRO" in
     protobuf-compiler libcrypto++-dev libtool perl ant libffi-dev rapidjson-dev automake \
     make git maven ninja-build unzip bzip2 wget curl xz-utils texinfo diffutils liblua5.3-dev \
     libnuma-dev libunistring-dev python3 python3-pip pigz ragel stow patch locales valgrind \
-    libudev-dev libdeflate-dev zlib1g-dev libabsl-dev |& tee -a "$LOG_FILE"
+    libudev-dev libdeflate-dev zlib1g-dev |& tee -a "$LOG_FILE"
+    
+  if [ $DISTRO = "ubuntu-22.04" ]
+  then
+    sudo apt-get install -y libabsl-dev |& tee -a "$LOG_FILE"
+  fi
 
   python3 -m pip install --user --upgrade pip
   python3 -m pip install --user pyparsing colorama pyyaml boto3 requests pytest scylla-driver \
@@ -901,6 +906,7 @@ case "$DISTRO" in
   buildCryptopp |& tee -a "$LOG_FILE"
   buildHwloc |& tee -a "$LOG_FILE"
   buildJsonCpp |& tee -a "$LOG_FILE"
+  buildAbseil |& tee -a "$LOG_FILE"
   
   if [ $DISTRO = "ubuntu-20.04" ]
   then
