@@ -152,13 +152,6 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-23.04" ) 
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        sudo apt-get update >/dev/null
-        sudo apt-get install -y bison flex wget build-essential git gcc tar make zlib1g-dev libreadline-dev patch curl |& tee -a "$LOG_FILE"
-        configureAndInstall |& tee -a "$LOG_FILE"
-        ;;
-
 "rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.8" | "rhel-9.0" | "rhel-9.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
@@ -171,14 +164,7 @@ case "$DISTRO" in
 
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-        
-"sles-12.5" | "sles-15.4" | "sles-15.5")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
-        sudo zypper install -y git wget gcc gcc-c++ tar make readline-devel zlib-devel bison flex gawk patch curl gzip |& tee -a "$LOG_FILE"
-        configureAndInstall |& tee -a "$LOG_FILE"
-        ;;        
-
+    
 *)
         printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
         exit 1
