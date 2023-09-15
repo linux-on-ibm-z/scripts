@@ -96,33 +96,35 @@ index 821cdb6973c..a1f5e304f42 100644
    const extractDir = config.resolveFromRepo('.node_binaries', version, arch);
  
 diff --git a/src/dev/build/tasks/patch_native_modules_task.ts b/src/dev/build/tasks/patch_native_modules_task.ts
-index 2c4436f387d..c1fabce5671 100644
+index 2c4436f387d..300bb006483 100644
 --- a/src/dev/build/tasks/patch_native_modules_task.ts
 +++ b/src/dev/build/tasks/patch_native_modules_task.ts
 @@ -22,6 +22,9 @@ import {
    read,
  } from '../lib';
- 
+
 +const zUrl = require('url');
 +var zFile:string = zUrl.pathToFileURL('linux-s390x-93.gz').toString();
 +
  const DOWNLOAD_DIRECTORY = '.native_modules';
- 
+
  interface Package {
-@@ -71,6 +74,10 @@ const packages: Package[] = [
-         sha256: '25409584f76f3d6ed85463d84adf094eb6e256ed1cb0b754b95bcbda6691fc26',
-       },
- 
-+      'linux-s390x': {
-+        url: zFile,
+@@ -68,7 +71,11 @@ const packages: Package[] = [
+       // * upload the `linux-arm64-*.gz` artifact to the `yarn-prebuilt-artifacts` bucket in GCS using the correct version number
+       'linux-arm64': {
+         url: 'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2/uhop/node-re2/releases/download/1.17.4/linux-arm64-93.gz',
+-        sha256: '25409584f76f3d6ed85463d84adf094eb6e256ed1cb0b754b95bcbda6691fc26',
++        sha256: '25610e43ad4852a46345b84e5b1a496c1c80183baeedb877b43b765c1b2ebfc7',
 +      },
 +
++      'linux-s390x': {
++        url: zFile,
+       },
+
        // A similar process is necessary for building on ARM macs:
-       // * bootstrap and re2 will build itself on install
-       // * `cp node_modules/re2/build/Release/re2.node darwin-arm64-$(node -e "console.log(process.versions.modules)")`
 @@ -120,14 +127,21 @@ async function patchModule(
    log.debug(`Patching ${pkg.name} binaries from ${archive.url} to ${extractPath}`);
- 
+
    await deleteAll([extractPath], log);
 -  await downloadToDisk({
 -    log,
@@ -150,17 +152,3 @@ index 2c4436f387d..c1fabce5671 100644
    switch (pkg.extractMethod) {
      case 'gunzip':
        await gunzip(downloadPath, extractPath);
-
-diff --git a/src/dev/build/tasks/patch_native_modules_task.ts b/src/dev/build/tasks/patch_native_modules_task.ts
-index 2c4436f387d..3cd49f821b0 100644
---- a/src/dev/build/tasks/patch_native_modules_task.ts
-+++ b/src/dev/build/tasks/patch_native_modules_task.ts
-@@ -68,7 +68,7 @@ const packages: Package[] = [
-       // * upload the `linux-arm64-*.gz` artifact to the `yarn-prebuilt-artifacts` bucket in GCS using the correct version number
-       'linux-arm64': {
-         url: 'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2/uhop/node-re2/releases/download/1.17.4/linux-arm64-93.gz',
--        sha256: '25409584f76f3d6ed85463d84adf094eb6e256ed1cb0b754b95bcbda6691fc26',
-+        sha256: '25610e43ad4852a46345b84e5b1a496c1c80183baeedb877b43b765c1b2ebfc7',
-       },
-
-       // A similar process is necessary for building on ARM macs:
