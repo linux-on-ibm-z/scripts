@@ -19,7 +19,7 @@ index 304c0de..06c27d4 100644
 +ARG GO_VERSION=1.19.7
 +ARG QEMU_VERSION=6.1.0-8
  
--FROM s390x/golang:1.19.10-alpine3.18
+-FROM s390x/golang:1.19.12-alpine3.18
 -MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
 +# we need these two distinct lists. The first one is the names used by the qemu distributions
 +# these second is the names used by golang see https://github.com/golang/go/blob/master/src/go/build/syslist.go
