@@ -143,8 +143,8 @@ function configureAndInstall() {
     printf -- 'Installing pyarrow... \n'
 
     cd ../../python
-    sed -i "s/cython >= 0.29/cython >= 0.29, < 3/g" pyproject.toml
-    sed -i "s/cython>=0.29/cython>=0.29,<3/g" requirements-build.txt
+    curl -o pyarrow.diff $PATCH_URL/pyarrow.diff
+    git apply pyarrow.diff
     sudo pip3 install -r requirements-build.txt
     sudo python3 setup.py bdist_wheel
     sudo pip3 install dist/*.whl
@@ -322,13 +322,13 @@ case "$DISTRO" in
 "ubuntu-20.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
-    sudo apt-get install -y build-essential cargo curl |& tee -a "$LOG_FILE"
+    sudo apt-get install -y build-essential cargo curl git |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
-    sudo apt-get install -y build-essential cargo curl cmake |& tee -a "$LOG_FILE"
+    sudo apt-get install -y build-essential cargo curl git cmake |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)

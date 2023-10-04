@@ -1,0 +1,49 @@
+diff --git a/python/pyproject.toml b/python/pyproject.toml
+index 656d95c6a..c1add0ef6 100644
+--- a/python/pyproject.toml
++++ b/python/pyproject.toml
+@@ -17,12 +17,15 @@
+
+ [build-system]
+ requires = [
+-    "cython >= 0.29",
++    "cython >= 0.29, < 3",
+     "numpy==1.16.6; python_version<'3.8'",
+     "numpy==1.17.3; python_version=='3.8'",
+     "numpy==1.19.4; python_version=='3.9'",
+     "numpy==1.21.3; python_version>'3.9'",
+-    "setuptools < 58.5",  # ARROW-14584
++    "setuptools > 60.0",  # ARROW-14584
+     "setuptools_scm",
+     "wheel"
+ ]
++[tool.setuptools_scm]
++version_scheme = "post-release"
++local_scheme = "node-and-date"
+diff --git a/python/requirements-build.txt b/python/requirements-build.txt
+index 025394192..3a0c9c44d 100644
+--- a/python/requirements-build.txt
++++ b/python/requirements-build.txt
+@@ -1,4 +1,4 @@
+-cython>=0.29
++cython>=0.29,<3
+ numpy>=1.16.6
+ setuptools>=38.6.0
+-setuptools_scm
++setuptools_scm==6.0.1
+diff --git a/python/setup.py b/python/setup.py
+index f3c1a215f..f0bfd605c 100755
+--- a/python/setup.py
++++ b/python/setup.py
+@@ -608,7 +608,10 @@ setup(
+         'parse': parse_git,
+         'write_to': os.path.join(scm_version_write_to_prefix,
+                                  'pyarrow/_generated_version.py'),
+-        'version_scheme': guess_next_dev_version
++        'version_scheme': guess_next_dev_version,
++        'local_scheme': 'node-and-date',
++        "relative_to": __file__,
++        "root": "..",
+     },
+     setup_requires=['setuptools_scm', 'cython >= 0.29'] + setup_requires,
+     install_requires=install_requires,
