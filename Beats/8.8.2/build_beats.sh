@@ -13,7 +13,7 @@ PACKAGE_NAME="beats"
 PACKAGE_VERSION="8.8.2"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Beats/${PACKAGE_VERSION}/patch"
 GO_VERSION="1.19.10"
-PYTHON_VERSION="3.9.13"
+PYTHON_VERSION="3.11.4"
 OPENSSL_VERSION="1.1.1s"
 RUST_VERSION="1.70.0"
 CURDIR="$(pwd)"
@@ -99,12 +99,12 @@ function configureAndInstallPython() {
     if [[ "${DISTRO}" == "rhel-7."* ]]; then
         sudo ln -fs /usr/bin/python3 /usr/bin/python
     elif ! [[ "${DISTRO}" == "rhel-8."* ]]; then
-        sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.9 10
+        sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.11 10
     fi
     if [[ "${DISTRO}" == "rhel-9."* ]]; then
-        sudo update-alternatives --install /usr/local/bin/python3 python3 /usr/bin/python3.9 10
+        sudo update-alternatives --install /usr/local/bin/python3 python3 /usr/bin/python3.11 10
     else
-        sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.9 10
+        sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 10
     fi
     sudo update-alternatives --display python3
     python3 -V
@@ -139,10 +139,13 @@ function configureAndInstall() {
     else
         #Installing pip
         wget --no-check-certificate -q https://bootstrap.pypa.io/get-pip.py
-        sudo -E python3 get-pip.py
+        python3 get-pip.py
         rm get-pip.py
     fi
 
+    pip3 install wheel -v
+    pip3 install "cython<3.0.0" pyyaml==5.4.1 --no-build-isolation -v
+    
     printf -- 'Installing Rust \n'
     wget -q -O rustup-init.sh https://sh.rustup.rs
     bash rustup-init.sh -y
@@ -426,7 +429,7 @@ case "$DISTRO" in
 "rhel-8.6" | "rhel-8.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python39 python39-devel bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel |& tee -a "${LOG_FILE}"
+    sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python3.11 python3.11-devel bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel |& tee -a "${LOG_FILE}"
     configureAndInstallPython |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
@@ -434,7 +437,7 @@ case "$DISTRO" in
 "rhel-9.0" | "rhel-9.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python39 python3.9-devel bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel |& tee -a "${LOG_FILE}"
+    sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python3.11 python3.11-devel bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel |& tee -a "${LOG_FILE}"
     configureAndInstallPython |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
