@@ -193,7 +193,7 @@ case "$DISTRO" in
 "ubuntu-23.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    apt-get install make wget curl tar cmake openssl bison git gcc g++ libssl-dev libncurses-dev bison libboost-dev libboost-program-options-dev check libpam0g-dev zlib1g-dev python3 python3-pip
+    sudo apt-get install -y make wget curl tar cmake openssl bison git gcc g++ libssl-dev libncurses-dev bison libboost-dev libboost-program-options-dev check libpam0g-dev zlib1g-dev python3 python3-pip
     configureAndInstall |& tee -a "$LOG_FILE"
     ;; 
 
