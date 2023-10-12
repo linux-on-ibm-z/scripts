@@ -279,7 +279,8 @@ case "$DISTRO" in
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
 	sudo DEBIAN_FRONTEND=noninteractive apt-get install wget git unzip zip python3-dev python3-pip openjdk-11-jdk pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran curl -y |& tee -a "${LOG_FILE}"
-	if [[ "$PYTHON_VERSION" != "3.8.6" ]]; then
+	REPO_PYTHON=$(python3 -V | sed -n 's/Python \([0-9.]*\)/\1/p')
+	if [[ "$PYTHON_VERSION" != "$REPO_PYTHON" ]]; then
 		wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/$PYTHON_VERSION/build_python3.sh
 		sed -i 's/apt-get install/DEBIAN_FRONTEND=noninteractive apt-get install/g' build_python3.sh
 		bash build_python3.sh -y
@@ -289,7 +290,7 @@ case "$DISTRO" in
 	fi
 	sudo ldconfig
 	sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
-	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel scipy==1.7.3 portpicker protobuf==3.13.0 opt_einsum packaging requests psutil |& tee -a "${LOG_FILE}"
+	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel scipy==1.7.3 portpicker protobuf==3.13.0 opt_einsum packaging requests psutil setuptools==59.5.0 |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 	
@@ -298,7 +299,8 @@ case "$DISTRO" in
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
 	sudo apt-get install wget git unzip zip python3-dev python3-pip openjdk-11-jdk pkg-config libhdf5-dev gcc-9* g++-9* curl libblas-dev liblapack-dev gfortran -y |& tee -a "${LOG_FILE}"
-	if [[ "$PYTHON_VERSION" != "3.10.6" ]]; then
+	REPO_PYTHON=$(python3 -V | sed -n 's/Python \([0-9.]*\)/\1/p')
+	if [[ "$PYTHON_VERSION" != "$REPO_PYTHON" ]]; then
 		wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/$PYTHON_VERSION/build_python3.sh
 		sed -i 's/apt-get install/DEBIAN_FRONTEND=noninteractive apt-get install/g' build_python3.sh
 		sed -i 's/ubuntu-20.04/ubuntu-22.04/g' build_python3.sh
@@ -311,7 +313,7 @@ case "$DISTRO" in
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60 --slave /usr/bin/g++ g++ /usr/bin/g++-9
 	sudo update-alternatives --auto gcc
 	sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
-	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel packaging requests opt_einsum portpicker protobuf==3.13.0 scipy==1.7.3 psutil |& tee -a "${LOG_FILE}"
+	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel packaging requests opt_einsum portpicker protobuf==3.13.0 scipy==1.7.3 psutil setuptools==59.5.0 |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
