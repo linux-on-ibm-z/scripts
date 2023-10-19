@@ -1,0 +1,28 @@
+diff --git a/build/Dockerfile.s390x b/build/Dockerfile.s390x
+index 5594e41..e571afc 100644
+--- a/build/Dockerfile.s390x
++++ b/build/Dockerfile.s390x
+@@ -11,12 +11,10 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+-
+-ARG QEMU_IMAGE=calico/go-build:v0.84-s390x
++ARG QEMU_IMAGE=calico/go-build:v0.85-s390x
+ FROM ${QEMU_IMAGE} as qemu
+ 
+-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7 AS ubi
+-
++FROM registry.access.redhat.com/ubi8/ubi-minimal:8.8 AS ubi
+ # Enable non-native builds of this image on an amd64 hosts.
+ # This must be the first RUN command in this file!
+ COPY --from=qemu /usr/bin/qemu-*-static /usr/bin/
+@@ -34,6 +32,8 @@ COPY --from=qemu /usr/bin/qemu-*-static /usr/bin/
+ COPY --from=ubi /licenses /licenses
+ COPY --from=ubi /etc/pki /etc/pki
+ COPY --from=ubi /usr/share/pki /usr/share/pki
++COPY --from=ubi /lib /lib
++COPY --from=ubi /lib64 /lib64
+ 
+ ARG GIT_VERSION=unknown
+ LABEL name="Tigera Operator" \

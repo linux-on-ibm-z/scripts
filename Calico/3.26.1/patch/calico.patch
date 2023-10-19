@@ -1,0 +1,245 @@
+diff --git a/apiserver/Makefile b/apiserver/Makefile
+index 0b909a789..8ac8d7141 100644
+--- a/apiserver/Makefile
++++ b/apiserver/Makefile
+@@ -175,7 +175,7 @@ run-kubernetes-server: run-k8s-controller-manager
+ 		--rm \
+ 		-v  $(CURDIR):/manifests \
+ 		-v $(CERTS_PATH):/home/user/certs \
+-		bitnami/kubectl:$(subst v,,$(KUBECTL_VERSION)) \
++		rancher/kubectl:v$(subst v,,$(KUBECTL_VERSION)) \
+ 		--kubeconfig=/home/user/certs/kubeconfig \
+ 		apply -f /manifests/test/mock-node.yaml
+ 
+@@ -186,7 +186,7 @@ run-kubernetes-server: run-k8s-controller-manager
+ 		--rm \
+ 		-v  $(CURDIR):/manifests \
+ 		-v $(CERTS_PATH):/home/user/certs \
+-		bitnami/kubectl:$(subst v,,$(KUBECTL_VERSION)) \
++		rancher/kubectl:v$(subst v,,$(KUBECTL_VERSION)) \
+ 		--kubeconfig=/home/user/certs/kubeconfig \
+ 		apply -f /manifests/test/namespaces.yaml
+ 
+diff --git a/calicoctl/Makefile b/calicoctl/Makefile
+index b3979c3d8..cc4c321a0 100644
+--- a/calicoctl/Makefile
++++ b/calicoctl/Makefile
+@@ -125,7 +125,7 @@ $(CALICO_VERSION_HELPER_BIN): $(CALICO_VERSION_HELPER_SRC)
+ ###############################################################################
+ .PHONY: ut
+ ## Run the tests in a container. Useful for CI, Mac dev.
+-ut: bin/calicoctl-linux-amd64
++ut: bin/calicoctl-linux-$(ARCH)
+ 	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -cover -r calicoctl/*'
+ 
+ ###############################################################################
+@@ -133,7 +133,7 @@ ut: bin/calicoctl-linux-amd64
+ ###############################################################################
+ .PHONY: fv
+ ## Run the tests in a container. Useful for CI, Mac dev.
+-fv: bin/calicoctl-linux-amd64 version-helper
++fv: bin/calicoctl-linux-$(ARCH) version-helper
+ 	$(MAKE) run-etcd
+ 
+ 	# We start two API servers in order to test multiple kubeconfig support
+@@ -161,7 +161,7 @@ ST_OPTIONS?=
+ 
+ .PHONY: st
+ ## Run the STs in a container
+-st: bin/calicoctl-linux-amd64 version-helper
++st: bin/calicoctl-linux-$(ARCH) version-helper
+ 	$(MAKE) run-etcd
+ 	$(MAKE) run-kubernetes-master
+ 	# Use the host, PID and network namespaces from the host.
+diff --git a/calicoctl/tests/fv/utils/calicoctl.go b/calicoctl/tests/fv/utils/calicoctl.go
+index b729769d7..161c248df 100644
+--- a/calicoctl/tests/fv/utils/calicoctl.go
++++ b/calicoctl/tests/fv/utils/calicoctl.go
+@@ -24,7 +24,7 @@ import (
+ 	log "github.com/sirupsen/logrus"
+ )
+ 
+-var calicoctl = "/go/src/github.com/projectcalico/calico/calicoctl/bin/calicoctl-linux-amd64"
++var calicoctl = "/go/src/github.com/projectcalico/calico/calicoctl/bin/calicoctl-linux-s390x"
+ var version_helper = "/go/src/github.com/projectcalico/calico/calicoctl/tests/fv/helper/bin/calico_version_helper"
+ 
+ func getEnv(kdd bool) []string {
+diff --git a/calicoctl/tests/st/utils/utils.py b/calicoctl/tests/st/utils/utils.py
+index 837510af7..280dd32a8 100644
+--- a/calicoctl/tests/st/utils/utils.py
++++ b/calicoctl/tests/st/utils/utils.py
+@@ -242,7 +242,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+ 
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+ 
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
+diff --git a/confd/Makefile b/confd/Makefile
+index 66c046c9a..c5f06f3c0 100644
+--- a/confd/Makefile
++++ b/confd/Makefile
+@@ -39,6 +39,9 @@ bin/confd: bin/confd-$(ARCH)
+ ifeq ($(ARCH),amd64)
+ 	ln -f bin/confd-$(ARCH) bin/confd
+ endif
++ifeq ($(ARCH),s390x)
++	ln -f bin/confd-$(ARCH) bin/confd
++endif
+ 
+ ###############################################################################
+ # Unit Tests
+diff --git a/felix/fv/utils/utils.go b/felix/fv/utils/utils.go
+index bde959b11..a37a70ff7 100644
+--- a/felix/fv/utils/utils.go
++++ b/felix/fv/utils/utils.go
+@@ -46,7 +46,7 @@ type EnvConfig struct {
+ 	// Note: These are overridden in the Makefile!
+ 	FelixImage   string `default:"calico/felix:latest"`
+ 	EtcdImage    string `default:"quay.io/coreos/etcd"`
+-	K8sImage     string `default:"calico/go-build:latest"`
++	K8sImage     string `default:"calico/go-build:v0.85"`
+ 	TyphaImage   string `default:"calico/typha:latest"`
+ 	BusyboxImage string `default:"busybox:latest"`
+ }
+diff --git a/kube-controllers/Dockerfile.s390x b/kube-controllers/Dockerfile.s390x
+index 5daed334c..b9780a3bc 100644
+--- a/kube-controllers/Dockerfile.s390x
++++ b/kube-controllers/Dockerfile.s390x
+@@ -11,9 +11,50 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
++
++ARG GIT_VERSION=unknown
++ARG UBI_IMAGE
++
++FROM ${UBI_IMAGE} as ubi
++
++# Add in top-level license file
++RUN mkdir /licenses
++COPY LICENSE /licenses
++
++# Make sure the status and pprof files are owned by our user.
++RUN mkdir /status /profiles
++RUN touch /status/status.json && chown 999 /status/status.json
++RUN touch /profiles/mem.pprof && chown 999 /profiles/mem.pprof
++RUN touch /profiles/cpu.pprof && chown 999 /profiles/cpu.pprof
++
+ FROM scratch
+-LABEL maintainer "LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)"
++ARG GIT_VERSION
++LABEL name="Calico Kubernetes controllers" \
++      vendor="Project Calico" \
++      version=$GIT_VERSION \
++      release="1" \
++      summary="Calico Kubernetes controllers monitor the Kubernetes API and perform actions based on cluster state" \
++      description="Calico Kubernetes controllers monitor the Kubernetes API and perform actions based on cluster state" \
++      maintainer="Casey Davenport <casey@tigera.io>"
++
++COPY --from=ubi /licenses /licenses
++COPY --from=ubi /profiles /profiles
++COPY --from=ubi /status /status
++
++COPY --from=ubi /usr/include /usr/include
++COPY --from=ubi /lib64/libpthread.so.0 /lib64/libpthread.so.0
++COPY --from=ubi /lib64/libc.so.6 /lib64/libc.so.6
++COPY --from=ubi /lib64/ld-2.28.so /lib64/ld-2.28.so
++
++# The following dependencies do not show up when performing ldd on the binary, but are still necessary.
++COPY --from=ubi /lib64/libnss_dns.so.2 /lib64/libnss_dns.so.2
++COPY --from=ubi /lib64/libnss_files.so.2 /lib64/libnss_files.so.2
++
++# Copy hostname configuration files from UBI so glibc hostname lookups work.
++COPY --from=ubi /etc/host.conf /etc/host.conf
++COPY --from=ubi /etc/nsswitch.conf /etc/nsswitch.conf
+ 
+ ADD bin/kube-controllers-linux-s390x /usr/bin/kube-controllers
+ ADD bin/check-status-linux-s390x /usr/bin/check-status
++USER 999
+ ENTRYPOINT ["/usr/bin/kube-controllers"]
+diff --git a/lib.Makefile b/lib.Makefile
+index f61309141..12d95e931 100644
+--- a/lib.Makefile
++++ b/lib.Makefile
+@@ -326,7 +326,7 @@ TARGET_PLATFORM=--platform=linux/s390x
+ endif
+ 
+ # DOCKER_BUILD is the base build command used for building all images.
+-DOCKER_BUILD=docker buildx build --pull \
++DOCKER_BUILD=docker buildx build \
+ 	     --build-arg QEMU_IMAGE=$(CALICO_BUILD) \
+ 	     --build-arg UBI_IMAGE=$(UBI_IMAGE) \
+ 	     --build-arg GIT_VERSION=$(GIT_VERSION) $(TARGET_PLATFORM)
+@@ -1324,9 +1324,9 @@ kubectl $(KUBECTL):
+ bin/helm:
+ 	mkdir -p bin
+ 	$(eval TMP := $(shell mktemp -d))
+-	wget -q https://get.helm.sh/helm-v3.11.0-linux-amd64.tar.gz -O $(TMP)/helm3.tar.gz
++	wget -q https://get.helm.sh/helm-v3.11.0-linux-$(ARCH).tar.gz -O $(TMP)/helm3.tar.gz
+ 	tar -zxvf $(TMP)/helm3.tar.gz -C $(TMP)
+-	mv $(TMP)/linux-amd64/helm bin/helm
++	mv $(TMP)/linux-$(ARCH)/helm bin/helm
+ 
+ ###############################################################################
+ # Common functions for launching a local etcd instance.
+diff --git a/node/Dockerfile.s390x b/node/Dockerfile.s390x
+index 27b5db82d..d3b7dce1d 100644
+--- a/node/Dockerfile.s390x
++++ b/node/Dockerfile.s390x
+@@ -12,7 +12,7 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+-ARG QEMU_IMAGE=calico/go-build:latest
++ARG QEMU_IMAGE=calico/go-build:v0.85
+ ARG BIRD_IMAGE
+ 
+ FROM ${QEMU_IMAGE} as qemu
+diff --git a/node/calico_test/Dockerfile.s390x.calico_test b/node/calico_test/Dockerfile.s390x.calico_test
+index 6601a03c3..16de56f87 100644
+--- a/node/calico_test/Dockerfile.s390x.calico_test
++++ b/node/calico_test/Dockerfile.s390x.calico_test
+@@ -33,33 +33,24 @@
+ # - volume mount your ST source code
+ # - run 'nosetests'
+ 
+-# The Dockerfile.s390x.calico_test is copied from node/calico_test/Dockerfile.calico_test.
+-# Modifications done includes:
+-# 1) Base image has been changed from FROM docker:1.13.0 to FROM s390x/docker:18.03.0
+-# 2) Maintainer is changed
+-# 3) Updated ca-certificates
+-# 4) Removed the "Install etcdctl" part and added steps to extract etcd from the copied tar file.
+-
+-FROM s390x/docker:18.03.0
+-MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
++FROM docker:18.03.0
++MAINTAINER Tom Denham <tom@projectcalico.org>
+ 
+ # Running STs in this container requires that it has all dependencies installed
+ # for executing the tests. Install these dependencies:
+ RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-dev tshark \
+-        netcat-openbsd iptables ip6tables iproute2 iputils ipset curl && \
++        netcat-openbsd iptables ip6tables iproute2 iputils ipset curl gcc jq musl-dev && \
+         echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && \
+         rm -rf /var/cache/apk/*
+ 
+ COPY requirements.txt /requirements.txt
+ RUN pip install -r /requirements.txt
+ 
+-RUN apk update \
+-&&   apk add ca-certificates wget \
+-&&   update-ca-certificates
+-
+ # Install etcdctl
+-COPY pkg /pkg/
+-RUN tar -xzf pkg/etcd-v3.3.7-linux-s390x.tar.gz -C /usr/local/bin/
++RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.1/etcd-v3.5.1-linux-s390x.tar.gz && \
++    tar -xzf etcd-v3.5.1-linux-s390x.tar.gz && \
++    cd etcd-v3.5.1-linux-s390x && \
++    ln -s etcdctl /usr/local/bin/
+ 
+ # The container is used by mounting the code-under-test to /code
+ WORKDIR /code/
