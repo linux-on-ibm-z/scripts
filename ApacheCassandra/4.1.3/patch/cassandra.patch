@@ -1,0 +1,212 @@
+diff --git a/build.xml b/build.xml
+index d2d5974cd6..ba0a996929 100644
+--- a/build.xml
++++ b/build.xml
+@@ -523,10 +523,10 @@
+         <license name="The Apache Software License, Version 2.0" url="https://www.apache.org/licenses/LICENSE-2.0.txt"/>
+         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
+         <dependencyManagement>
+-          <dependency groupId="org.xerial.snappy" artifactId="snappy-java" version="1.1.10.1"/>
++          <dependency groupId="org.xerial.snappy" artifactId="snappy-java" version="1.1.10.5"/>
+           <dependency groupId="org.lz4" artifactId="lz4-java" version="1.8.0"/>
+           <dependency groupId="com.ning" artifactId="compress-lzf" version="0.8.4" scope="provided"/>
+-          <dependency groupId="com.github.luben" artifactId="zstd-jni" version="1.5.5-1"/>
++          <dependency groupId="com.github.luben" artifactId="zstd-jni" version="1.5.5-2"/>
+           <dependency groupId="com.google.guava" artifactId="guava" version="27.0-jre">
+             <exclusion groupId="com.google.code.findbugs" artifactId="jsr305" />
+             <exclusion groupId="org.codehaus.mojo" artifactId="animal-sniffer-annotations" />
+@@ -625,7 +625,7 @@
+            </dependency>
+           <dependency groupId="io.netty" artifactId="netty-bom" version="4.1.58.Final" type="pom" scope="provided"/>
+           <dependency groupId="io.netty" artifactId="netty-all" version="4.1.58.Final" />
+-          <dependency groupId="io.netty" artifactId="netty-tcnative-boringssl-static" version="2.0.36.Final"/>
++          <dependency groupId="io.netty" artifactId="netty-tcnative-boringssl-static" version="2.0.52.Final"/>
+           <dependency groupId="net.openhft" artifactId="chronicle-queue" version="${chronicle-queue.version}">
+             <exclusion groupId="com.sun" artifactId="tools" />
+           </dependency>
+diff --git a/src/java/org/apache/cassandra/io/sstable/IndexSummary.java b/src/java/org/apache/cassandra/io/sstable/IndexSummary.java
+index 303adfd75c..09c81cb3f9 100644
+--- a/src/java/org/apache/cassandra/io/sstable/IndexSummary.java
++++ b/src/java/org/apache/cassandra/io/sstable/IndexSummary.java
+@@ -286,8 +286,7 @@ public class IndexSummary extends WrappedSharedCloseable
+                 int offset = t.offsets.getInt(i * 4) + baseOffset;
+                 // our serialization format for this file uses native byte order, so if this is different to the
+                 // default Java serialization order (BIG_ENDIAN) we have to reverse our bytes
+-                if (ByteOrder.nativeOrder() != ByteOrder.BIG_ENDIAN)
+-                    offset = Integer.reverseBytes(offset);
++                offset = Integer.reverseBytes(offset);
+                 out.writeInt(offset);
+             }
+             out.write(t.entries, 0, t.entriesLength);
+diff --git a/src/java/org/apache/cassandra/io/sstable/IndexSummaryBuilder.java b/src/java/org/apache/cassandra/io/sstable/IndexSummaryBuilder.java
+index 75cca84b97..fb213939aa 100644
+--- a/src/java/org/apache/cassandra/io/sstable/IndexSummaryBuilder.java
++++ b/src/java/org/apache/cassandra/io/sstable/IndexSummaryBuilder.java
+@@ -123,9 +123,8 @@ public class IndexSummaryBuilder implements AutoCloseable
+
+         // for initializing data structures, adjust our estimates based on the sampling level
+         maxExpectedEntries = Math.max(1, (maxExpectedEntries * samplingLevel) / BASE_SAMPLING_LEVEL);
+-        offsets = new SafeMemoryWriter(4 * maxExpectedEntries).order(ByteOrder.nativeOrder());
+-        entries = new SafeMemoryWriter(expectedEntrySize * maxExpectedEntries).order(ByteOrder.nativeOrder());
+-
++       offsets = new SafeMemoryWriter(4 * maxExpectedEntries).order(ByteOrder.LITTLE_ENDIAN);
++       entries = new SafeMemoryWriter(expectedEntrySize * maxExpectedEntries).order(ByteOrder.LITTLE_ENDIAN);
+         // the summary will always contain the first index entry (downsampling will never remove it)
+         nextSamplePosition = 0;
+         indexIntervalMatches++;
+diff --git a/src/java/org/apache/cassandra/io/util/Memory.java b/src/java/org/apache/cassandra/io/util/Memory.java
+index 7fd4225ec0..88b4672bd6 100644
+--- a/src/java/org/apache/cassandra/io/util/Memory.java
++++ b/src/java/org/apache/cassandra/io/util/Memory.java
+@@ -108,7 +108,10 @@ public class Memory implements AutoCloseable, ReadableMemory
+         checkBounds(offset, offset + 8);
+         if (Architecture.IS_UNALIGNED)
+         {
+-            unsafe.putLong(peer + offset, l);
++            if (bigEndian)
++                unsafe.putLong(peer + offset, Long.reverseBytes(l));
++            else
++                 unsafe.putLong(peer + offset, l);
+         }
+         else
+         {
+@@ -147,7 +150,10 @@ public class Memory implements AutoCloseable, ReadableMemory
+         checkBounds(offset, offset + 4);
+         if (Architecture.IS_UNALIGNED)
+         {
+-            unsafe.putInt(peer + offset, l);
++            if (bigEndian)
++                unsafe.putInt(peer + offset, Integer.reverseBytes(l));
++            else
++                 unsafe.putLong(peer + offset, l);
+         }
+         else
+         {
+@@ -178,7 +184,10 @@ public class Memory implements AutoCloseable, ReadableMemory
+         checkBounds(offset, offset + 2);
+         if (Architecture.IS_UNALIGNED)
+         {
+-            unsafe.putShort(peer + offset, l);
++            if (bigEndian)
++                unsafe.putShort(peer + offset, Short.reverseBytes(l));
++            else
++                unsafe.putShort(peer + offset, l);
+         }
+         else
+         {
+@@ -253,7 +262,12 @@ public class Memory implements AutoCloseable, ReadableMemory
+         checkBounds(offset, offset + 8);
+         if (Architecture.IS_UNALIGNED)
+         {
+-            return unsafe.getLong(peer + offset);
++            long value = unsafe.getLong(peer+offset);
++            if (bigEndian)
++                return Long.reverseBytes(value);
++            else
++                return value;
++
+         } else {
+             return getLongByByte(peer + offset);
+         }
+@@ -290,7 +304,11 @@ public class Memory implements AutoCloseable, ReadableMemory
+         checkBounds(offset, offset + 4);
+         if (Architecture.IS_UNALIGNED)
+         {
+-            return unsafe.getInt(peer + offset);
++           int value = unsafe.getInt(peer+offset);
++            if (bigEndian)
++                return Integer.reverseBytes(value);
++            else
++                return value;
+         }
+         else
+         {
+diff --git a/src/java/org/apache/cassandra/utils/memory/MemoryUtil.java b/src/java/org/apache/cassandra/utils/memory/MemoryUtil.java
+index e194962756..e21b6328f8 100644
+--- a/src/java/org/apache/cassandra/utils/memory/MemoryUtil.java
++++ b/src/java/org/apache/cassandra/utils/memory/MemoryUtil.java
+@@ -110,13 +110,19 @@ public abstract class MemoryUtil
+
+     public static void setShort(long address, short s)
+     {
+-        unsafe.putShort(address, s);
++       if (BIG_ENDIAN)
++            unsafe.putShort(address, Short.reverseBytes(s));
++        else
++             unsafe.putShort(address, s);
+     }
+
+     public static void setInt(long address, int l)
+     {
+         if (Architecture.IS_UNALIGNED)
+-            unsafe.putInt(address, l);
++            if (BIG_ENDIAN)
++                unsafe.putInt(address, Integer.reverseBytes(l));
++            else
++                 unsafe.putInt(address, l);
+         else
+             putIntByByte(address, l);
+     }
+@@ -124,7 +130,10 @@ public abstract class MemoryUtil
+     public static void setLong(long address, long l)
+     {
+         if (Architecture.IS_UNALIGNED)
+-            unsafe.putLong(address, l);
++           if (BIG_ENDIAN)
++                unsafe.putLong(address, Long.reverseBytes(l));
++            else
++                 unsafe.putLong(address, l);
+         else
+             putLongByByte(address, l);
+     }
+@@ -136,17 +145,47 @@ public abstract class MemoryUtil
+
+     public static int getShort(long address)
+     {
+-        return (Architecture.IS_UNALIGNED ? unsafe.getShort(address) : getShortByByte(address)) & 0xffff;
++        if (Architecture.IS_UNALIGNED)
++        {
++            short value = unsafe.getShort(address);
++            if (BIG_ENDIAN)
++            {
++                value = Short.reverseBytes(value);
++                return value & 0xffff;
++            }
++            else
++                return value & 0xffff;
++        }
++        else
++            return getShortByByte(address) & 0xffff;
+     }
+
+     public static int getInt(long address)
+     {
+-        return Architecture.IS_UNALIGNED ? unsafe.getInt(address) : getIntByByte(address);
++        if (Architecture.IS_UNALIGNED)
++        {
++            int value = unsafe.getInt(address);
++            if (BIG_ENDIAN)
++                return Integer.reverseBytes(value);
++            else
++                return value;
++        }
++        else
++            return getIntByByte(address);
+     }
+
+     public static long getLong(long address)
+     {
+-        return Architecture.IS_UNALIGNED ? unsafe.getLong(address) : getLongByByte(address);
++        if (Architecture.IS_UNALIGNED)
++         {
++             long value = unsafe.getLong(address);
++             if (BIG_ENDIAN)
++                 return Long.reverseBytes(value);
++             else
++                 return value;
++         }
++         else
++             return getLongByByte(address);
+     }
+
+     public static ByteBuffer getByteBuffer(long address, int length)
