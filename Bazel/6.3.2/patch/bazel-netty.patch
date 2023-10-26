@@ -1,0 +1,52 @@
+diff --git a/third_party/BUILD b/third_party/BUILD
+index 88a6a73a4d..83bd4c04bc 100644
+--- a/third_party/BUILD
++++ b/third_party/BUILD
+@@ -618,11 +618,11 @@ UNNECESSARY_DYNAMIC_LIBRARIES = select({
+     "//src/conditions:windows": "*.so *.jnilib",
+     "//src/conditions:darwin": "*.so *.dll",
+     "//src/conditions:linux_x86_64": "*.jnilib *.dll",
+-    # The .so file is an x86 one, so we can just remove it if the CPU is not x86
++    "//src/conditions:linux_s390x": "*.jnilib *.dll",
++    # The .so file is an x86/s390x one, so we can just remove it if the CPU is not x86/s390x
+     "//src/conditions:arm": "*.so *.jnilib *.dll",
+     "//src/conditions:linux_aarch64": "*.so *.jnilib *.dll",
+     "//src/conditions:linux_ppc": "*.so *.jnilib *.dll",
+-    "//src/conditions:linux_s390x": "*.so *.jnilib *.dll",
+     "//src/conditions:freebsd": "*.so *.jnilib *.dll",
+     "//src/conditions:openbsd": "*.so *.jnilib *.dll",
+     # Default is to play it safe -- better have a big binary than a slow binary
+@@ -641,6 +641,7 @@ genrule(
+         "//src/conditions:darwin_x86_64": ["netty_tcnative/netty-tcnative-boringssl-static-2.0.51.Final-osx-x86_64.jar"],
+         "//src/conditions:linux_aarch64": ["netty_tcnative/netty-tcnative-boringssl-static-2.0.51.Final-linux-aarch_64.jar"],
+         "//src/conditions:linux_x86_64": ["netty_tcnative/netty-tcnative-boringssl-static-2.0.51.Final-linux-x86_64.jar"],
++        "//src/conditions:linux_s390x": ["netty_tcnative/netty-tcnative-boringssl-static-2.0.51.Final-linux-s390_64.jar"],
+         "//src/conditions:windows": ["netty_tcnative/netty-tcnative-boringssl-static-2.0.51.Final-windows-x86_64.jar"],
+         "//conditions:default": [],
+     }),
+@@ -673,14 +674,17 @@ distrib_java_import(
+         "//src/conditions:darwin_x86_64": ["netty/netty-transport-native-unix-common-4.1.75.Final-osx-x86_64.jar"],
+         "//src/conditions:linux_aarch64": ["netty/netty-transport-native-unix-common-4.1.75.Final-linux-aarch_64.jar"],
+         "//src/conditions:linux_x86_64": ["netty/netty-transport-native-unix-common-4.1.75.Final-linux-x86_64.jar"],
++        "//src/conditions:linux_s390x": ["netty/netty-transport-native-unix-common-4.1.75.Final-linux-s390_64.jar"],
+         "//conditions:default": ["netty/netty-transport-native-unix-common-4.1.75.Final.jar"],
+     }) + select({
+         "//src/conditions:darwin_arm64": ["netty/netty-transport-native-kqueue-4.1.75.Final-osx-aarch_64.jar"],
+         "//src/conditions:darwin_x86_64": ["netty/netty-transport-native-kqueue-4.1.75.Final-osx-x86_64.jar"],
++        "//src/conditions:linux_s390x": ["netty/netty-transport-native-kqueue-4.1.75.Final.jar"],
+         "//conditions:default": [],
+     }) + select({
+         "//src/conditions:linux_aarch64": ["netty/netty-transport-native-epoll-4.1.75.Final-linux-aarch_64.jar"],
+         "//src/conditions:linux_x86_64": ["netty/netty-transport-native-epoll-4.1.75.Final-linux-x86_64.jar"],
++        "//src/conditions:linux_s390x": ["netty/netty-transport-native-epoll-4.1.75.Final-linux-s390_64.jar"],
+         "//conditions:default": [],
+     }),
+ )
+@@ -695,6 +699,7 @@ distrib_java_import(
+         "//src/conditions:darwin_x86_64": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:linux_aarch64": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:linux_x86_64": [":netty_tcnative/netty-tcnative-filtered.jar"],
++        "//src/conditions:linux_s390x": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:windows": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//conditions:default": [],
+     }),

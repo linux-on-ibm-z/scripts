@@ -1,0 +1,68 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index cd93b9b..7760764 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -8,8 +8,9 @@ bazel_dep(name = "platforms", version = "0.0.4")
+ bazel_dep(name = "rules_cc", version = "0.0.2")
+ bazel_dep(name = "bazel_skylib", version = "1.2.0")
+ 
+-# rules_proto is required by @remote_java_tools, which is loaded via module extension.
++# Required by @remote_java_tools, which is loaded via module extension.
+ bazel_dep(name = "rules_proto", version = "4.0.0")
++bazel_dep(name = "rules_license", version = "0.0.3")
+ 
+ register_toolchains("//toolchains:all")
+ 
+@@ -48,7 +49,11 @@ EXTRA_REMOTE_JDK11_REPOS = [
+     "remotejdk11_linux_s390x",
+ ]
+ 
+-REMOTE_JDK_REPOS = [("remotejdk" + version + "_" + platform) for version in JDK_VERSIONS for platform in PLATFORMS] + EXTRA_REMOTE_JDK11_REPOS
++EXTRA_REMOTE_JDK17_REPOS = [
++    "remotejdk17_linux_s390x",
++]
++
++REMOTE_JDK_REPOS = [("remotejdk" + version + "_" + platform) for version in JDK_VERSIONS for platform in PLATFORMS] + EXTRA_REMOTE_JDK11_REPOS + EXTRA_REMOTE_JDK17_REPOS
+ 
+ [use_repo(
+     toolchains,
+diff --git a/java/repositories.bzl b/java/repositories.bzl
+index 4875f7a..053a9ac 100644
+--- a/java/repositories.bzl
++++ b/java/repositories.bzl
+@@ -325,6 +325,22 @@ def remote_jdk17_repos():
+         version = "17",
+     )
+ 
++    maybe(
++        remote_java_repository,
++        name = "remotejdk17_linux_s390x",
++        target_compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:s390x",
++        ],
++        sha256 = "fdc82f4b06c880762503b0cb40e25f46cf8190d06011b3b768f4091d3334ef7f",
++        strip_prefix = "jdk-17.0.4.1+1",
++        urls = [
++            "https://mirror.bazel.build/github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.4.1%2B1/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.4.1_1.tar.gz",
++            "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.4.1%2B1/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.4.1_1.tar.gz",
++        ],
++        version = "17",
++    )
++
+     maybe(
+         remote_java_repository,
+         name = "remotejdk17_macos",
+@@ -479,7 +495,11 @@ def rules_java_toolchains(name = "toolchains"):
+         "remotejdk11_linux_s390x",
+     ]
+ 
+-    REMOTE_JDK_REPOS = [("remotejdk" + version + "_" + platform) for version in JDK_VERSIONS for platform in PLATFORMS] + EXTRA_REMOTE_JDK11_REPOS
++    EXTRA_REMOTE_JDK17_REPOS = [
++        "remotejdk17_linux_s390x",
++    ]
++
++    REMOTE_JDK_REPOS = [("remotejdk" + version + "_" + platform) for version in JDK_VERSIONS for platform in PLATFORMS] + EXTRA_REMOTE_JDK11_REPOS + EXTRA_REMOTE_JDK17_REPOS
+ 
+     native.register_toolchains("//toolchains:all")
+     native.register_toolchains("@local_jdk//:runtime_toolchain_definition")
