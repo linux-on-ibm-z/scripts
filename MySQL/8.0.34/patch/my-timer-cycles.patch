@@ -1,0 +1,13 @@
+diff --git a/mysys/my_rdtsc.cc b/mysys/my_rdtsc.cc
+index 537e53ec32e..73b64343a72 100644
+--- a/mysys/my_rdtsc.cc
++++ b/mysys/my_rdtsc.cc
+@@ -173,7 +173,7 @@ ulonglong my_timer_cycles(void) {
+ #elif defined(__GNUC__) && defined(__s390x__)
+   {
+     uint64_t result;
+-    __asm __volatile__("stck %0" : "=Q"(result) : : "cc");
++    __asm __volatile__("stckf %0" : "=Q"(result) : : "cc");
+     return result;
+   }
+ #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
