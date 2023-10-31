@@ -518,7 +518,7 @@ case "$DISTRO" in
 "sles-15.4" | "sles-15.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch docker 2>&1 | tee -a "$LOG_FILE"
+    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch docker containerd docker-buildx 2>&1 | tee -a "$LOG_FILE"
     sudo wget -O /usr/local/bin/yq.v2 https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_s390x
     sudo chmod 755 /usr/local/bin/yq.v2
     export CC=gcc
