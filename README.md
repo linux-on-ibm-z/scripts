@@ -5,4 +5,3 @@ This GitHub project hosts a collection of scripts to be use as standalone or alo
 # License
 
 scripts is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
-#hello
