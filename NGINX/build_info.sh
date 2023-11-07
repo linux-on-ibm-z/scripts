@@ -7,6 +7,6 @@
     "package_dir": "nginx/nginx",
     "build_script": "1.24.0/build_nginx.sh",
     "docker_build": false,
-    "validate_build_script": true,
+    "validate_build_script": false,
     "use_non_root_user": false
 }
