@@ -1,0 +1,12 @@
+{
+    "maintainer": "Sankalp@ibm.com",
+    "package_name" : "statsd",
+    "github_url":"https://github.com/statsd/statsd",
+    "version": "0.10.2",
+    "default_branch" : "master",
+    "package_dir": "statsd/statsd",
+    "build_script": "0.10.2/build_statsd.sh",
+    "docker_build": false,
+    "validate_build_script": true,
+    "use_non_root_user": false
+}
