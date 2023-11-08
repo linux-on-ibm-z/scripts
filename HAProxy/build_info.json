@@ -1,0 +1,12 @@
+{
+    "maintainer": "sudip.roy@ibm.com",
+    "package_name" : "HAProxy",
+    "github_url":"https://github.com/haproxy/haproxy",
+    "version": "2.8.2",
+    "default_branch" : "master",
+    "package_dir": "haproxy/haproxy",
+    "build_script": "build_haproxy.sh",
+    "docker_build": true,
+    "validate_build_script": true,
+    "use_non_root_user": false
+}
