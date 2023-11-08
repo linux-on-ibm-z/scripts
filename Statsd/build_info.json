@@ -2,7 +2,7 @@
     "maintainer": "Sankalp@ibm.com",
     "package_name" : "statsd",
     "github_url":"https://github.com/statsd/statsd",
-    "version": "0.10.2",
+    "version": "v0.10.2",
     "default_branch" : "master",
     "package_dir": "statsd/statsd",
     "build_script": "build_statsd.sh",
