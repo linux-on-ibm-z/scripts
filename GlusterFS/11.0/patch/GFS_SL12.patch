@@ -1,0 +1,50 @@
+diff --git a/configure.ac b/configure.ac
+index ef07b97775..5a539f8e2a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1288,15 +1288,11 @@ GF_DISTRIBUTION=
+
+ if test x$cross_compiling != xyes; then
+     AC_CHECK_FILE([/etc/debian_version])
+-    AC_CHECK_FILE([/etc/SuSE-release])
+     AC_CHECK_FILE([/etc/redhat-release])
+
+     if test "x$ac_cv_file__etc_debian_version" = "xyes"; then
+         GF_DISTRIBUTION=Debian
+     fi
+-    if test "x$ac_cv_file__etc_SuSE_release" = "xyes"; then
+-        GF_DISTRIBUTION=SuSE
+-    fi
+     if test "x$ac_cv_file__etc_redhat_release" = "xyes"; then
+         GF_DISTRIBUTION=Redhat
+     fi
+diff --git a/run-tests.sh b/run-tests.sh
+index 6c9cc3084e..ad62fa5261 100755
+--- a/run-tests.sh
++++ b/run-tests.sh
+@@ -121,12 +121,6 @@ function check_dependencies()
+       fi
+     fi
+
+-    # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
+-
+     # Check for the Perl Test Harness
+     env prove --version > /dev/null 2>&1
+     if [ $? -ne 0 ]; then
+@@ -158,12 +152,6 @@ function check_dependencies()
+         MISSING="$MISSING pidof"
+     fi
+
+-    # Check for netstat
+-    env netstat --version > /dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        MISSING="$MISSING netstat"
+-    fi
+-
+     # Check for killall
+     env killall --version > /dev/null 2>&1
+     if [ $? -ne 0 ]; then
