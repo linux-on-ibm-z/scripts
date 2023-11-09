@@ -424,13 +424,13 @@ function gettingStarted() {
 
 function installUbuntu() {
     sudo apt-get update
-    sudo apt-get install -y git gcc g++ make wget ant iptables procps xz-utils curl patch
+    sudo apt-get install -y git gcc g++ python3 make wget ant iptables procps xz-utils curl patch
 
     configureAndInstall
 }
 
 function installRhel() {
-    sudo yum install -y git gcc gcc-c++ make wget ant iptables-services procps-ng xz curl patch
+    sudo yum install -y git gcc gcc-c++ python3 make wget ant iptables-services procps-ng xz curl patch
 
     configureAndInstall
 }
