@@ -334,7 +334,7 @@ buildBinutils()
   msg "Building binutils $ver"
   cd "$SOURCE_ROOT"
 
-  URL=http://ftpmirror.gnu.org/binutils/binutils-${ver}.tar.gz 
+  URL=https://ftp.gnu.org/gnu/binutils/binutils-${ver}.tar.gz 
   curl -sSL $URL | tar xzf - || error "binutils $ver"
   cd binutils-${ver}
   mkdir objdir
@@ -632,7 +632,7 @@ buildAbseil() {
     cd abseil-cpp
     git checkout 20230125.3
     cmake -Bbuild -H. -DCMAKE_INSTALL_PREFIX=/usr/local
-    cmake --build build --target install
+    sudo cmake --build build --target install
 }
 
 #==============================================================================
