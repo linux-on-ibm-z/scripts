@@ -4,7 +4,7 @@
 
 ################################################################################################################################################################
 #Script     :   build_prow.sh
-#Description:   The script builds Prow (commits till 28-Feb-2023) on Linux on IBM Z for RHEL (7.8, 7.9, 8.6, 8.7, 9.0, 9.1), Ubuntu (20.04, 22.04, 22.10) and SLES (12 SP5, 15 SP4).
+#Description:   The script builds Prow (commits till 28-Feb-2023) on Linux on IBM Z for RHEL (7.8, 7.9, 8.6, 9.0), Ubuntu (20.04, 22.04) and SLES (12 SP5, 15 SP4).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Prow mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Prow ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -237,7 +237,7 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-22.10")
+"ubuntu-20.04" | "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
@@ -245,7 +245,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 	
-"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.7" | "rhel-9.0" | "rhel-9.1")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-9.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo yum install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-CPAN perl-devel 2>&1 | tee -a "$LOG_FILE"
