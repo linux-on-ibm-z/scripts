@@ -9,5 +9,4 @@
   "validate_build_script": true,	
   "use_non_root_user": true,	
   "package_dir": "doxygen/doxygen/",	
-  "docker_cmd": "docker build -t ${package_name}:$PACKAGE_VERSION ${dir}",	
 }
