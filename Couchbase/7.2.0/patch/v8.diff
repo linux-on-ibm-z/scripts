@@ -1,0 +1,12 @@
+diff --git a/src/base/template-utils.h b/src/base/template-utils.h
+index d6d4ca32d9..9e0e18ba2b 100644
+--- a/src/base/template-utils.h
++++ b/src/base/template-utils.h
+@@ -7,6 +7,7 @@
+
+ #include <array>
+ #include <functional>
++#include <ostream>
+ #include <iosfwd>
+ #include <type_traits>
+ #include <utility>
