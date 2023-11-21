@@ -9,7 +9,7 @@
     "docker_build": true,
     "docker_cmd": "docker build -t ${package_name}:$PACKAGE_VERSION ${dir}",
     "validate_build_script": true,
-    "use_non_root_user": false
+    "use_non_root_user": false,
     "v1.3.0": {
     "dir": "1.3.0",
     "build_script": "build_terraform.sh"
