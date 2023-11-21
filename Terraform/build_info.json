@@ -7,6 +7,39 @@
     "package_dir": "hashicorp/terraform",
     "build_script": "build_terraform.sh",
     "docker_build": true,
+    "docker_cmd": "docker build -t ${package_name}:$PACKAGE_VERSION ${dir}",
     "validate_build_script": true,
     "use_non_root_user": false
+    "v1.3.0": {
+    "dir": "1.3.0",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.3.6": {
+    "dir": "1.3.6",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.4.2": {
+    "dir": "1.4.2",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.4.5": {
+    "dir": "1.4.5",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.4.6": {
+    "dir": "1.4.6",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.5.1": {
+    "dir": "1.5.1",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.5.4": {
+    "dir": "1.5.4",
+    "build_script": "build_terraform.sh"
+  },
+    "v1.6.1": {
+    "dir": "1.6.1",
+    "build_script": "build_terraform.sh"
+  }
 }
