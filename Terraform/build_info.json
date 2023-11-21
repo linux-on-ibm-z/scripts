@@ -36,7 +36,7 @@
   },
     "v1.5.4": {
     "dir": "1.5.4",
-    "build_script": "build_terraform.sh"
+    "build_script": "1.5.4/build_terraform.sh"
   },
     "v1.6.1": {
     "dir": "1.6.1",
