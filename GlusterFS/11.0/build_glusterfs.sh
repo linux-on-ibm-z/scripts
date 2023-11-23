@@ -97,7 +97,7 @@ function configureAndInstall() {
 	if [[ "${DISTRO}" == "sles-12.5" ]]; then
 		zypper ref -s
 		zypper addrepo https://download.opensuse.org/repositories/devel:gcc/SLE-12/devel:gcc.repo
-		zypper refresh
+		zypper --gpg-auto-import-keys ref
 		zypper install -y gcc11
 		update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 50
 		gcc --version
