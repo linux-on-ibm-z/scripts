@@ -1,0 +1,692 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 744b9f1ae2..cfb7608ceb 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -21,7 +21,11 @@ bazel_dep(name = "zlib", version = "1.2.13")
+ 
+ # The following are required when building without WORKSPACE SUFFIX
+ bazel_dep(name = "rules_cc", version = "0.0.9")
+-bazel_dep(name = "rules_java", version = "5.5.1")
++bazel_dep(name = "rules_java", version = "")
++local_path_override(
++  module_name = "rules_java",
++  path = "RULES_JAVA_ROOT_PATH/rules_java",
++)
+ bazel_dep(name = "rules_proto", version = "4.0.0")
+ 
+ # TODO(pcloudy): Add remoteapis and googleapis as Bazel modules in the BCR.
+diff --git a/WORKSPACE b/WORKSPACE
+index b7f17ad5fd..64d2d98960 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -495,7 +495,7 @@ dist_http_archive(
+         patch_cmds_win = EXPORT_WORKSPACE_IN_BUILD_BAZEL_FILE_WIN,
+     )
+     for version in ("17", "18")
+-    for os in ("linux", "macos", "macos_aarch64", "win", "win_arm64")
++    for os in ("linux", "linux_s390x", "macos", "macos_aarch64", "win", "win_arm64")
+ ]
+ 
+ # Used in src/main/java/com/google/devtools/build/lib/bazel/rules/java/jdk.WORKSPACE.
+@@ -576,6 +576,14 @@ exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
+ """,
+ )
+ 
++dist_http_archive(
++    name = "openjdk11_linux_s390x_archive",
++    build_file_content = """
++java_runtime(name = 'runtime', srcs =  glob(['**']), visibility = ['//visibility:public'])
++exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
++""",
++)
++
+ # This must be kept in sync with src/test/shell/bazel/testdata/jdk_http_archives.
+ dist_http_archive(
+     name = "openjdk11_darwin_archive",
+@@ -622,7 +630,7 @@ exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
+ """,
+     )
+     for version in ("17", "18")
+-    for os in ("linux", "darwin", "darwin_aarch64", "windows", "windows_arm64")
++    for os in ("linux", "linux_s390x", "darwin", "darwin_aarch64", "windows", "windows_arm64")
+ ]
+ 
+ load("@io_bazel_skydoc//:setup.bzl", "stardoc_repositories")
+diff --git a/distdir.bzl b/distdir.bzl
+index d01467cc72..79f6520811 100644
+--- a/distdir.bzl
++++ b/distdir.bzl
+@@ -89,6 +89,11 @@ def dist_http_archive(name, **kwargs):
+         kwargs["patch_args"] = info.get("patch_args")
+     if "patches" not in kwargs:
+         kwargs["patches"] = info.get("patches")
++    info_patch_cmds = info.get("patch_cmds")
++    if info_patch_cmds:
++        if "patch_cmds" not in kwargs:
++            kwargs["patch_cmds"] = []
++        kwargs["patch_cmds"] = kwargs["patch_cmds"] + info_patch_cmds
+     if "strip_prefix" not in kwargs:
+         kwargs["strip_prefix"] = info.get("strip_prefix")
+     http_archive(
+diff --git a/distdir_deps.bzl b/distdir_deps.bzl
+index c7fc4588e4..108b8a94a6 100644
+--- a/distdir_deps.bzl
++++ b/distdir_deps.bzl
+@@ -78,6 +78,7 @@ DIST_DEPS = {
+         "archive": "7e4afce6fe62dbff0a4a03450143146f9f2d7488.tar.gz",
+         "sha256": "8e7d59a5b12b233be5652e3d29f42fba01c7cbab09f6b3a8d0a57ed6d1e9a0da",
+         "strip_prefix": "rules_proto-7e4afce6fe62dbff0a4a03450143146f9f2d7488",
++        "patch_cmds": ["sed -i s/com_google_protobuf_protoc_linux_s390x/com_github_protocolbuffers_protobuf/ proto/private/BUILD.release"],
+         "urls": [
+             "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/7e4afce6fe62dbff0a4a03450143146f9f2d7488.tar.gz",
+             "https://github.com/bazelbuild/rules_proto/archive/7e4afce6fe62dbff0a4a03450143146f9f2d7488.tar.gz",
+@@ -517,6 +518,7 @@ DIST_DEPS = {
+     "remotejdk11_linux_s390x": {
+         "aliases": [
+             "remotejdk11_linux_s390x_for_testing",
++            "openjdk11_linux_s390x_archive",
+             "openjdk_linux_s390x_vanilla",
+         ],
+         "sha256": "a58fc0361966af0a5d5a31a2d8a208e3c9bb0f54f345596fd80b99ea9a39788b",
+@@ -628,6 +630,18 @@ DIST_DEPS = {
+         ],
+         "used_in": ["test_WORKSPACE_files"],
+     },
++    "remotejdk17_linux_s390x": {
++        "aliases": [
++            "remotejdk17_linux_s390x_for_testing",
++            "openjdk17_linux_s390x_archive",
++        ],
++        "sha256": "6fc21601d3cf08584e698d676249a91b6a9e790c8fc7c4d9f294628562e16273",
++        "strip_prefix": "jdk-17.0.5+8",
++        "urls": [
++            "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.5+8/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.5_8.tar.gz",
++        ],
++        "used_in": [],
++    },
+     "remotejdk17_macos": {
+         "aliases": [
+             "remotejdk17_macos_for_testing",
+@@ -684,6 +698,18 @@ DIST_DEPS = {
+         ],
+         "used_in": ["test_WORKSPACE_files"],
+     },
++    "remotejdk18_linux_s390x": {
++        "aliases": [
++            "remotejdk18_linux_s390x_for_testing",
++            "openjdk18_linux_s390x_archive",
++        ],
++        "sha256": "06d0f71e59b0d7112303a2eb95b1c3701054c868100837e642c6204ea71c0e2f",
++        "strip_prefix": "jdk-18.0.2.1+1",
++        "urls": [
++            "https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2.1+1/OpenJDK18U-jdk_s390x_linux_hotspot_18.0.2.1_1.tar.gz",
++        ],
++        "used_in": [],
++    },
+     "remotejdk18_linux": {
+         "aliases": [
+             "remotejdk18_linux_for_testing",
+@@ -779,6 +805,7 @@ maybe(
+     name = "{repo}",
+     sha256 = "{sha256}",
+     strip_prefix = {strip_prefix},
++    patch_cmds = {patch_cmds},
+     urls = {urls},
+ )
+ """
+@@ -790,6 +817,7 @@ http_archive(
+     name = "{repo}",
+     sha256 = "{sha256}",
+     strip_prefix = {strip_prefix},
++    patch_cmds = {patch_cmds},
+     urls = {urls},
+ )
+ """
+@@ -802,11 +830,15 @@ http_archive(
+             strip_prefix = "\"%s\"" % strip_prefix
+         else:
+             strip_prefix = "None"
++        patch_cmds = info.get("patch_cmds")
++        if not patch_cmds:
++            patch_cmds = "None"
+ 
+         repo_stanzas["{%s}" % repo] = repo_clause.format(
+             repo = repo,
+             sha256 = str(info["sha256"]),
+             strip_prefix = strip_prefix,
++            patch_cmds = patch_cmds,
+             urls = info["urls"],
+         )
+ 
+diff --git a/src/BUILD b/src/BUILD
+index e0b9cc9cf4..edb950827a 100644
+--- a/src/BUILD
++++ b/src/BUILD
+@@ -125,8 +125,8 @@ JAVA_TOOLS = [
+         "//src/test:__subpackages__",  # For integration tests
+     ],
+ ) for suffix, jdk in {
+-    "_jdk_allmodules": [":embedded_jdk_allmodules_cached"],
+-    "_jdk_minimal": [":embedded_jdk_minimal_cached"],
++    "_jdk_allmodules": [":embedded_jdk_allmodules"],
++    "_jdk_minimal": [":embedded_jdk_minimal"],
+     "_dev_jdk": [":embedded_jdk_minimal"],
+     "_nojdk": [],
+ }.items()]
+@@ -159,6 +159,9 @@ filegroup(
+         "//src/conditions:linux_aarch64": [
+             "@openjdk_linux_aarch64//file",
+         ],
++        "//src/conditions:linux_s390x": [
++        "//src:embedded_jdk_allmodules",
++        ],
+         "//conditions:default": [
+             "@openjdk_linux//file",
+         ],
+@@ -184,6 +187,9 @@ filegroup(
+         "//src/conditions:linux_aarch64": [
+             "@openjdk_linux_aarch64_minimal//file",
+         ],
++        "//src/conditions:linux_s390x": [
++            "//src:embedded_jdk_minimal",
++        ],
+         "//conditions:default": [
+             "@openjdk_linux_minimal//file",
+         ],
+@@ -652,7 +658,8 @@ filegroup(
+         "@openjdk11_darwin_aarch64_archive//:WORKSPACE",
+         "@openjdk11_darwin_archive//:WORKSPACE",
+         "@openjdk11_linux_archive//:WORKSPACE",
+-        "@openjdk11_windows_archive//:WORKSPACE",
++        "@openjdk11_linux_s390x_archive//:WORKSPACE",
++        "@openjdk11_windows_archive//:WORKSPACE",
+         "@openjdk11_windows_arm64_archive//:WORKSPACE",
+         "@openjdk_linux_aarch64_minimal//file",
+         "@openjdk_linux_minimal//file",
+@@ -685,11 +692,11 @@ filegroup(
+         "@rules_python//:WORKSPACE",
+     ] + [
+         "@openjdk%s_%s_archive//:WORKSPACE" % (version, os)
+-        for os in ("darwin", "darwin_aarch64", "linux", "windows", "windows_arm64")
++        for os in ("darwin", "darwin_aarch64", "linux", "linux_s390x", "windows", "windows_arm64")
+         for version in ("17", "18")
+     ] + [
+         "@remotejdk%s_%s_for_testing//:WORKSPACE" % (version, os)
+-        for os in ("macos", "macos_aarch64", "linux", "win", "win_arm64")
++        for os in ("macos", "macos_aarch64", "linux", "linux_s390x", "win", "win_arm64")
+         for version in ("17", "18")
+     ],
+ )
+diff --git a/src/main/cpp/util/md5.cc b/src/main/cpp/util/md5.cc
+index 1c91bab570..19a53d0ff0 100644
+--- a/src/main/cpp/util/md5.cc
++++ b/src/main/cpp/util/md5.cc
+@@ -159,7 +159,8 @@ void Md5Digest::Finish(unsigned char digest[16]) {
+ 
+   /* Put the 64-bit file length in *bits* at the end of the buffer.  */
+   unsigned int size = (ctx_buffer_len < 56 ? 64 : 128);
+-  uint32_t words[2] = { count[0] << 3, (count[1] << 3) | (count[0] >> 29) };
++  uint32_t words[2] = { htole32(count[0] << 3),
++                        htole32((count[1] << 3) | (count[0] >> 29)) };
+   memcpy(ctx_buffer + size - 8, words, 8);
+ 
+   memcpy(ctx_buffer + ctx_buffer_len, kPadding, size - 8 - ctx_buffer_len);
+@@ -208,11 +209,14 @@ void Md5Digest::Transform(
+ 
+   // FF, GG, HH, and II transformations for rounds 1, 2, 3, and 4.
+   // Rotation is separate from addition to prevent recomputation.
++  // Note: The behavior we want is really LE to host, but host to le is the
++  // same thing
+ #define FF(a, b, c, d, s, ac) { \
+-      (a) += F((b), (c), (d)) + ((*x_pos++ = *cur_word++)) + \
++      (a) += F((b), (c), (d)) + ((*x_pos++ = htole32(*cur_word))) + \
+           static_cast<uint32_t>(ac); \
+       (a) = ROTATE_LEFT((a), (s)); \
+       (a) += (b); \
++      cur_word++; \
+     }
+ 
+ #define GG(a, b, c, d, x, s, ac) { \
+@@ -338,8 +342,12 @@ void Md5Digest::Transform(
+ 
+ string Md5Digest::String() const {
+   string result;
+-  b2a_hex(reinterpret_cast<const uint8_t*>(state), &result, 16);
+-  return result;
++  unsigned int state_le[4];
++  // Make sure state_le[4] is in little-endian format.
++  for(int i = 0; i < 4; i++)
++      state_le[i] = htole32(state[i]);
++  b2a_hex(reinterpret_cast<const uint8_t*>(state_le), &result, 16);
++   return result;
+ }
+ 
+ }  // namespace blaze_util
+diff --git a/src/main/cpp/util/md5.h b/src/main/cpp/util/md5.h
+index 8f8f3aff23..269c1f5668 100644
+--- a/src/main/cpp/util/md5.h
++++ b/src/main/cpp/util/md5.h
+@@ -24,6 +24,15 @@
+ #define __alignof__ __alignof
+ #endif  // _MSC_VER && !__alignof__
+ 
++#if defined(__linux__)
++#include <endian.h>
++#elif defined(__FreeBSD__) || defined(__OpenBSD__)
++#include <sys/endian.h>
++#elif defined(__APPLE__) || defined(_WIN32)
++// Hopefully OSX and Windows will keep running solely on little endian CPUs, so:
++#define htole32(x) (x)
++#endif
++
+ namespace blaze_util {
+ 
+ // The <code>Context</code> class performs the actual MD5
+diff --git a/src/main/java/com/google/devtools/build/lib/bazel/rules/java/BUILD b/src/main/java/com/google/devtools/build/lib/bazel/rules/java/BUILD
+index de40a7de65..eadd39e492 100644
+--- a/src/main/java/com/google/devtools/build/lib/bazel/rules/java/BUILD
++++ b/src/main/java/com/google/devtools/build/lib/bazel/rules/java/BUILD
+@@ -105,7 +105,7 @@ gen_workspace_stanza(
+         "remotejdk11_win_arm64",
+     ] + [
+         "remotejdk%s_%s" % (version, os)
+-        for os in ("macos", "macos_aarch64", "linux", "linux_aarch64", "win", "win_arm64")
++        for os in ("macos", "macos_aarch64", "linux", "linux_aarch64", "linux_s390x", "win", "win_arm64")
+         for version in ("17", "18")
+     ],
+     template = "jdk.WORKSPACE.tmpl",
+diff --git a/src/main/java/com/google/devtools/build/lib/bazel/rules/java/jdk.WORKSPACE.tmpl b/src/main/java/com/google/devtools/build/lib/bazel/rules/java/jdk.WORKSPACE.tmpl
+index df83febdbf..ba0af4c302 100644
+--- a/src/main/java/com/google/devtools/build/lib/bazel/rules/java/jdk.WORKSPACE.tmpl
++++ b/src/main/java/com/google/devtools/build/lib/bazel/rules/java/jdk.WORKSPACE.tmpl
+@@ -117,6 +117,17 @@ maybe(
+     version = "17",
+ )
+ 
++# This must be kept in sync with the top-level WORKSPACE file.
++maybe(
++    remote_java_repository,
++    {remotejdk17_linux_s390x}
++    target_compatible_with = [
++        "@platforms//os:linux",
++        "@platforms//cpu:s390x",
++    ],
++    version = "17",
++)
++
+ # This must be kept in sync with the top-level WORKSPACE file.
+ maybe(
+     remote_java_repository,
+@@ -182,6 +193,17 @@ maybe(
+     version = "18",
+ )
+ 
++# This must be kept in sync with the top-level WORKSPACE file.
++maybe(
++    remote_java_repository,
++    {remotejdk18_linux_s390x}
++    target_compatible_with = [
++        "@platforms//os:linux",
++        "@platforms//cpu:s390x",
++    ],
++    version = "18",
++)
++
+ # This must be kept in sync with the top-level WORKSPACE file.
+ maybe(
+     remote_java_repository,
+diff --git a/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java b/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java
+index 1c4bcc259d..7f190a6b04 100644
+--- a/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java
++++ b/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java
+@@ -96,6 +96,9 @@ public final class BazelMockCcSupport extends MockCcSupport {
+     if (OS.getCurrent() == OS.DARWIN) {
+       result.add(CcToolchainConfig.getCcToolchainConfigForCpu("darwin"));
+     }
++
++    if (System.getProperty("os.arch").equals("s390x"))
++      result.add(CcToolchainConfig.getCcToolchainConfigForCpu("s390x"));
+ 
+     return result.build();
+   }
+diff --git a/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py b/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py
+index 2d992d044f..f8f96d6e6d 100644
+--- a/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py
++++ b/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py
+@@ -393,7 +393,14 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
+         ],
+     )
+ 
+-    self.ScratchFile('MODULE.bazel', ['bazel_dep(name="test",version="1.0")'])
++    self.ScratchFile('MODULE.bazel', [
++        'bazel_dep(name = "rules_java", version = "")',
++        'local_path_override(',
++        '    module_name = "rules_java",',
++        '    path = "RULES_JAVA_ROOT_PATH/rules_java",',
++        ')',
++        'bazel_dep(name="test",version="1.0")',
++    ])
+     self.ScratchFile('WORKSPACE')
+ 
+     # Run sandboxed on Linux and macOS.
+diff --git a/src/test/py/bazel/test_base.py b/src/test/py/bazel/test_base.py
+index 5de2d115d2..0f985dcfa5 100644
+--- a/src/test/py/bazel/test_base.py
++++ b/src/test/py/bazel/test_base.py
+@@ -67,11 +67,13 @@ class TestBase(unittest.TestCase):
+       'remotejdk11_win_for_testing',
+       'remotejdk11_win_arm64_for_testing',
+       'remotejdk17_linux_for_testing',
++      'remotejdk17_linux_s390x_for_testing',
+       'remotejdk17_macos_for_testing',
+       'remotejdk17_macos_aarch64_for_testing',
+       'remotejdk17_win_for_testing',
+       'remotejdk17_win_arm64_for_testing',
+       'remotejdk18_linux_for_testing',
++      'remotejdk18_linux_s390x_for_testing',
+       'remotejdk18_macos_for_testing',
+       'remotejdk18_macos_aarch64_for_testing',
+       'remotejdk18_win_for_testing',
+diff --git a/src/test/shell/bazel/BUILD b/src/test/shell/bazel/BUILD
+index 6fe78ba0dc..168ee3f576 100644
+--- a/src/test/shell/bazel/BUILD
++++ b/src/test/shell/bazel/BUILD
+@@ -187,6 +187,21 @@ sh_test(
+     ],
+ )
+ 
++sh_test(
++    name = "bazel_java_test_defaults_prebuilt",
++    srcs = ["bazel_java_test_defaults_prebuilt.sh"],
++    data = [
++        ":test-deps",
++        "@bazel_tools//tools/bash/runfiles",
++    ],
++    target_compatible_with = select({
++        "@platforms//os:linux": ["@platforms//cpu:x86_64"],
++        "@platforms//os:macos": [],
++        "@platforms//os:windows": [],
++        "//conditions:default": ["@platforms//:incompatible"],
++    })
++)
++
+ sh_test(
+     name = "bazel_java17_test",
+     srcs = ["bazel_java17_test.sh"],
+@@ -912,7 +927,7 @@ sh_test(
+     ],
+     shard_count = 22,
+     tags = [
+-        "block-network",
++       # "block-network",
+         "no_windows",
+     ],
+ )
+diff --git a/src/test/shell/bazel/bazel_java_test_defaults.sh b/src/test/shell/bazel/bazel_java_test_defaults.sh
+index 212eeefd40..4ba6054f1d 100755
+--- a/src/test/shell/bazel/bazel_java_test_defaults.sh
++++ b/src/test/shell/bazel/bazel_java_test_defaults.sh
+@@ -221,25 +221,6 @@ EOF
+   expect_not_log ":JavaBuilder"
+ }
+ 
+-# PREBUILT_TOOLCHAIN_CONFIGURATION shall use prebuilt ijar and singlejar binaries.
+-function test_default_java_toolchain_prebuiltToolchain() {
+-  cat > BUILD <<EOF
+-load("@bazel_tools//tools/jdk:default_java_toolchain.bzl", "default_java_toolchain", "PREBUILT_TOOLCHAIN_CONFIGURATION")
+-default_java_toolchain(
+-  name = "prebuilt_toolchain",
+-  configuration = PREBUILT_TOOLCHAIN_CONFIGURATION,
+-)
+-EOF
+-
+-  bazel build //:prebuilt_toolchain || fail "default_java_toolchain target failed to build"
+-  bazel cquery 'deps(//:prebuilt_toolchain)' >& $TEST_log || fail "failed to query //:prebuilt_toolchain"
+-
+-  expect_log "ijar/ijar\(.exe\)\? "
+-  expect_log "singlejar/singlejar_local"
+-  expect_not_log "ijar/ijar.cc"
+-  expect_not_log "singlejar/singlejar_main.cc"
+-}
+-
+ # NONPREBUILT_TOOLCHAIN_CONFIGURATION shall compile ijar and singlejar from sources.
+ function test_default_java_toolchain_nonprebuiltToolchain() {
+   cat > BUILD <<EOF
+diff --git a/src/test/shell/bazel/bazel_with_jdk_test.sh b/src/test/shell/bazel/bazel_with_jdk_test.sh
+index e6629c36e7..7a56e2e78b 100755
+--- a/src/test/shell/bazel/bazel_with_jdk_test.sh
++++ b/src/test/shell/bazel/bazel_with_jdk_test.sh
+@@ -126,7 +126,9 @@ function test_bazel_license_prints_jdk_license() {
+   expect_log "OPENJDK ASSEMBLY EXCEPTION" || \
+       fail "'bazel license' did not print an expected string from ASSEMBLY_EXCEPTION"
+ 
+-  expect_log "Provided you have not received the software directly from Azul and have already" || \
++  # Azul JDK is not used on s390x
++  # expect_log "Provided you have not received the software directly from Azul and have already" || \
++  expect_log "Linking this OpenJDK Code statically or dynamically with other code" || \
+       fail "'bazel license' did not print an expected string from DISCLAIMER"
+ 
+   expect_log '"CLASSPATH" EXCEPTION TO THE GPL' || \
+diff --git a/src/test/shell/bazel/testdata/BUILD b/src/test/shell/bazel/testdata/BUILD
+index 9ac2f11011..485af335e7 100644
+--- a/src/test/shell/bazel/testdata/BUILD
++++ b/src/test/shell/bazel/testdata/BUILD
+@@ -52,13 +52,14 @@ gen_workspace_stanza(
+         "remote_java_tools_test_darwin_x86_64",
+         "remote_java_tools_test_darwin_arm64",
+         "openjdk11_linux_archive",
++	"openjdk11_linux_s390x_archive",
+         "openjdk11_darwin_archive",
+         "openjdk11_darwin_aarch64_archive",
+         "openjdk11_windows_archive",
+         "openjdk11_windows_arm64_archive",
+     ] + [
+         "openjdk%s_%s_archive" % (version, os)
+-        for os in ("linux", "darwin", "darwin_aarch64", "windows", "windows_arm64")
++        for os in ("linux", "linux_s390x", "darwin", "darwin_aarch64", "windows", "windows_arm64")
+         for version in ("17", "18")
+     ],
+     template = "jdk_http_archives.tmpl",
+diff --git a/src/test/shell/bazel/testdata/jdk_http_archives.tmpl b/src/test/shell/bazel/testdata/jdk_http_archives.tmpl
+index 8b0a0a7cc7..a97f1b68fd 100644
+--- a/src/test/shell/bazel/testdata/jdk_http_archives.tmpl
++++ b/src/test/shell/bazel/testdata/jdk_http_archives.tmpl
+@@ -26,6 +26,12 @@ http_archive(
+     build_file_content = "java_runtime(name = 'runtime', srcs =  glob(['**']), visibility = ['//visibility:public'])",
+ )
+ 
++# This must be kept in sync with the top-level WORKSPACE file.
++http_archive(
++    {openjdk11_linux_s390x_archive}
++    build_file_content = "java_runtime(name = 'runtime', srcs =  glob(['**']), visibility = ['//visibility:public'])",
++)
++
+ # This must be kept in sync with the top-level WORKSPACE file.
+ http_archive(
+     {openjdk11_darwin_archive}
+@@ -60,7 +66,17 @@ exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
+ """,
+ )
+ 
++# This must be kept in sync with the top-level WORKSPACE file.
++http_archive(
++    {openjdk17_linux_s390x_archive}
++    build_file_content = """
++java_runtime(name = 'runtime', srcs =  glob(['**']), visibility = ['//visibility:public'])
++exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
++""",
++)
++
+ # This must be kept in sync with src/test/shell/bazel/testdata/jdk_http_archives.
++
+ http_archive(
+     {openjdk17_darwin_archive}
+     build_file_content = """
+@@ -106,6 +122,15 @@ exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
+ """,
+ )
+ 
++# This must be kept in sync with the top-level WORKSPACE file.
++http_archive(
++    {openjdk18_linux_s390x_archive}
++    build_file_content = """
++java_runtime(name = 'runtime', srcs =  glob(['**']), visibility = ['//visibility:public'])
++exports_files(["WORKSPACE"], visibility = ["//visibility:public"])
++""",
++)
++
+ # This must be kept in sync with src/test/shell/bazel/testdata/jdk_http_archives.
+ http_archive(
+     {openjdk18_darwin_archive}
+diff --git a/src/test/shell/testenv.sh.tmpl b/src/test/shell/testenv.sh.tmpl
+index 7a9aac7458..38abfc53e9 100755
+--- a/src/test/shell/testenv.sh.tmpl
++++ b/src/test/shell/testenv.sh.tmpl
+@@ -279,16 +279,19 @@ EOF
+         "openjdk11_darwin_archive"
+         "openjdk11_darwin_aarch64_archive"
+         "openjdk11_linux_archive"
++        "openjdk11_linux_s390x_archive"
+         "openjdk11_windows_archive"
+         "openjdk11_windows_arm64_archive"
+         "openjdk17_darwin_archive"
+         "openjdk17_darwin_aarch64_archive"
+         "openjdk17_linux_archive"
++        "openjdk17_linux_s390x_archive"
+         "openjdk17_windows_archive"
+         "openjdk17_windows_arm64_archive"
+         "openjdk18_darwin_archive"
+         "openjdk18_darwin_aarch64_archive"
+         "openjdk18_linux_archive"
++        "openjdk18_linux_s390x_archive"
+         "openjdk18_windows_archive"
+         "openjdk18_windows_arm64_archive"
+         "openjdk_linux_aarch64_minimal"
+@@ -316,11 +319,13 @@ EOF
+         "remotejdk11_win_for_testing"
+         "remotejdk11_win_arm64_for_testing"
+         "remotejdk17_linux_for_testing"
++        "remotejdk17_linux_s390x_for_testing"
+         "remotejdk17_macos_for_testing"
+         "remotejdk17_macos_aarch64_for_testing"
+         "remotejdk17_win_for_testing"
+         "remotejdk17_win_arm64_for_testing"
+         "remotejdk18_linux_for_testing"
++        "remotejdk18_linux_s390x_for_testing"
+         "remotejdk18_macos_for_testing"
+         "remotejdk18_macos_aarch64_for_testing"
+         "remotejdk18_win_for_testing"
+diff --git a/tools/jdk/BUILD.tools b/tools/jdk/BUILD.tools
+index 0c37719bbc..55db2cd17e 100644
+--- a/tools/jdk/BUILD.tools
++++ b/tools/jdk/BUILD.tools
+@@ -455,7 +455,7 @@ _JDKS = [
+     "remotejdk11_linux_s390x",
+ ] + [
+     "remotejdk%s_%s" % (version, os)
+-    for os in ("linux", "linux_aarch64", "macos", "macos_aarch64", "win", "win_arm64")
++    for os in ("linux", "linux_aarch64", "linux_s390x", "macos", "macos_aarch64", "win", "win_arm64")
+     for version in ("17", "18")
+ ]
+ 
+diff --git a/src/test/shell/bazel/bazel_java_test_defaults_prebuilt.sh b/src/test/shell/bazel/bazel_java_test_defaults_prebuilt.sh
+new file mode 100755
+index 0000000000000..7c337276f0b26
+--- /dev/null
++++ b/src/test/shell/bazel/bazel_java_test_defaults_prebuilt.sh
+@@ -0,0 +1,79 @@
++#!/bin/bash
++#
++# Copyright 2023 The Bazel Authors. All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#    http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++# Tests Java prebuilt toolchains.
++#
++
++set -euo pipefail
++
++# --- begin runfiles.bash initialization ---
++if [[ ! -d "${RUNFILES_DIR:-/dev/null}" && ! -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
++    if [[ -f "$0.runfiles_manifest" ]]; then
++      export RUNFILES_MANIFEST_FILE="$0.runfiles_manifest"
++    elif [[ -f "$0.runfiles/MANIFEST" ]]; then
++      export RUNFILES_MANIFEST_FILE="$0.runfiles/MANIFEST"
++    elif [[ -f "$0.runfiles/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
++      export RUNFILES_DIR="$0.runfiles"
++    fi
++fi
++if [[ -f "${RUNFILES_DIR:-/dev/null}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
++  source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
++elif [[ -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
++  source "$(grep -m1 "^bazel_tools/tools/bash/runfiles/runfiles.bash " \
++            "$RUNFILES_MANIFEST_FILE" | cut -d ' ' -f 2-)"
++else
++  echo >&2 "ERROR: cannot find @bazel_tools//tools/bash/runfiles:runfiles.bash"
++  exit 1
++fi
++# --- end runfiles.bash initialization ---
++
++source "$(rlocation "io_bazel/src/test/shell/integration_test_setup.sh")" \
++  || { echo "integration_test_setup.sh not found!" >&2; exit 1; }
++
++case "$(uname -s | tr [:upper:] [:lower:])" in
++msys*|mingw*|cygwin*)
++  declare -r is_windows=true
++  ;;
++*)
++  declare -r is_windows=false
++  ;;
++esac
++
++if "$is_windows"; then
++  export MSYS_NO_PATHCONV=1
++  export MSYS2_ARG_CONV_EXCL="*"
++fi
++
++# PREBUILT_TOOLCHAIN_CONFIGURATION shall use prebuilt ijar and singlejar binaries.
++function test_default_java_toolchain_prebuiltToolchain() {
++  cat > BUILD <<EOF
++load("@bazel_tools//tools/jdk:default_java_toolchain.bzl", "default_java_toolchain", "PREBUILT_TOOLCHAIN_CONFIGURATION")
++default_java_toolchain(
++  name = "prebuilt_toolchain",
++  configuration = PREBUILT_TOOLCHAIN_CONFIGURATION,
++)
++EOF
++
++  bazel build //:prebuilt_toolchain || fail "default_java_toolchain target failed to build"
++  bazel cquery 'deps(//:prebuilt_toolchain)' >& $TEST_log || fail "failed to query //:prebuilt_toolchain"
++
++  expect_log "ijar/ijar\(.exe\)\? "
++  expect_log "singlejar/singlejar_local"
++  expect_not_log "ijar/ijar.cc"
++  expect_not_log "singlejar/singlejar_main.cc"
++}
++
++run_suite "Java prebuilt toolchains tests."
+diff --git a/src/test/shell/bazel/runfiles_test.sh b/src/test/shell/bazel/runfiles_test.sh
+index 04cfda90c8..d3f908354e 100755
+--- a/src/test/shell/bazel/runfiles_test.sh
++++ b/src/test/shell/bazel/runfiles_test.sh
+@@ -54,6 +54,11 @@ function test_runfiles_bzlmod() {
+   create_workspace_with_default_repos WORKSPACE "blorp_malorp"
+   cat > MODULE.bazel <<EOF
+ module(name="blep")
++bazel_dep(name = "rules_java", version = "")
++local_path_override(
++  module_name = "rules_java",
++  path = "RULES_JAVA_ROOT_PATH/rules_java",
++)
+ EOF
+ 
+   mkdir foo
