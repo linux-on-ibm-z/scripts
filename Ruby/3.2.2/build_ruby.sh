@@ -150,7 +150,7 @@ case "$DISTRO" in
 	source /opt/rh/devtoolset-7/enable
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
-"rhel-8.6" | "rhel-8.7" | "rhel-8.8" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2")
+"rhel-8.6" | "rhel-8.7" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2" | "rhel-9.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel readline-devel gdbm-devel gcc make wget tar libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
