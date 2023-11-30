@@ -1,0 +1,78 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 47102f1bcb6..4a7266420e4 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -176,8 +176,9 @@ go_download_sdk(
+         "linux_amd64": ("go1.19.4.linux-amd64.tar.gz", "565b0c97ea85539951daf203be166aef1e96e4e1bf38498a9ef5443298d83b7a"),
+         "linux_arm64": ("go1.19.4.linux-arm64.tar.gz", "6bb5752483c0d145b91199e5cc1352960d926850e75864dea16282337b0d92fe"),
+         "windows_amd64": ("go1.19.4.windows-amd64.tar.gz", "0f37edf2a6663db33c8f67ee36e21a7eb391fbf35d494299f6a81a59e294f4a0"),
++        "linux_s390x": ("go1.19.4.linux-s390x.tar.gz", "4b8d25acbdca8010c31ea8c5fd4aba93471ff6ada7a8b4fb04b935baee873dc8"),
+     },
+-    urls = ["https://storage.googleapis.com/public-bazel-artifacts/go/20230214-214430/{}"],
++    urls = ["https://go.dev/dl/{}"],
+     version = "1.19.4",
+ )
+ 
+@@ -227,9 +228,10 @@ node_repositories(
+         "16.13.0-linux_arm64": ("node-v16.13.0-linux-arm64.tar.xz", "node-v16.13.0-linux-arm64", "93a0d03f9f802353cb7052bc97a02cd9642b49fa985671cdc16c99936c86d7d2"),
+         "16.13.0-linux_amd64": ("node-v16.13.0-linux-x64.tar.xz", "node-v16.13.0-linux-x64", "a876ce787133149abd1696afa54b0b5bc5ce3d5ae359081d407ff776e39b7ba8"),
+         "16.13.0-windows_amd64": ("node-v16.13.0-win-x64.zip", "node-v16.13.0-win-x64", "5a39ec5d4786c2814a6c04488bebac6423c2aaa12832b24f0882456f2e4674e1"),
++        "16.13.0-linux_s390x": ("node-v16.13.0-linux-s390x.tar.xz", "node-v16.13.0-linux-s390x", "49e972bf3e969d621157df4c8f2fa18ff748c167d5ebd0efc87e1b9f0c6541cc"),
+     },
+     node_urls = [
+-        "https://storage.googleapis.com/public-bazel-artifacts/js/node/v{version}/{filename}",
++        "https://nodejs.org/download/release/v{version}/{filename}",
+     ],
+     node_version = "16.13.0",
+ )
+diff --git a/pkg/ccl/gssapiccl/BUILD.bazel b/pkg/ccl/gssapiccl/BUILD.bazel
+index b5f0a1c8f79..362b9239606 100644
+--- a/pkg/ccl/gssapiccl/BUILD.bazel
++++ b/pkg/ccl/gssapiccl/BUILD.bazel
+@@ -19,7 +19,7 @@ go_library(
+     clinkopts = select({
+         # NB: On Ubuntu, res_nsearch is found in the resolv_wrapper library,
+         # found in the libresolv-wrapper package.
+-        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper"],
++        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper -lkeyutils"],
+         "@io_bazel_rules_go//go/platform:linux": ["-ldl -lresolv"],
+         "//conditions:default": [],
+     }),
+diff --git a/pkg/kv/kvserver/client_merge_test.go b/pkg/kv/kvserver/client_merge_test.go
+index 5a3611f313f..419074e8723 100644
+--- a/pkg/kv/kvserver/client_merge_test.go
++++ b/pkg/kv/kvserver/client_merge_test.go
+@@ -53,6 +53,7 @@ import (
+ 	"github.com/cockroachdb/cockroach/pkg/testutils/skip"
+ 	"github.com/cockroachdb/cockroach/pkg/testutils/testcluster"
+ 	"github.com/cockroachdb/cockroach/pkg/util/ctxgroup"
++	"github.com/cockroachdb/cockroach/pkg/util/grunning"
+ 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
+ 	"github.com/cockroachdb/cockroach/pkg/util/leaktest"
+ 	"github.com/cockroachdb/cockroach/pkg/util/log"
+@@ -4519,7 +4520,11 @@ func TestMergeQueue(t *testing.T) {
+ 
+ 					clearRange(t, lhsStartKey, rhsEndKey)
+ 					setSplitObjective(secondSplitObjective)
+-					verifyUnmergedSoon(t, store, lhsStartKey, rhsStartKey)
++					if !grunning.Supported() {
++						verifyMergedSoon(t, store, lhsStartKey, rhsStartKey)
++					 } else {
++						 verifyUnmergedSoon(t, store, lhsStartKey, rhsStartKey)
++					}
+ 				})
+ 			}
+ 		}
+diff --git a/pkg/kv/kvserver/rebalance_objective_test.go b/pkg/kv/kvserver/rebalance_objective_test.go
+index 5b3fe8b01da..2cfdad8077c 100644
+--- a/pkg/kv/kvserver/rebalance_objective_test.go
++++ b/pkg/kv/kvserver/rebalance_objective_test.go
+@@ -206,7 +206,7 @@ func TestRebalanceObjectiveManager(t *testing.T) {
+ 		// Changing the objective to CPU should not work since it isn't
+ 		// supported on this aarch.
+ 		LoadBasedRebalancingObjective.Override(ctx, &st.SV, int64(LBRebalancingCPU))
+-		require.Equal(t, LBRebalancingCPU, manager.Objective())
++		require.Equal(t, LBRebalancingQueries, manager.Objective())
+ 		require.Len(t, *callbacks, 0)
+ 
+ 		return
