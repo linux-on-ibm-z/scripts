@@ -399,7 +399,7 @@ buildCmake()
   URL=https://github.com/Kitware/CMake/releases/download/v${ver}/cmake-${ver}.tar.gz
   curl -sSL $URL | tar xzf - || error "cmake $ver"
   cd cmake-${ver}
-  ./bootstrap
+  ./bootstrap --prefix=/usr
   make
   sudo make install
 }
@@ -784,7 +784,7 @@ buildLibdeflate() {
   cd libdeflate
   git checkout v1.18
   cmake -Bbuild -H. -DCMAKE_INSTALL_PREFIX=/usr/local
-  cmake --build build --target install
+  sudo cmake --build build --target install
 }
 
 function installRust()
