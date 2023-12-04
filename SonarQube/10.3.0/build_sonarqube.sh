@@ -128,7 +128,7 @@ function installElasticsearch() {
 
     printf -- "Installing Elasticsearch \n"
     cd $SOURCE_ROOT
-    PATCH_URL=https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/SonarQube/10.2.1/patch/elasticsearch.diff
+    PATCH_URL=https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/SonarQube/10.3.0/patch/elasticsearch.diff
     export LANG="en_US.UTF-8"
     export ES_JAVA_HOME=$JAVA_HOME
     export JAVA17_HOME=$JAVA_HOME
