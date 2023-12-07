@@ -255,7 +255,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4" | "rhel-8.5")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.2" | "rhel-8.4" | "rhel-8.5" | "rhel-8.6" | "rhel-8.8")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         if [[ "$VERSION_ID" == "8.2" ]] || [[ "$VERSION_ID" == "8.4" ]] || [[ "$VERSION_ID" == "8.5" ]]; then
                 sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libnsl2-devel libuuid-devel make ncurses ncurses-devel openssl openssl-devel readline-devel sqlite-devel tar tk-devel wget xz zlib-devel glibc-langpack-en diffutils xz-devel
@@ -273,7 +273,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"sles-15.3")
+"sles-15.3" | "sles-15.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo zypper install -y gawk gcc gcc-c++ gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libnsl-devel libopenssl-devel libuuid-devel make ncurses-devel readline-devel sqlite3-devel tar tk-devel wget xz-devel zlib-devel gzip timezone
         configureAndInstall |& tee -a "${LOG_FILE}"
