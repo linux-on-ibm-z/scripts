@@ -62,12 +62,12 @@ function cleanup() {
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
-	if [[ "$ID-$VERSION_ID" == "rhel-8.6" ]] || [[ "$ID-$VERSION_ID" == "rhel-8.8" ]]; then
+	if [[ "$ID-$VERSION_ID" == "rhel-8.6" ]] || [[ "$ID-$VERSION_ID" == "rhel-8.8" ]] || [[ "$ID-$VERSION_ID" == "rhel-8.9" ]]; then
          sudo alternatives --set python /usr/bin/python2
 	fi
 	
 	#Creating daemon user for sles 15.x
-	if [[ "$ID-$VERSION_ID" == "sles-15.4" ]] || [[ "$ID-$VERSION_ID" == "sles-15.5" ]] ; then
+	if [[ "$ID-$VERSION_ID" == "sles-15.5" ]] ; then
          sudo ln -s /usr/bin/python3 /usr/bin/python 
 	       sudo groupadd daemon
 	       sudo useradd -G daemon daemon
@@ -150,7 +150,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-22.04" | "ubuntu-23.04" | "ubuntu-23.10")
+"ubuntu-22.04" | "ubuntu-23.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
 	sudo apt-get install -y git python3 openssl gcc autoconf2.69 make libtool-bin libpcre3-dev libxml2 libexpat1 libexpat1-dev wget tar |& tee -a "$LOG_FILE"
@@ -159,19 +159,19 @@ case "$DISTRO" in
         sudo ln -s /usr/bin/autoconf2.69 /usr/bin/autoconf
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-7.8" | "rhel-7.9" | "rhel-9.0" | "rhel-9.2")
+"rhel-7.8" | "rhel-7.9" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y git openssl openssl-devel python gcc libtool autoconf make pcre pcre-devel libxml2 libxml2-devel expat-devel file which wget procps tar |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-8.6" | "rhel-8.8")
+"rhel-8.6" | "rhel-8.8" | "rhel-8.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
     sudo yum install -y git openssl openssl-devel python2 gcc libtool autoconf make pcre pcre-devel libxml2 libxml2-devel expat-devel diffutils file which procps wget tar |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.4" | "sles-15.5" )
+"sles-12.5" | "sles-15.5" )
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y git openssl libopenssl-devel python3 gcc libtool autoconf make libpcre1 pcre-devel libxml2-tools libxml2-devel libexpat-devel which procps wget tar awk |& tee -a "$LOG_FILE"
