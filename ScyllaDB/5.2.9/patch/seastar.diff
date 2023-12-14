@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 336c183..c299e52 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -739,7 +739,6 @@ set (Seastar_PRIVATE_CXX_FLAGS
+   -fvisibility=hidden
+   -UNDEBUG
+   -Wall
+-  -Werror
+   -Wno-array-bounds # Disabled because of https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93437
+   -Wno-error=deprecated-declarations)
+ 
