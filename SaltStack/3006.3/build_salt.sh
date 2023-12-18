@@ -84,12 +84,14 @@ function configureAndInstall()
 
 #Building Python
 if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "9."* ]]; then
+    printf -- 'Building Python \n'
     cd "${CURDIR}"
     wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/${PYTHON_VERSION}/build_python3.sh
     bash build_python3.sh -y
 fi
 if [[ "$VERSION_ID" == "7.8" || "$VERSION_ID" == "7.9" ]]; then
     #install Cmake
+    printf -- 'Install cmake \n'
     cd "${CURDIR}"
     wget https://cmake.org/files/v3.26/cmake-3.26.0.tar.gz
     tar -xzvf cmake-3.26.0.tar.gz
@@ -101,6 +103,7 @@ fi
 if [[ "$ID" == "rhel" ]]; then
     cd "${CURDIR}"
     #install M2Crypto
+    printf -- 'Building M2Crypto \n'
     if [[ "$VERSION_ID" == "9."* ]]; then
       sudo -H pip install M2Crypto
     else
@@ -108,6 +111,7 @@ if [[ "$ID" == "rhel" ]]; then
     fi
     #install zeromq
     if [[ "$VERSION_ID" != "7."* ]]; then
+      printf -- 'Building ZeroMQ \n'
       wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.6/zeromq-4.1.6.tar.gz
       tar -xzvf zeromq-4.1.6.tar.gz
       cd zeromq-4.1.6
@@ -163,6 +167,7 @@ if [[ "$VERSION_ID" == "7."* ]]; then
   export PATH=/usr/local/bin:$PATH
   export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
   export LD_LIBRARY_PATH="/usr/local/lib/:/usr/local/lib64/"
+  export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
   export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
 
   printf -- 'export PATH="/usr/local/bin:${PATH}"\n'  >> "${BUILD_ENV}"
@@ -277,7 +282,7 @@ case "$DISTRO" in
 ;;
 "sles-15.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo zypper install -y bison flex libopenssl-devel readline-devel gdbm-devel gcc make wget tar gawk gzip libyaml-devel |& tee -a "${LOG_FILE}"
+	sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git libffi-devel libopenssl-devel libxml2-devel libxslt-devel make man tar wget zeromq-devel cmake libnghttp2-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 *)
