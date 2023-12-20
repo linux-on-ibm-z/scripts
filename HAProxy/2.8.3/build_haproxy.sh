@@ -161,7 +161,7 @@ function installAdditionalDependencies() {
     buildAndInstallPython3
     ;;
 
-  "sles-15.4" | "sles-15.5")
+  "sles-15.5")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo zypper install -y ninja socat python curl
     ;;
@@ -325,7 +325,7 @@ case "$DISTRO" in
         buildAndInstallLua |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "sles-15.4" | "sles-15.5")
+    "sles-15.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo zypper install -y awk gcc gzip make tar wget xz zlib-devel libopenssl-devel lua53-devel pcre2-devel \
