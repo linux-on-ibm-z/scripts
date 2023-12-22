@@ -78,10 +78,11 @@ function prepareRHEL9() {
     printf -- "Installing dependencies from repository.\n"
     sudo subscription-manager repos --enable codeready-builder-for-rhel-9-s390x-rpms
     sudo subscription-manager repos --enable rhel-9-for-s390x-appstream-rpms
+    sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
     sudo yum install -y gcc gcc-c++ atk-devel autoconf automake binutils-devel bison bzip2 \
         cmake cups-devel flex git gnome-keyring libcurl-devel langpacks-en glibc-all-langpacks \
         libtool make ncurses-devel ninja-build openssl-devel openssl-perl perl-core \
-        python3 python3-devel tar texinfo unzip wget which xz xz-devel glib2-devel clang compat-openssl11 python3-httplib2
+        python3 python3-devel tar texinfo unzip wget which xz xz-devel glib2-devel clang compat-openssl11 python3-httplib2 asciidoctor
 
     sudo ln -sf /usr/bin/python3 /usr/bin/python
     sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
@@ -93,6 +94,7 @@ function prepareRHEL8() {
     printf -- "Installing dependencies from repository.\n"
     sudo subscription-manager repos --enable codeready-builder-for-rhel-8-s390x-rpms
     sudo subscription-manager repos --enable rhel-8-for-s390x-appstream-rpms
+    sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
     sudo yum install -y gcc-toolset-10 gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-libatomic-devel gcc-toolset-10-libstdc++-devel
     sudo ln -sf /opt/rh/gcc-toolset-10/root/usr/bin/gcc /usr/local/bin/gcc
     sudo ln -sf /opt/rh/gcc-toolset-10/root/usr/bin/g++ /usr/local/bin/g++
