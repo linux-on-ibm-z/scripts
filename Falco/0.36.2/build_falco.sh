@@ -71,17 +71,47 @@ function configureAndInstall() {
     printf -- 'Building dependencies\n'
 
     cd "${SOURCE_ROOT}"
+    
+    if [[ "${DISTRO}" =~ ^rhel-7  ]]; then
+    sudo yum groupinstall -y 'Development Tools'
+    sudo yum install -y hostname tar zip gcc-c++ unzip python3 cmake curl wget gcc vim patch binutils-devel tcl gettext libtool autoconf make curl python3
+    GCC_VERSION=10.2.0
+    wget https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz
+    tar -xf gcc-${GCC_VERSION}.tar.gz
+    cd gcc-${GCC_VERSION}
+    ./contrib/download_prerequisites
+    mkdir objdir
+    cd objdir
+    ../configure --prefix=/opt/gcc --enable-languages=c,c++ --with-arch=zEC12 --with-long-double-128 \
+    	--build=s390x-linux-gnu --host=s390x-linux-gnu --target=s390x-linux-gnu                  \
+    	--enable-threads=posix --with-system-zlib --disable-multilib
+    make -j $(nproc)
+    sudo make install
+    sudo ln -sf /opt/gcc/bin/gcc /usr/bin/gcc
+    sudo ln -sf /opt/gcc/bin/g++ /usr/bin/g++
+    sudo ln -sf /opt/gcc/bin/g++ /usr/bin/c++
+    export PATH=/opt/gcc/bin:"$PATH"
+    export LD_LIBRARY_PATH=/opt/gcc/lib64:"$LD_LIBRARY_PATH"
+    export C_INCLUDE_PATH=/opt/gcc/lib/gcc/s390x-linux-gnu/${GCC_VERSION}/include
+    export CPLUS_INCLUDE_PATH=/opt/gcc/lib/gcc/s390x-linux-gnu/${GCC_VERSION}/include
+ 
+    fi
+    
+    cd "${SOURCE_ROOT}"
     if [[ "${ID}" == "ubuntu" ]] || [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" =~ ^rhel-[78] ]]; then
         printf -- 'Installing Go v1.18.8\n'
-	    cd $SOURCE_ROOT
-	    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh
-	    bash build_go.sh -y -v 1.18.8
-	    export GOPATH=$SOURCE_ROOT
-	    export PATH=$GOPATH/bin:$PATH
+	cd $SOURCE_ROOT
+	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh
+	if [[ "${DISTRO}" == "ubuntu-23.10" ]]; then
+	sed -i 's:"ubuntu-23.04":"ubuntu-23.04" | "ubuntu-23.10":g' build_go.sh
+	fi
+	bash build_go.sh -y -v 1.18.8
+	export GOPATH=$SOURCE_ROOT
+	export PATH=$GOPATH/bin:$PATH
         export CC=$(which gcc)
         export CXX=$(which g++)
-	    go version
-	    printf -- 'Go installed successfully\n'
+	go version
+	printf -- 'Go installed successfully\n'
     fi
     
     if [[ "${DISTRO}" =~ ^rhel-7 ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
@@ -242,7 +272,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"ubuntu-22.04" | "ubuntu-23.10")
+"ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
   
@@ -251,12 +281,26 @@ case "$DISTRO" in
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
+
+"ubuntu-23.10")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+  
+    sudo apt-get update
+    sudo apt-get install -y git cmake build-essential pkg-config autoconf wget curl patch libtool libelf-dev gcc gcc-12 g++-12 rpm linux-headers-$(uname -r) linux-tools-$(uname -r) kmod clang llvm
+    
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 --slave /usr/bin/g++ g++ /usr/bin/g++-12
+    export CC=$(which gcc)
+    export CXX=$(which g++)
+
+    configureAndInstall | tee -a "$LOG_FILE"
+    ;;
 	
 "rhel-7.8" | "rhel-7.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y devtoolset-9-gcc devtoolset-9-gcc-c++ devtoolset-9-toolchain devtoolset-9-libstdc++-devel glibc-static openssl-devel autoconf automake libtool createrepo expect git which rpm-build git libarchive wget bzip2 perl-FindBin make autoconf automake pkg-config patch elfutils-libelf-devel diffutils kernel-devel-$(uname -r) kmod
+    sudo yum install -y devtoolset-9-gcc devtoolset-9-gcc-c++ devtoolset-9-toolchain devtoolset-9-libstdc++-devel glibc-static openssl-devel autoconf automake libtool createrepo expect git which rpm-build git libarchive wget bzip2 perl-FindBin perl-IPC-Cmd make autoconf automake pkg-config patch elfutils-libelf-devel diffutils kernel-devel-$(uname -r) kmod
     source /opt/rh/devtoolset-9/enable
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
@@ -306,7 +350,10 @@ case "$DISTRO" in
 
     SLES_KERNEL_VERSION=$(uname -r | sed 's/-default//')
     SLES_KERNEL_PKG_VERSION=$(sudo zypper se -s 'kernel-default-devel' | grep ${SLES_KERNEL_VERSION} | head -n 1 | cut -d "|" -f 4 - | tr -d '[:space:]')
-    sudo zypper install -y gcc gcc-c++ gcc12-c++ git-core cmake patch which automake autoconf libtool libelf-devel tar curl vim wget pkg-config glibc-devel-static go1.21 "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" kmod gawk clang14 llvm14 bpftool
+    sudo zypper install -y gcc gcc-c++ gcc12-c++ git-core cmake patch which automake autoconf libtool libelf-devel gawk tar curl vim wget pkg-config glibc-devel-static go1.21 "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" kmod clang14 llvm14 bpftool
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 50
+    export CC=$(which gcc)
+    export CXX=$(which g++)
     go version
 	
     configureAndInstall | tee -a "$LOG_FILE"
