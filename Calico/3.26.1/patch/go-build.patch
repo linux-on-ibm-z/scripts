@@ -80,7 +80,7 @@ index f222129..d224973 100644
 +    chmod 0755 /sbin/su-exec; \
 +    rm /sbin/su-exec.c
 +
-+RUN go install github.com/vektra/mockery/v2@latest
++RUN go install github.com/vektra/mockery/v2@v2.38.0
  
  # Disable ssh host key checking
  RUN echo 'Host *' >> /etc/ssh/ssh_config \
