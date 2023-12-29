@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2022.
+# © Copyright IBM Corporation 2022, 2023.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -321,7 +321,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.4" | "rhel-8.6" | "rhel-8.7")
+"rhel-8.6" | "rhel-8.8" | "rhel-8.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
@@ -333,15 +333,15 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-9.0" | "rhel-9.1")
+"rhel-9.0" | "rhel-9.2" | "rhel-9.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
     sudo yum install -y python3-devel libffi-devel cargo curl wget openssl-devel gcc make gcc-c++ python3-mod_wsgi httpd httpd-devel procps sqlite-devel python3-pip perl
     
     echo "[mariadb]" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
-    echo "name = MariaDB-10.11.5" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
-    echo "baseurl=http://mirror.mariadb.org/mariadb-10.11.5/yum/rhel9-s390x" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
+    echo "name = MariaDB-10.11.6" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
+    echo "baseurl=http://mirror.mariadb.org/mariadb-10.11.6/yum/rhel9-s390x" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
     echo "gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
     echo "gpgcheck=1" | sudo tee -a /etc/yum.repos.d/MariaDB.repo
 
