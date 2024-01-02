@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2023.
+# © Copyright IBM Corporation 2023, 2024.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -626,7 +626,7 @@ case "$DISTRO" in
   source /opt/rh/devtoolset-7/enable
   source /opt/rh/rh-git227/enable
 
-  curl -L http://cpanmin.us | sudo perl - --self-upgrade |& tee -a "$LOG_FILE"
+  curl -L https://cpanmin.us | sudo perl - --self-upgrade |& tee -a "$LOG_FILE"
   sudo /usr/local/bin/cpanm YAML::XS |& tee -a "$LOG_FILE"
   sudo /usr/local/bin/cpanm Path::Tiny |& tee -a "$LOG_FILE"
 
@@ -707,7 +707,7 @@ EOF
         php72-ctype php72-sockets php72-gettext php72-ldap libcurl-devel libxml2 libxml2-devel openldap2-devel openldap2 \
         libevent-devel pcre-devel automake libyaml-devel perl-YAML-LibYAML perl-IPC-Run3 cmake glibc-locale libmysqld-devel libnghttp2-devel \
         which gzip libopenssl-devel ncurses-devel bison boost-devel check-devel gawk pam-devel patch |& tee -a "$LOG_FILE"
-  curl -L http://cpanmin.us | sudo perl - --self-upgrade |& tee -a "$LOG_FILE"
+  curl -L https://cpanmin.us | sudo perl - --self-upgrade |& tee -a "$LOG_FILE"
   sudo cpanm Path::Tiny |& tee -a "$LOG_FILE"
   export LC_CTYPE="en_US.UTF-8"
 
