@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2023
+# © Copyright IBM Corporation 2023, 2024.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -300,7 +300,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y devtoolset-9-gcc devtoolset-9-gcc-c++ devtoolset-9-toolchain devtoolset-9-libstdc++-devel glibc-static openssl-devel autoconf automake libtool createrepo expect git which rpm-build git libarchive wget bzip2 perl-FindBin perl-IPC-Cmd make autoconf automake pkg-config patch elfutils-libelf-devel diffutils kernel-devel-$(uname -r) kmod
+    sudo yum install -y devtoolset-9-gcc devtoolset-9-gcc-c++ devtoolset-9-toolchain devtoolset-9-libstdc++-devel glibc-static openssl-devel autoconf automake libtool createrepo expect git which rpm-build git libarchive wget bzip2 perl-IPC-Cmd perl-bignum perl-core make autoconf automake pkg-config patch elfutils-libelf-devel diffutils kernel-devel-$(uname -r) kmod
     source /opt/rh/devtoolset-9/enable
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
@@ -309,7 +309,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch libtool elfutils-libelf-devel diffutils which createrepo libarchive wget curl rpm-build kmod kernel-devel-$(uname -r)
+    sudo yum install -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch libtool elfutils-libelf-devel diffutils which createrepo libarchive wget curl rpm-build kmod kernel-devel-$(uname -r) perl-IPC-Cmd perl-bignum perl-core
 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
