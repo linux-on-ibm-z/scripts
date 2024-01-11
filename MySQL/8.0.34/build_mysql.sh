@@ -213,7 +213,7 @@ done
 function gettingStarted() {
     printf -- '\n********************************************************************************************************\n'
     printf -- "                       Getting Started                \n"
-    printf -- " MySQL 8.x installed successfully.       \n"
+    printf -- " MySQL 8.0.x installed successfully.       \n"
     printf -- " Information regarding the post-installation steps can be found here : https://dev.mysql.com/doc/refman/8.0/en/postinstallation.html\n"  
     printf -- " Starting MySQL Server: \n"
     printf -- " sudo useradd mysql   \n"
