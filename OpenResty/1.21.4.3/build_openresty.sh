@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2023.
+# © Copyright IBM Corporation 2023, 2024.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -71,20 +71,20 @@ function configureAndInstall() {
     cd $SOURCE_ROOT
     git clone -b v${PACKAGE_VERSION} https://github.com/openresty/openresty.git
 
-    # Patch and Install openssl from source
-    cd $SOURCE_ROOT
-    wget --no-check-certificate https://www.openssl.org/source/openssl-$OPENSSL_VER.tar.gz
-    tar xvf openssl-$OPENSSL_VER.tar.gz
-    cd openssl-$OPENSSL_VER
-    patch -p1 < ../openresty/patches/openssl-$OPENSSL_PATCH_VER-sess_set_get_cb_yield.patch
-    ./config no-threads shared enable-ssl3 enable-ssl3-method -g --prefix=$OPENSSL_PREFIX -DPURIFY
-    make -j$(nproc)
-    sudo make PATH=$PATH install_sw
-    if [[ ${DISTRO} =~ rhel-7\.[8-9] || ${DISTRO} == rhel-9.0 || ${DISTRO} == rhel-9.2 || ${DISTRO} == sles-12.5 ]]; then
+    if [[ ${DISTRO} =~ rhel-7\.[8-9] ]]; then
+    	# Patch and Install openssl from source
+    	cd $SOURCE_ROOT
+    	wget --no-check-certificate https://www.openssl.org/source/openssl-$OPENSSL_VER.tar.gz
+    	tar xvf openssl-$OPENSSL_VER.tar.gz
+    	cd openssl-$OPENSSL_VER
+    	patch -p1 < ../openresty/patches/openssl-$OPENSSL_PATCH_VER-sess_set_get_cb_yield.patch
+    	./config no-threads shared enable-ssl3 enable-ssl3-method -g --prefix=$OPENSSL_PREFIX -DPURIFY
+    	make -j$(nproc)
+    	sudo make PATH=$PATH install_sw
         sudo ln -sf /usr/local/lib64/libssl.so.1.1 /usr/lib64/libssl.so.1.1
         sudo ln -sf /usr/local/lib64/libcrypto.so.1.1 /usr/lib64/libcrypto.so.1.1
     fi
-
+    
     # Download openresty Source code
     cd $SOURCE_ROOT/openresty
     wget --no-check-certificate https://openresty.org/download/openresty-${PACKAGE_VERSION}.tar.gz
@@ -186,11 +186,11 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.04" | "ubuntu-23.10")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y git curl tar wget make gcc build-essential dos2unix patch libpcre3-dev libpq-dev perl cpanminus zlib1g-dev |& tee -a "$LOG_FILE"
+    sudo apt-get install -y openssl libssl-dev git curl tar wget make gcc build-essential dos2unix patch libpcre3-dev libpq-dev perl cpanminus zlib1g-dev |& tee -a "$LOG_FILE"
     if [ ! -f "/usr/bin/gmake" ]; then
         sudo ln -s /usr/bin/make /usr/bin/gmake
     fi
@@ -209,22 +209,22 @@ case "$DISTRO" in
 "rhel-8.6" | "rhel-8.8" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y curl tar wget make gcc dos2unix perl patch pcre-devel zlib-devel perl-App-cpanminus git |& tee -a "$LOG_FILE"
+    sudo yum install -y openssl-devel curl tar wget make gcc dos2unix perl patch pcre-devel zlib-devel perl-App-cpanminus git |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git curl tar wget make gcc7 dos2unix perl patch libpcre1 pcre-devel gzip zlib-devel which |& tee -a "$LOG_FILE"
+    sudo zypper install -y openssl-devel git curl tar wget make gcc7 dos2unix perl patch libpcre1 pcre-devel gzip zlib-devel which |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 40
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
     curl -L https://cpanmin.us | perl - --sudo App::cpanminus
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.4" | "sles-15.5")
+"sles-15.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git curl tar wget make gcc dos2unix perl patch pcre-devel gzip zlib-devel perl-App-cpanminus |& tee -a "$LOG_FILE"
+    sudo zypper install -y openssl-devel git curl tar wget make gcc dos2unix perl patch pcre-devel gzip zlib-devel perl-App-cpanminus |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
