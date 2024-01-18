@@ -1,0 +1,153 @@
+diff --git a/WORKSPACE.bazel b/WORKSPACE.bazel
+index e614bdff172..56df4d83896 100644
+--- a/WORKSPACE.bazel
++++ b/WORKSPACE.bazel
+@@ -24,13 +24,14 @@ node_repositories(
+   node_repositories = {
+     "18.18.2-darwin_amd64": ("node-v18.18.2-darwin-x64.tar.gz", "node-v18.18.2-darwin-x64", "5bb8da908ed590e256a69bf2862238c8a67bc4600119f2f7721ca18a7c810c0f"),
+     "18.18.2-darwin_arm64": ("node-v18.18.2-darwin-arm64.tar.gz", "node-v18.18.2-darwin-arm64", "9f982cc91b28778dd8638e4f94563b0c2a1da7aba62beb72bd427721035ab553"),
+-    "18.18.2-linux_arm64": ("node-v18.18.2-linux-arm64.tar.xz", "node-v18.18.2-linux-arm64", "8a5a03f6a742159c9aa0ae3a99b368cd938cf62f3a5522a2e5acbe6313710efe"),
+-    "18.18.2-linux_amd64": ("node-v18.18.2-linux-x64.tar.xz", "node-v18.18.2-linux-x64", "f7cf590bc7153f3beaa9e1138d00e50d74df223f0bec61f63e7df65f7315b76a"),
++    "18.18.2-linux_arm64": ("node-v18.18.2-linux-arm64.tar.xz", "node-v18.18.2-linux-arm64", "2e630e18548627f61eaf573233da7949dc0a1df5eef3f486fa9820c5f6c121aa"),
++    "18.18.2-linux_amd64": ("node-v18.18.2-linux-x64.tar.xz", "node-v18.18.2-linux-x64", "75aba25ae76999309fc6c598efe56ce53fbfc221381a44a840864276264ab8ac"),
++    "18.18.2-linux_s390x": ("node-v18.18.2-linux-s390x.tar.xz", "node-v18.18.2-linux-s390x", "c70ec2074b5e2b42c55bb4b8105418b67bf8a61c500d9376a07430dfcc341fdb"),
+     "18.18.2-windows_amd64": ("node-v18.18.2-win-x64.zip", "node-v18.18.2-win-x64", "3bb0e51e579a41a22b3bf6cb2f3e79c03801aa17acbe0ca00fc555d1282e7acd"),
+   },
+   node_version = "18.18.2",
+   node_urls = [
+-    "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v{version}/{filename}",
++    "https://nodejs.org/dist/v{version}/{filename}",
+   ],
+   yarn_repositories = {
+     "1.22.19": ("yarn-v1.22.19.tar.gz", "yarn-v1.22.19", "732620bac8b1690d507274f025f3c6cfdc3627a84d9642e38a07452cc00e0f2e"),
+diff --git a/packages/kbn-babel-register/cache/lmdb_cache.js b/packages/kbn-babel-register/cache/lmdb_cache.js
+index fe2179a5913..78038e5b076 100644
+--- a/packages/kbn-babel-register/cache/lmdb_cache.js
++++ b/packages/kbn-babel-register/cache/lmdb_cache.js
+@@ -55,17 +55,21 @@ class LmdbCache {
+ 
+     const lastClean = this.#db.get('@last clean');
+     if (!lastClean || lastClean[0] < GLOBAL_ATIME - 7 * DAY) {
+-      try {
+-        this.#pruneOldKeys();
+-      } catch (error) {
+-        process.stderr.write(`
++      if (lastClean) { //don't run pruneOldKeys the first time
++        try {
++          this.#pruneOldKeys();
++        } catch (error) {
++          process.stderr.write(`
+ Failed to cleanup @kbn/babel-register cache:
+ 
+   ${error.stack.split('\n').join('\n  ')}
+ 
+ To eliminate this problem you may want to delete the "${Path.relative(process.cwd(), config.dir)}"
+ directory and report this error to the Operations team.\n`);
+-      } finally {
++        } finally {
++          this.#db.putSync('@last clean', [GLOBAL_ATIME, '', {}]);
++        }
++      } else { //!lastClean, first time
+         this.#db.putSync('@last clean', [GLOBAL_ATIME, '', {}]);
+       }
+     }
+diff --git a/src/dev/build/lib/platform.ts b/src/dev/build/lib/platform.ts
+index 4c4ec271318..6bc68a1b569 100644
+--- a/src/dev/build/lib/platform.ts
++++ b/src/dev/build/lib/platform.ts
+@@ -7,7 +7,7 @@
+  */
+ 
+ export type PlatformName = 'win32' | 'darwin' | 'linux';
+-export type PlatformArchitecture = 'x64' | 'arm64';
++export type PlatformArchitecture = 'x64' | 'arm64' | 's390x';
+ 
+ export class Platform {
+   constructor(
+@@ -48,6 +48,7 @@ export class Platform {
+ export const ALL_PLATFORMS = [
+   new Platform('linux', 'x64', 'linux-x86_64'),
+   new Platform('linux', 'arm64', 'linux-aarch64'),
++  new Platform('linux', 's390x', 'linux-s390x'),
+   new Platform('darwin', 'x64', 'darwin-x86_64'),
+   new Platform('darwin', 'arm64', 'darwin-aarch64'),
+   new Platform('win32', 'x64', 'windows-x86_64'),
+diff --git a/src/dev/build/tasks/nodejs/node_download_info.ts b/src/dev/build/tasks/nodejs/node_download_info.ts
+index 821cdb6973c..a1f5e304f42 100644
+--- a/src/dev/build/tasks/nodejs/node_download_info.ts
++++ b/src/dev/build/tasks/nodejs/node_download_info.ts
+@@ -18,7 +18,7 @@ export function getNodeDownloadInfo(config: Config, platform: Platform) {
+     ? 'win-x64/node.exe'
+     : `node-v${version}-${arch}.tar.gz`;
+ 
+-  const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v${version}/${downloadName}`;
++  const url = `https://nodejs.org/dist/v${version}/${downloadName}`;
+   const downloadPath = config.resolveFromRepo('.node_binaries', version, basename(downloadName));
+   const extractDir = config.resolveFromRepo('.node_binaries', version, arch);
+ 
+diff --git a/src/dev/build/tasks/nodejs/node_shasums.ts b/src/dev/build/tasks/nodejs/node_shasums.ts
+index 850e28d5d3e..791387daaab 100644
+--- a/src/dev/build/tasks/nodejs/node_shasums.ts
++++ b/src/dev/build/tasks/nodejs/node_shasums.ts
+@@ -10,7 +10,7 @@ import { ToolingLog } from '@kbn/tooling-log';
+ import { downloadToString } from '../../lib/download';
+ 
+ export async function getNodeShasums(log: ToolingLog, nodeVersion: string) {
+-  const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v${nodeVersion}/SHASUMS256.txt`;
++  const url = `https://nodejs.org/dist/v${nodeVersion}/SHASUMS256.txt`;
+ 
+   log.debug('Downloading shasum values for node version', nodeVersion, 'from', url);
+ 
+diff --git a/src/dev/build/tasks/patch_native_modules_task.ts b/src/dev/build/tasks/patch_native_modules_task.ts
+index 24ab98d1322..06c24253bde 100644
+--- a/src/dev/build/tasks/patch_native_modules_task.ts
++++ b/src/dev/build/tasks/patch_native_modules_task.ts
+@@ -22,6 +22,9 @@ import {
+   read,
+ } from '../lib';
+ 
++const zUrl = require('url');
++var zFile:string = zUrl.pathToFileURL('linux-s390x-93.gz').toString();
++
+ const DOWNLOAD_DIRECTORY = '.native_modules';
+ 
+ interface Package {
+@@ -66,6 +69,9 @@ const packages: Package[] = [
+         url: 'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2/uhop/node-re2/releases/download/1.20.1/linux-arm64-108.gz',
+         sha256: 'cbdf3f75a331c601ac0bd34715814d0a1fd17612c6d6b5269f176d46044defd5',
+       },
++      'linux-s390x': {
++        url: zFile,
++      },
+       'darwin-x64': {
+         url: 'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2/uhop/node-re2/releases/download/1.20.1/darwin-x64-108.gz',
+         sha256: 'f88c09e98f152ac15c593b3b923b7fbe28d448cfde5986da40c34461bede5a09',
+@@ -112,14 +118,20 @@ async function patchModule(
+   log.debug(`Patching ${pkg.name} binaries from ${archive.url} to ${extractPath}`);
+ 
+   await deleteAll([extractPath], log);
+-  await downloadToDisk({
+-    log,
+-    url: archive.url,
+-    destination: downloadPath,
+-    shaChecksum: archive.sha256,
+-    shaAlgorithm: 'sha256',
+-    maxAttempts: 3,
+-  });
++
++  if (platformName == "linux-s390x") {
++         console.log("Using locally built re2");
++  }
++  else {
++    await downloadToDisk({
++      log,
++      url: archive.url,
++      destination: downloadPath,
++      shaChecksum: archive.sha256,
++      shaAlgorithm: 'sha256',
++      maxAttempts: 3,
++    });
++  }
+   switch (pkg.extractMethod) {
+     case 'gunzip':
+       await gunzip(downloadPath, extractPath);
