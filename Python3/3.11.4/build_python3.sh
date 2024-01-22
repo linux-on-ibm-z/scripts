@@ -63,9 +63,9 @@ function cleanup() {
 
 function build_openssl() {
         cd "${CURDIR}"
-        wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz --no-check-certificate
-        tar -xzf openssl-1.1.1q.tar.gz
-        cd openssl-1.1.1q
+        wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz --no-check-certificate
+        tar -xzf openssl-1.1.1w.tar.gz
+        cd openssl-1.1.1w
         ./config --prefix=/usr/local --openssldir=/usr/local
         make
         sudo make install
@@ -164,7 +164,7 @@ function printHelp() {
         echo "Usage: "
         echo "  bash build_python3.sh  [-d <debug>] [-v package-version] [-y install-without-confirmation]  [-t install-with-tests] "
         echo "       default: If no -v specified, latest version will be installed "
-        echo "This script supports Python version 3.11.2"
+        echo "This script supports Python version 3.11.4"
         echo
 }
 

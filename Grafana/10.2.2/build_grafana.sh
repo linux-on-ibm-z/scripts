@@ -345,7 +345,6 @@ case "$DISTRO" in
 	sudo zypper install -y make gcc gcc-c++ wget tar git-core xz gzip curl patch python3 libnghttp2-devel |& tee -a "$LOG_FILE"
 	if [[ "$DISTRO" == sles-12.5 ]]; then
 		# Get updated python
-		touch /etc/pythonstart
     		wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.11.4/build_python3.sh
 		bash build_python3.sh -y
     	fi

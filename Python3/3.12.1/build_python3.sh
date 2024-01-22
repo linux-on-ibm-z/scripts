@@ -63,9 +63,9 @@ function cleanup() {
 
 function build_openssl() {
         cd "${CURDIR}"
-        wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz --no-check-certificate
-        tar -xzf openssl-1.1.1q.tar.gz
-        cd openssl-1.1.1q
+        wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz --no-check-certificate
+        tar -xzf openssl-1.1.1w.tar.gz
+        cd openssl-1.1.1w
         ./config --prefix=/usr/local --openssldir=/usr/local
         make
         sudo make install
