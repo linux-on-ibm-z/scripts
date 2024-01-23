@@ -215,7 +215,7 @@ case "$DISTRO" in
     export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl" 
     configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-8.6" | "rhel-8.8 | rhel-8.9")
+"rhel-8.6" | "rhel-8.8" | "rhel-8.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git make libtool libxslt-devel libtool-ltdl-devel diffutils openssl-devel wget tar texinfo gettext python2-devel |& tee -a "$LOG_FILE"
