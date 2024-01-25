@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2023
+# © Copyright IBM Corporation 2023, 2024
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -137,7 +137,7 @@ logDetails
 checkPrequisites  #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-22.10" | "ubuntu-23.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-22.10" | "ubuntu-23.04" | "ubuntu-23.10")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
   sudo apt-get install -y gcc make wget tar bison flex openssl libssl-dev libdb-dev libgdbm-dev libreadline-dev libyaml-dev |& tee -a "${LOG_FILE}"
