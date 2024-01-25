@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2f26c3b..6dc9941 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -325,7 +325,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
+         IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
+           SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
+         ELSE()
+-          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-11")
++          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-12")
+         ENDIF()
+       ELSEIF(LINUX_RHEL8 OR LINUX_RHEL9)
+         SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-12")
