@@ -1,0 +1,75 @@
+diff --git a/apiserver/Makefile b/apiserver/Makefile
+index 794d9fe8d..58efd9b77 100644
+--- a/apiserver/Makefile
++++ b/apiserver/Makefile
+@@ -165,7 +165,7 @@ run-kubernetes-server: run-k8s-controller-manager
+ 		--rm \
+ 		-v  $(CURDIR):/manifests \
+ 		-v $(CERTS_PATH):/home/user/certs \
+-		bitnami/kubectl:$(subst v,,$(K8S_VERSION)) \
++		rancher/kubectl:v$(subst v,,$(KUBECTL_VERSION)) \
+ 		--kubeconfig=/home/user/certs/kubeconfig \
+ 		apply -f /manifests/test/mock-node.yaml
+ 
+@@ -176,7 +176,7 @@ run-kubernetes-server: run-k8s-controller-manager
+ 		--rm \
+ 		-v  $(CURDIR):/manifests \
+ 		-v $(CERTS_PATH):/home/user/certs \
+-		bitnami/kubectl:$(subst v,,$(K8S_VERSION)) \
++		rancher/kubectl:v$(subst v,,$(KUBECTL_VERSION)) \
+ 		--kubeconfig=/home/user/certs/kubeconfig \
+ 		apply -f /manifests/test/namespaces.yaml
+ 
+diff --git a/calicoctl/tests/st/utils/utils.py b/calicoctl/tests/st/utils/utils.py
+index 837510af7..280dd32a8 100644
+--- a/calicoctl/tests/st/utils/utils.py
++++ b/calicoctl/tests/st/utils/utils.py
+@@ -242,7 +242,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+ 
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+ 
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
+diff --git a/felix/fv/utils/utils.go b/felix/fv/utils/utils.go
+index bde959b11..7348b77e9 100644
+--- a/felix/fv/utils/utils.go
++++ b/felix/fv/utils/utils.go
+@@ -46,7 +46,7 @@ type EnvConfig struct {
+ 	// Note: These are overridden in the Makefile!
+ 	FelixImage   string `default:"calico/felix:latest"`
+ 	EtcdImage    string `default:"quay.io/coreos/etcd"`
+-	K8sImage     string `default:"calico/go-build:latest"`
++	K8sImage     string `default:"calico/go-build:v0.89"`
+ 	TyphaImage   string `default:"calico/typha:latest"`
+ 	BusyboxImage string `default:"busybox:latest"`
+ }
+diff --git a/lib.Makefile b/lib.Makefile
+index d1c68d916..9841507d1 100644
+--- a/lib.Makefile
++++ b/lib.Makefile
+@@ -294,7 +294,7 @@ TARGET_PLATFORM=--platform=linux/s390x
+ endif
+ 
+ # DOCKER_BUILD is the base build command used for building all images.
+-DOCKER_BUILD=docker buildx build --pull \
++DOCKER_BUILD=docker buildx build \
+ 	     --build-arg QEMU_IMAGE=$(CALICO_BUILD) \
+ 	     --build-arg UBI_IMAGE=$(UBI_IMAGE) \
+ 	     --build-arg GIT_VERSION=$(GIT_VERSION) $(TARGET_PLATFORM)
+diff --git a/node/Dockerfile.s390x b/node/Dockerfile.s390x
+index a6cd036bf..e934b9f8f 100644
+--- a/node/Dockerfile.s390x
++++ b/node/Dockerfile.s390x
+@@ -12,7 +12,7 @@
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+-ARG QEMU_IMAGE=calico/go-build:latest
++ARG QEMU_IMAGE=calico/go-build:v0.89
+ ARG BIRD_IMAGE
+ 
+ FROM ${QEMU_IMAGE} as qemu
+
