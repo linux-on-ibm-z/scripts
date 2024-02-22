@@ -1,0 +1,327 @@
+diff --git a/src/_blake2.ts b/src/_blake2.ts
+index 6aa4a74..5bff285 100644
+--- a/src/_blake2.ts
++++ b/src/_blake2.ts
+@@ -1,5 +1,5 @@
+ import { number, exists, output } from './_assert.js';
+-import { Hash, Input, toBytes, u32 } from './utils.js';
++import { Hash, Input, toBytes, u32, isLE, byteSwap32, byteSwapIfBE } from './utils.js';
+ 
+ // Blake is based on ChaCha permutation.
+ 
+@@ -74,7 +74,9 @@ export abstract class BLAKE2<T extends BLAKE2<T>> extends Hash<T> {
+     for (let pos = 0; pos < len; ) {
+       // If buffer is full and we still have input (don't process last block, same as blake2s)
+       if (this.pos === blockLen) {
++        if (!isLE) byteSwap32(buffer32);
+         this.compress(buffer32, 0, false);
++        if (!isLE) byteSwap32(buffer32);
+         this.pos = 0;
+       }
+       const take = Math.min(blockLen - this.pos, len - pos);
+@@ -82,10 +84,12 @@ export abstract class BLAKE2<T extends BLAKE2<T>> extends Hash<T> {
+       // full block && aligned to 4 bytes && not last in input
+       if (take === blockLen && !(dataOffset % 4) && pos + take < len) {
+         const data32 = new Uint32Array(buf, dataOffset, Math.floor((len - pos) / 4));
++        if (!isLE) byteSwap32(data32);
+         for (let pos32 = 0; pos + blockLen < len; pos32 += buffer32.length, pos += blockLen) {
+           this.length += blockLen;
+           this.compress(data32, pos32, false);
+         }
++        if (!isLE) byteSwap32(data32);
+         continue;
+       }
+       buffer.set(data.subarray(pos, pos + take), this.pos);
+@@ -102,9 +106,11 @@ export abstract class BLAKE2<T extends BLAKE2<T>> extends Hash<T> {
+     this.finished = true;
+     // Padding
+     this.buffer.subarray(pos).fill(0);
++    if (!isLE) byteSwap32(buffer32);
+     this.compress(buffer32, 0, true);
++    if (!isLE) byteSwap32(buffer32);
+     const out32 = u32(out);
+-    this.get().forEach((v, i) => (out32[i] = v));
++    this.get().forEach((v, i) => (out32[i] = byteSwapIfBE(v)));
+   }
+   digest() {
+     const { buffer, outputLen } = this;
+diff --git a/src/blake2b.ts b/src/blake2b.ts
+index 5784742..bd09dac 100644
+--- a/src/blake2b.ts
++++ b/src/blake2b.ts
+@@ -1,6 +1,6 @@
+ import { BLAKE2, BlakeOpts, SIGMA } from './_blake2.js';
+ import u64 from './_u64.js';
+-import { toBytes, u32, wrapConstructorWithOpts } from './utils.js';
++import { toBytes, u32, wrapConstructorWithOpts, byteSwapIfBE } from './utils.js';
+ 
+ // Same as SHA-512 but LE
+ // prettier-ignore
+@@ -87,17 +87,17 @@ class BLAKE2b extends BLAKE2<BLAKE2b> {
+     this.v0l ^= this.outputLen | (keyLength << 8) | (0x01 << 16) | (0x01 << 24);
+     if (opts.salt) {
+       const salt = u32(toBytes(opts.salt));
+-      this.v4l ^= salt[0];
+-      this.v4h ^= salt[1];
+-      this.v5l ^= salt[2];
+-      this.v5h ^= salt[3];
++      this.v4l ^= byteSwapIfBE(salt[0]);
++      this.v4h ^= byteSwapIfBE(salt[1]);
++      this.v5l ^= byteSwapIfBE(salt[2]);
++      this.v5h ^= byteSwapIfBE(salt[3]);
+     }
+     if (opts.personalization) {
+       const pers = u32(toBytes(opts.personalization));
+-      this.v6l ^= pers[0];
+-      this.v6h ^= pers[1];
+-      this.v7l ^= pers[2];
+-      this.v7h ^= pers[3];
++      this.v6l ^= byteSwapIfBE(pers[0]);
++      this.v6h ^= byteSwapIfBE(pers[1]);
++      this.v7l ^= byteSwapIfBE(pers[2]);
++      this.v7h ^= byteSwapIfBE(pers[3]);
+     }
+     if (opts.key) {
+       // Pad to blockLen and update
+diff --git a/src/blake2s.ts b/src/blake2s.ts
+index a609886..ab991ad 100644
+--- a/src/blake2s.ts
++++ b/src/blake2s.ts
+@@ -1,6 +1,6 @@
+ import { BLAKE2, BlakeOpts, SIGMA } from './_blake2.js';
+ import { fromBig } from './_u64.js';
+-import { rotr, toBytes, wrapConstructorWithOpts, u32 } from './utils.js';
++import { rotr, toBytes, wrapConstructorWithOpts, u32, byteSwapIfBE } from './utils.js';
+ 
+ // Initial state:
+ // first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19)
+@@ -69,13 +69,13 @@ class BLAKE2s extends BLAKE2<BLAKE2s> {
+     this.v0 ^= this.outputLen | (keyLength << 8) | (0x01 << 16) | (0x01 << 24);
+     if (opts.salt) {
+       const salt = u32(toBytes(opts.salt));
+-      this.v4 ^= salt[0];
+-      this.v5 ^= salt[1];
++      this.v4 ^= byteSwapIfBE(salt[0]);
++      this.v5 ^= byteSwapIfBE(salt[1]);
+     }
+     if (opts.personalization) {
+       const pers = u32(toBytes(opts.personalization));
+-      this.v6 ^= pers[0];
+-      this.v7 ^= pers[1];
++      this.v6 ^= byteSwapIfBE(pers[0]);
++      this.v7 ^= byteSwapIfBE(pers[1]);
+     }
+     if (opts.key) {
+       // Pad to blockLen and update
+diff --git a/src/blake3.ts b/src/blake3.ts
+index 01d7d54..a28bca7 100644
+--- a/src/blake3.ts
++++ b/src/blake3.ts
+@@ -2,7 +2,16 @@ import { bytes, exists, number, output } from './_assert.js';
+ import { fromBig } from './_u64.js';
+ import { BLAKE2 } from './_blake2.js';
+ import { compress, IV } from './blake2s.js';
+-import { Input, u8, u32, toBytes, HashXOF, wrapXOFConstructorWithOpts } from './utils.js';
++import {
++  Input,
++  u8,
++  u32,
++  toBytes,
++  HashXOF,
++  wrapXOFConstructorWithOpts,
++  isLE,
++  byteSwap32,
++} from './utils.js';
+ 
+ // Blake3 is single-option Blake2 with reduced security (round count).
+ 
+@@ -64,12 +73,14 @@ class BLAKE3 extends BLAKE2<BLAKE3> implements HashXOF<BLAKE3> {
+       const key = toBytes(opts.key).slice();
+       if (key.length !== 32) throw new Error('Blake3: key should be 32 byte');
+       this.IV = u32(key);
++      if (!isLE) byteSwap32(this.IV);
+       this.flags = flags | Flags.KEYED_HASH;
+     } else if (opts.context !== undefined) {
+       const context_key = new BLAKE3({ dkLen: 32 }, Flags.DERIVE_KEY_CONTEXT)
+         .update(opts.context)
+         .digest();
+       this.IV = u32(context_key);
++      if (!isLE) byteSwap32(this.IV);
+       this.flags = flags | Flags.DERIVE_KEY_MATERIAL;
+     } else {
+       this.IV = IV.slice();
+@@ -162,6 +173,7 @@ class BLAKE3 extends BLAKE2<BLAKE3> implements HashXOF<BLAKE3> {
+   private b2CompressOut() {
+     const { state: s, pos, flags, buffer32, bufferOut32: out32 } = this;
+     const { h, l } = fromBig(BigInt(this.chunkOut++));
++    if (!isLE) byteSwap32(buffer32);
+     // prettier-ignore
+     const { v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 } =
+       compress(
+@@ -185,6 +197,10 @@ class BLAKE3 extends BLAKE2<BLAKE3> implements HashXOF<BLAKE3> {
+     out32[13] = s[5] ^ v13;
+     out32[14] = s[6] ^ v14;
+     out32[15] = s[7] ^ v15;
++    if (!isLE) {
++      byteSwap32(buffer32);
++      byteSwap32(out32);
++    }
+     this.posOut = 0;
+   }
+   protected finish() {
+@@ -196,7 +212,9 @@ class BLAKE3 extends BLAKE2<BLAKE3> implements HashXOF<BLAKE3> {
+     let flags = this.flags | Flags.ROOT;
+     if (this.stack.length) {
+       flags |= Flags.PARENT;
++      if (!isLE) byteSwap32(this.buffer32);
+       this.compress(this.buffer32, 0, true);
++      if (!isLE) byteSwap32(this.buffer32);
+       this.chunksDone = 0;
+       this.pos = this.blockLen;
+     } else {
+diff --git a/src/scrypt.ts b/src/scrypt.ts
+index 85b68d8..bedb12b 100644
+--- a/src/scrypt.ts
++++ b/src/scrypt.ts
+@@ -1,7 +1,7 @@
+ import { number as assertNumber } from './_assert.js';
+ import { sha256 } from './sha256.js';
+ import { pbkdf2 } from './pbkdf2.js';
+-import { asyncLoop, checkOpts, Input, u32 } from './utils.js';
++import { asyncLoop, checkOpts, Input, u32, isLE, byteSwap32 } from './utils.js';
+ 
+ // RFC 7914 Scrypt KDF
+ 
+@@ -189,6 +189,7 @@ export function scrypt(password: Input, salt: Input, opts: ScryptOpts) {
+     salt,
+     opts
+   );
++  if (!isLE) byteSwap32(B32);
+   for (let pi = 0; pi < p; pi++) {
+     const Pi = blockSize32 * pi;
+     for (let i = 0; i < blockSize32; i++) V[i] = B32[Pi + i]; // V[0] = B[i]
+@@ -206,6 +207,7 @@ export function scrypt(password: Input, salt: Input, opts: ScryptOpts) {
+       blockMixCb();
+     }
+   }
++  if (!isLE) byteSwap32(B32);
+   return scryptOutput(password, dkLen, B, V, tmp);
+ }
+ 
+@@ -218,6 +220,7 @@ export async function scryptAsync(password: Input, salt: Input, opts: ScryptOpts
+     salt,
+     opts
+   );
++  if (!isLE) byteSwap32(B32);
+   for (let pi = 0; pi < p; pi++) {
+     const Pi = blockSize32 * pi;
+     for (let i = 0; i < blockSize32; i++) V[i] = B32[Pi + i]; // V[0] = B[i]
+@@ -236,5 +239,6 @@ export async function scryptAsync(password: Input, salt: Input, opts: ScryptOpts
+       blockMixCb();
+     });
+   }
++  if (!isLE) byteSwap32(B32);
+   return scryptOutput(password, dkLen, B, V, tmp);
+ }
+diff --git a/src/sha3.ts b/src/sha3.ts
+index c730b06..30c9d2c 100644
+--- a/src/sha3.ts
++++ b/src/sha3.ts
+@@ -8,6 +8,8 @@ import {
+   wrapConstructor,
+   wrapXOFConstructorWithOpts,
+   HashXOF,
++  isLE,
++  byteSwap32,
+ } from './utils.js';
+ 
+ // SHA3 (keccak) is based on a new design: basically, the internal state is bigger than output size.
+@@ -110,7 +112,9 @@ export class Keccak extends Hash<Keccak> implements HashXOF<Keccak> {
+     this.state32 = u32(this.state);
+   }
+   protected keccak() {
++    if (!isLE) byteSwap32(this.state32);
+     keccakP(this.state32, this.rounds);
++    if (!isLE) byteSwap32(this.state32);
+     this.posOut = 0;
+     this.pos = 0;
+   }
+diff --git a/src/utils.ts b/src/utils.ts
+index 28d4df7..498b05d 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -31,12 +31,22 @@ export const createView = (arr: TypedArray) =>
+ // The rotate right (circular right shift) operation for uint32
+ export const rotr = (word: number, shift: number) => (word << (32 - shift)) | (word >>> shift);
+ 
+-// big-endian hardware is rare. Just in case someone still decides to run hashes:
+-// early-throw an error because we don't support BE yet.
+-// Other libraries would silently corrupt the data instead of throwing an error,
+-// when they don't support it.
+ export const isLE = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+-if (!isLE) throw new Error('Non little-endian hardware is not supported');
++// The byte swap operation for uint32
++export const byteSwap = (word: number) =>
++  ((word << 24) & 0xff000000) |
++  ((word << 8) & 0xff0000) |
++  ((word >>> 8) & 0xff00) |
++  ((word >>> 24) & 0xff);
++// Conditionally byte swap if on a big-endian platform
++export const byteSwapIfBE = isLE ? (n: number) => n : (n: number) => byteSwap(n);
++
++// In place byte swap for Uint32Array
++export function byteSwap32(arr: Uint32Array) {
++  for (let i = 0; i < arr.length; i++) {
++    arr[i] = byteSwap(arr[i]);
++  }
++}
+ 
+ // Array where index 0xf0 (240) is mapped to string 'f0'
+ const hexes = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) =>
+diff --git a/test/utils.test.js b/test/utils.test.js
+index 86b1d5a..8f35634 100644
+--- a/test/utils.test.js
++++ b/test/utils.test.js
+@@ -1,6 +1,7 @@
+ const assert = require('assert');
+ const { should } = require('micro-should');
+ const { optional, integer, gen } = require('./generator');
++const { byteSwap, byteSwapIfBE, byteSwap32, isLE } = require('../utils.js');
+ 
+ // Here goes test for tests...
+ should(`Test generator`, () => {
+@@ -21,4 +22,34 @@ should(`Test generator`, () => {
+   );
+ });
+ 
++// Byte swapping
++const BYTESWAP_TEST_CASES = [
++  { in: 0x11223344 | 0, out: 0x44332211 | 0 },
++  { in: 0xffeeddcc | 0, out: 0xccddeeff | 0 },
++  { in: 0xccddeeff | 0, out: 0xffeeddcc | 0 },
++];
++
++should('byteSwap', () => {
++  BYTESWAP_TEST_CASES.forEach((test) => {
++    assert.deepStrictEqual(test.out, byteSwap(test.in));
++  });
++});
++
++should('byteSwapIfBE', () => {
++  BYTESWAP_TEST_CASES.forEach((test) => {
++    if (isLE) {
++      assert.deepStrictEqual(test.in, byteSwapIfBE(test.in));
++    } else {
++      assert.deepStrictEqual(test.out, byteSwapIfBE(test.in));
++    }
++  });
++});
++
++should('byteSwap32', () => {
++  const input = Uint32Array.of([0x11223344, 0xffeeddcc, 0xccddeeff]);
++  const expected = Uint32Array.of([0x44332211, 0xccddeeff, 0xffeeddcc]);
++  byteSwap32(input);
++  assert.deepStrictEqual(expected, input);
++});
++
+ if (require.main === module) should.run();
