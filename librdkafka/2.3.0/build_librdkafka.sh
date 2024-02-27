@@ -139,14 +139,14 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.04" | "ubuntu-23.10")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update -y
 	sudo apt-get install -y git build-essential make zlib1g-dev libpthread-stubs0-dev libssl-dev libsasl2-dev libzstd-dev libcurl4-openssl-dev |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.8" | "rhel-9.0" | "rhel-9.2")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git openssl-devel cyrus-sasl-devel python3 |& tee -a "${LOG_FILE}"
@@ -159,7 +159,7 @@ case "$DISTRO" in
 	sudo zypper install -y binutils gcc make libz1 zlib-devel libsasl2-2 libzstd-devel git gcc-c++ openssl-devel which |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"sles-15.4" | "sles-15.5")
+"sles-15.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper install -y binutils gcc make libz1 zlib-devel git gcc-c++ openssl-devel |& tee -a "${LOG_FILE}"
