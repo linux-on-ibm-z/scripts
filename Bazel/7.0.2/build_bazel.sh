@@ -73,6 +73,7 @@ function cleanup() {
 function buildNetty() {
     # Install netty-tcnative 2.0.61
     wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/netty-tcnative/2.0.61/build_netty.sh
+    sed -i 's/23.04/23.10/g' build_netty.sh
     bash build_netty.sh -y
     export LD_LIBRARY_PATH=$SOURCE_ROOT/netty-tcnative/openssl-dynamic/target/native-build/.libs/:$LD_LIBRARY_PATH
 
@@ -255,6 +256,37 @@ case "$DISTRO" in
         lcov less libssl-dev lsb-release netcat-openbsd openjdk-11-jdk-headless zip zlib1g-dev unzip wget python2 python3 \
         python2-dev |& tee -a "${LOG_FILE}"
     
+    configureAndInstall |& tee -a "${LOG_FILE}"
+    ;;
+
+"ubuntu-23.10")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo apt-get update
+    sudo apt-get install -y --no-install-recommends \
+        bind9-host build-essential coreutils curl dnsutils ed expect file git gnupg2 iproute2 iputils-ping mkisofs \
+        lcov less libssl-dev lsb-release netcat-openbsd openjdk-11-jdk-headless zip zlib1g-dev unzip wget \
+        libbz2-dev libdb-dev libffi-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev gcc-12 g++-12 |& tee -a "${LOG_FILE}"
+
+    # use gcc-12 due to error compiling with gcc-13:  https://github.com/bazelbuild/bazel/issues/18642
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 20
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 20
+    sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-12 20
+    sudo update-alternatives --install /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-12 20
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 13
+    sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-13 13
+    sudo update-alternatives --install /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-13 13
+
+    # Install Python 3.9.7
+    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.9.7/build_python3.sh
+    sed -i 's/20.04/23.10/g' build_python3.sh
+    sudo apt-get remove python3 -y
+    bash build_python3.sh -y
+    rm -f build_python3.sh
+    sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3 40
+    sudo python3 -m pip install requests setuptools six wheel
+
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 

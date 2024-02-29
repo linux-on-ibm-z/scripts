@@ -310,3 +310,19 @@ index b7a75a1..e03e524 100644
  )
  
  alias(
+diff --git a/src/test/py/bazel/bzlmod/bazel_module_test.py b/src/test/py/bazel/bzlmod/bazel_module_test.py
+index aa101db72e..17b369a881 100644
+--- a/src/test/py/bazel/bzlmod/bazel_module_test.py
++++ b/src/test/py/bazel/bzlmod/bazel_module_test.py
+@@ -794,6 +794,11 @@ class BazelModuleTest(test_base.TestBase):
+     self.ScratchFile(
+         'MODULE.bazel',
+         [
++            'bazel_dep(name = "rules_java", version = "")',
++            'local_path_override(',
++            '    module_name = "rules_java",',
++            '    path = "/home/test/rules_java",',
++            ')',
+             (
+                 'http_jar ='
+                 ' use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl",'
