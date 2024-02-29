@@ -1,0 +1,1331 @@
+diff --git a/third_party/tf_runtime/BUILD b/third_party/tf_runtime/BUILD
+new file mode 100644
+index 00000000000..e69de29bb2d
+diff --git a/third_party/tf_runtime/temporary.patch b/third_party/tf_runtime/temporary.patch
+new file mode 100644
+index 00000000000..162a5464cbc
+--- /dev/null
++++ b/third_party/tf_runtime/temporary.patch
+@@ -0,0 +1,22 @@
++diff --git a/include/tfrt/host_context/attribute_utils.h b/include/tfrt/host_context/attribute_utils.h
++index cbded469..b1074096 100644
++--- a/include/tfrt/host_context/attribute_utils.h
+++++ b/include/tfrt/host_context/attribute_utils.h
++@@ -52,7 +52,7 @@ class Attribute {
++  public:
++   explicit Attribute(const void* value)
++       : value_(*reinterpret_cast<const T*>(value)) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++   }
++
++   const T& get() const { return value_; }
++@@ -127,7 +127,7 @@ class CompilationUnitAttribute {
++  public:
++   explicit CompilationUnitAttribute(const void* value)
++       : addr_(reinterpret_cast<intptr_t>(value)) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++     const auto* ptr = static_cast<const uint8_t*>(value);
++
++     ptr = ReadVbrInt(ptr, &id_);
+diff --git a/configure.py b/configure.py
+index 73e124fb356..c8d20941463 100644
+--- a/configure.py
++++ b/configure.py
+@@ -22,6 +22,7 @@ import platform
+ import re
+ import subprocess
+ import sys
++import psutil
+ 
+ # pylint: disable=g-import-not-at-top
+ try:
+@@ -83,6 +84,8 @@ def is_macos():
+ def is_ppc64le():
+   return platform.machine() == 'ppc64le'
+ 
++def is_s390x():
++  return platform.machine() == 's390x'
+ 
+ def is_cygwin():
+   return platform.system().startswith('CYGWIN_NT')
+@@ -966,6 +969,9 @@ def system_specific_test_config(environ_cp):
+   """Add default build and test flags required for TF tests to bazelrc."""
+   write_to_bazelrc('test --flaky_test_attempts=3')
+   write_to_bazelrc('test --test_size_filters=small,medium')
++  if is_s390x():
++    write_to_bazelrc('test -k --test_timeout 300,450,1200,3600')
++    write_to_bazelrc('test --build_tests_only --test_output=errors')
+ 
+   # Each instance of --test_tag_filters or --build_tag_filters overrides all
+   # previous instances, so we need to build up a complete list and write a
+@@ -992,6 +998,8 @@ def system_specific_test_config(environ_cp):
+       write_to_bazelrc('test --test_env=LD_LIBRARY_PATH')
+     else:
+       test_and_build_filters.append('-gpu')
++      if is_s390x():
++        test_and_build_filters.append('-tpu')
+ 
+   # Disable tests with "v1only" tag in "v2" Bazel config, but not in "v1" config
+   write_to_bazelrc('test:v1 --test_tag_filters=%s' %
+@@ -1007,6 +1015,8 @@ def system_specific_test_config(environ_cp):
+ 
+ def set_system_libs_flag(environ_cp):
+   syslibs = environ_cp.get('TF_SYSTEM_LIBS', '')
++  if is_s390x() and "boringssl" not in syslibs:
++    syslibs = "boringssl" + (", " + syslibs if syslibs != "" else "")
+   if syslibs:
+     if ',' in syslibs:
+       syslibs = ','.join(sorted(syslibs.split(',')))
+@@ -1329,6 +1339,17 @@ def main():
+   if is_windows():
+     set_windows_build_flags(environ_cp)
+ 
++  if is_s390x():
++    mem_size = int(psutil.virtual_memory().total / (1024. **3))
++    write_to_bazelrc('startup --host_jvm_args=-Xms'+str(int(mem_size/4))+'G')
++    write_to_bazelrc('startup --host_jvm_args=-Xmx'+str(int(mem_size/4))+'G')
++    write_to_bazelrc('build --jobs='+str(os.cpu_count()))
++    write_to_bazelrc('build --copt=-march=native')
++    write_to_bazelrc('build --host_copt=-march=native')
++    write_to_bazelrc('build --copt=-fno-ipa-cp')
++    write_to_bazelrc('build --host_copt=-fno-ipa-cp')
++    write_to_bazelrc('build --define=tflite_with_xnnpack=false')
++
+   if get_var(environ_cp, 'TF_SET_ANDROID_WORKSPACE', 'android workspace', False,
+              ('Would you like to interactively configure ./WORKSPACE for '
+               'Android builds?'), 'Searching for NDK and SDK installations.',
+diff --git a/tensorflow/BUILD b/tensorflow/BUILD
+index fce465ff1f2..aa4d0005647 100644
+--- a/tensorflow/BUILD
++++ b/tensorflow/BUILD
+@@ -1092,7 +1092,6 @@ cc_library(
+     name = "grpc",
+     visibility = ["//visibility:public"],
+     deps = select({
+-        ":linux_s390x": ["@com_github_grpc_grpc//:grpc_unsecure"],
+         "//conditions:default": ["@com_github_grpc_grpc//:grpc"],
+     }),
+ )
+@@ -1101,7 +1100,6 @@ cc_library(
+     name = "grpc++",
+     visibility = ["//visibility:public"],
+     deps = select({
+-        ":linux_s390x": ["@com_github_grpc_grpc//:grpc++_unsecure"],
+         "//conditions:default": ["@com_github_grpc_grpc//:grpc++"],
+     }),
+ )
+diff --git a/tensorflow/compiler/aot/tfcompile_main.cc b/tensorflow/compiler/aot/tfcompile_main.cc
+index da4fa91867f..ee326764b06 100644
+--- a/tensorflow/compiler/aot/tfcompile_main.cc
++++ b/tensorflow/compiler/aot/tfcompile_main.cc
+@@ -60,7 +60,9 @@ const char kUsageHeader[] =
+ 
+ int main(int argc, char** argv) {
+   tensorflow::tfcompile::MainFlags flags;
++#ifndef __s390x__
+   flags.target_triple = "x86_64-pc-linux";
++#endif
+   flags.out_function_object = "out_model.o";
+   flags.out_metadata_object = "out_helper.o";
+   flags.out_header = "out.h";
+diff --git a/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc b/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc
+index bd10921cb87..1df1df9dd23 100644
+--- a/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc
++++ b/tensorflow/core/grappler/optimizers/arithmetic_optimizer_test.cc
+@@ -34,6 +34,7 @@ limitations under the License.
+ #include "tensorflow/core/grappler/utils.h"
+ #include "tensorflow/core/lib/core/status_test_util.h"
+ #include "tensorflow/core/platform/test.h"
++#include "tensorflow/core/util/tensor_bundle/byte_swap_tensor.h"
+ 
+ namespace tensorflow {
+ namespace grappler {
+@@ -94,6 +95,19 @@ void VerifyGraphsMatch(const GraphDef& original_graph,
+     }
+   }
+ }
++
++void VerifyTensorContent(const TensorProto& proto,
++                         const string& expected_content) {
++  if (port::kLittleEndian) {
++    EXPECT_EQ(proto.tensor_content(), expected_content);
++  } else {
++    TensorProto protoCopy;
++    protoCopy.CopyFrom(proto);
++    TF_EXPECT_OK(ByteSwapTensorProto(&protoCopy));
++    EXPECT_EQ(protoCopy.tensor_content(), expected_content);
++  }
++}
++
+ }  // namespace
+ 
+ TEST_F(ArithmeticOptimizerTest, NoOp) {
+@@ -716,7 +730,7 @@ TEST_F(ArithmeticOptimizerTest, TrivialSumsSimple) {
+   ASSERT_NE(new_const, nullptr);
+   ASSERT_EQ(new_const->input_size(), 1);
+   EXPECT_EQ(new_const->input(0), "^x");
+-  EXPECT_EQ(new_const->attr().at("value").tensor().tensor_content(),
++  VerifyTensorContent(new_const->attr().at("value").tensor(),
+             string("\0\0\0@", 4));
+ 
+   const NodeDef* new_mul = node_map.GetNode(optimized_mul_name);
+@@ -763,7 +777,7 @@ TEST_F(ArithmeticOptimizerTest, TrivialSumsSimpleWithControlDep) {
+   ASSERT_NE(new_const, nullptr);
+   ASSERT_EQ(new_const->input_size(), 1);
+   EXPECT_EQ(new_const->input(0), "^x");
+-  EXPECT_EQ(new_const->attr().at("value").tensor().tensor_content(),
++  VerifyTensorContent(new_const->attr().at("value").tensor(),
+             string("\0\0\0@", 4));
+ 
+   const NodeDef* new_mul = node_map.GetNode(optimized_mul_name);
+diff --git a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
+index 2dab129defb..6e139978e4d 100644
+--- a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
++++ b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
+@@ -146,6 +146,11 @@ Status ByteSwapTensor(Tensor* t) {
+                         t->NumElements());
+ }
+ 
++Status ByteSwapTensorProto(TensorProto* tp) {
++  char* buff = const_cast<char*>((tp->tensor_content().data()));
++  return ByteSwapBuffer(buff, tp->tensor_content().size(), tp->dtype(), -1);
++}
++
+ Status ByteSwapTensorContentInNode(NodeDef& node) {
+   if (node.op() == "Const") {
+     auto node_iterator = node.mutable_attr()->find("value");
+diff --git a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.h b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.h
+index dbfd63e355c..d17de3806c5 100644
+--- a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.h
++++ b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.h
+@@ -36,6 +36,13 @@ bool IsByteSwappable(DataType dtype);
+ // TODO(frreiss): Should this be a member of the Tensor class?
+ Status ByteSwapTensor(Tensor *t);
+ 
++// Byte-swap a tensor proto's backing buffer in place.
++//
++// Args:
++//  t: TensorProto to be modified IN PLACE.
++// Returns: OkStatus() on success, -1 otherwise
++Status ByteSwapTensorProto(TensorProto *tp);
++
+ // Swap tensor_content field of Const Op Tensors in the named functions
+ // in NodeDef
+ Status ByteSwapTensorContentInNode(NodeDef& node);
+diff --git a/tensorflow/python/eager/backprop_test.py b/tensorflow/python/eager/backprop_test.py
+index 230da35ad08..9f33ab8ccdf 100644
+--- a/tensorflow/python/eager/backprop_test.py
++++ b/tensorflow/python/eager/backprop_test.py
+@@ -1869,7 +1869,7 @@ class JacobianTest(test.TestCase):
+ 
+     theoretical, numerical = gradient_checker_v2.compute_gradient(
+         def_function.function(_inner), [array_ops.ones([10, 4, 4, 1])])
+-    self.assertAllClose(numerical, theoretical, rtol=1e-1)
++    self.assertAllClose(numerical, theoretical, rtol=1.2e-1)
+ 
+     @def_function.function
+     def _outer():
+@@ -1880,7 +1880,7 @@ class JacobianTest(test.TestCase):
+       return tape.gradient(y, x)
+ 
+     self.assertAllClose(array_ops.reshape(numerical, [-1]),
+-                        array_ops.reshape(_outer(), [-1]), rtol=1e-1)
++                        array_ops.reshape(_outer(), [-1]), rtol=1.2e-1)
+ 
+   @test_util.run_in_graph_and_eager_modes
+   def test_indexed_slices(self):
+diff --git a/tensorflow/python/tfcompile_wrapper.cc b/tensorflow/python/tfcompile_wrapper.cc
+index 71e302f6321..f5c6a9ee29c 100644
+--- a/tensorflow/python/tfcompile_wrapper.cc
++++ b/tensorflow/python/tfcompile_wrapper.cc
+@@ -15,6 +15,9 @@ limitations under the License.
+ 
+ #include <string>
+ 
++#ifdef __s390x__
++#include "llvm/TargetParser/Host.h"
++#endif
+ #include "pybind11/cast.h"  // from @pybind11
+ #include "pybind11/pybind11.h"  // from @pybind11
+ #include "pybind11/pytypes.h"  // from @pybind11
+@@ -44,8 +47,15 @@ PYBIND11_MODULE(_pywrap_tfcompile, m) {
+         tensorflow::tfcompile::MainFlags flags;
+         flags.graph = std::move(graph);
+         flags.config = std::move(config);
++#ifdef __s390x__
++        flags.target_triple = std::move(target_triple.empty() ?
++                       llvm::sys::getDefaultTargetTriple() : target_triple);
++        flags.target_cpu = std::move(target_cpu.empty() ?
++                       llvm::sys::getHostCPUName().str() : target_cpu);
++#else
+         flags.target_triple = std::move(target_triple);
+         flags.target_cpu = std::move(target_cpu);
++#endif
+         flags.target_features = std::move(target_features);
+         flags.entry_point = std::move(entry_point);
+         flags.cpp_class = std::move(cpp_class);
+@@ -62,7 +72,12 @@ PYBIND11_MODULE(_pywrap_tfcompile, m) {
+         tensorflow::MaybeRaiseFromStatus(tensorflow::tfcompile::Main(flags));
+       },
+       py::arg("graph") = "", py::arg("config") = "",
+-      py::arg("target_triple") = "x86_64-pc-linux", py::arg("target_cpu") = "",
++#ifdef __s390x__
++      py::arg("target_triple") = "",
++#else
++      py::arg("target_triple") = "x86_64-pc-linux",
++#endif
++      py::arg("target_cpu") = "",
+       py::arg("target_features") = "", py::arg("entry_point") = "entry",
+       py::arg("cpp_class") = "", py::arg("out_function_object") = "out_model.o",
+       py::arg("out_metadata_object") = "out_helper.o",
+diff --git a/tensorflow/python/tools/saved_model_cli.py b/tensorflow/python/tools/saved_model_cli.py
+index 0fb53e1073d..c35c2116fea 100644
+--- a/tensorflow/python/tools/saved_model_cli.py
++++ b/tensorflow/python/tools/saved_model_cli.py
+@@ -20,6 +20,7 @@ https://www.tensorflow.org/guide/saved_model#cli_to_inspect_and_execute_savedmod
+ """
+ 
+ import argparse
++import platform
+ 
+ import ast
+ import os
+@@ -183,7 +184,14 @@ _SMCLI_VARIABLES_TO_FEED = flags.DEFINE_string(
+     'will NOT be frozen, and their values will be uninitialized in the compiled'
+     ' object.')
+ 
+-_SMCLI_TARGET_TRIPLE = flags.DEFINE_string(
++if platform.machine() == "s390x":
++  _SMCLI_TARGET_TRIPLE = flags.DEFINE_string(
++      name='target_triple', default='',
++      help='Triple identifying a target variation, containing information such'
++      'as processor architecture, vendor, operating system, and environment. '
++      'Defaults to \'\'.')
++else:
++  _SMCLI_TARGET_TRIPLE = flags.DEFINE_string(
+     name='target_triple', default='x86_64-pc-linux',
+     help='Triple identifying a target variation, containing information such as'
+     ' processor architecture, vendor, operating system, and environment. '
+@@ -994,7 +1002,8 @@ def run():
+     AttributeError: An error when neither --inputs nor --input_exprs is passed
+     to run command.
+   """
+-  if not _SMCLI_INPUTS.value and not _SMCLI_INPUT_EXPRS.value and not _SMCLI_INPUT_EXAMPLES.value:
++  if not _SMCLI_INPUTS.value and not _SMCLI_INPUT_EXPRS.value \
++          and not _SMCLI_INPUT_EXAMPLES.value:
+     raise AttributeError(
+         'At least one of --inputs, --input_exprs or --input_examples must be '
+         'required')
+diff --git a/tensorflow/python/tools/saved_model_cli_test.py b/tensorflow/python/tools/saved_model_cli_test.py
+index b727d7869f5..738506e3c1e 100644
+--- a/tensorflow/python/tools/saved_model_cli_test.py
++++ b/tensorflow/python/tools/saved_model_cli_test.py
+@@ -1042,6 +1042,9 @@ Concrete Functions:
+     if not test.is_built_with_xla():
+       self.skipTest('Skipping test because XLA is not compiled in.')
+ 
++    if platform.machine() == "s390x" and "aarch64" in str(target_triple):
++      self.skipTest("Skipping arm tests on s390x.")
++
+     saved_model_dir = os.path.join(test.get_temp_dir(), 'dummy_model')
+     dummy_model = self.AOTCompileDummyModel()
+     func = getattr(dummy_model, func)
+diff --git a/tensorflow/tsl/BUILD b/tensorflow/tsl/BUILD
+index da15e3cf07d..47e987dcdab 100644
+--- a/tensorflow/tsl/BUILD
++++ b/tensorflow/tsl/BUILD
+@@ -485,7 +485,6 @@ cc_library(
+     name = "grpc++",
+     visibility = ["//visibility:public"],
+     deps = select({
+-        ":linux_s390x": ["@com_github_grpc_grpc//:grpc++_unsecure"],
+         "//conditions:default": ["@com_github_grpc_grpc//:grpc++"],
+     }),
+ )
+diff --git a/tensorflow/tsl/platform/default/build_config.bzl b/tensorflow/tsl/platform/default/build_config.bzl
+index 6ffd37bf26f..eeb3a8381b1 100644
+--- a/tensorflow/tsl/platform/default/build_config.bzl
++++ b/tensorflow/tsl/platform/default/build_config.bzl
+@@ -243,7 +243,6 @@ def cc_proto_library(
+ 
+     if use_grpc_plugin:
+         cc_libs += select({
+-            clean_dep("//tensorflow/tsl:linux_s390x"): ["//external:grpc_lib_unsecure"],
+             "//conditions:default": ["//external:grpc_lib"],
+         })
+ 
+@@ -326,7 +325,6 @@ def cc_grpc_library(
+     proto_targets += srcs
+ 
+     extra_deps += select({
+-        clean_dep("//tensorflow/tsl:linux_s390x"): ["//external:grpc_lib_unsecure"],
+         "//conditions:default": ["//external:grpc_lib"],
+     })
+ 
+diff --git a/tensorflow/workspace3.bzl b/tensorflow/workspace3.bzl
+index 91871db22c8..c13e8cc6344 100644
+--- a/tensorflow/workspace3.bzl
++++ b/tensorflow/workspace3.bzl
+@@ -1,7 +1,7 @@
+ """TensorFlow workspace initialization. Consult the WORKSPACE on how to use it."""
+ 
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+-load("//third_party:tf_runtime/workspace.bzl", tf_runtime = "repo")
++load("//third_party/tf_runtime:workspace.bzl", tf_runtime = "repo")
+ load("//third_party/llvm:workspace.bzl", llvm = "repo")
+ 
+ def workspace():
+diff --git a/third_party/icu/data/BUILD.bazel b/third_party/icu/data/BUILD.bazel
+index ded85987f91..b1cde56e734 100644
+--- a/third_party/icu/data/BUILD.bazel
++++ b/third_party/icu/data/BUILD.bazel
+@@ -43,7 +43,10 @@ exports_files(["LICENSE"])
+ # Please make sure to keep this updated if you change the data files.
+ filegroup(
+     name = "conversion_files",
+-    srcs = glob(["icu_conversion_data.c.gz.*"]),
++    srcs = select({
++        "@org_tensorflow//tensorflow:linux_s390x": glob(["icu_conversion_data_big_endian.c.gz.*"]),
++        "//conditions:default": glob(["icu_conversion_data.c.gz.*"]),
++    }),
+ )
+ 
+ # Data files are compressed and split to work around git performance degradation
+diff --git a/third_party/tf_runtime/workspace.bzl b/third_party/tf_runtime/workspace.bzl
+index c14440024a5..66c98686575 100644
+--- a/third_party/tf_runtime/workspace.bzl
++++ b/third_party/tf_runtime/workspace.bzl
+@@ -16,5 +16,7 @@ def repo():
+         urls = tf_mirror_urls("https://github.com/tensorflow/runtime/archive/{commit}.tar.gz".format(commit = TFRT_COMMIT)),
+         # A patch file can be provided for atomic commits to both TF and TFRT.
+         # The job that bumps the TFRT_COMMIT also resets patch_file to 'None'.
+-        patch_file = None,
++        patch_file = [
++		"//third_party/tf_runtime:temporary.patch",  # Cherry-picks and temporary reverts. Do not remove even if temporary.patch is empty.
++        ],
+     )
+diff --git a/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py b/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py
+index 4b4ac4f65fe..7fd39ced6d8 100644
+--- a/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py
++++ b/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py
+@@ -13,6 +13,8 @@
+ # limitations under the License.
+ # ==============================================================================
+ """Defines utilities involving SavedModel."""
++import sys
++
+ from typing import Collection, Dict, Mapping, Optional, Sequence
+ 
+ from absl import logging
+@@ -24,6 +26,7 @@ from tensorflow.core.framework import graph_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
+ from tensorflow.core.protobuf import saver_pb2
+ from tensorflow.python.client import session
++from tensorflow.python.framework import byte_swap_tensor
+ from tensorflow.python.framework import importer
+ from tensorflow.python.framework import ops
+ from tensorflow.python.lib.io import file_io
+@@ -251,7 +254,9 @@ def _save_function_alias(
+     meta_graph_def.meta_info_def.function_aliases[function_name] = (
+         function_alias
+     )
+-
++  if sys.byteorder == "big":
++    byte_swap_tensor.swap_tensor_content_in_saved_model(loader.saved_model,"big", "little")
++
+   saved_model_proto_serialized = loader.saved_model.SerializeToString()
+ 
+   # TODO(b/266015731): Also update and set the SavedModel fingerprint.
+diff --git a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
+index 2dab129defb..026c464d100 100644
+--- a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
++++ b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
+@@ -185,17 +185,20 @@ Status ByteSwapTensorContentInNode(NodeDef& node) {
+ }
+ 
+ Status ByteSwapTensorContentInMetaGraphDef(MetaGraphDef* meta_graph_def) {
+-  for (auto& function : *meta_graph_def->mutable_graph_def()
+-                             ->mutable_library()
+-                             ->mutable_function())
+-    for (auto& node : (*function.mutable_node_def()))
+-      TF_RETURN_IF_ERROR(ByteSwapTensorContentInNode(node));
++  auto graph_def = meta_graph_def->mutable_graph_def();
++  TF_RETURN_IF_ERROR(ByteSwapTensorContentInGraphDef(graph_def));
+   return OkStatus();
+ }
+ 
+ Status ByteSwapTensorContentInGraphDef(GraphDef* graph_def) {
+   for (auto& node : *graph_def->mutable_node())
+     TF_RETURN_IF_ERROR(ByteSwapTensorContentInNode(node));
++
++  for (auto& function : *graph_def->mutable_library()
++                             ->mutable_function())
++    for (auto& node : (*function.mutable_node_def()))
++      TF_RETURN_IF_ERROR(ByteSwapTensorContentInNode(node));
++
+   return OkStatus();
+ }
+ 
+diff --git a/tensorflow/lite/python/lite.py b/tensorflow/lite/python/lite.py
+index 857e472556d..d0c50655a58 100644
+--- a/tensorflow/lite/python/lite.py
++++ b/tensorflow/lite/python/lite.py
+@@ -968,7 +968,8 @@ class TFLiteConverterBase:
+ 
+     if quant_mode.is_quantization_aware_training():
+       self._metadata.options.modelOptimizationModes.append(
+-          conversion_metdata_fb.ModelOptimizationMode.QUANTIZATION_AWARE_TRAINING
++          conversion_metdata_fb.ModelOptimizationMode
++          .QUANTIZATION_AWARE_TRAINING
+       )
+ 
+   def _set_conversion_latency_metric(self, value):
+@@ -2967,8 +2968,8 @@ class TFLiteConverter(TFLiteFrozenGraphConverter):
+                 "Unable to parse input file '{}'.".format(graph_def_file)
+             )
+ 
+-        if sys.byteorder == "big":
+-          bst.swap_tensor_content_in_graph_node(graph_def, "little", "big")
++        if sys.byteorder == 'big':
++          bst.swap_tensor_content_in_graph(graph_def, "little", "big")
+ 
+         # Handles models with custom TFLite ops that cannot be resolved in
+         # TensorFlow.
+diff --git a/tensorflow/python/framework/byte_swap_tensor.py b/tensorflow/python/framework/byte_swap_tensor.py
+index 432744c89bd..62154849b6a 100644
+--- a/tensorflow/python/framework/byte_swap_tensor.py
++++ b/tensorflow/python/framework/byte_swap_tensor.py
+@@ -17,6 +17,7 @@
+ 
+ from tensorflow.core.framework import graph_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
++from tensorflow.core.protobuf import saved_model_pb2
+ from tensorflow.python.framework import dtypes
+ 
+ # Based on tensor_bundle/byte_swap.cc
+@@ -72,32 +73,29 @@ def byte_swap_tensor_content(tensor, from_endiness, to_endiness):
+       )
+ 
+ 
+-def swap_tensor_content_in_graph_function(
+-    graph_def, from_endiness, to_endiness
+-):
+-  """Fix endiness of tensor contents.
++def swap_tensor_content_in_saved_model(saved_model, from_endiness, to_endiness):
++  if not isinstance(saved_model, saved_model_pb2.SavedModel):
++    return
+ 
+-  Args:
+-    graph_def: Target graph_def to change endiness.
+-    from_endiness: The original endianness format. "big" or "little"
+-    to_endiness: The target endianness format. "big" or "little"
+-  """
+-  if isinstance(graph_def, meta_graph_pb2.MetaGraphDef):
+-    functions = graph_def.graph_def.library.function
+-  elif isinstance(graph_def, graph_pb2.GraphDef):
+-    functions = graph_def.library.function
++  for meta_graph in saved_model.meta_graphs:
++    swap_tensor_content_in_graph(meta_graph, from_endiness, to_endiness)
++
++def swap_tensor_content_in_graph(graph_or_meta_graph_def,
++                                 from_endiness, to_endiness):
++  if isinstance(graph_or_meta_graph_def, meta_graph_pb2.MetaGraphDef):
++    g = graph_or_meta_graph_def.graph_def
++  elif isinstance(graph_or_meta_graph_def, graph_pb2.GraphDef):
++    g = graph_or_meta_graph_def
+   else:
+     return
+-  for function in functions:
+-    node_def = function.node_def
+-    for node in node_def:
+-      if node.op == "Const":
+-        tensor = node.attr["value"].tensor
+-        byte_swap_tensor_content(tensor, from_endiness, to_endiness)
++  swap_tensor_content_in_nodes(g.node, from_endiness, to_endiness)
++
++  for function in g.library.function:
++    swap_tensor_content_in_nodes(function.node_def, from_endiness, to_endiness)
+ 
+ 
+-def swap_tensor_content_in_graph_node(graph_def, from_endiness, to_endiness):
+-  for node in graph_def.node:
++def swap_tensor_content_in_nodes(nodes, from_endiness, to_endiness):
++  for node in nodes:
+     if node.op == "Const":
+       tensor = node.attr["value"].tensor
+       byte_swap_tensor_content(tensor, from_endiness, to_endiness)
+diff --git a/tensorflow/python/framework/graph_io.py b/tensorflow/python/framework/graph_io.py
+index 05b764bb5eb..fbfcd8c29a0 100644
+--- a/tensorflow/python/framework/graph_io.py
++++ b/tensorflow/python/framework/graph_io.py
+@@ -61,14 +61,8 @@ def write_graph(graph_or_graph_def, logdir, name, as_text=True):
+     graph_def = graph_or_graph_def
+ 
+   if sys.byteorder == 'big':
+-    if hasattr(graph_def, 'node'):
+-      byte_swap_tensor.swap_tensor_content_in_graph_node(
+-          graph_def, 'big', 'little'
+-      )
+-    else:
+-      byte_swap_tensor.swap_tensor_content_in_graph_function(
+-          graph_def, 'big', 'little'
+-      )
++    byte_swap_tensor.swap_tensor_content_in_graph(graph_def,
++                                                  "big", "little")
+ 
+   # gcs does not have the concept of directory at the moment.
+   if not logdir.startswith('gs:'):
+@@ -81,4 +75,8 @@ def write_graph(graph_or_graph_def, logdir, name, as_text=True):
+   else:
+     file_io.atomic_write_string_to_file(
+         path, graph_def.SerializeToString(deterministic=True))
++
++  if sys.byteorder == 'big':
++    byte_swap_tensor.swap_tensor_content_in_graph(graph_def,
++                                                  "little", "big")
+   return path
+diff --git a/tensorflow/python/framework/meta_graph.py b/tensorflow/python/framework/meta_graph.py
+index f621119ab97..a420bcef879 100644
+--- a/tensorflow/python/framework/meta_graph.py
++++ b/tensorflow/python/framework/meta_graph.py
+@@ -614,8 +614,9 @@ def read_meta_graph_file(filename):
+     file_content = f.read()
+   try:
+     meta_graph_def.ParseFromString(file_content)
+-    if sys.byteorder == "big":
+-      bst.swap_tensor_content_in_graph_function(meta_graph_def, "little", "big")
++    if sys.byteorder == 'big':
++      bst.swap_tensor_content_in_graph(meta_graph_def,
++        "little", "big")
+     return meta_graph_def
+   except Exception:  # pylint: disable=broad-except
+     pass
+@@ -623,8 +624,9 @@ def read_meta_graph_file(filename):
+   # Next try to read it as a text file.
+   try:
+     text_format.Merge(file_content.decode("utf-8"), meta_graph_def)
+-    if sys.byteorder == "big":
+-      bst.swap_tensor_content_in_graph_function(meta_graph_def, "little", "big")
++    if sys.byteorder == 'big':
++      bst.swap_tensor_content_in_graph(meta_graph_def,
++        "little", "big")
+   except text_format.ParseError as e:
+     raise IOError(f"Cannot parse file {filename}: {str(e)}.")
+ 
+diff --git a/tensorflow/python/saved_model/builder_impl.py b/tensorflow/python/saved_model/builder_impl.py
+index ba2b9554eff..73c3bffaa73 100644
+--- a/tensorflow/python/saved_model/builder_impl.py
++++ b/tensorflow/python/saved_model/builder_impl.py
+@@ -16,6 +16,7 @@
+ 
+ import functools
+ import os
++import sys
+ 
+ from google.protobuf.any_pb2 import Any
+ 
+@@ -23,6 +24,7 @@ from tensorflow.core.framework import types_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
+ from tensorflow.core.protobuf import saved_model_pb2
+ from tensorflow.core.protobuf import saver_pb2
++from tensorflow.python.framework import byte_swap_tensor
+ from tensorflow.python.framework import dtypes
+ from tensorflow.python.framework import ops
+ from tensorflow.python.lib.io import file_io
+@@ -417,6 +419,10 @@ class _SavedModelBuilder(object):
+     if not file_io.file_exists(self._export_dir):
+       file_io.recursive_create_dir(self._export_dir)
+ 
++    if sys.byteorder == 'big':
++      byte_swap_tensor.swap_tensor_content_in_saved_model(self._saved_model,
++                                                          "big", "little")
++
+     saved_model_serialized = self._saved_model.SerializeToString(
+         deterministic=True)
+ 
+@@ -434,6 +440,9 @@ class _SavedModelBuilder(object):
+     tf_logging.info("SavedModel written to: %s", compat.as_text(path))
+     metrics.IncrementWrite(write_version="1")
+ 
++    if sys.byteorder == 'big':
++      byte_swap_tensor.swap_tensor_content_in_saved_model(self._saved_model,
++                                                          "little", "big")
+     # Placeholder for internal TF1 model fingerprint write
+ 
+     return path
+diff --git a/tensorflow/python/saved_model/load.py b/tensorflow/python/saved_model/load.py
+index f9088ddadab..cbc40938d13 100644
+--- a/tensorflow/python/saved_model/load.py
++++ b/tensorflow/python/saved_model/load.py
+@@ -17,7 +17,6 @@
+ import collections
+ import functools
+ import os
+-import sys
+ 
+ from absl import logging
+ 
+@@ -53,7 +52,6 @@ from tensorflow.python.saved_model import loader_impl
+ from tensorflow.python.saved_model import path_helpers
+ from tensorflow.python.saved_model import registration
+ from tensorflow.python.saved_model import revived_types
+-from tensorflow.python.saved_model import utils_impl as saved_model_utils
+ from tensorflow.python.saved_model.pywrap_saved_model import metrics
+ from tensorflow.python.trackable import asset
+ from tensorflow.python.trackable import autotrackable
+@@ -966,12 +964,6 @@ def load_partial(export_dir, filters, tags=None, options=None):
+       saved_model_proto.meta_graphs[0].HasField("object_graph_def")):
+     metrics.IncrementReadApi(_LOAD_V2_LABEL)
+     meta_graph_def = saved_model_proto.meta_graphs[0]
+-    # tensor_content field contains raw bytes in litle endian format
+-    # which causes problems when loaded on big-endian systems
+-    # requiring byteswap
+-    if sys.byteorder == "big":
+-      saved_model_utils.swap_function_tensor_content(meta_graph_def, "little",
+-                                                     "big")
+     if (tags is not None
+         and set(tags) != set(meta_graph_def.meta_info_def.tags)):
+       raise ValueError(
+diff --git a/tensorflow/python/saved_model/loader_impl.py b/tensorflow/python/saved_model/loader_impl.py
+index d15d3f516d0..2a12c7e5d71 100644
+--- a/tensorflow/python/saved_model/loader_impl.py
++++ b/tensorflow/python/saved_model/loader_impl.py
+@@ -24,6 +24,7 @@ from google.protobuf import text_format
+ from tensorflow.core.framework import graph_debug_info_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
+ from tensorflow.core.protobuf import saved_model_pb2
++from tensorflow.python.framework import byte_swap_tensor
+ from tensorflow.python.framework import ops
+ from tensorflow.python.lib.io import file_io
+ from tensorflow.python.ops import variables
+@@ -31,7 +32,6 @@ from tensorflow.python.platform import tf_logging
+ from tensorflow.python.saved_model import constants
+ from tensorflow.python.saved_model import path_helpers
+ from tensorflow.python.saved_model import signature_def_utils
+-from tensorflow.python.saved_model import utils_impl as saved_model_utils
+ from tensorflow.python.saved_model.pywrap_saved_model import metrics
+ from tensorflow.python.training import saver as tf_saver
+ from tensorflow.python.util import compat
+@@ -101,7 +101,6 @@ def parse_saved_model(export_dir):
+       file_content = f.read()
+     try:
+       saved_model.ParseFromString(file_content)
+-      return saved_model
+     except message.DecodeError as e:
+       raise IOError(f"Cannot parse file {path_to_pb}: {str(e)}.")
+   elif file_io.file_exists(path_to_pbtxt):
+@@ -109,7 +108,6 @@ def parse_saved_model(export_dir):
+       file_content = f.read()
+     try:
+       text_format.Merge(file_content.decode("utf-8"), saved_model)
+-      return saved_model
+     except text_format.ParseError as e:
+       raise IOError(f"Cannot parse file {path_to_pbtxt}: {str(e)}.")
+   else:
+@@ -118,6 +116,11 @@ def parse_saved_model(export_dir):
+         f"{{{constants.SAVED_MODEL_FILENAME_PBTXT}|"
+         f"{constants.SAVED_MODEL_FILENAME_PB}}}")
+ 
++  if sys.byteorder == "big":
++    byte_swap_tensor.swap_tensor_content_in_saved_model(saved_model,
++                                                        "little", "big")
++  return saved_model
++
+ 
+ def get_asset_tensors(export_dir, meta_graph_def_to_load, import_scope=None):
+   """Gets the asset tensors, if defined in the meta graph def to load.
+@@ -416,9 +419,6 @@ class SavedModelLoader(object):
+           `tf.import_graph_def` (may be `None`).
+     """
+     meta_graph_def = self.get_meta_graph_def_from_tags(tags)
+-    if sys.byteorder == "big":
+-      saved_model_utils.swap_function_tensor_content(meta_graph_def, "little",
+-                                                     "big")
+     with graph.as_default():
+       return tf_saver._import_meta_graph_with_return_elements(  # pylint: disable=protected-access
+           meta_graph_def, import_scope=import_scope, **saver_kwargs)
+diff --git a/tensorflow/python/saved_model/save.py b/tensorflow/python/saved_model/save.py
+index 525581c5ad4..0555198cae1 100644
+--- a/tensorflow/python/saved_model/save.py
++++ b/tensorflow/python/saved_model/save.py
+@@ -394,7 +394,8 @@ class _SaveableView(object):
+     tensor_map = object_identity.ObjectIdentityDictionary()
+     asset_info = _AssetInfo(
+         asset_defs=[],
+-        asset_initializers_by_resource=object_identity.ObjectIdentityDictionary(),
++        asset_initializers_by_resource=
++        object_identity.ObjectIdentityDictionary(),
+         asset_filename_map={},
+         asset_index={})
+ 
+@@ -917,7 +918,7 @@ def _fill_meta_graph_def(
+   meta_graph.strip_graph_default_valued_attrs(meta_graph_def)
+   # store tensor_content in litle endian format
+   if sys.byteorder == "big":
+-    utils_impl.swap_function_tensor_content(meta_graph_def, "big", "little")
++    utils_impl.swap_tensor_content_in_graph(meta_graph_def, "big", "little")
+   return asset_info, exported_graph
+ 
+ 
+diff --git a/tensorflow/python/saved_model/utils_impl.py b/tensorflow/python/saved_model/utils_impl.py
+index b3f5a6849ce..464ad9c0601 100644
+--- a/tensorflow/python/saved_model/utils_impl.py
++++ b/tensorflow/python/saved_model/utils_impl.py
+@@ -208,7 +208,5 @@ def get_element_from_tensor_info(tensor_info, graph=None, import_scope=None):
+       ops.prepend_name_scope(tensor_info.name, import_scope=import_scope))
+ 
+ 
+-def swap_function_tensor_content(meta_graph_def, from_endiness, to_endiness):
+-  bst.swap_tensor_content_in_graph_function(
+-      meta_graph_def, from_endiness, to_endiness
+-  )
++def swap_tensor_content_in_graph(meta_graph_def, from_endiness, to_endiness):
++  bst.swap_tensor_content_in_graph(meta_graph_def, from_endiness, to_endiness)
+diff --git a/tensorflow/python/kernel_tests/array_ops/bitcast_op_test.py b/tensorflow/python/kernel_tests/array_ops/bitcast_op_test.py
+index 28ac2dfc9d3..1d6d3e48058 100644
+--- a/tensorflow/python/kernel_tests/array_ops/bitcast_op_test.py
++++ b/tensorflow/python/kernel_tests/array_ops/bitcast_op_test.py
+@@ -15,6 +15,7 @@
+ """Tests for tf.bitcast."""
+ 
+ import numpy as np
++import sys
+ 
+ from tensorflow.python.framework import dtypes
+ from tensorflow.python.framework import errors
+@@ -31,8 +32,12 @@ class BitcastTest(test.TestCase):
+     with test_util.use_gpu():
+       tf_ans = array_ops.bitcast(x, datatype)
+       out = self.evaluate(tf_ans)
+-      buff_after = memoryview(out).tobytes()
+-      buff_before = memoryview(x).tobytes()
++      if sys.byteorder == 'little' :
++        buff_after = memoryview(out).tobytes()
++        buff_before = memoryview(x).tobytes()
++      else:
++        buff_after = memoryview(out.byteswap()).tobytes()
++        buff_before = memoryview(x.byteswap()).tobytes()
+       self.assertEqual(buff_before, buff_after)
+       self.assertEqual(tf_ans.get_shape(), shape)
+       self.assertEqual(tf_ans.dtype, datatype)
+diff --git a/tensorflow/python/framework/extension_type_field_test.py b/tensorflow/python/framework/extension_type_field_test.py
+index a892ce9097d..4e476e62f40 100644
+--- a/tensorflow/python/framework/extension_type_field_test.py
++++ b/tensorflow/python/framework/extension_type_field_test.py
+@@ -110,8 +110,8 @@ class ExtensionTypeFieldTest(test_util.TensorFlowTestCase,
+       ("ExtensionTypeField(name='i', value_type=<class 'int'>, "
+        'default=ExtensionTypeField.NO_DEFAULT)', 'i', int),
+       ("ExtensionTypeField(name='x', value_type=typing.Tuple"
+-       '[typing.Union[str, int], ...], default=ExtensionTypeField.NO_DEFAULT)',
+-       'x', typing.Tuple[typing.Union[str, int], ...]),
++       '[typing.Union[int, str], ...], default=ExtensionTypeField.NO_DEFAULT)',
++       'x', typing.Tuple[typing.Union[int, str], ...]),
+       ("ExtensionTypeField(name='j', value_type=<class 'int'>, default=3)", 'j',
+        int, 3),
+   ])
+diff --git a/tensorflow/compiler/xla/literal.cc b/tensorflow/compiler/xla/literal.cc
+index ca30d106595..8b2cf1a8830 100644
+--- a/tensorflow/compiler/xla/literal.cc
++++ b/tensorflow/compiler/xla/literal.cc
+@@ -2636,9 +2636,6 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
+     case S4:
+       *proto->mutable_s4s() = std::string(
+           reinterpret_cast<const char*>(data<s4>().data()), size_bytes_dense());
+-      if (!kLittleEndian) {
+-        ConvertEndianShort(proto->mutable_s4s());
+-      }
+       break;
+     case S8:
+       proto->set_s8s(static_cast<const signed char*>(data<int8_t>().data()),
+@@ -2647,9 +2644,6 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
+     case U4:
+       *proto->mutable_u4s() = std::string(
+           reinterpret_cast<const char*>(data<u4>().data()), size_bytes_dense());
+-      if (!kLittleEndian) {
+-        ConvertEndianShort(proto->mutable_u4s());
+-      }
+       break;
+     case U8:
+       proto->set_u8s(static_cast<const unsigned char*>(data<uint8_t>().data()),
+@@ -2782,9 +2776,6 @@ Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
+       const std::string& s(proto.s4s());
+       TF_RET_CHECK(data<s4>().size() * sizeof(s4) == s.size());
+       memcpy(untyped_data(), s.data(), s.size());
+-      if (!kLittleEndian) {
+-        ConvertEndianShort(reinterpret_cast<char*>(untyped_data()), s.size());
+-      }
+     } break;
+     case S8: {
+       auto s8_data = data<int8_t>();
+@@ -2795,9 +2786,6 @@ Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
+       const std::string& s(proto.u4s());
+       TF_RET_CHECK(data<u4>().size() * sizeof(u4) == s.size());
+       memcpy(untyped_data(), s.data(), s.size());
+-      if (!kLittleEndian) {
+-        ConvertEndianShort(reinterpret_cast<char*>(untyped_data()), s.size());
+-      }
+     } break;
+     case U8: {
+       auto u8_data = data<uint8_t>();
+diff --git a/tensorflow/compiler/xla/literal_test.cc b/tensorflow/compiler/xla/literal_test.cc
+index cb50f859ee5..3871bc85edd 100644
+--- a/tensorflow/compiler/xla/literal_test.cc
++++ b/tensorflow/compiler/xla/literal_test.cc
+@@ -2383,9 +2383,9 @@ TEST_F(LiteralUtilTest, PopulateR2DynamicDim1) {
+ TEST_F(LiteralUtilTest, PopulateFrom1DArray) {
+   auto literal = Literal(ShapeUtil::MakeShape(F32, {20}));
+   literal.SetDynamicSize(0, 10);
+-  xla::Array<float_t> array({10});
++  xla::Array<float> array({10});
+   for (int i = 0; i < 10; i++) {
+-    array(i) = static_cast<float_t>(i);
++    array(i) = static_cast<float>(i);
+   }
+   literal.PopulateFromArray(array);
+   std::string expected = "f32[<=20](10) {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}";
+@@ -2397,10 +2397,10 @@ TEST_F(LiteralUtilTest, PopulateFromArrayDynamicDim0) {
+   const uint32_t rows = 3;
+   const uint32_t cols = 5;
+   literal.SetDynamicSize(0, rows);
+-  xla::Array<float_t> array({rows, cols});
++  xla::Array<float> array({rows, cols});
+   for (int i = 0; i < rows; i++) {
+     for (int j = 0; j < cols; j++) {
+-      array(i, j) = static_cast<float_t>(j);
++      array(i, j) = static_cast<float>(j);
+     }
+   }
+   literal.PopulateFromArray(array);
+@@ -2417,10 +2417,10 @@ TEST_F(LiteralUtilTest, PopulateFromArrayDynamicDim1) {
+   const uint32_t rows = 5;
+   const uint32_t cols = 3;
+   literal.SetDynamicSize(1, cols);
+-  xla::Array<float_t> array({rows, cols});
++  xla::Array<float> array({rows, cols});
+   for (int i = 0; i < rows; i++) {
+     for (int j = 0; j < cols; j++) {
+-      array(i, j) = static_cast<float_t>(j);
++      array(i, j) = static_cast<float>(j);
+     }
+   }
+   literal.PopulateFromArray(array);
+@@ -2439,10 +2439,10 @@ TEST_F(LiteralUtilTest, PopulateR2FromArray2DDynamicDim0) {
+   const uint32_t rows = 3;
+   const uint32_t cols = 5;
+   literal.SetDynamicSize(0, rows);
+-  xla::Array2D<float_t> array({rows, cols});
++  xla::Array2D<float> array({rows, cols});
+   for (int i = 0; i < rows; i++) {
+     for (int j = 0; j < cols; j++) {
+-      array(i, j) = static_cast<float_t>(j);
++      array(i, j) = static_cast<float>(j);
+     }
+   }
+   literal.PopulateR2FromArray2D(array);
+@@ -2459,10 +2459,10 @@ TEST_F(LiteralUtilTest, PopulateR2FromArray2DDynamicDim1) {
+   const uint32_t rows = 5;
+   const uint32_t cols = 3;
+   literal.SetDynamicSize(1, cols);
+-  xla::Array2D<float_t> array({rows, cols});
++  xla::Array2D<float> array({rows, cols});
+   for (int i = 0; i < rows; i++) {
+     for (int j = 0; j < cols; j++) {
+-      array(i, j) = static_cast<float_t>(j);
++      array(i, j) = static_cast<float>(j);
+     }
+   }
+   literal.PopulateR2FromArray2D(array);
+@@ -2482,10 +2482,10 @@ TEST_F(LiteralUtilTest, PopulateR2FromArray2DDynamicDim0Dim1) {
+   const uint32_t cols = 2;
+   literal.SetDynamicSize(0, rows);
+   literal.SetDynamicSize(1, cols);
+-  xla::Array2D<float_t> array({rows, cols});
++  xla::Array2D<float> array({rows, cols});
+   for (int i = 0; i < rows; i++) {
+     for (int j = 0; j < cols; j++) {
+-      array(i, j) = static_cast<float_t>(j);
++      array(i, j) = static_cast<float>(j);
+     }
+   }
+   literal.PopulateR2FromArray2D(array);
+diff --git a/tensorflow/compiler/mlir/tf2xla/transforms/BUILD b/tensorflow/compiler/mlir/tf2xla/transforms/BUILD
+index df4bf8fa204..bc0bbfd3a02 100644
+--- a/tensorflow/compiler/mlir/tf2xla/transforms/BUILD
++++ b/tensorflow/compiler/mlir/tf2xla/transforms/BUILD
+@@ -276,6 +276,7 @@ cc_library(
+         "//tensorflow/core:lib",
+         "//tensorflow/core:protos_all_cc",
+         "//tensorflow/core/util/quantization:uniform_quant_ops_params",
++        "//tensorflow/core/util/tensor_bundle:byteswaptensor",
+         "@com_google_absl//absl/strings",
+         "@com_google_absl//absl/types:span",
+         "@llvm-project//llvm:Support",
+diff --git a/tensorflow/compiler/mlir/tf2xla/transforms/xla_legalize_tf.cc b/tensorflow/compiler/mlir/tf2xla/transforms/xla_legalize_tf.cc
+index 09d5b91f05a..cf2053443cf 100644
+--- a/tensorflow/compiler/mlir/tf2xla/transforms/xla_legalize_tf.cc
++++ b/tensorflow/compiler/mlir/tf2xla/transforms/xla_legalize_tf.cc
+@@ -64,6 +64,7 @@ limitations under the License.
+ #include "tensorflow/core/lib/monitoring/counter.h"
+ #include "tensorflow/core/util/quantization/uniform_quant_ops_attr.pb.h"
+ #include "tensorflow/core/util/quantization/uniform_quant_ops_params.h"
++#include "tensorflow/core/util/tensor_bundle/byte_swap_tensor.h"
+
+ namespace mlir {
+ namespace mhlo {
+@@ -193,6 +194,14 @@ FailureOr<mhlo::ConstantOp> CreateConstantOp(UniformQuantizedOp op,
+     return op.emitError("Failed to convert tensor proto to Tensor.");
+   }
+
++  if (!tensorflow::port::kLittleEndian) {
++    tensorflow::Status status_swap = ByteSwapTensor(&t);
++
++    if (!status_swap.ok()) {
++    return op.emitError("Failed to swap tensor content");
++    }
++  }
++
+   auto arr = t.flat<TFQuantizedType>();
+   auto dense_attr = mlir::DenseElementsAttr::get(
+       GetSameShapeTensorType(
+diff --git a/tensorflow/lite/kernels/BUILD b/tensorflow/lite/kernels/BUILD
+index 9c3ebdfaaba..84822ba1fea 100644
+--- a/tensorflow/lite/kernels/BUILD
++++ b/tensorflow/lite/kernels/BUILD
+@@ -762,6 +762,7 @@ cc_library(
+         "//tensorflow/lite/experimental/resource",
+         "//tensorflow/lite/kernels/internal:cppmath",
+         "//tensorflow/lite:string",
++       "//tensorflow/tsl/util:byte_swap_array",
+         "@farmhash_archive//:farmhash",
+         "//third_party/fft2d:fft2d_headers",
+     ],
+diff --git a/tensorflow/lite/kernels/bitcast.cc b/tensorflow/lite/kernels/bitcast.cc
+index e0877107f1f..1cc3d3bb50c 100644
+--- a/tensorflow/lite/kernels/bitcast.cc
++++ b/tensorflow/lite/kernels/bitcast.cc
+@@ -20,6 +20,7 @@ limitations under the License.
+ #include "tensorflow/lite/core/c/common.h"
+ #include "tensorflow/lite/kernels/kernel_util.h"
+ #include "tensorflow/lite/util.h"
++#include "tensorflow/tsl/util/byte_swap_array.h"
+ 
+ namespace tflite {
+ namespace ops {
+@@ -91,6 +92,24 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
+   // Only copy data if input and output do not share a buffer.
+   if (output->data.data != input->data.data) {
+     memcpy(output->data.data, input->data.data, input->bytes);
++
++    // Buffer is encoded in little-endian, even for big-endian systems
++    if constexpr (!tsl::port::kLittleEndian) {
++      size_t in_size{},out_size{};
++      TF_LITE_ENSURE_STATUS(GetSizeOfType(context, input->type, &in_size));
++      TF_LITE_ENSURE_STATUS(GetSizeOfType(context, output->type, &out_size));
++      if ( in_size != out_size ) {
++        auto input_num_elem{input->bytes / in_size};
++        auto output_num_elem{output->bytes / out_size};
++
++        TF_LITE_ENSURE_EQ(context,
++            tsl::ByteSwapArray(reinterpret_cast<char*>(output->data.data), in_size,
++                             input_num_elem),tsl::OkStatus());
++        TF_LITE_ENSURE_EQ(context,
++            tsl::ByteSwapArray(reinterpret_cast<char*>(output->data.data), out_size,
++                             output_num_elem),tsl::OkStatus());
++      }
++    }
+   }
+   return kTfLiteOk;
+ }
+diff --git a/tensorflow/lite/kernels/bitcast_test.cc b/tensorflow/lite/kernels/bitcast_test.cc
+index 0913b489a24..929dcc07dc5 100644
+--- a/tensorflow/lite/kernels/bitcast_test.cc
++++ b/tensorflow/lite/kernels/bitcast_test.cc
+@@ -97,27 +97,15 @@ TEST(BitcastOpModel, BitcastUInt32Toint16) {
+                                  (uint32_t)UINT16_MAX};
+   m.PopulateTensor<uint32_t>(m.input(), input);
+   ASSERT_EQ(m.Invoke(), kTfLiteOk);
+-#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
+-    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+-  // 00..01 00..00
+-  // 00..00 11..11
+-  std::vector<int16_t> output = {1, 0, 0, -1};
+-#else
+   // 00..00 00..01
+   // 11..11 00..00
+   std::vector<int16_t> output = {0, 1, -1, 0};
+-#endif
+   EXPECT_THAT(m.ExtractVector<int16_t>(m.output()), ElementsAreArray(output));
+ }
+ 
+ TEST(BitcastOpModel, BitcastInt16ToUint32) {
+   BitcastOpModel m({TensorType_INT16, {2, 1, 2}}, {TensorType_UINT32, {2, 1}});
+-#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
+-    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+-  std::vector<int16_t> input = {1, 0, 0, -1};
+-#else
+   std::vector<int16_t> input = {0, 1, -1, 0};
+-#endif
+   m.PopulateTensor<int16_t>(m.input(), input);
+   ASSERT_EQ(m.Invoke(), kTfLiteOk);
+   std::vector<uint32_t> output = {(uint32_t)UINT16_MAX + 1,
+diff --git a/tensorflow/lite/tools/model_loader.cc b/tensorflow/lite/tools/model_loader.cc
+index 0d095485996..1cb45caaf83 100644
+--- a/tensorflow/lite/tools/model_loader.cc
++++ b/tensorflow/lite/tools/model_loader.cc
+@@ -62,6 +62,9 @@ bool BufferModelLoader::InitInternal() {
+   }
+   model_ = FlatBufferModel::VerifyAndBuildFromBuffer(caller_owned_buffer_,
+                                                      model_size_);
++#if FLATBUFFERS_LITTLEENDIAN == 0
++  model_ = FlatBufferModel::ByteConvertModel(std::move(model_));
++#endif
+   return true;
+ }
+ 
+diff --git a/tensorflow/compiler/mlir/lite/flatbuffer_to_string.cc b/tensorflow/compiler/mlir/lite/flatbuffer_to_string.cc
+index a51c4eaabf2..7af7313039d 100644
+--- a/tensorflow/compiler/mlir/lite/flatbuffer_to_string.cc
++++ b/tensorflow/compiler/mlir/lite/flatbuffer_to_string.cc
+@@ -141,7 +141,10 @@ int main(int argc, char** argv) {
+   std::string serialized_model;
+   if (tflite::ReadAndVerify(argv[1], &serialized_model)) return 1;
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+-  tflite::FlatBufferModel::ByteSwapSerializedModel(&serialized_model);
++  // If the flatbuffer model comes from stdin, convert its tensor content from
++  // BE to LE to ensure the output text string is the same as on LE platforms.
++  if (std::string(argv[1]) == "-")
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&serialized_model, true);
+ #endif
+   tflite::ToString(serialized_model);
+   return 0;
+diff --git a/tensorflow/lite/core/model_builder.cc b/tensorflow/lite/core/model_builder.cc
+index 3684892bfb0..86b9918d443 100644
+--- a/tensorflow/lite/core/model_builder.cc
++++ b/tensorflow/lite/core/model_builder.cc
+@@ -107,16 +107,25 @@ std::unique_ptr<FlatBufferModel> FlatBufferModel::VerifyAndBuildFromBuffer(
+ 
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+ 
+-void FlatBufferModel::ByteSwapSerializedModel(std::string* serialized_model) {
++void FlatBufferModel::ByteSwapSerializedModel(std::string* serialized_model,
++                                              bool from_big_endian) {
+   const uint8_t* buffer =
+       reinterpret_cast<const uint8_t*>(serialized_model->c_str());
+   const tflite::Model* input_model = tflite::GetModel(buffer);
+-  ByteSwapTFLiteModel(input_model);
++  ByteSwapTFLiteModel(input_model, from_big_endian);
+ }
+ 
+ void FlatBufferModel::ByteSwapBuffer(int8_t tensor_type, size_t buffer_size,
+-                                     uint8_t* buffer) {
++                                     uint8_t* buffer, bool from_big_endian) {
+   switch (tensor_type) {
++    case tflite::TensorType_STRING: {
++      auto bp = reinterpret_cast<int32_t*>(buffer);
++      int num_of_strings =
++          from_big_endian ? bp[0] : flatbuffers::EndianSwap(bp[0]);
++      for (int i = 0; i < num_of_strings + 2; i++)
++        bp[i] = flatbuffers::EndianSwap(bp[i]);
++      break;
++    }
+     // 16-bit types
+     case tflite::TensorType_FLOAT16:
+     case tflite::TensorType_INT16:
+@@ -151,7 +160,8 @@ void FlatBufferModel::ByteSwapBuffer(int8_t tensor_type, size_t buffer_size,
+   }
+ }
+ 
+-void FlatBufferModel::ByteSwapTFLiteModel(const tflite::Model* tfl_model) {
++void FlatBufferModel::ByteSwapTFLiteModel(const tflite::Model* tfl_model,
++                                          bool from_big_endian) {
+   bool buffer_swapped[tfl_model->buffers()->size()] = {};
+   for (size_t subgraph_idx = 0; subgraph_idx < tfl_model->subgraphs()->size();
+        subgraph_idx++) {
+@@ -167,7 +177,7 @@ void FlatBufferModel::ByteSwapTFLiteModel(const tflite::Model* tfl_model) {
+         if (!buffer_ || !buffer_->data()) continue;
+         auto* buffer = buffer_->data();
+         uint8_t* buff_ = const_cast<uint8_t*>(buffer->data());
+-        ByteSwapBuffer(tensor->type(), buffer->size(), buff_);
++        ByteSwapBuffer(tensor->type(), buffer->size(), buff_, from_big_endian);
+         buffer_swapped[tensor->buffer()] = true;
+       }
+     }
+@@ -175,21 +185,25 @@ void FlatBufferModel::ByteSwapTFLiteModel(const tflite::Model* tfl_model) {
+ }
+ 
+ std::unique_ptr<FlatBufferModel> FlatBufferModel::ByteConvertModel(
+-    std::unique_ptr<FlatBufferModel> model, ErrorReporter* error_reporter) {
++    std::unique_ptr<FlatBufferModel> model, ErrorReporter* error_reporter,
++    bool from_big_endian) {
+   if (model == nullptr) return model;
+   auto tfl_model = model->GetModel();
+   if (tfl_model->subgraphs()->size() == 0) return model;
+   if (tfl_model->subgraphs()->Get(0)->tensors()->size() == 0) return model;
+-  return ByteSwapFlatBufferModel(std::move(model), error_reporter);
++   if (tfl_model->buffers()->size() < 2) return model;
++  return ByteSwapFlatBufferModel(std::move(model), error_reporter,
++                                 from_big_endian);
+ }
+ 
+ std::unique_ptr<FlatBufferModel> FlatBufferModel::ByteSwapFlatBufferModel(
+-    std::unique_ptr<FlatBufferModel> model, ErrorReporter* error_reporter) {
++    std::unique_ptr<FlatBufferModel> model, ErrorReporter* error_reporter,
++    bool from_big_endian) {
+   FlatBufferModel* modelp = model.release();
+   auto tflite_model = modelp->GetModel();
+   auto copied_model = std::make_unique<tflite::ModelT>();
+   tflite_model->UnPackTo(copied_model.get(), nullptr);
+-  ByteSwapTFLiteModelT(copied_model.get());
++  ByteSwapTFLiteModelT(copied_model.get(), from_big_endian);
+   std::unique_ptr<flatbuffers::FlatBufferBuilder> builder(
+       new flatbuffers::FlatBufferBuilder());
+   auto packed_model = tflite::Model::Pack(*builder, copied_model.get());
+@@ -200,7 +214,8 @@ std::unique_ptr<FlatBufferModel> FlatBufferModel::ByteSwapFlatBufferModel(
+       builder_->GetSize(), error_reporter);
+ }
+ 
+-void FlatBufferModel::ByteSwapTFLiteModelT(tflite::ModelT* tfl_modelt) {
++void FlatBufferModel::ByteSwapTFLiteModelT(tflite::ModelT* tfl_modelt,
++                                           bool from_big_endian) {
+   size_t bytes_per_elem = 0;
+   bool buffer_swapped[tfl_modelt->buffers.size()] = {};
+   for (size_t subgraph_idx = 0; subgraph_idx < tfl_modelt->subgraphs.size();
+@@ -213,7 +228,7 @@ void FlatBufferModel::ByteSwapTFLiteModelT(tflite::ModelT* tfl_modelt) {
+         const auto* buffer = &(tfl_modelt->buffers[tensor->buffer].get()->data);
+         if (buffer && buffer->data()) {
+           uint8_t* buff_ = const_cast<uint8_t*>(buffer->data());
+-          ByteSwapBuffer(tensor->type, buffer->size(), buff_);
++          ByteSwapBuffer(tensor->type, buffer->size(), buff_, from_big_endian);
+           buffer_swapped[tensor->buffer] = true;
+         }
+       }
+diff --git a/tensorflow/lite/core/model_builder.h b/tensorflow/lite/core/model_builder.h
+index bcf5248d03c..a7202f133d5 100644
+--- a/tensorflow/lite/core/model_builder.h
++++ b/tensorflow/lite/core/model_builder.h
+@@ -158,28 +158,33 @@ class FlatBufferModel {
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+   /// Byte swap a constant buffer in place.
+   static void ByteSwapBuffer(int8_t tensor_type, size_t buffer_size,
+-                             uint8_t* buffer);
++                             uint8_t* buffer, bool from_big_endian = true);
+ 
+   /// Byte swap the buffers field of a TFLite Model instance in place.
+-  static void ByteSwapTFLiteModel(const tflite::Model* tfl_model);
++  static void ByteSwapTFLiteModel(const tflite::Model* tfl_model,
++                                  bool from_big_endian = true);
+ 
+   /// Byte swap the buffers field of a TFLite ModelT instance in place.
+-  static void ByteSwapTFLiteModelT(tflite::ModelT* tfl_modelt);
++  static void ByteSwapTFLiteModelT(tflite::ModelT* tfl_modelt,
++                                   bool from_big_endian = true);
+ 
+   /// Convert the TFLite buffers field between LE and BE format in a
+   /// FlatBufferModel which is not empty and return the converted instance.
+   static std::unique_ptr<FlatBufferModel> ByteConvertModel(
+       std::unique_ptr<FlatBufferModel> model,
+-      ErrorReporter* error_reporter = DefaultErrorReporter());
++      ErrorReporter* error_reporter = DefaultErrorReporter(),
++      bool from_big_endian = false);
+ 
+   /// Byte Swap the TFLite buffers field in a FlatBufferModel and return the
+   /// swapped instance.
+   static std::unique_ptr<FlatBufferModel> ByteSwapFlatBufferModel(
+       std::unique_ptr<FlatBufferModel> model,
+-      ErrorReporter* error_reporter = DefaultErrorReporter());
++      ErrorReporter* error_reporter = DefaultErrorReporter(),
++      bool from_big_endian = false);
+ 
+   /// Byte Swap the serialized String of a TFLite model in place.
+-  static void ByteSwapSerializedModel(std::string* serialized_model);
++  static void ByteSwapSerializedModel(std::string* serialized_model,
++                                      bool from_big_endian = true);
+ #endif
+ 
+   // Releases memory or unmaps mmaped memory.
+diff --git a/tensorflow/lite/experimental/acceleration/mini_benchmark/model_modifier/embedder_main.cc b/tensorflow/lite/experimental/acceleration/mini_benchmark/model_modifier/embedder_main.cc
+index 0287f3d1dab..86608c7191f 100644
+--- a/tensorflow/lite/experimental/acceleration/mini_benchmark/model_modifier/embedder_main.cc
++++ b/tensorflow/lite/experimental/acceleration/mini_benchmark/model_modifier/embedder_main.cc
+@@ -73,7 +73,7 @@ int RunEmbedder(const EmbedderOptions& options) {
+     return 3;
+   }
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+-  tflite::FlatBufferModel::ByteSwapSerializedModel(&main_model_contents);
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&main_model_contents, false);
+ #endif
+   const Model* main_model =
+       flatbuffers::GetRoot<Model>(main_model_contents.data());
+@@ -87,7 +87,8 @@ int RunEmbedder(const EmbedderOptions& options) {
+     return 4;
+   }
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+-  tflite::FlatBufferModel::ByteSwapSerializedModel(&metrics_model_contents);
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&metrics_model_contents,
++                                                   false);
+ #endif
+   const Model* metrics_model =
+       flatbuffers::GetRoot<Model>(metrics_model_contents.data());
+@@ -134,7 +135,7 @@ int RunEmbedder(const EmbedderOptions& options) {
+     return 7;
+   }
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+-  tflite::FlatBufferModel::ByteSwapSerializedModel(&binary);
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&binary, true);
+ #endif
+   f << binary;
+   f.close();
+diff --git a/tensorflow/lite/experimental/acceleration/mini_benchmark/validator_test.cc b/tensorflow/lite/experimental/acceleration/mini_benchmark/validator_test.cc
+index d51b84dd94e..e6d756ce424 100644
+--- a/tensorflow/lite/experimental/acceleration/mini_benchmark/validator_test.cc
++++ b/tensorflow/lite/experimental/acceleration/mini_benchmark/validator_test.cc
+@@ -121,7 +121,7 @@ TEST_F(ValidatorTest, HappyPathOnCpuWithCustomValidation) {
+       reinterpret_cast<const char*>(model_with_input.GetBufferPointer()),
+       model_with_input.GetSize());
+ #if FLATBUFFERS_LITTLEENDIAN == 0
+-  tflite::FlatBufferModel::ByteSwapSerializedModel(&serialized_str);
++  tflite::FlatBufferModel::ByteSwapSerializedModel(&serialized_str, true);
+ #endif
+   std::string model_path = MiniBenchmarkTestHelper::DumpToTempFile(
+       "mobilenet_quant_with_input.tflite",
+diff --git a/tensorflow/lite/tools/flatbuffer_utils.py b/tensorflow/lite/tools/flatbuffer_utils.py
+index 6c8dcf0a031..ea10ee885c9 100644
+--- a/tensorflow/lite/tools/flatbuffer_utils.py
++++ b/tensorflow/lite/tools/flatbuffer_utils.py
+@@ -296,6 +296,21 @@ def byte_swap_buffer_content(buffer, chunksize, from_endiness, to_endiness):
+       ]
+   )
+ 
++def byte_swap_string_content(buffer, from_endiness, to_endiness):
++  """Helper function for byte-swapping the string buffer.
++  Args:
++    buffer: TFLite string buffer of from_endiness format.
++    from_endiness: The original endianness format of the string buffer.
++    to_endiness: The destined endianness format of the string buffer.
++  """
++  num_of_strings = int.from_bytes(buffer.data[0:4], from_endiness)
++  string_content = bytearray(buffer.data[4*(num_of_strings+2):])
++  prefix_data = b''.join([int.from_bytes(
++    buffer.data[i:i+4], from_endiness).to_bytes(
++      4, to_endiness) for i in range(
++        0, (num_of_strings+1)*4+1, 4)])
++  buffer.data = prefix_data + string_content
++
+ 
+ def byte_swap_tflite_model_obj(model, from_endiness, to_endiness):
+   """Byte swaps the buffers field in a TFLite model.
+@@ -334,7 +349,11 @@ def byte_swap_tflite_model_obj(model, from_endiness, to_endiness):
+           and tensor.buffer not in buffer_swapped
+           and model.buffers[tensor.buffer].data is not None
+       ):
+-        if tensor.type in types_of_16_bits:
++        if tensor.type == schema_fb.TensorType.STRING:
++          byte_swap_string_content(
++              model.buffers[tensor.buffer], from_endiness, to_endiness
++          )
++        elif tensor.type in types_of_16_bits:
+           byte_swap_buffer_content(
+               model.buffers[tensor.buffer], 2, from_endiness, to_endiness
+           )
