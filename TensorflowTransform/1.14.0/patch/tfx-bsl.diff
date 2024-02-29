@@ -1,0 +1,114 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 8529974..7bc67cc 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -128,6 +128,12 @@ http_archive(
+     urls = ["https://github.com/google/zetasql/archive/%s.zip" % ZETASQL_COMMIT],
+     strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
+     sha256 = "651a768cd51627f58aa6de7039aba9ddab22f4b0450521169800555269447840",
++    patches = [
++        "//third_party:zetasql_deps.patch",
++    ],
++    patch_args = [
++        "-p1",
++    ],
+ )
+ 
+ load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")
+diff --git a/third_party/zetasql_deps.patch b/third_party/zetasql_deps.patch
+new file mode 100644
+index 0000000..d0873c3
+--- /dev/null
++++ b/third_party/zetasql_deps.patch
+@@ -0,0 +1,91 @@
++diff --git a/bazel/boringssl.patch b/bazel/boringssl.patch
++new file mode 100644
++index 0000000..506622b
++--- /dev/null
+++++ b/bazel/boringssl.patch
++@@ -0,0 +1,26 @@
+++diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+++index ce74106..650f54a 100644
+++--- a/src/CMakeLists.txt
++++++ b/src/CMakeLists.txt
+++@@ -482,6 +482,8 @@ elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "mips")
+++   set(ARCH "generic")
+++ elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
+++   set(ARCH "ppc64le")
++++elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "s390x")
++++  set(ARCH "s390x")
+++ else()
+++   message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
+++ endif()
+++diff --git a/src/include/openssl/base.h b/src/include/openssl/base.h
+++index 983eadc..74675a9 100644
+++--- a/src/include/openssl/base.h
++++++ b/src/include/openssl/base.h
+++@@ -112,6 +112,8 @@ extern "C" {
+++ #elif defined(__pnacl__)
+++ #define OPENSSL_32_BIT
+++ #define OPENSSL_PNACL
++++#elif defined(__s390x__)
++++#define OPENSSL_64_BIT
+++ #elif defined(__wasm__)
+++ #define OPENSSL_32_BIT
+++ #elif defined(__asmjs__)
++\ No newline at end of file
++diff --git a/bazel/zetasql_deps_step_2.bzl b/bazel/zetasql_deps_step_2.bzl
++index 97fd5a9..9250ffe 100644
++--- a/bazel/zetasql_deps_step_2.bzl
+++++ b/bazel/zetasql_deps_step_2.bzl
++@@ -222,6 +222,12 @@ py_library(
++                 ],
++                 sha256 = "e168777eb0fc14ea5a65749a2f53c095935a6ea65f38899a289808fb0c221dc4",
++                 strip_prefix = "boringssl-4fb158925f7753d80fb858cb0239dff893ef9f15",
+++                patches = [
+++                    "@com_google_zetasql//bazel:boringssl.patch",
+++                ],
+++                patch_args = [
+++                    "-p1",
+++                ],
++             )
++
++         # Farmhash
++@@ -459,20 +459,19 @@ exports_files(["data"])
++             http_archive(
++                 name = "m4",
++                 build_file_content = all_content,
++-                strip_prefix = "m4-1.4.18",
++-                sha256 = "ab2633921a5cd38e48797bf5521ad259bdc4b979078034a3b790d7fec5493fab",
+++                strip_prefix = "m4-1.4.19",
+++                sha256 = "3be4a26d825ffdfda52a56fc43246456989a3630093cced3fbddf4771ee58a70",
++                 urls = [
++-                    "https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.gz",
++-                    "https://mirrors.kernel.org/gnu/m4/m4-1.4.18.tar.gz",
+++                    "https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.gz",
+++                    "https://mirrors.kernel.org/gnu/m4/m4-1.4.19.tar.gz",
++                 ],
++-                patches = ["@com_google_zetasql//bazel:m4.patch"],
++             )
++
++         http_archive(
++             name = "icu",
++             build_file = "@com_google_zetasql//bazel:icu.BUILD",
++-            strip_prefix = "icu",
++-            sha256 = "53e37466b3d6d6d01ead029e3567d873a43a5d1c668ed2278e253b683136d948",
++-            urls = ["https://github.com/unicode-org/icu/releases/download/release-65-1/icu4c-65_1-src.tgz"],
+++            strip_prefix = "icu-release-65-1/icu4c",
+++            sha256 = "b3afd3093becc62e74220e7ac422f8a4f95328c3da85dfabd57ecd2b4c90455b",
+++            urls = ["https://github.com/unicode-org/icu/archive/release-65-1.tar.gz"],
++             patches = ["@com_google_zetasql//bazel:icu4c-64_2.patch"],
++         )
++diff --git a/zetasql/common/multiprecision_int_impl.h b/zetasql/common/multiprecision_int_impl.h
++index 55ce01a..52d7c02 100644
++--- a/zetasql/common/multiprecision_int_impl.h
+++++ b/zetasql/common/multiprecision_int_impl.h
++@@ -316,7 +316,7 @@ inline void Copy(const Uint<k * 2>* src, int src_size, Uint<k>* dest,
++ // allow_optimization is used only for testing.
++ template <int k1, int n1, int k2, int n2, bool allow_optimization = true>
++ inline std::array<Uint<k1>, n1> Convert(const std::array<Uint<k2>, n2>& src,
++-                                        bool negative) {
+++                                        bool negative = false) {
++   std::array<Uint<k1>, n1> res;
++   Uint<k1> extension = negative ? ~Uint<k1>{0} : 0;
++ #ifndef ABSL_IS_BIG_ENDIAN
