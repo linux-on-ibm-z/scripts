@@ -143,7 +143,7 @@ function configureAndInstall() {
 
     cd ../../python
     curl -o pyarrow.diff $PATCH_URL/pyarrow.diff
-    git apply ${CURDIR}/pyarrow.diff
+    git apply pyarrow.diff
     export PYARROW_WITH_PARQUET=1
     export PYARROW_PARALLEL=4
     sudo pip3 install -r requirements-build.txt
