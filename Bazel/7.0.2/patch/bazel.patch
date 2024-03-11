@@ -321,7 +321,7 @@ index aa101db72e..17b369a881 100644
 +            'bazel_dep(name = "rules_java", version = "")',
 +            'local_path_override(',
 +            '    module_name = "rules_java",',
-+            '    path = "/home/test/rules_java",',
++            '    path = "RULES_JAVA_ROOT_PATH/rules_java",',
 +            ')',
              (
                  'http_jar ='
