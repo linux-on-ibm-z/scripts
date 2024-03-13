@@ -163,6 +163,9 @@ function configureAndInstall() {
   	# Install yarn
 	sudo chmod ugo+w -R /usr/local/node-v${NODE_JS_VERSION}-linux-s390x/
 	npm install -g yarn
+	if [[ "$DISTRO" == rhel-7* ]] || [[ "$DISTRO" == sles-12.5 ]]; then
+		export YARN_IGNORE_NODE=1
+	fi
 	yarn set version 4.0.0-rc.45
 	yarn --version
 
