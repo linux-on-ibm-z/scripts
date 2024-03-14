@@ -1,0 +1,165 @@
+diff --git a/Makefile b/Makefile
+index e4ed72643..2e53a3255 100644
+--- a/Makefile
++++ b/Makefile
+@@ -67,6 +67,10 @@ BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
+ 
+ RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
+ 
++ifeq ($(GOARCH),s390x)
++RELEASE_BUILD_IMAGE := golang-wasmtime:$(GOVERSION)-bullseye
++endif
++
+ RELEASE_DIR ?= _release/$(VERSION)
+ 
+ ifneq (,$(TELEMETRY_URL))
+@@ -270,7 +274,10 @@ ci-check-working-copy: generate
+ ci-wasm: wasm-test
+ 
+ .PHONY: ci-build-linux
+-ci-build-linux: ensure-release-dir ensure-linux-toolchain
++ci-build-linux: ensure-release-dir
++ifneq ($(GOARCH),s390x)
++	@$(MAKE) ensure-linux-toolchain
++endif
+ 	@$(MAKE) build GOOS=linux
+ 	chmod +x opa_linux_$(GOARCH)
+ 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
+@@ -325,6 +332,15 @@ endif
+ .PHONY: build-all-platforms
+ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-darwin-arm64-static ci-build-windows
+ 
++.PHONY: image-390x
++image-s390x:
++	$(DOCKER) build \
++		-t $(DOCKER_IMAGE):$(VERSION) \
++		--build-arg BASE=gcr.io/distroless/cc \
++		--build-arg BIN_DIR=$(RELEASE_DIR) \
++		--platform linux/s390x \
++		.
++
+ .PHONY: image-quick
+ image-quick: image-quick-$(GOARCH)
+ 
+diff --git a/build/run-wasm-rego-tests.sh b/build/run-wasm-rego-tests.sh
+index 4bc20d5a3..c4962e784 100755
+--- a/build/run-wasm-rego-tests.sh
++++ b/build/run-wasm-rego-tests.sh
+@@ -15,6 +15,12 @@ VERBOSE=${VERBOSE:-"0"}
+ TESTGEN_CONTAINER_NAME="opa-wasm-testgen-container"
+ TESTRUN_CONTAINER_NAME="opa-wasm-testrun-container"
+ 
++ARCH=$(arch)
++NODE_IMAGE="node:14"
++if [ $ARCH = "s390x" ]; then
++    NODE_IMAGE="node:14-bullseye"
++fi
++
+ function main {
+     trap interrupt SIGINT SIGTERM
+     mkdir -p $PWD/.go/cache/go-build
+@@ -68,7 +74,7 @@ function run_testcases {
+         --volumes-from $TESTGEN_CONTAINER_NAME:z \
+         -e VERBOSE=$VERBOSE \
+         -w /scratch \
+-        node:14 \
++        $NODE_IMAGE \
+         sh -c 'tar xzf \
+             /src/.go/cache/testcases.tar.gz \
+             && node test.js opa.wasm' &
+diff --git a/wasm/Dockerfile.s390x b/wasm/Dockerfile.s390x
+new file mode 100644
+index 000000000..4ae93bc3d
+--- /dev/null
++++ b/wasm/Dockerfile.s390x
+@@ -0,0 +1,50 @@
++FROM ubuntu:20.04
++
++ARG WABT_VERSION=1.0.24
++ARG BINARYEN_VERSION=version_102
++
++ARG DEBIAN_FRONTEND=noninteractive
++RUN apt-get update && apt-get install -y curl git build-essential python
++
++RUN bash -c 'echo -ne "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main\ndeb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main" > /etc/apt/sources.list.d/llvm.list'
++
++RUN curl -L https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
++
++RUN apt-get update && \
++    apt-get install -y \
++      cmake \
++      ninja-build \
++      clang-13 \
++      clang-format-13 \
++      libc++-13-dev \
++      libc++abi-13-dev \
++      lld-13 && \
++    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.bfd 90 && \
++    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-13 90 && \
++    update-alternatives --install /usr/bin/cpp cpp /usr/bin/clang++-13 90 && \
++    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-13 90
++
++RUN ln -s /usr/bin/clang-13 /usr/bin/clang && \
++    ln -s /usr/bin/clang++-13 /usr/bin/clang++ && \
++    ln -s /usr/bin/clang-format-13 /usr/bin/clang-format && \
++    ln -s /usr/bin/wasm-ld-13 /usr/bin/wasm-ld && \
++    ln -s /usr/bin/clang-cpp-13 /usr/bin/clang-cpp
++
++RUN git clone https://github.com/WebAssembly/wabt && \
++    cd wabt && \
++    git checkout $WABT_VERSION && \
++    git submodule update --init && \
++    make
++
++RUN git clone https://github.com/WebAssembly/binaryen && \
++    cd binaryen && \
++    git checkout $BINARYEN_VERSION && \
++    cmake . && \
++    make
++
++ENV PATH="/binaryen/bin:/wabt/out/clang/Debug:${PATH}"
++
++ENV CC=clang-13
++ENV CXX=clang++-13
++
++WORKDIR /src
+diff --git a/wasm/Makefile b/wasm/Makefile
+index d3f76e344..c3d42e369 100644
+--- a/wasm/Makefile
++++ b/wasm/Makefile
+@@ -8,6 +8,17 @@ endif
+ 
+ DOCKER_WASM_BUILDER_IMAGE ?= openpolicyagent/opa-wasm-builder
+ WASM_BUILDER_VERSION := 1.6
++
++ARCH := $(shell arch)
++DOCKERFILE := Dockerfile
++NODE_IMAGE := node:14
++
++ifeq ($(ARCH),s390x)
++WASM_BUILDER_VERSION = 1.6-s390x
++DOCKERFILE = Dockerfile.s390x
++NODE_IMAGE = node:14-bullseye
++endif
++
+ WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
+ WASM_OBJ_DIR := _obj
+ 
+@@ -54,7 +65,7 @@ clean:
+ 
+ .PHONY: builder
+ builder: Dockerfile
+-	$(DOCKER) build -t $(WASM_BUILDER_IMAGE) -f Dockerfile .
++	$(DOCKER) build -t $(WASM_BUILDER_IMAGE) -f $(DOCKERFILE) .
+ 
+ .PHONY: ensure-builder
+ ensure-builder:
+@@ -72,7 +83,7 @@ build:
+ .PHONY: test
+ test:
+ 	@$(DOCKER) run $(DOCKER_FLAGS) -v $(CURDIR):/src:Z $(WASM_BUILDER_IMAGE) make $(WASM_OBJ_DIR)/opa-test.wasm
+-	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src node:14 node test.js $(WASM_OBJ_DIR)/opa-test.wasm
++	@$(DOCKER) run $(DOCKER_FLAGS) -e VERBOSE -v $(CURDIR):/src:Z -w /src $(NODE_IMAGE) node test.js $(WASM_OBJ_DIR)/opa-test.wasm
+ 
+ .PHONY: hack
+ hack:
