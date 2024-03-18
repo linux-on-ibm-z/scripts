@@ -40,7 +40,7 @@ function cleanup() {
 function printHelp() {
         echo
         echo "Usage: "
-        echo "  bash build_puppet.sh [-s server/agent] [-j Java to be used from {Eclipse_Adoptium_Temurin_runtime_11,Eclipse_Adoptium_Temurin_runtime_17,OpenJDK11, OpenJDK17,SemeruJDK11,SemeruJDK17}] "
+        echo "  bash build_puppet.sh [-s server/agent] [-j Java to be used from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, OpenJDK17, SemeruJDK11, SemeruJDK17}] "
         echo
 }
 
@@ -61,8 +61,8 @@ function checkPrequisites() {
         fi
 
         if [[ "$JAVA_PROVIDED" != "Eclipse_Adoptium_Temurin_runtime_11" && "$JAVA_PROVIDED" != "Eclipse_Adoptium_Temurin_runtime_17" && "$JAVA_PROVIDED" != "OpenJDK11" && "$JAVA_PROVIDED" != "OpenJDK17" && "$JAVA_PROVIDED" != "SemeruJDK11" &&"$JAVA_PROVIDED" != "SemeruJDK17" ]]; then
-                if [[ $DISTRO == "sles-12.5" || $DISTRO == "rhel-7.8" || $DISTRO == "rhel-7.9"]]; then
-                        printf "$JAVA_PROVIDED is not supported, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17,OpenJDK11, SemeruJDK11, SemeruJDK17} only"
+                if [[ $DISTRO == "sles-12.5" || $DISTRO == "rhel-7.8" || $DISTRO == "rhel-7.9" ]]; then
+                        printf "$JAVA_PROVIDED is not supported, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, SemeruJDK11, SemeruJDK17} only"
                 else
                         printf "$JAVA_PROVIDED is not supported, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, OpenJDK17, SemeruJDK11, SemeruJDK17} only"
                 fi
@@ -70,15 +70,15 @@ function checkPrequisites() {
         fi                    
          
         if [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]  &&  [[ $DISTRO == "sles-12.5" || $DISTRO == "rhel-7.8" || $DISTRO == "rhel-7.9" ]]; then        
-                printf "$JAVA_PROVIDED is not supported on $DISTRO, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11,SemeruJDK11, SemeruJDK17} only"
+                printf "$JAVA_PROVIDED is not supported on $DISTRO, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, SemeruJDK11, SemeruJDK17} only"
                 exit 1
         fi
-	  		
+
         if [[ "$FORCE" == "true" ]]; then
                 printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
         else
                 # Ask user for prerequisite installation
-                printf -- "\n As part of the installation , dependencies would be installed/upgraded.\n"
+                printf -- "\nAs part of the installation , dependencies would be installed/upgraded.\n"
                 while true; do
                         read -r -p "Do you want to continue (y/n) ? :  " yn
                         case $yn in
@@ -125,7 +125,7 @@ function buildServer() {
                 tar -zxvf adoptium.tar.gz -C adoptium17/ --strip-components 1
                 export JAVA_HOME=$SOURCE_ROOT/adoptium17
                 printf -- "Installation of Eclipse_Adoptium_Temurin_runtime_17 is successful\n" >> "$LOG_FILE"
-					
+
         elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
                 if [[ "${ID}" == "ubuntu" ]]; then
                         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk
@@ -139,7 +139,7 @@ function buildServer() {
                 fi
                 printf -- "Installation of OpenJDK 11 is successful\n" >> "$LOG_FILE"
                 
-        elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
+         elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
                 if [[ "${ID}" == "ubuntu" ]]; then
                         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-17-jdk
                         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-s390x                        
@@ -151,7 +151,7 @@ function buildServer() {
                         export JAVA_HOME=/usr/lib64/jvm/java-17-openjdk                     
                 fi
                 printf -- "Installation of OpenJDK 17 is successful\n" >> "$LOG_FILE"
-			 				
+
         elif [[ "$JAVA_PROVIDED" == "SemeruJDK11" ]]; then
                 # Install Semeru Runtime (Java 11)
                 cd $SOURCE_ROOT
@@ -168,8 +168,7 @@ function buildServer() {
                 mkdir -p semeru17
                 tar -zxvf semeru.tar.gz -C semeru17/ --strip-components 1
                 export JAVA_HOME=$SOURCE_ROOT/semeru17
-                printf -- "Installation of SemeruJDK17 is successful\n" >> "$LOG_FILE"
-					
+                printf -- "Installation of SemeruJDK17 is successful\n" >> "$LOG_FILE"                       
         fi
 
         export PATH=$JAVA_HOME/bin:$PATH
@@ -256,8 +255,6 @@ function gettingStarted() {
                 JAVA_HOME=$SOURCE_ROOT/adoptium11
         elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_runtime_17" ]]; then
                 JAVA_HOME=$SOURCE_ROOT/adoptium17
-		elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_runtime_21" ]]; then
-                JAVA_HOME=$SOURCE_ROOT/adoptium21
         elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
                 if [[ "${ID}" == "ubuntu" ]]; then
                         JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
@@ -359,7 +356,7 @@ if [[ "$USEAS" == "server" ]]; then
         "sles-12.5")
                 printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-                sudo zypper install -y gcc7-c++ tar unzip libopenssl-devel make git wget zip gzip gawk zlib-devel bison flex readline-devel gdbm-devel libyaml-devel |& tee -a "$LOG_FILE"
+                sudo zypper install -y gcc7-c++ tar unzip libopenssl-devel make git wget zip gzip gawk libnghttp2-devel zlib-devel bison flex readline-devel gdbm-devel libyaml-devel |& tee -a "$LOG_FILE"
                 sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
                 sudo ln -sf /usr/bin/gcc /usr/bin/cc                
                 configureAndInstall |& tee -a "$LOG_FILE"
