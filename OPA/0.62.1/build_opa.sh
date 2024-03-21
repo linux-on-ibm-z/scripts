@@ -90,7 +90,7 @@ function configureAndInstall() {
     sudo cp wasmtime-v3.0.1-s390x-linux-c-api/lib/libwasmtime.a /usr/lib
 
     #Build toolchain image
-    wget $PATCH_URL/golang-wasmtime.Dockerfile .
+    wget $PATCH_URL/golang-wasmtime.Dockerfile
     docker build -t golang-wasmtime:"${GO_VERSION}"-bullseye -f ./golang-wasmtime.Dockerfile .
 
     #Setup OPA build
@@ -103,7 +103,7 @@ function configureAndInstall() {
     git checkout v$PACKAGE_VERSION
     git checkout .
     rm -f wasm/Dockerfile.s390x
-    wget $PATCH_URL/opa.diff .
+    wget $PATCH_URL/opa.diff
     git apply --ignore-whitespace ./opa.diff
 
     #Build OPA
