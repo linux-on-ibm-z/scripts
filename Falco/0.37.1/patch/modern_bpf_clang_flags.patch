@@ -1,0 +1,11 @@
+diff --git a/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt b/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt
+index 748737c..6e551cf 100644
+--- a/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt
++++ b/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt
+@@ -27,4 +27,6 @@ ExternalProject_Add(
+   BUILD_COMMAND ""
+   INSTALL_COMMAND ""
+   TEST_COMMAND ""
++  PATCH_COMMAND sed -i "186 i\\\   -I/usr/include/s390x-linux-gnu/" driver/modern_bpf/CMakeLists.txt
+ )
++
