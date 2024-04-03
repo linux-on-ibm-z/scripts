@@ -17,7 +17,7 @@ SOURCE_ROOT="$(pwd)"
 
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/ApacheSpark/3.5.0/patch/spark.diff"
 
-JDK 11 URL
+# JDK 11 URL
 JAVA_PROVIDED="Temurin11"
 
 JDK11_URL="https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.22%2B7/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.22_7.tar.gz"
