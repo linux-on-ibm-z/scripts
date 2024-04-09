@@ -26,3 +26,4 @@ index 9880296..8d643ba 100644
 +  }
  
    CHECK_STMT_RC(hstmt, SQLFreeStmt(hstmt, SQL_CLOSE));
+
