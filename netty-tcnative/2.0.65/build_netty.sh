@@ -335,12 +335,6 @@ case "$DISTRO" in
         sudo ln -sf /usr/bin/gcc /usr/bin/cc
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
-"sles-15.5")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper install -y awk ninja cmake perl libopenssl-devel apr-devel autoconf automake libtool make tar git wget gcc gcc-c++ gzip python3-devel patch |& tee -a "${LOG_FILE}"
-        configureAndInstall |& tee -a "${LOG_FILE}"
-        ;;
 *)
         printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
         exit 1
