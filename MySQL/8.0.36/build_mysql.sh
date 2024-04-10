@@ -268,30 +268,7 @@ case "$DISTRO" in
     buildCmake |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.6" | "rhel-8.8" | "rhel-8.9")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y curl wget bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar procps wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils net-tools |& tee -a "$LOG_FILE"
-    sudo yum install -y xz python2 python2-pyyaml |& tee -a "$LOG_FILE" # for Duktape
-    source /opt/rh/gcc-toolset-12/enable
-
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-"rhel-9.0" | "rhel-9.2" | "rhel-9.3")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y --allowerasing curl
-    sudo yum install -y wget bison bzip2 bzip2-devel gcc gcc-c++ git xz xz-devel hostname ncurses ncurses-devel openssl procps openssl-devel pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive tk-devel gdb gdbm-devel sqlite-devel readline-devel libdb-devel libffi-devel libuuid-devel libnsl2-devel net-tools gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils |& tee -a "$LOG_FILE"
-    source /opt/rh/gcc-toolset-12/enable
-
-    buildPython2 |& tee -a "$LOG_FILE"
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-    sudo python2 get-pip.py |& tee -a "$LOG_FILE"
-    python2 -m pip install --upgrade pip setuptools --force-reinstall
-    python2 -m pip install PyYAML==3.13 |& tee -a "$LOG_FILE" # for Duktape
-
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
+    
 "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
