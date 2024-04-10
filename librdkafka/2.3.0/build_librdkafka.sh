@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2023.
+# © Copyright IBM Corporation 2023, 2024.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -149,8 +149,7 @@ case "$DISTRO" in
 "rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y git openssl-devel cyrus-sasl-devel python3 |& tee -a "${LOG_FILE}"
-	sudo yum groupinstall -y "Development Tools" |& tee -a "${LOG_FILE}"
+	sudo yum install -y git openssl-devel cyrus-sasl-devel python3 gcc gcc-c++ zlib-devel binutils |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 "sles-12.5")
