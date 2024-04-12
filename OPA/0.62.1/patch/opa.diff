@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index e4ed72643..2e53a3255 100644
+index e4ed72643..3dc838a4a 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -67,6 +67,10 @@ BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
@@ -13,7 +13,19 @@ index e4ed72643..2e53a3255 100644
  RELEASE_DIR ?= _release/$(VERSION)
  
  ifneq (,$(TELEMETRY_URL))
-@@ -270,7 +274,10 @@ ci-check-working-copy: generate
+@@ -199,7 +203,10 @@ deb:
+ ######################################################
+ 
+ .PHONY: wasm-test
+-wasm-test: wasm-lib-test wasm-rego-test
++wasm-test:
++	sudo chown -R $(shell id -u):$(shell id -g) $(PWD)/.go
++	@$(MAKE) wasm-lib-test
++	@$(MAKE) wasm-rego-test
+ 
+ .PHONY: wasm-lib-build
+ wasm-lib-build:
+@@ -270,7 +277,10 @@ ci-check-working-copy: generate
  ci-wasm: wasm-test
  
  .PHONY: ci-build-linux
@@ -25,7 +37,7 @@ index e4ed72643..2e53a3255 100644
  	@$(MAKE) build GOOS=linux
  	chmod +x opa_linux_$(GOARCH)
  	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
-@@ -325,6 +332,15 @@ endif
+@@ -325,6 +335,15 @@ endif
  .PHONY: build-all-platforms
  build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-build-darwin-arm64-static ci-build-windows
  
