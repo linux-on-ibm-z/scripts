@@ -109,6 +109,7 @@ function configureAndInstall()
 		./configure --prefix=/usr/local --exec-prefix=/usr/local
 		make
 		sudo make install
+		export PATH=/usr/local/bin/python3.10:$PATH
 		python3 -V		
 	fi
 
@@ -230,17 +231,17 @@ case "$DISTRO" in
 ;;
 "rhel-7.8" | "rhel-7.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y procps-ng cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget bzip2-devel gdbm-devel libdb-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tar tk-devel xz xz-devel zlib-devel |& tee -a "${LOG_FILE}"
+	sudo yum install -y procps-ng cyrus-sasl-devel zeromq-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget bzip2-devel gdbm-devel libdb-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tar tk-devel xz xz-devel zlib-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 "rhel-8.6" | "rhel-8.8" | "rhel-8.9")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y procps-ng cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget cmake bzip2-devel gdbm-devel libdb-devel libnsl2-devel libuuid-devel ncurses-devel openssl openssl-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel glibc-langpack-en diffutils |& tee -a "${LOG_FILE}"
+	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget cmake bzip2-devel gdbm-devel libdb-devel libnsl2-devel libuuid-devel ncurses-devel openssl openssl-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel glibc-langpack-en diffutils |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y procps-ng cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man openssl-devel swig tar wget cmake python3-devel python3-pip |& tee -a "${LOG_FILE}"
+	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man openssl-devel swig tar wget cmake python3-devel python3-pip |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 "sles-12.5")
