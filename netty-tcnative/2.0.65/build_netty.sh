@@ -127,12 +127,8 @@ elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
                          exit 1
                         fi
                         sudo yum install -y java-17-openjdk
-			if [[ "${DISTRO}" == rhel-8* ]] ; then
-                                export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-17.0.10.0.7-2.el8.s390x
-                        fi
-                        if [[ "${DISTRO}" == rhel-9* ]] ; then
-				export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-17.0.10.0.7-2.el9.s390x
-                        fi
+			java_version=`ls /usr/lib/jvm/ | grep java-17-openjdk-17.*`
+			export JAVA_HOME=/usr/lib/jvm/`echo $java_version | cut -d' ' -f1`
 			
                 elif [[ "${ID}" == "sles" ]]; then
                         if [[ "${DISTRO}" == "sles-12.5" ]]; then
