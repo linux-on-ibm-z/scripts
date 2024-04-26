@@ -13,7 +13,7 @@ index ebf44ea..a94339e 100644
 -# Enable non-native runs on amd64 architecture hosts
 -RUN curl -sfL https://github.com/multiarch/qemu-user-static/releases/download/v${QEMU_VERSION}/qemu-s390x-static.tar.gz | tar xz -C /usr/bin
 -
--FROM s390x/golang:1.21.8-alpine3.19
+-FROM s390x/golang:1.21.9-alpine3.19
 +FROM golang:1.21.5-bullseye
  
 -LABEL maintainer="LoZ Open SourceEcosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)"

@@ -72,4 +72,16 @@ index a6cd036bf..e934b9f8f 100644
  ARG BIRD_IMAGE
  
  FROM ${QEMU_IMAGE} as qemu
-
+diff --git a/felix/docker-image/Dockerfile.s390x b/felix/docker-image/Dockerfile.s390x
+index 078e6d64d..f892f1704 100644
+--- a/felix/docker-image/Dockerfile.s390x
++++ b/felix/docker-image/Dockerfile.s390x
+@@ -10,7 +10,7 @@ RUN apt-get update && \
+ 
+ FROM calico/bpftool:v5.3-s390x as bpftool
+ 
+-FROM s390x/debian:10-slim
++FROM s390x/debian:11-slim
+ LABEL maintainer="Shaun Crampton <shaun@tigera.io>"
+ 
+ # Enable non-native builds of this image on an amd64 hosts.
