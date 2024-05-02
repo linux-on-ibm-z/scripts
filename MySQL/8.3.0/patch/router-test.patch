@@ -1,14 +1,14 @@
 diff --git a/router/tests/integration/test_routing_sharing_constrained_pools.cc b/router/tests/integration/test_routing_sharing_constrained_pools.cc
-index df388104b4c..842eb1cf837 100644
+index c56db02bd55..8c177d0dc6f 100644
 --- a/router/tests/integration/test_routing_sharing_constrained_pools.cc
 +++ b/router/tests/integration/test_routing_sharing_constrained_pools.cc
-@@ -3475,6 +3475,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
- 
+@@ -3495,6 +3495,9 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
+
    SCOPED_TRACE("// cleanup");
- 
+
 +  // give the test connection some time to close
 +  std::this_thread::sleep_for(500ms);
 +
    // close all connections that are currently in the pool to get a stable
    // baseline.
-   for (auto &srv : shared_servers()) {
+   for (auto *admin_cli : admin_clis()) {

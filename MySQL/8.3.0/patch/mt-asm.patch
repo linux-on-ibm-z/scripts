@@ -1,8 +1,8 @@
 diff --git a/storage/ndb/include/portlib/mt-asm.h b/storage/ndb/include/portlib/mt-asm.h
-index 418b8d9c711..85e75aee73b 100644
+index f03f2bd3616..d21a2f0df70 100644
 --- a/storage/ndb/include/portlib/mt-asm.h
 +++ b/storage/ndb/include/portlib/mt-asm.h
-@@ -143,6 +143,13 @@ xcng(volatile unsigned * addr, int val)
+@@ -121,6 +121,13 @@ static inline int xcng(volatile unsigned *addr, int val) {
 
    return prev;
  }
@@ -15,4 +15,4 @@ index 418b8d9c711..85e75aee73b 100644
 +#define wmb()  mb()
 
  #elif defined(__aarch64__)
- #include <atomic>
+ /**
