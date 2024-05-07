@@ -246,7 +246,7 @@ buildReadline8() {
     local ver=8.1
     msg "Building Readline $ver"
     cd "$SOURCE_ROOT"
-    curl ftp://ftp.cwru.edu/pub/bash/readline-${ver}.tar.gz -o readline-${ver}.tar.gz
+    wget https://ftp.gnu.org/gnu/readline/readline-${ver}.tar.gz
     tar xvf readline-${ver}.tar.gz
     cd readline-${ver}
     ./configure --prefix=${PREFIX}
