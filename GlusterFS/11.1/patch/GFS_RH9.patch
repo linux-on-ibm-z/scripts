@@ -1,0 +1,58 @@
+diff --git a/configure.ac b/configure.ac
+index 7c4894c..90cb096 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1309,17 +1309,6 @@ fi
+ 
+ AC_SUBST(GF_DISTRIBUTION)
+ 
+-AC_CHECK_FILE([/etc/os-release])
+-
+-if test "x$ac_cv_file__etc_os_release" = "xyes"; then
+-   AC_CANONICAL_HOST
+-
+-   if test "x${host_cpu}" = "xs390x" || test "x${host_cpu}" = "xs390" ; then
+-      if grep "Red Hat Enterprise Linux 8\|SUSE Linux Enterprise Server 15" /etc/os-release ; then
+-         AC_DEFINE(REDHAT8_OR_SLES15_ON_S390X, 1, [Red Hat 8 or SLES 15 on s390x])
+-      fi
+-   fi
+-fi
+ 
+ GF_HOST_OS=""
+ GF_LDFLAGS="${GF_LDFLAGS} -rdynamic"
+diff --git a/xlators/nfs/server/src/nfs.c b/xlators/nfs/server/src/nfs.c
+index 3033d4b..0a492d3 100644
+--- a/xlators/nfs/server/src/nfs.c
++++ b/xlators/nfs/server/src/nfs.c
+@@ -1679,15 +1679,9 @@ nfs_start_rpc_poller(struct nfs_state *state)
+  *     all registered services, from any thread.
+  */
+ #ifdef HAVE_LIBTIRPC
+-#ifdef REDHAT8_OR_SLES15_ON_S390X
+     if (uatomic_xchg(&state->svc_running, 1)) {
+         return;
+     }
+-#else
+-    if (uatomic_xchg(&state->svc_running, true)) {
+-        return;
+-    }
+-#endif
+ #endif
+ 
+     svc_run();
+diff --git a/xlators/nfs/server/src/nfs.h b/xlators/nfs/server/src/nfs.h
+index 53c9f2f..7a38d63 100644
+--- a/xlators/nfs/server/src/nfs.h
++++ b/xlators/nfs/server/src/nfs.h
+@@ -103,11 +103,7 @@ struct nfs_state {
+     gf_boolean_t rdirplus;
+ 
+ #ifdef HAVE_LIBTIRPC
+-#ifdef REDHAT8_OR_SLES15_ON_S390X
+     int svc_running;
+-#else
+-    bool svc_running;
+-#endif
+ #endif
+ };
+ 

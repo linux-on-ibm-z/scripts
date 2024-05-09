@@ -1,0 +1,22 @@
+diff --git a/tests/00-geo-rep/00-georep-verify-non-root-setup.t b/tests/00-geo-rep/00-georep-verify-non-root-setup.t
+index 9c1bd86a5c..686ea84d9a 100644
+--- a/tests/00-geo-rep/00-georep-verify-non-root-setup.t
++++ b/tests/00-geo-rep/00-georep-verify-non-root-setup.t
+@@ -123,7 +123,7 @@ TEST /usr/sbin/groupadd $grp
+ clean_lock_files
+ ##Del if exists and create non-root user and assign it to newly created group
+ userdel -r -f $usr
+-TEST /usr/sbin/useradd -G $grp $usr
++TEST /usr/sbin/useradd -m -G $grp $usr
+
+ export PASS=$( (echo $RANDOM ; date +%s) | sha256sum | base64 | head -c 32)
+ ##Modify password for non-root user to have control over distributing ssh-key
+@@ -187,7 +187,7 @@ export SSH_ASKPASS=${SSH_ASKPASS_SCRIPT}
+ DISPLAY=: setsid ssh-copy-id -o 'PreferredAuthentications=password' -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa.pub $ssh_url
+
+ ##Setting up PATH for gluster binaries in case of source installation
+-##ssh -oNumberOfPasswordPrompts=0 -oStrictHostKeyChecking=no $ssh_url "echo "export PATH=$PATH:/usr/local/sbin" >> ~/.bashrc"
++ssh -oNumberOfPasswordPrompts=0 -oStrictHostKeyChecking=no $ssh_url "echo "export PATH=$PATH:/usr/local/sbin" >> ~/.bashrc"
+
+ ##Creating secret pem pub file
+ TEST gluster-georep-sshkey generate
