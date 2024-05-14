@@ -305,7 +305,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.6" | "rhel-8.8" | "rhel-8.9")
+"rhel-8.8" | "rhel-8.9")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
@@ -314,11 +314,11 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-9.0" | "rhel-9.2" | "rhel-9.3")
+"rhel-9.2" | "rhel-9.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    sudo yum install --allowerasing -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch perl-FindBin libtool elfutils-libelf-devel diffutils which createrepo libarchive wget curl rpm-build kmod kernel-devel-$(uname -r) go clang llvm bpftool
+    sudo yum install --allowerasing -y gcc gcc-c++ git make cmake autoconf automake pkg-config patch perl-IPC-Cmd perl-bignum perl-core perl-FindBin libtool elfutils-libelf-devel diffutils which createrepo libarchive wget curl rpm-build kmod kernel-devel-$(uname -r) go clang llvm bpftool
     go version
 
     configureAndInstall | tee -a "$LOG_FILE"
