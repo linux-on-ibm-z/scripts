@@ -45,6 +45,7 @@ fi
 if [ -f "/etc/os-release" ]; then
     source "/etc/os-release"
 fi
+DISTRO="$ID-$VERSION_ID"
 
 err() {
     sudo printf -- "\e[31m${1}\e[0m\n" 1>&2
@@ -61,7 +62,15 @@ function prepare() {
     fi;
 
     if [[ "$JAVA_PROVIDED" != "Temurin11" && "$JAVA_PROVIDED" != "OpenJDK11"  && "$JAVA_PROVIDED" != "OpenJDK17"  && "$JAVA_PROVIDED" != "Temurin17" ]]; then
-        printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17, OpenJDK17} only\n"
+        if [[ $DISTRO == "sles-12.5" || $DISTRO == "rhel-7.8" || $DISTRO == "rhel-7.9" ]]; then
+           printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17} only\n"
+        else
+           printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17, OpenJDK17} only\n"
+        exit 1
+    fi
+    
+    if [[ "$JAVA_PROVIDED" == "OpenJDK17" ]] && [[ $DISTRO == "sles-12.5" || $DISTRO == "rhel-7.8" || $DISTRO == "rhel-7.9" ]]; then
+        printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17} only\n"
         exit 1
     fi
 
@@ -351,7 +360,6 @@ function gettingStarted() {
 
 logDetails
 prepare #Check Prequisites
-DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
     "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10")
