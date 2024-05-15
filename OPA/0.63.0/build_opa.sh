@@ -103,8 +103,13 @@ function configureAndInstall() {
     git apply --ignore-whitespace ../opa.diff
 
     #Build OPA
-    make ci-go-ci-build-linux
-    make image-s390x
+    if [[ ! $DISTRO =~ ^rhel-8 ]]; then
+        make ci-go-ci-build-linux
+        make image-s390x
+    else
+        make ci-go-ci-build-linux-static # due to glibc version on RHEL 8.x
+        make image-s390x-static
+    fi
 
     printf -- "OPA build completed successfully. \n"
 
@@ -186,7 +191,7 @@ case "$DISTRO" in
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gcc git make python3 python3-pip tar wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.6" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
+"rhel-8.8" | "rhel-8.9" | "rhel-9.2" | "rhel-9.3")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y gcc git make python3 python3-pip tar wget |& tee -a "$LOG_FILE"
