@@ -154,17 +154,14 @@ function configureAndInstall() {
 	cd "${SOURCE_ROOT}/glusterfs"
 	if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]]; then
 		curl -sSL $PATCH_URL/GFS_RH7.patch | git apply 
-		rm ${SOURCE_ROOT}/glusterfs/GFS_RH7.patch
 		printf -- '\n---Patches are applied-----\n'
 	fi	
         if [[ "${DISTRO}" == "sles-12.5" ]]; then
 	  	curl -sSL $PATCH_URL/GFS_SL12.patch | git apply 
-		rm ${SOURCE_ROOT}/glusterfs/GFS_SL12.patch
 		printf -- '\n---Patches are applied-----\n'
 	fi
 	if [[ "${DISTRO}" == "rhel-9.2" ]] || [[ "${DISTRO}" == "rhel-9.3" ]]; then
 		curl -sSL $PATCH_URL/GFS_RH9.patch | git apply
-		rm ${SOURCE_ROOT}/glusterfs/GFS_RH9.patch
 		printf -- '\n---Patches are applied-----\n'
 	fi
 	
@@ -285,17 +282,24 @@ function runTest() {
 			fi
 			
 			# Apply patches for testcase fix
-			cd $SOURCE_ROOT/glusterfs
-			curl -sSL $PATCH_URL/test.patch | git apply 
+			cd $SOURCE_ROOT/glusterfs	 
 			
-			if [[ "${DISTRO}" == "rhel-8."*  || "${DISTRO}" == "rhel-9."* ]]; then
+			if [[ "${DISTRO}" == "rhel-8."* ]]; then
+				curl -sSL $PATCH_URL/test.patch | git apply
+				ln -s /usr/local/lib/libgfchangelog.so.0 /lib64/libgfchangelog.so
+				ldconfig /usr/local/lib
+				ldconfig /usr/local/lib64
+			fi
+			
+			if [[ "${DISTRO}" == "rhel-9."* ]]; then
+				curl -sSL $PATCH_URL/test_RH9.patch | git apply
 				ln -s /usr/local/lib/libgfchangelog.so.0 /lib64/libgfchangelog.so
 				ldconfig /usr/local/lib
 				ldconfig /usr/local/lib64
 			fi
 			
 			if [[ "${ID}" == "sles" ]]; then
-				cd $SOURCE_ROOT/glusterfs
+				curl -sSL $PATCH_URL/test.patch | git apply
 				curl -sSL $PATCH_URL/test-sles.patch | git apply 
 			fi
 	
