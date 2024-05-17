@@ -66,6 +66,7 @@ function prepare() {
            printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17} only\n"
         else
            printf "$JAVA_PROVIDED is not supported, Please use valid java from {Temurin11, OpenJDK11, Temurin17, OpenJDK17} only\n"
+        fi   
         exit 1
     fi
     
@@ -354,7 +355,7 @@ function gettingStarted() {
     printf -- "./spark/bin/spark-shell \n\n"
     printf -- "Note: Environmental Variable needed have been added to setenv.sh\n"
     printf -- "Note: To set the Environmental Variable needed for Spark, please run: source \"${SOURCE_ROOT}/setenv.sh\" \n"
-    printf -- "For more help visit https://spark.apache.org/docs/latest/spark-standalone.html"
+    printf -- "For more help visit https://spark.apache.org/docs/latest/spark-standalone.html \n"
     printf -- '******************************************************************************************************\n'
 }
 
