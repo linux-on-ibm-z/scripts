@@ -1,0 +1,26 @@
+diff --git a/test/io_uring_register.c b/test/io_uring_register.c
+index dd4af7c..599e2f6 100644
+--- a/test/io_uring_register.c
++++ b/test/io_uring_register.c
+@@ -7,6 +7,9 @@
+  * Copyright 2019, Red Hat, Inc.
+  * Author: Jeff Moyer <jmoyer@redhat.com>
+  */
++#ifndef MAP_HUGE_2MB
++#define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
++#endif
+ #include <stdio.h>
+ #include <fcntl.h>
+ #include <string.h>
+diff --git a/test/send-zerocopy.c b/test/send-zerocopy.c
+index 4db102b..2e0d231 100644
+--- a/test/send-zerocopy.c
++++ b/test/send-zerocopy.c
+@@ -1,4 +1,7 @@
+ /* SPDX-License-Identifier: MIT */
++#ifndef SO_ZEROCOPY
++#define SO_ZEROCOPY 0x80000000
++#endif
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <stdint.h>

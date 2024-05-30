@@ -1,0 +1,65 @@
+diff --git a/foreign_cc/built_tools/cmake_build.bzl b/foreign_cc/built_tools/cmake_build.bzl
+index 5022504..9b5e2cd 100644
+--- a/foreign_cc/built_tools/cmake_build.bzl
++++ b/foreign_cc/built_tools/cmake_build.bzl
+@@ -8,7 +8,7 @@ def cmake_tool(name, srcs, **kwargs):
+     configure_make(
+         name = "{}.build".format(name),
+         configure_command = "bootstrap",
+-        configure_options = ["--", "-DCMAKE_MAKE_PROGRAM=$$MAKE$$"],
++        #configure_options = ["--", "-DCMAKE_MAKE_PROGRAM=$$MAKE$$"],
+         # On macOS at least -DDEBUG gets set for a fastbuild
+         copts = ["-UDEBUG"],
+         lib_source = srcs,
+diff --git a/foreign_cc/private/cc_toolchain_util.bzl b/foreign_cc/private/cc_toolchain_util.bzl
+index 9b33974..a2de731 100644
+--- a/foreign_cc/private/cc_toolchain_util.bzl
++++ b/foreign_cc/private/cc_toolchain_util.bzl
+@@ -205,10 +205,10 @@ def get_tools_info(ctx):
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.c_compile,
+         ),
+-        cxx = cc_common.get_tool_for_action(
++        cxx = pick_cpp_toolchain(cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_compile,
+-        ),
++        )),
+         cxx_linker_static = cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_link_static_library,
+@@ -384,3 +384,19 @@ def _prefix(text, from_str, prefix):
+ def _file_name_no_ext(basename):
+     (before, _separator, _after) = basename.rpartition(".")
+     return before
++
++def pick_cpp_toolchain(cxx):
++    """Picks the right toolchain for the given cxx compiler
++    Args:
++        cxx: path to the cxx compiler
++    Returns:
++        correct path to the cxx compiler
++    """
++    cxx_splitted = cxx.split("/")
++    if (cxx_splitted[-1].startswith("gcc")):
++        cxx_splitted[-1] = cxx_splitted[-1].replace("gcc", "g++")
++        cxx = "/".join(cxx_splitted)
++    if (cxx_splitted[-1].startswith("clang")):
++        cxx_splitted[-1] = cxx_splitted[-1].replace("clang", "clang++")
++        cxx = "/".join(cxx_splitted)
++    return cxx
+diff --git a/toolchains/built_toolchains.bzl b/toolchains/built_toolchains.bzl
+index 4f32252..9703be0 100644
+--- a/toolchains/built_toolchains.bzl
++++ b/toolchains/built_toolchains.bzl
+@@ -275,6 +275,9 @@ cc_import(
+
+                 # This patch is required as rules_foreign_cc runs in MSYS2 on Windows and MSYS2's "mkdir" is used
+                 Label("//toolchains:pkgconfig-makefile-vc.patch"),
++
++               # This patch is required to overcome type mismatch error
++               Label("//toolchains:pkgconfig-valgrind.patch"),
+             ],
+             urls = [
+                 "https://pkgconfig.freedesktop.org/releases/pkg-config-0.29.2.tar.gz",
+                 

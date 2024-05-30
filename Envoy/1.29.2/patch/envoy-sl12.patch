@@ -1,0 +1,51 @@
+diff --git a/.bazelrc b/.bazelrc
+index a274c19..8525de0 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -64,6 +64,7 @@ common --experimental_allow_tags_propagation
+ build:linux --copt=-fdebug-types-section
+ build:linux --copt=-fPIC
+ build:linux --copt=-Wno-deprecated-declarations
++build:linux --copt="-DENVOY_IGNORE_GLIBCXX_USE_CXX11_ABI_ERROR=1"
+ build:linux --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+ build:linux --conlyopt=-fexceptions
+ build:linux --fission=dbg,opt
+diff --git a/source/extensions/extensions_build_config.bzl b/source/extensions/extensions_build_config.bzl
+index a67bf3b..8a68aab 100644
+--- a/source/extensions/extensions_build_config.bzl
++++ b/source/extensions/extensions_build_config.bzl
+@@ -289,7 +289,6 @@ EXTENSIONS = {
+     "envoy.transport_sockets.raw_buffer":               "//source/extensions/transport_sockets/raw_buffer:config",
+     "envoy.transport_sockets.tap":                      "//source/extensions/transport_sockets/tap:config",
+     "envoy.transport_sockets.starttls":                 "//source/extensions/transport_sockets/starttls:config",
+-    "envoy.transport_sockets.tcp_stats":                "//source/extensions/transport_sockets/tcp_stats:config",
+     "envoy.transport_sockets.internal_upstream":        "//source/extensions/transport_sockets/internal_upstream:config",
+
+     #
+
+diff --git a/test/common/stream_info/stream_info_impl_test.cc b/test/common/stream_info/stream_info_impl_test.cc
+index dcb0dcf..b0b9afb 100644
+--- a/test/common/stream_info/stream_info_impl_test.cc
++++ b/test/common/stream_info/stream_info_impl_test.cc
+@@ -41,7 +41,7 @@ protected:
+         sizeof(stream_info) == 840 || sizeof(stream_info) == 856 || sizeof(stream_info) == 888 ||
+         sizeof(stream_info) == 776 || sizeof(stream_info) == 728 || sizeof(stream_info) == 744 ||
+         sizeof(stream_info) == 680 || sizeof(stream_info) == 696 || sizeof(stream_info) == 688 ||
+-        sizeof(stream_info) == 720 || sizeof(stream_info) == 704)
++        sizeof(stream_info) == 720 || sizeof(stream_info) == 704 || sizeof(stream_info) == 632)
+         << "If adding fields to StreamInfoImpl, please check to see if you "
+            "need to add them to setFromForRecreateStream or setFrom! Current size "
+         << sizeof(stream_info);
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index aa93c9c..2c62d61 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -426,6 +427,8 @@ def _com_github_axboe_liburing():
+     external_http_archive(
+         name = "com_github_axboe_liburing",
+         build_file_content = BUILD_ALL_CONTENT,
++       patch_args = ["-p1"],
++        patches = ["@envoy//bazel:io_uring.patch"],
+     )
+     native.bind(
+         name = "uring",

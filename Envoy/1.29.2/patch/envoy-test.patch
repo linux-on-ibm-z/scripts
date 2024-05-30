@@ -1,0 +1,962 @@
+diff --git a/source/server/BUILD b/source/server/BUILD
+index f0d63ba471..de0c19a0b0 100644
+--- a/source/server/BUILD
++++ b/source/server/BUILD
+@@ -238,6 +238,7 @@ envoy_cc_library(
+         "//bazel:linux_x86_64": ["options_impl_platform_linux.cc"],
+         "//bazel:linux_aarch64": ["options_impl_platform_linux.cc"],
+         "//bazel:linux_ppc": ["options_impl_platform_linux.cc"],
++       "//bazel:linux_s390x": ["options_impl_platform_linux.cc"],
+         "//bazel:linux_mips64": ["options_impl_platform_linux.cc"],
+         "//conditions:default": ["options_impl_platform_default.cc"],
+     }),
+@@ -248,6 +249,7 @@ envoy_cc_library(
+         "//bazel:linux_x86_64": ["options_impl_platform_linux.h"],
+         "//bazel:linux_aarch64": ["options_impl_platform_linux.h"],
+         "//bazel:linux_ppc": ["options_impl_platform_linux.h"],
++       "//bazel:linux_s390x": ["options_impl_platform_linux.h"],
+         "//bazel:linux_mips64": ["options_impl_platform_linux.h"],
+         "//conditions:default": [],
+     }),
+diff --git a/source/common/common/bit_array.h b/source/common/common/bit_array.h
+index c4aced97da..155bfb91ac 100644
+--- a/source/common/common/bit_array.h
++++ b/source/common/common/bit_array.h
+@@ -4,7 +4,6 @@
+ #include <cstring>
+
+ #include "source/common/common/assert.h"
+-#include "source/common/common/safe_memcpy.h"
+
+ namespace Envoy {
+
+@@ -50,7 +49,7 @@ public:
+     RELEASE_ASSERT(ENVOY_BIT_ARRAY_SUPPORTED, "BitArray requires 64-bit architecture.");
+     // Init padding to avoid sanitizer complaints if reading the last elements.
+     uint8_t* padding_start = array_start_.get() + (bytesNeeded(width, num_items) - WordSize);
+-    storeUnsignedWord(padding_start, 0);
++    absl::little_endian::Store64(padding_start, 0);
+   }
+
+   static constexpr int MaxBitWidth = 32;
+@@ -74,7 +73,7 @@ public:
+     // containing the element. We shift this to get have the element's bits
+     // at bit 0, and then apply the mask which will capture all the bits
+     // pertaining to this element.
+-    return (loadUnsignedWord(byte0) >> index_of_0th_bit) & mask_;
++    return (absl::little_endian::Load64(byte0) >> index_of_0th_bit) & mask_;
+   }
+
+   /**
+@@ -109,8 +108,8 @@ public:
+     // We then bitwise-or this to capture the value we're assigning to the
+     // element.
+     const uint64_t value_to_store =
+-        ((loadUnsignedWord(byte0) & mask_to_preserve) | (shifted_value & mask_to_write));
+-    storeUnsignedWord(byte0, value_to_store);
++        ((absl::little_endian::Load64(byte0) & mask_to_preserve) | (shifted_value & mask_to_write));
++    absl::little_endian::Store64(byte0, value_to_store);
+   }
+
+   size_t size() const { return num_items_; }
+@@ -128,16 +127,6 @@ private:
+     return std::max(bytes_required, minimum_bytes_required_without_padding) + padding;
+   }
+
+-  static inline void storeUnsignedWord(void* destination, uint64_t value) {
+-    safeMemcpyUnsafeDst(destination, &value);
+-  }
+-
+-  static inline uint64_t loadUnsignedWord(const void* source) {
+-    uint64_t destination;
+-    safeMemcpyUnsafeSrc(&destination, source);
+-    return destination;
+-  }
+-
+   // Backing storage for the underlying array of bits.
+   std::unique_ptr<uint8_t[]> array_start_;
+   // Pointer to the end of the array. In cases where we allocate a word size of
+diff --git a/source/common/common/hash.h b/source/common/common/hash.h
+index b1af0f0366..0e17f96e90 100644
+--- a/source/common/common/hash.h
++++ b/source/common/common/hash.h
+@@ -4,7 +4,6 @@
+ #include <type_traits>
+
+ #include "source/common/common/macros.h"
+-#include "source/common/common/safe_memcpy.h"
+
+ #include "absl/container/flat_hash_map.h"
+ #include "absl/container/flat_hash_set.h"
+@@ -136,9 +135,7 @@ public:
+
+ private:
+   static inline uint64_t unalignedLoad(const char* p) {
+-    uint64_t result;
+-    safeMemcpyUnsafeSrc(&result, p);
+-    return result;
++    return absl::little_endian::Load64(p);
+   }
+
+   // Loads n bytes, where 1 <= n < 8.
+diff --git a/source/extensions/filters/udp/dns_filter/dns_parser.cc b/source/extensions/filters/udp/dns_filter/dns_parser.cc
+index b63f69278d..ed4b850a5c 100644
+--- a/source/extensions/filters/udp/dns_filter/dns_parser.cc
++++ b/source/extensions/filters/udp/dns_filter/dns_parser.cc
+@@ -91,8 +91,13 @@ bool DnsAnswerRecord::serialize(Buffer::OwnedImpl& output) {
+       // Store the 128bit address with 2 64 bit writes
+       const absl::uint128 addr6 = ip_address->ipv6()->address();
+       output.writeBEInt<uint16_t>(sizeof(addr6));
++#ifdef ABSL_IS_BIG_ENDIAN
++      output.writeBEInt<uint64_t>(absl::Uint128High64(addr6));
++      output.writeBEInt<uint64_t>(absl::Uint128Low64(addr6));
++#else
+       output.writeLEInt<uint64_t>(absl::Uint128Low64(addr6));
+       output.writeLEInt<uint64_t>(absl::Uint128High64(addr6));
++#endif
+     } else if (ip_address->ipv4() != nullptr) {
+       output.writeBEInt<uint16_t>(4);
+       output.writeLEInt<uint32_t>(ip_address->ipv4()->address());
+diff --git a/source/extensions/filters/udp/dns_filter/dns_parser.h b/source/extensions/filters/udp/dns_filter/dns_parser.h
+index 80ebabd398..3449c19d64 100644
+--- a/source/extensions/filters/udp/dns_filter/dns_parser.h
++++ b/source/extensions/filters/udp/dns_filter/dns_parser.h
+@@ -137,9 +137,23 @@ struct DnsParserCounters {
+         queries_with_ans_or_authority_rrs(queries_with_ans_or_authority_rrs) {}
+ };
+
+-// The flags have been verified with dig and this structure should not be modified. The flag
+-// order here does not match the RFC, but takes byte ordering into account so that serialization
+-// does not bitwise operations.
++// The flags have been verified with dig and this structure should not be modified. On little
++// endian platforms, the flag order here does not match the RFC, but takes byte ordering into
++// account so that serialization does not bitwise operations.
++#if ABSL_IS_BIG_ENDIAN
++PACKED_STRUCT(struct DnsHeaderFlags {
++  unsigned qr : 1;     // query or response
++  unsigned opcode : 4; // operation code
++  unsigned aa : 1;     // authoritative answer
++  unsigned tc : 1;     // truncated response
++  unsigned rd : 1;     // recursion desired
++  unsigned ra : 1;     // recursion available
++  unsigned z : 1;      // z - bit (must be zero in queries per RFC1035)
++  unsigned ad : 1;     // authenticated data
++  unsigned cd : 1;     // checking disabled
++  unsigned rcode : 4;  // return code
++});
++#else
+ PACKED_STRUCT(struct DnsHeaderFlags {
+   unsigned rcode : 4;  // return code
+   unsigned cd : 1;     // checking disabled
+@@ -152,6 +166,7 @@ PACKED_STRUCT(struct DnsHeaderFlags {
+   unsigned opcode : 4; // operation code
+   unsigned qr : 1;     // query or response
+ });
++#endif
+
+ /**
+  * Structure representing the DNS header as it appears in a packet
+diff --git a/test/extensions/filters/network/common/fuzz/network_readfilter_fuzz_test.cc b/test/extensions/filters/network/common/fuzz/network_readfilter_fuzz_test.cc
+index afe5c14514..29414fe520 100644
+--- a/test/extensions/filters/network/common/fuzz/network_readfilter_fuzz_test.cc
++++ b/test/extensions/filters/network/common/fuzz/network_readfilter_fuzz_test.cc
+@@ -1,3 +1,4 @@
++#include "source/common/common/safe_memcpy.h"
+ #include "source/common/config/utility.h"
+ #include "source/common/protobuf/utility.h"
+ #include "source/extensions/filters/network/well_known_names.h"
+diff --git a/test/extensions/filters/udp/dns_filter/dns_filter_test.cc b/test/extensions/filters/udp/dns_filter/dns_filter_test.cc
+index 5ba68539b9..fa50653913 100644
+--- a/test/extensions/filters/udp/dns_filter/dns_filter_test.cc
++++ b/test/extensions/filters/udp/dns_filter/dns_filter_test.cc
+@@ -1910,6 +1910,12 @@ TEST_F(DnsFilterTest, InvalidShortBufferTest) {
+ }
+
+ TEST_F(DnsFilterTest, RandomizeFirstAnswerTest) {
++#if defined(__linux__) && defined(__s390x__)
++  // Skip on s390x because this test incorrectly depends on the ordering of
++  // addresses that happens to work on other plaforms.
++  // See https://github.com/envoyproxy/envoy/pull/24330
++  GTEST_SKIP() << "Skipping RandomizeFirstAnswerTest on s390x";
++#endif
+   InSequence s;
+
+   setup(forward_query_off_config);
+diff --git a/test/extensions/filters/udp/dns_filter/dns_filter_test_utils.cc b/test/extensions/filters/udp/dns_filter/dns_filter_test_utils.cc
+index ed873d3004..28e55bba1c 100644
+--- a/test/extensions/filters/udp/dns_filter/dns_filter_test_utils.cc
++++ b/test/extensions/filters/udp/dns_filter/dns_filter_test_utils.cc
+@@ -1,6 +1,7 @@
+ #include "dns_filter_test_utils.h"
+
+ #include "source/common/common/random_generator.h"
++#include "source/common/common/safe_memcpy.h"
+ #include "source/common/network/address_impl.h"
+ #include "source/common/network/utility.h"
+
+diff --git a/test/common/network/multi_connection_base_impl_test.cc b/test/common/network/multi_connection_base_impl_test.cc
+index a5cf8cccab..e12f71daba 100644
+--- a/test/common/network/multi_connection_base_impl_test.cc
++++ b/test/common/network/multi_connection_base_impl_test.cc
+@@ -303,9 +303,15 @@ TEST_F(MultiConnectionBaseImplTest, HashKey) {
+   EXPECT_EQ('A', hash_key[0]);
+   EXPECT_EQ('B', hash_key[1]);
+   EXPECT_EQ('C', hash_key[2]);
++#ifdef ABSL_IS_BIG_ENDIAN
++  for (size_t i = 0; i < sizeof(id); ++i) {
++    EXPECT_EQ(id_array[i], hash_key[10 - i]);
++  }
++#else
+   for (size_t i = 0; i < sizeof(id); ++i) {
+     EXPECT_EQ(id_array[i], hash_key[i + 3]);
+   }
++#endif
+ }
+
+ TEST_F(MultiConnectionBaseImplTest, NoDelay) {
+diff --git a/source/extensions/filters/network/mongo_proxy/bson_impl.cc b/source/extensions/filters/network/mongo_proxy/bson_impl.cc
+index 8ea6cf0..08c1a0a 100644
+--- a/source/extensions/filters/network/mongo_proxy/bson_impl.cc
++++ b/source/extensions/filters/network/mongo_proxy/bson_impl.cc
+@@ -23,7 +23,11 @@ int32_t BufferHelper::peekInt32(Buffer::Instance& data) {
+
+   int32_t val;
+   val = data.peekLEInt<uint32_t>();
+-  return le32toh(val);
++  #ifdef ABSL_IS_BIG_ENDIAN
++    return val;
++  #else
++    return le32toh(val);
++  #endif
+ }
+
+ uint8_t BufferHelper::removeByte(Buffer::Instance& data) {
+@@ -88,7 +92,11 @@ int64_t BufferHelper::removeInt64(Buffer::Instance& data) {
+
+   int64_t val;
+   val = data.drainLEInt<uint64_t>();
+-  return le64toh(val);
++  #ifdef ABSL_IS_BIG_ENDIAN
++    return val;
++  #else
++    return le64toh(val);
++  #endif
+ }
+
+ std::string BufferHelper::removeString(Buffer::Instance& data) {
+diff --git a/test/extensions/tracers/zipkin/span_buffer_test.cc b/test/extensions/tracers/zipkin/span_buffer_test.cc
+index 85ae80edd3..2ae40292fd 100644
+--- a/test/extensions/tracers/zipkin/span_buffer_test.cc
++++ b/test/extensions/tracers/zipkin/span_buffer_test.cc
+@@ -324,7 +324,24 @@ TEST(ZipkinSpanBufferTest, SerializeSpan) {
+
+   SpanBuffer buffer4(envoy::config::trace::v3::ZipkinConfig::HTTP_PROTO, shared, 2);
+   buffer4.addSpan(createSpan({"cs"}, IpType::V4));
+-  EXPECT_EQ(withDefaultTimestampAndDuration("{"
++  #ifdef ABSL_IS_BIG_ENDIAN
++    EXPECT_EQ(withDefaultTimestampAndDuration("{"
++                                            R"("spans":[{)"
++                                            R"("traceId":"AAAAAAAAAAE=",)"
++                                            R"("id":"AAAAAAAAAAE=",)"
++                                            R"("kind":"CLIENT",)"
++                                            R"("timestamp":"ANNOTATION_TEST_TIMESTAMP",)"
++                                            R"("duration":"DEFAULT_TEST_DURATION",)"
++                                            R"("localEndpoint":{)"
++                                            R"("serviceName":"service1",)"
++                                            R"("ipv4":"AQIDBA==",)"
++                                            R"("port":8080},)"
++                                            R"("tags":{)"
++                                            R"("response_size":"DEFAULT_TEST_DURATION"})"
++                                            "}]}"),
++            serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer4.serialize()));
++  #else
++    EXPECT_EQ(withDefaultTimestampAndDuration("{"
+                                             R"("spans":[{)"
+                                             R"("traceId":"AAAAAAAAAAE=",)"
+                                             R"("id":"AQAAAAAAAAA=",)"
+@@ -339,10 +356,30 @@ TEST(ZipkinSpanBufferTest, SerializeSpan) {
+                                             R"("response_size":"DEFAULT_TEST_DURATION"})"
+                                             "}]}"),
+             serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer4.serialize()));
++  #endif
+
+   SpanBuffer buffer4_v6(envoy::config::trace::v3::ZipkinConfig::HTTP_PROTO, shared, 2);
+   buffer4_v6.addSpan(createSpan({"cs", "log_1"}, IpType::V6));
+-  EXPECT_EQ(withDefaultTimestampAndDuration(
++  #ifdef ABSL_IS_BIG_ENDIAN
++    EXPECT_EQ(withDefaultTimestampAndDuration(
++                "{"
++                R"("spans":[{)"
++                R"("traceId":"AAAAAAAAAAE=",)"
++                R"("id":"AAAAAAAAAAE=",)"
++                R"("kind":"CLIENT",)"
++                R"("timestamp":"ANNOTATION_TEST_TIMESTAMP",)"
++                R"("duration":"DEFAULT_TEST_DURATION",)"
++                R"("localEndpoint":{)"
++                R"("serviceName":"service1",)"
++                R"("ipv6":"IAENuIWjAAAAAIouA3BERA==",)"
++                R"("port":7334},)"
++                R"("annotations":[{"timestamp":"ANNOTATION_TEST_TIMESTAMP","value":"log_1"}],)"
++                R"("tags":{)"
++                R"("response_size":"DEFAULT_TEST_DURATION"})"
++                "}]}"),
++            serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer4_v6.serialize()));
++  #else
++    EXPECT_EQ(withDefaultTimestampAndDuration(
+                 "{"
+                 R"("spans":[{)"
+                 R"("traceId":"AAAAAAAAAAE=",)"
+@@ -359,10 +396,41 @@ TEST(ZipkinSpanBufferTest, SerializeSpan) {
+                 R"("response_size":"DEFAULT_TEST_DURATION"})"
+                 "}]}"),
+             serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer4_v6.serialize()));
++  #endif
+
+   SpanBuffer buffer5(envoy::config::trace::v3::ZipkinConfig::HTTP_PROTO, shared, 2);
+   buffer5.addSpan(createSpan({"cs", "sr"}, IpType::V4));
+-  EXPECT_EQ(withDefaultTimestampAndDuration("{"
++  #ifdef ABSL_IS_BIG_ENDIAN
++    EXPECT_EQ(withDefaultTimestampAndDuration("{"
++                                            R"("spans":[{)"
++                                            R"("traceId":"AAAAAAAAAAE=",)"
++                                            R"("id":"AAAAAAAAAAE=",)"
++                                            R"("kind":"CLIENT",)"
++                                            R"("timestamp":"ANNOTATION_TEST_TIMESTAMP",)"
++                                            R"("duration":"DEFAULT_TEST_DURATION",)"
++                                            R"("localEndpoint":{)"
++                                            R"("serviceName":"service1",)"
++                                            R"("ipv4":"AQIDBA==",)"
++                                            R"("port":8080},)"
++                                            R"("tags":{)"
++                                            R"("response_size":"DEFAULT_TEST_DURATION"}},)"
++                                            R"({)"
++                                            R"("traceId":"AAAAAAAAAAE=",)"
++                                            R"("id":"AAAAAAAAAAE=",)"
++                                            R"("kind":"SERVER",)"
++                                            R"("timestamp":"ANNOTATION_TEST_TIMESTAMP",)"
++                                            R"("duration":"DEFAULT_TEST_DURATION",)"
++                                            R"("localEndpoint":{)"
++                                            R"("serviceName":"service1",)"
++                                            R"("ipv4":"AQIDBA==",)"
++                                            R"("port":8080},)"
++                                            R"("tags":{)"
++                                            R"("response_size":"DEFAULT_TEST_DURATION"},)"
++                                            R"("shared":true)"
++                                            "}]}"),
++            serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer5.serialize()));
++  #else
++    EXPECT_EQ(withDefaultTimestampAndDuration("{"
+                                             R"("spans":[{)"
+                                             R"("traceId":"AAAAAAAAAAE=",)"
+                                             R"("id":"AQAAAAAAAAA=",)"
+@@ -390,10 +458,40 @@ TEST(ZipkinSpanBufferTest, SerializeSpan) {
+                                             R"("shared":true)"
+                                             "}]}"),
+             serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer5.serialize()));
++  #endif
+
+   SpanBuffer buffer6(envoy::config::trace::v3::ZipkinConfig::HTTP_PROTO, !shared, 2);
+   buffer6.addSpan(createSpan({"cs", "sr"}, IpType::V4));
+-  EXPECT_EQ(withDefaultTimestampAndDuration("{"
++  #ifdef ABSL_IS_BIG_ENDIAN
++    EXPECT_EQ(withDefaultTimestampAndDuration("{"
++                                            R"("spans":[{)"
++                                            R"("traceId":"AAAAAAAAAAE=",)"
++                                            R"("id":"AAAAAAAAAAE=",)"
++                                            R"("kind":"CLIENT",)"
++                                            R"("timestamp":"ANNOTATION_TEST_TIMESTAMP",)"
++                                            R"("duration":"DEFAULT_TEST_DURATION",)"
++                                            R"("localEndpoint":{)"
++                                            R"("serviceName":"service1",)"
++                                            R"("ipv4":"AQIDBA==",)"
++                                            R"("port":8080},)"
++                                            R"("tags":{)"
++                                            R"("response_size":"DEFAULT_TEST_DURATION"}},)"
++                                            R"({)"
++                                            R"("traceId":"AAAAAAAAAAE=",)"
++                                            R"("id":"AAAAAAAAAAE=",)"
++                                            R"("kind":"SERVER",)"
++                                            R"("timestamp":"ANNOTATION_TEST_TIMESTAMP",)"
++                                            R"("duration":"DEFAULT_TEST_DURATION",)"
++                                            R"("localEndpoint":{)"
++                                            R"("serviceName":"service1",)"
++                                            R"("ipv4":"AQIDBA==",)"
++                                            R"("port":8080},)"
++                                            R"("tags":{)"
++                                            R"("response_size":"DEFAULT_TEST_DURATION"})"
++                                            "}]}"),
++            serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer6.serialize()));
++  #else
++    EXPECT_EQ(withDefaultTimestampAndDuration("{"
+                                             R"("spans":[{)"
+                                             R"("traceId":"AAAAAAAAAAE=",)"
+                                             R"("id":"AQAAAAAAAAA=",)"
+@@ -420,6 +518,7 @@ TEST(ZipkinSpanBufferTest, SerializeSpan) {
+                                             R"("response_size":"DEFAULT_TEST_DURATION"})"
+                                             "}]}"),
+             serializedMessageToJson<zipkin::proto3::ListOfSpans>(buffer6.serialize()));
++  #endif
+ }
+
+ TEST(ZipkinSpanBufferTest, TestSerializeTimestampInTheFuture) {
+diff --git a/source/common/websocket/codec.cc b/source/common/websocket/codec.cc
+index 1c1fc4e40b..79bc1f55df 100644
+--- a/source/common/websocket/codec.cc
++++ b/source/common/websocket/codec.cc
+@@ -128,7 +128,12 @@ uint8_t Decoder::doDecodeExtendedLength(absl::Span<const uint8_t>& data) {
+   num_remaining_extended_length_bytes_ -= bytes_to_decode;
+
+   if (num_remaining_extended_length_bytes_ == 0) {
++#if ABSL_IS_BIG_ENDIAN
++    length_ = le64toh(length_);
++    length_ = state_ == State::FrameHeaderExtendedLength16Bit ? htole16(length_) : htole64(length_);
++#else
+     length_ = state_ == State::FrameHeaderExtendedLength16Bit ? htobe16(length_) : htobe64(length_);
++#endif
+     if (num_remaining_masking_key_bytes_ > 0) {
+       state_ = State::FrameHeaderMaskingKey;
+     } else {
+diff --git a/bazel/proxy_wasm_cpp_host-s390x.patch b/bazel/proxy_wasm_cpp_host-s390x.patch
+new file mode 100644
+index 0000000000..743c861d7a
+--- /dev/null
++++ b/bazel/proxy_wasm_cpp_host-s390x.patch
+@@ -0,0 +1,149 @@
++diff --git a/src/exports.cc b/src/exports.cc
++index 0290dcf..90fc069 100644
++--- a/src/exports.cc
+++++ b/src/exports.cc
++@@ -101,7 +101,7 @@ Word get_configuration(Word value_ptr_ptr, Word value_size_ptr) {
++ Word get_status(Word code_ptr, Word value_ptr_ptr, Word value_size_ptr) {
++   auto *context = contextOrEffectiveContext()->root_context();
++   auto status = context->getStatus();
++-  if (!context->wasm()->setDatatype(code_ptr, status.first)) {
+++  if (!context->wasm()->setDatatype(code_ptr, htowasm(status.first, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   if (!context->wasm()->copyToPointerSize(status.second, value_ptr_ptr, value_size_ptr)) {
++@@ -239,7 +239,8 @@ Word get_shared_data(Word key_ptr, Word key_size, Word value_ptr_ptr, Word value
++   if (!context->wasm()->copyToPointerSize(data.first, value_ptr_ptr, value_size_ptr)) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++-  if (!context->wasmVm()->setMemory(cas_ptr, sizeof(uint32_t), &data.second)) {
+++  uint32_t cas = htowasm(data.second, context->wasmVm()->usesWasmByteOrder());
+++  if (!context->wasmVm()->setMemory(cas_ptr, sizeof(uint32_t), &cas)) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -266,7 +267,7 @@ Word register_shared_queue(Word queue_name_ptr, Word queue_name_size, Word token
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -298,7 +299,7 @@ Word resolve_shared_queue(Word vm_id_ptr, Word vm_id_size, Word queue_name_ptr,
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -486,7 +487,7 @@ Word get_buffer_status(Word type, Word length_ptr, Word flags_ptr) {
++   if (!context->wasmVm()->setWord(length_ptr, Word(length))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++-  if (!context->wasm()->setDatatype(flags_ptr, flags)) {
+++  if (!context->wasm()->setDatatype(flags_ptr, htowasm(flags, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -524,12 +525,12 @@ Word http_call(Word uri_ptr, Word uri_size, Word header_pairs_ptr, Word header_p
++   uint32_t token = 0;
++   // NB: try to write the token to verify the memory before starting the async
++   // operation.
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   auto result =
++       context->httpCall(uri.value(), headers, body.value(), trailers, timeout_milliseconds, &token);
++-  context->wasm()->setDatatype(token_ptr, token);
+++  context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()));
++   return result;
++ }
++
++@@ -545,7 +546,7 @@ Word define_metric(Word metric_type, Word name_ptr, Word name_size, Word metric_
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(metric_id_ptr, metric_id)) {
+++  if (!context->wasm()->setDatatype(metric_id_ptr, htowasm(metric_id, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -568,7 +569,7 @@ Word get_metric(Word metric_id, Word result_uint64_ptr) {
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(result_uint64_ptr, value)) {
+++  if (!context->wasm()->setDatatype(result_uint64_ptr, htowasm(value, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -596,7 +597,7 @@ Word grpc_call(Word service_ptr, Word service_size, Word service_name_ptr, Word
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -621,7 +622,7 @@ Word grpc_stream(Word service_ptr, Word service_size, Word service_name_ptr, Wor
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -763,14 +764,16 @@ Word wasi_unstable_fd_fdstat_get(Word fd, Word statOut) {
++     return 8; // __WASI_EBADF;
++   }
++
+++  auto *context = contextOrEffectiveContext();
+++
++   // The last word points to a 24-byte structure, which we
++   // are mostly going to zero out.
++   uint64_t wasi_fdstat[3];
++-  wasi_fdstat[0] = 0;
++-  wasi_fdstat[1] = 64; // This sets "fs_rights_base" to __WASI_RIGHTS_FD_WRITE
++-  wasi_fdstat[2] = 0;
+++  wasi_fdstat[0] = htowasm(0, context->wasmVm()->usesWasmByteOrder());
+++  // This sets "fs_rights_base" to __WASI_RIGHTS_FD_WRITE
+++  wasi_fdstat[1] = htowasm(64, context->wasmVm()->usesWasmByteOrder());
+++  wasi_fdstat[2] = htowasm(0, context->wasmVm()->usesWasmByteOrder());
++
++-  auto *context = contextOrEffectiveContext();
++   context->wasmVm()->setMemory(statOut, 3 * sizeof(uint64_t), &wasi_fdstat);
++
++   return 0; // __WASI_ESUCCESS
++@@ -856,7 +859,7 @@ Word wasi_unstable_clock_time_get(Word clock_id, uint64_t /*precision*/,
++     // process_cputime_id and thread_cputime_id are not supported yet.
++     return 58; // __WASI_ENOTSUP
++   }
++-  if (!context->wasm()->setDatatype(result_time_uint64_ptr, result)) {
+++  if (!context->wasm()->setDatatype(result_time_uint64_ptr, htowasm(result, context->wasmVm()->usesWasmByteOrder()))) {
++     return 21; // __WASI_EFAULT
++   }
++   return 0; // __WASI_ESUCCESS
++@@ -898,7 +901,7 @@ Word set_tick_period_milliseconds(Word period_milliseconds) {
++ Word get_current_time_nanoseconds(Word result_uint64_ptr) {
++   auto *context = contextOrEffectiveContext();
++   uint64_t result = context->getCurrentTimeNanoseconds();
++-  if (!context->wasm()->setDatatype(result_uint64_ptr, result)) {
+++  if (!context->wasm()->setDatatype(result_uint64_ptr, htowasm(result, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -919,7 +922,7 @@ Word log(Word level, Word address, Word size) {
++ Word get_log_level(Word result_level_uint32_ptr) {
++   auto *context = contextOrEffectiveContext();
++   uint32_t level = context->getLogLevel();
++-  if (!context->wasm()->setDatatype(result_level_uint32_ptr, level)) {
+++  if (!context->wasm()->setDatatype(result_level_uint32_ptr, htowasm(level, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index bf506c486a..d01ad6d358 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -1271,6 +1271,7 @@ def _proxy_wasm_cpp_host():
+         patch_args = ["-p1"],
+         patches = [
+             "@envoy//bazel:proxy_wasm_cpp_host.patch",
++            "@envoy//bazel:proxy_wasm_cpp_host-s390x.patch",
+         ],
+     )
+
+diff --git a/source/extensions/common/wasm/context.cc b/source/extensions/common/wasm/context.cc
+index c1c9bfd286..42a5189fc4 100644
+--- a/source/extensions/common/wasm/context.cc
++++ b/source/extensions/common/wasm/context.cc
+@@ -336,9 +336,43 @@ void Context::onStatsUpdate(Envoy::Stats::MetricSnapshot& snapshot) {
+   wasm()->on_stats_update_(this, id_, counter_block_size + gauge_block_size);
+ }
+
++static void assignNumeric(const char* value, size_t length, std::string* result,
++                          [[maybe_unused]] bool uses_wasm_byte_order) {
++#ifdef ABSL_IS_LITTLE_ENDIAN
++  result->assign(value, length);
++#else
++  if (!uses_wasm_byte_order) {
++    result->assign(value, length);
++    return;
++  }
++
++  switch (length) {
++  case 8: {
++    uint64_t value_uint64_le = absl::little_endian::Load64(value);
++    result->assign(reinterpret_cast<const char*>(&value_uint64_le), length);
++    break;
++  }
++  case 4: {
++    uint32_t value_uint32_le = absl::little_endian::Load32(value);
++    result->assign(reinterpret_cast<const char*>(&value_uint32_le), length);
++    break;
++  }
++  case 2: {
++    uint16_t value_uint16_le = absl::little_endian::Load16(value);
++    result->assign(reinterpret_cast<const char*>(&value_uint16_le), length);
++    break;
++  }
++  default:
++    result->assign(value, length);
++    break;
++  }
++#endif
++}
++
+ // Native serializer carrying over bit representation from CEL value to the extension.
+ // This implementation assumes that the value type is static and known to the consumer.
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result) {
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order) {
+   using Filters::Common::Expr::CelValue;
+   int64_t out_int64;
+   uint64_t out_uint64;
+@@ -354,15 +388,15 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     return WasmResult::Ok;
+   case CelValue::Type::kInt64:
+     out_int64 = value.Int64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result, uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kUint64:
+     out_uint64 = value.Uint64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t), result, uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kDouble:
+     out_double = value.DoubleOrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_double), sizeof(double));
++    assignNumeric(reinterpret_cast<const char*>(&out_double), sizeof(double), result, uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kBool:
+     out_bool = value.BoolOrDie();
+@@ -371,12 +405,12 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+   case CelValue::Type::kDuration:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToInt64Nanoseconds(value.DurationOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result, uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kTimestamp:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToUnixNanos(value.TimestampOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result, uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kMessage:
+     out_message = value.MessageOrDie();
+@@ -394,10 +428,10 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& keys = *keys_list.value();
+     std::vector<std::pair<std::string, std::string>> pairs(map.size(), std::make_pair("", ""));
+     for (auto i = 0; i < map.size(); i++) {
+-      if (serializeValue(keys[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(keys[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+-      if (serializeValue(map[keys[i]].value(), &pairs[i].second) != WasmResult::Ok) {
++      if (serializeValue(map[keys[i]].value(), &pairs[i].second, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -414,7 +448,7 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& list = *value.ListOrDie();
+     std::vector<std::pair<std::string, std::string>> pairs(list.size(), std::make_pair("", ""));
+     for (auto i = 0; i < list.size(); i++) {
+-      if (serializeValue(list[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(list[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -652,7 +686,7 @@ WasmResult Context::getProperty(std::string_view path, std::string* result) {
+     }
+   }
+
+-  return serializeValue(value, result);
++  return serializeValue(value, result, wasmVm()->usesWasmByteOrder());
+ }
+
+ // Header/Trailer/Metadata Maps.
+diff --git a/source/extensions/common/wasm/context.h b/source/extensions/common/wasm/context.h
+index 7bc4322e54..699b1baec4 100644
+--- a/source/extensions/common/wasm/context.h
++++ b/source/extensions/common/wasm/context.h
+@@ -453,7 +453,7 @@ protected:
+ };
+ using ContextSharedPtr = std::shared_ptr<Context>;
+
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result);
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result, bool uses_wasm_byte_order);
+
+ } // namespace Wasm
+ } // namespace Common
+diff --git a/source/extensions/common/wasm/foreign.cc b/source/extensions/common/wasm/foreign.cc
+index 17527f8dac..4f555c06e3 100644
+--- a/source/extensions/common/wasm/foreign.cc
++++ b/source/extensions/common/wasm/foreign.cc
+@@ -207,7 +207,7 @@ public:
+         return WasmResult::InternalFailure;
+       }
+       std::string result;
+-      auto serialize_status = serializeValue(value, &result);
++      auto serialize_status = serializeValue(value, &result, false);
+       if (serialize_status != WasmResult::Ok) {
+         return serialize_status;
+       }
+diff --git a/test/extensions/common/wasm/context_test.cc b/test/extensions/common/wasm/context_test.cc
+index 5e91cc99d0..9ab8be56e5 100644
+--- a/test/extensions/common/wasm/context_test.cc
++++ b/test/extensions/common/wasm/context_test.cc
+@@ -193,13 +193,13 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   CelValue value = CelValue::CreateMap(&mock_cel_map_);
+   EXPECT_CALL(mock_cel_map_, ListKeys())
+       .WillOnce(testing::Return(absl::UnimplementedError("CelMap::ListKeys is not implemented")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_map_, size()).WillRepeatedly(testing::Return(1));
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -207,7 +207,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -215,7 +215,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+
+ TEST_F(ContextTest, SerializeValueListTest) {
+@@ -225,12 +225,12 @@ TEST_F(ContextTest, SerializeValueListTest) {
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_list_, size()).WillRepeatedly(testing::Return(1));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(1)
+       .WillRepeatedly(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+
+ TEST_F(ContextTest, FindValueTest) {
+diff --git a/test/extensions/filters/http/wasm/test_data/test_cpp.cc b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+index e5952c8896..16e5641961 100644
+--- a/test/extensions/filters/http/wasm/test_data/test_cpp.cc
++++ b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+@@ -76,10 +76,11 @@ bool TestRootContext::onConfigure(size_t size) {
+     }
+     {
+       // Some properties are defined in the root context.
++      const uint64_t expected_listener_direction = 1; // INBOUND
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"listener_direction"}, std::string("\x1\0\0\0\0\0\0\0\0", 8)}, // INBOUND
++          {{"listener_direction"}, std::string(reinterpret_cast<const char*>(&expected_listener_direction), 8)},
+           {{"listener_metadata"}, ""},
+       };
+       for (const auto& property : properties) {
+@@ -583,14 +584,16 @@ void TestContext::onLog() {
+     }
+     {
+       // Some properties are defined in the stream context.
++      const uint64_t expected_listener_direction = 1; // INBOUND
++      const uint64_t expected_connection_id = 4;
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"listener_direction"}, std::string("\x1\0\0\0\0\0\0\0\0", 8)}, // INBOUND
++          {{"listener_direction"}, std::string(reinterpret_cast<const char*>(&expected_listener_direction), 8)},
+           {{"listener_metadata"}, ""},
+           {{"route_name"}, "route12"},
+           {{"cluster_name"}, "fake_cluster"},
+-          {{"connection_id"}, std::string("\x4\0\0\0\0\0\0\0\0", 8)},
++          {{"connection_id"}, std::string(reinterpret_cast<const char*>(&expected_connection_id), 8)},
+           {{"connection", "requested_server_name"}, "w3.org"},
+           {{"source", "address"}, "127.0.0.1:0"},
+           {{"destination", "address"}, "127.0.0.2:0"},
+
+diff --git a/test/common/io/io_uring_impl_test.cc b/test/common/io/io_uring_impl_test.cc
+index 303c870bf3..34334d499a 100644
+--- a/test/common/io/io_uring_impl_test.cc
++++ b/test/common/io/io_uring_impl_test.cc
+@@ -1,3 +1,5 @@
++#include <functional>
++
+ #include "source/common/io/io_uring_impl.h"
+ #include "source/common/network/address_impl.h"
+ 
+@@ -22,6 +24,8 @@ public:
+   MockIoUringSocket mock_io_uring_socket_;
+ };
+ 
++using WaitConditionFunc = std::function<bool()>;
++
+ class IoUringImplTest : public ::testing::Test {
+ public:
+   IoUringImplTest() : api_(Api::createApiForTest()), should_skip_(!isIoUringSupported()) {
+@@ -48,6 +52,18 @@ public:
+     }
+   }
+ 
++  void waitForCondition(Event::Dispatcher& dispatcher, WaitConditionFunc condition_func,
++                        std::chrono::milliseconds wait_timeout = TestUtility::DefaultTimeout) {
++    Event::TestTimeSystem::RealTimeBound bound(wait_timeout);
++    while (!condition_func()) {
++      if (!bound.withinBound()) {
++        RELEASE_ASSERT(0, "Timed out waiting for the condition.");
++        break;
++      }
++      dispatcher.run(Event::Dispatcher::RunType::NonBlock);
++    }
++  }
++
+   Api::ApiPtr api_;
+   testing::NiceMock<Server::Configuration::MockServerFactoryContext> context_;
+   std::unique_ptr<IoUringFactoryImpl> factory_{};
+@@ -110,8 +126,7 @@ TEST_P(IoUringImplParamTest, InvalidParams) {
+   res = io_uring_->submit();
+   EXPECT_EQ(res, IoUringResult::Ok);
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-  EXPECT_EQ(completions_nr, 2);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 2; });
+ }
+ 
+ TEST_F(IoUringImplTest, InjectCompletion) {
+@@ -141,8 +156,7 @@ TEST_F(IoUringImplTest, InjectCompletion) {
+ 
+   file_event->activate(Event::FileReadyType::Read);
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-  EXPECT_EQ(completions_nr, 1);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 1; });
+ }
+ 
+ TEST_F(IoUringImplTest, NestInjectCompletion) {
+@@ -182,8 +196,7 @@ TEST_F(IoUringImplTest, NestInjectCompletion) {
+ 
+   file_event->activate(Event::FileReadyType::Read);
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-  EXPECT_EQ(completions_nr, 2);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 2; });
+ }
+ 
+ TEST_F(IoUringImplTest, RemoveInjectCompletion) {
+@@ -218,8 +231,7 @@ TEST_F(IoUringImplTest, RemoveInjectCompletion) {
+   EXPECT_EQ(-1, data2);
+   file_event->activate(Event::FileReadyType::Read);
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-  EXPECT_EQ(completions_nr, 1);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 1; });
+ }
+ 
+ TEST_F(IoUringImplTest, NestRemoveInjectCompletion) {
+@@ -258,8 +270,7 @@ TEST_F(IoUringImplTest, NestRemoveInjectCompletion) {
+ 
+   file_event->activate(Event::FileReadyType::Read);
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-  EXPECT_EQ(completions_nr, 2);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 2; });
+ }
+ 
+ TEST_F(IoUringImplTest, RegisterEventfd) {
+@@ -303,10 +314,8 @@ TEST_F(IoUringImplTest, PrepareReadvAllDataFitsOneChunk) {
+   EXPECT_STREQ(static_cast<char*>(iov.iov_base), "");
+   io_uring_->submit();
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::Block);
+-
+   // Check that the completion callback has been actually called.
+-  EXPECT_EQ(completions_nr, 1);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 1; });
+   // The file's content is in the read buffer now.
+   EXPECT_STREQ(static_cast<char*>(iov.iov_base), "test text");
+ }
+@@ -366,6 +375,7 @@ TEST_F(IoUringImplTest, PrepareReadvQueueOverflow) {
+   res = io_uring_->submit();
+   EXPECT_EQ(res, IoUringResult::Ok);
+ 
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 2; });
+   // Even though we haven't been notified about ops completion the buffers
+   // are filled already.
+   EXPECT_EQ(static_cast<char*>(iov1.iov_base)[0], 'a');
+@@ -373,11 +383,9 @@ TEST_F(IoUringImplTest, PrepareReadvQueueOverflow) {
+   EXPECT_EQ(static_cast<char*>(iov2.iov_base)[0], 'c');
+   EXPECT_EQ(static_cast<char*>(iov2.iov_base)[1], 'd');
+ 
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-
+   // Only 2 completions are expected because the completion queue can contain
+   // no more than 2 entries.
+-  EXPECT_EQ(completions_nr, 2);
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 2; });
+ 
+   // Check a new event gets handled in the next dispatcher run.
+   res = io_uring_->prepareReadv(fd, &iov3, 1, 4, &request3);
+@@ -385,12 +393,10 @@ TEST_F(IoUringImplTest, PrepareReadvQueueOverflow) {
+   res = io_uring_->submit();
+   EXPECT_EQ(res, IoUringResult::Ok);
+ 
++  waitForCondition(*dispatcher, [&completions_nr]() { return completions_nr == 3; });
++
+   EXPECT_EQ(static_cast<char*>(iov3.iov_base)[0], 'e');
+   EXPECT_EQ(static_cast<char*>(iov3.iov_base)[1], 'f');
+-
+-  dispatcher->run(Event::Dispatcher::RunType::NonBlock);
+-  // Check the completion callback was called actually.
+-  EXPECT_EQ(completions_nr, 3);
+ }
+ 
+ } // namespace
+diff --git a/test/extensions/filters/listener/tls_inspector/tls_utility.h b/test/extensions/filters/listener/tls_inspector/tls_utility.h
+index 213339ded2..0b105b20d5 100644
+--- a/test/extensions/filters/listener/tls_inspector/tls_utility.h
++++ b/test/extensions/filters/listener/tls_inspector/tls_utility.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <cstdint>
+ #include <string>
+ #include <vector>
+ 

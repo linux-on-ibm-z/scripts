@@ -1,0 +1,113 @@
+diff --git a/.bazelrc b/.bazelrc
+index ffd0b37c0f..a274c195e7 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -84,8 +84,9 @@ build:sanitizer --linkopt -ldl
+ # Common flags for Clang
+ build:clang --action_env=BAZEL_COMPILER=clang
+ build:clang --action_env=CC=clang --action_env=CXX=clang++
+-build:clang --linkopt=-fuse-ld=lld
+-
++#build:clang --linkopt=-fuse-ld=lld
++build:clang --copt=-fsized-deallocation
++build:clang --linkopt=-fuse-ld=gold
+ # Flags for Clang + PCH
+ build:clang-pch --spawn_strategy=local
+ build:clang-pch --define=ENVOY_CLANG_PCH=1
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index aa93c9c838..ff68acb6c8 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -403,6 +403,7 @@ def _boringssl():
+         patch_args = ["-p1"],
+         patches = [
+             "@envoy//bazel:boringssl_static.patch",
++           "@envoy//bazel:boringssl-s390x.patch",
+         ],
+     )
+
+@@ -702,7 +703,10 @@ def _com_github_facebook_zstd():
+ def _com_google_cel_cpp():
+     external_http_archive(
+         "com_google_cel_cpp",
+-        patches = ["@envoy//bazel:cel-cpp.patch"],
++        patches = [
++	  "@envoy//bazel:cel-cpp.patch",
++	  "@envoy//bazel:cel-cpp-memory.patch",
++	],
+         patch_args = ["-p1"],
+     )
+
+@@ -1096,6 +1097,8 @@ def _com_github_google_quiche():
+     external_http_archive(
+         name = "com_github_google_quiche",
+         patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
++       patch_args = ["-p1"],
++       patches = ["@envoy//bazel:quiche-s390x.patch"],
+         build_file = "@envoy//bazel/external:quiche.BUILD",
+     )
+     native.bind(
+@@ -1148,7 +1151,7 @@ def _com_github_grpc_grpc():
+     external_http_archive(
+         name = "com_github_grpc_grpc",
+         patch_args = ["-p1"],
+-        patches = ["@envoy//bazel:grpc.patch"],
++        patches = ["@envoy//bazel:grpc.patch","@envoy//bazel:grpc-s390x.patch",],
+     )
+     external_http_archive("build_bazel_rules_apple")
+
+@@ -1289,7 +1293,7 @@ def _com_github_luajit_luajit():
+     external_http_archive(
+         name = "com_github_luajit_luajit",
+         build_file_content = BUILD_ALL_CONTENT,
+-        patches = ["@envoy//bazel/foreign_cc:luajit.patch"],
++        patches = ["@envoy//bazel/foreign_cc:luajit-s390x.patch"],
+         patch_args = ["-p1"],
+         patch_cmds = ["chmod u+x build.py"],
+     )
+
+diff --git a/bazel/repositories_extra.bzl b/bazel/repositories_extra.bzl
+index a5bc2d5277..070a2c820d 100644
+--- a/bazel/repositories_extra.bzl
++++ b/bazel/repositories_extra.bzl
+@@ -9,7 +9,7 @@ def _python_minor_version(python_version):
+     return "_".join(python_version.split(".")[:-1])
+
+ # Python version for `rules_python`
+-PYTHON_VERSION = "3.11.3"
++PYTHON_VERSION = "3.11.4"
+ PYTHON_MINOR_VERSION = _python_minor_version(PYTHON_VERSION)
+
+ # Envoy deps that rely on a first stage of dependency loading in envoy_dependencies().
+diff --git a/bazel/repository_locations.bzl b/bazel/repository_locations.bzl
+index 65e7486638..9d484b4f79 100644
+--- a/bazel/repository_locations.bzl
++++ b/bazel/repository_locations.bzl
+@@ -469,21 +469,21 @@ REPOSITORY_LOCATIONS_SPEC = dict(
+     com_github_luajit_luajit = dict(
+         project_name = "LuaJIT",
+         project_desc = "Just-In-Time compiler for Lua",
+-        project_url = "https://luajit.org",
++        project_url = "https://github.com/linux-on-ibm-z/LuaJIT",
+         # LuaJIT only provides rolling releases
+-        version = "1c279127050e86e99970100e9c42e0f09cd54ab7",
+-        sha256 = "c62f6e6d5bff89e4718709841cd6be71ad419ac9fa780c91abf1635cda923f8f",
++        version = "9eaff286df941f645b31360093e181b967993695",
++        sha256 = "e677dd1a4a2249216df3f10f5fb58cbd883bc71516321fb58b0f4440c36793dd",
+         strip_prefix = "LuaJIT-{version}",
+-        urls = ["https://github.com/LuaJIT/LuaJIT/archive/{version}.tar.gz"],
++        urls = ["https://github.com/linux-on-ibm-z/LuaJIT/archive/{version}.tar.gz"],
+         release_date = "2023-04-16",
+         use_category = ["dataplane_ext"],
+         extensions = [
+             "envoy.filters.http.lua",
+             "envoy.router.cluster_specifier_plugin.lua",
+         ],
+-        cpe = "cpe:2.3:a:luajit:luajit:*",
++        cpe = "cpe:2.3:a:linux-on-ibm-z:luajit:*",
+         license = "MIT",
+-        license_url = "https://github.com/LuaJIT/LuaJIT/blob/{version}/COPYRIGHT",
++        license_url = "https://github.com/linux-on-ibm-z/LuaJIT/blob/{version}/COPYRIGHT",
+     ),
+     com_github_nghttp2_nghttp2 = dict(
+         project_name = "Nghttp2",
