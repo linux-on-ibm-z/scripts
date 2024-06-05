@@ -238,6 +238,12 @@ function configureAndInstall() {
         git clone -b v$PACKAGE_VERSION $ES_REPO_URL
         cd $CURDIR/elasticsearch
 
+        # get the latest tag version and replace it in x-pack/plugin/ml/build.gradle to avoid build issue
+        latest_tag="$(git describe --tags `git rev-list --tags --max-count=1`)"
+        latest_tag="${latest_tag:1}"-SNAPSHOT
+        echo $latest_tag
+        sed -i 's|${project.version}|'"${latest_tag}"'|g' ${CURDIR}/elasticsearch/x-pack/plugin/ml/build.gradle
+
         # Apply patch
         curl -sSL "${PATCH_URL}/elasticsearch.patch" | git apply -
 
