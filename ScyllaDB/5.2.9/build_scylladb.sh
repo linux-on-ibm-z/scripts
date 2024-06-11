@@ -406,13 +406,13 @@ buildAnt() {
 }
 
 #==============================================================================
-# https://github.com/c-ares/c-ares/blob/cares-1_14_0/INSTALL.md
+# https://github.com/c-ares/c-ares/blob/cares-1_15_0/INSTALL.md
 buildCares() {
   local ver=1.15.0
   msg "Building c-ares $ver"
 
   cd ${SOURCE_ROOT}
-  URL=https://c-ares.haxx.se/download/c-ares-${ver}.tar.gz
+  URL=https://github.com/c-ares/c-ares/releases/download/cares-1_15_0/c-ares-1.15.0.tar.gz
   curl -sSL $URL | tar xzf - || error "c-ares $ver"
   cd c-ares-${ver}
   ./configure
