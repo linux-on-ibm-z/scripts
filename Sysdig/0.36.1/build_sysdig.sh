@@ -92,6 +92,8 @@ function configureAndInstall() {
     if [[ ${DISTRO} == ubuntu-24.04 ]]; then
        sed -i 's/strlcpy/strscpy/g' $SOURCE_ROOT/sysdig/build/driver/src/ppm_events.c
     fi
+    sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./c-ares-prefix/src/c-ares-stamp/download-c-ares.cmake
+    sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules/cares.cmake
     make
     sudo make install
     printf -- '\nSysdig build completed successfully. \n'
