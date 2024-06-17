@@ -1,0 +1,34 @@
+diff --git a/lib/private/copy_directory_toolchain.bzl b/lib/private/copy_directory_toolchain.bzl
+index 1cad47a..5fee564 100644
+--- a/lib/private/copy_directory_toolchain.bzl
++++ b/lib/private/copy_directory_toolchain.bzl
+@@ -47,6 +47,12 @@ COPY_DIRECTORY_PLATFORMS = {
+             "@platforms//cpu:x86_64",
+         ],
+     ),
++    "linux_s390x": struct(
++        compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:s390x",
++        ],
++    ),
+ }
+
+ CopyToDirectoryInfo = provider(
+diff --git a/lib/private/copy_to_directory_toolchain.bzl b/lib/private/copy_to_directory_toolchain.bzl
+index ca5180c..8e640b0 100644
+--- a/lib/private/copy_to_directory_toolchain.bzl
++++ b/lib/private/copy_to_directory_toolchain.bzl
+@@ -47,6 +47,12 @@ COPY_TO_DIRECTORY_PLATFORMS = {
+             "@platforms//cpu:x86_64",
+         ],
+     ),
++    "linux_s390x": struct(
++        compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:s390x",
++        ],
++    ),
+ }
+
+ CopyToDirectoryInfo = provider(
