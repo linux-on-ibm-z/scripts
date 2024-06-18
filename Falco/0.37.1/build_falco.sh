@@ -56,10 +56,7 @@ function prepare()
 }
 
 function cleanup() {
-    if [[ "${DISTRO}" =~ ^rhel-7 ]]; then
-        rm -rf "${SOURCE_ROOT}/cmake-3.22.5.tar.gz"
-    fi
-
+    rm -rf "${SOURCE_ROOT}/cmake-3.22.5.tar.gz"
     printf -- '\nCleaned up the artifacts\n'
 }
 
@@ -72,33 +69,8 @@ function configureAndInstall() {
 
     cd "${SOURCE_ROOT}"
     
-    if [[ "${DISTRO}" =~ ^rhel-7  ]]; then
-    sudo yum groupinstall -y 'Development Tools'
-    sudo yum install -y hostname tar zip gcc-c++ unzip python3 cmake curl wget gcc vim patch binutils-devel tcl gettext libtool autoconf make curl python3
-    GCC_VERSION=10.2.0
-    wget https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz
-    tar -xf gcc-${GCC_VERSION}.tar.gz
-    cd gcc-${GCC_VERSION}
-    ./contrib/download_prerequisites
-    mkdir objdir
-    cd objdir
-    ../configure --prefix=/opt/gcc --enable-languages=c,c++ --with-arch=zEC12 --with-long-double-128 \
-    	--build=s390x-linux-gnu --host=s390x-linux-gnu --target=s390x-linux-gnu                  \
-    	--enable-threads=posix --with-system-zlib --disable-multilib
-    make -j $(nproc)
-    sudo make install
-    sudo ln -sf /opt/gcc/bin/gcc /usr/bin/gcc
-    sudo ln -sf /opt/gcc/bin/g++ /usr/bin/g++
-    sudo ln -sf /opt/gcc/bin/g++ /usr/bin/c++
-    export PATH=/opt/gcc/bin:"$PATH"
-    export LD_LIBRARY_PATH=/opt/gcc/lib64:"$LD_LIBRARY_PATH"
-    export C_INCLUDE_PATH=/opt/gcc/lib/gcc/s390x-linux-gnu/${GCC_VERSION}/include
-    export CPLUS_INCLUDE_PATH=/opt/gcc/lib/gcc/s390x-linux-gnu/${GCC_VERSION}/include
- 
-    fi
-    
     cd "${SOURCE_ROOT}"
-    if [[ "${ID}" == "ubuntu" ]] || [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" =~ ^rhel-[78] ]]; then
+    if [[ "${ID}" == "ubuntu" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
         printf -- 'Installing Go v1.18.8\n'
 	cd $SOURCE_ROOT
 	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh
@@ -114,7 +86,7 @@ function configureAndInstall() {
 	printf -- 'Go installed successfully\n'
     fi
     
-    if [[ "${DISTRO}" =~ ^rhel-7 ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
+    if [[ "${DISTRO}" == "sles-12.5" ]]; then
         printf -- 'Building cmake 3.22.5\n'
         cd $SOURCE_ROOT
         wget https://github.com/Kitware/CMake/releases/download/v3.22.5/cmake-3.22.5.tar.gz
@@ -147,7 +119,7 @@ function configureAndInstall() {
     else
         CMAKE_TEST_FLAG=""
     fi
-    if [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" =~ ^rhel-7 ]] || [[ "${DISTRO}" =~ ^rhel-8 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]]; then
+    if [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" =~ ^rhel-8 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]]; then
         CMAKE_FLAGS="-DFALCO_ETC_DIR=/etc/falco -DUSE_BUNDLED_DEPS=On -DCMAKE_BUILD_TYPE=Release -DBUILD_DRIVER=On ${CMAKE_TEST_FLAG}"
     else # sles-15.5, rhel-9, ubuntu-22.04+
         CMAKE_FLAGS="-DFALCO_ETC_DIR=/etc/falco -DUSE_BUNDLED_DEPS=On -DCMAKE_BUILD_TYPE=Release -DBUILD_DRIVER=On -DBUILD_BPF=On -DBUILD_FALCO_MODERN_BPF=ON ${CMAKE_TEST_FLAG}"
@@ -159,6 +131,10 @@ function configureAndInstall() {
     fi
     printf -- '\nStarting Falco build. \n'
     cd $SOURCE_ROOT/falco/build/
+    # Fix c-ares download link
+    sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules/cares.cmake
+    sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./c-ares-prefix/src/c-ares-stamp/c-ares-urlinfo.txt
+    sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./c-ares-prefix/src/c-ares-stamp/download-c-ares.cmake
     make -j$(nproc)
 
     printf -- '\nStarting Falco install. \n'
@@ -293,15 +269,6 @@ case "$DISTRO" in
     export CC=$(which gcc)
     export CXX=$(which g++)
 
-    configureAndInstall | tee -a "$LOG_FILE"
-    ;;
-	
-"rhel-7.8" | "rhel-7.9")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-
-    sudo yum install -y devtoolset-9-gcc devtoolset-9-gcc-c++ devtoolset-9-toolchain devtoolset-9-libstdc++-devel glibc-static openssl-devel autoconf automake libtool createrepo expect git which rpm-build git libarchive wget bzip2 perl-IPC-Cmd perl-bignum perl-core make autoconf automake pkg-config patch elfutils-libelf-devel diffutils kernel-devel-$(uname -r) kmod
-    source /opt/rh/devtoolset-9/enable
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
