@@ -1,0 +1,80 @@
+diff --git a/salt/utils/versions.py b/salt/utils/versions.py
+index 9a97fee1bd..2f11766b22 100644
+--- a/salt/utils/versions.py
++++ b/salt/utils/versions.py
+@@ -6,11 +6,12 @@
+     which works under python 3 because on python 3 you can no longer compare
+     strings against integers.
+ """
++
++
+ import datetime
+ import inspect
+ import logging
+ import numbers
+-import os
+ import sys
+ import warnings
+
+@@ -170,7 +171,7 @@ def warn_until(
+
+     if _version_ >= version:
+         caller = inspect.getframeinfo(sys._getframe(stacklevel - 1))
+-        deprecated_message = (
++        raise RuntimeError(
+             "The warning triggered on filename '{filename}', line number "
+             "{lineno}, is supposed to be shown until version "
+             "{until_version} is released. Current version is now "
+@@ -179,15 +180,8 @@ def warn_until(
+                 lineno=caller.lineno,
+                 until_version=version.formatted_version,
+                 salt_version=_version_.formatted_version,
+-            )
++            ),
+         )
+-        if os.environ.get("RAISE_DEPRECATIONS_RUNTIME_ERRORS", "0") == "1":
+-            # We don't raise RuntimeError by default since that can break
+-            # users systems. We do however want to raise them in a CI context.
+-            raise RuntimeError(deprecated_message)
+-        # Otherwise, print the deprecated message to STDERR
+-        sys.stderr.write(f"\n{deprecated_message}\n")
+-        sys.stderr.flush()
+
+     if _dont_call_warnings is False:
+         warnings.warn(
+@@ -245,7 +239,7 @@ def warn_until_date(
+     today = _current_date or datetime.datetime.utcnow().date()
+     if today >= date:
+         caller = inspect.getframeinfo(sys._getframe(stacklevel - 1))
+-        deprecated_message = (
++        raise RuntimeError(
+             "{message} This warning(now exception) triggered on "
+             "filename '{filename}', line number {lineno}, is "
+             "supposed to be shown until {date}. Today is {today}. "
+@@ -257,13 +251,6 @@ def warn_until_date(
+                 today=today.isoformat(),
+             ),
+         )
+-        if os.environ.get("RAISE_DEPRECATIONS_RUNTIME_ERRORS", "0") == "1":
+-            # We don't raise RuntimeError by default since that can break
+-            # users systems. We do however want to raise them in a CI context.
+-            raise RuntimeError(deprecated_message)
+-        # Otherwise, print the deprecated message to STDERR
+-        sys.stderr.write(f"\n{deprecated_message}\n")
+-        sys.stderr.flush()
+
+     if _dont_call_warnings is False:
+         warnings.warn(
+diff --git a/tests/pytests/unit/utils/test_network.py b/tests/pytests/unit/utils/test_network.py
+index 12d545b..e05be6e 100644
+--- a/tests/pytests/unit/utils/test_network.py
++++ b/tests/pytests/unit/utils/test_network.py
+@@ -1460,7 +1460,7 @@ def test_ip_to_host(grains):
+     if grains["os"] == "Amazon":
+         assert ret == "localhost6"
+     elif grains["os_family"] == "Debian":
+-        if grains["osmajorrelease"] == 12:
++        if grains["osmajorrelease"] == 22:
+             assert ret == "localhost"
+         else:
+             assert ret == "ip6-localhost"
