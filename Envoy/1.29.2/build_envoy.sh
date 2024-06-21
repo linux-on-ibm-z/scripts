@@ -323,7 +323,7 @@ case "$DISTRO" in
 
 "sles-12.5")
   printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-  sudo zypper install -y autoconf curl libtool patch python3-pip pkg-config vim wget git gzip make cmake python python3 java-11-openjdk-devel unzip zip tar xz which gawk glib2-devel libexpat-devel bind-chrootenv coreutils ed expect file iproute2 iputils less libopenssl-devel python2 python3 python3-devel python3-pip python3-requests python3-setuptools python3-six python3-wheel unzip zlib-devel python3-PyYAML | tee -a "${LOG_FILE}"
+  sudo zypper install -y autoconf curl libtool patch python3-pip pkg-config vim wget git gzip make cmake python python3 python36 java-11-openjdk-devel unzip zip tar xz which gawk glib2-devel libexpat-devel bind-chrootenv coreutils ed expect file iproute2 iputils less libopenssl-devel python2 python3 python3-devel python3-pip python3-requests python3-setuptools python3-six python3-wheel unzip zlib-devel python3-PyYAML | tee -a "${LOG_FILE}"
   sudo zypper install -y gcc gcc-c++ gcc12-c++ git-core automake libelf-devel glibc-devel-static kmod binutils-gold | tee -a "${LOG_FILE}"
   
   sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12
