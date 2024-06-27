@@ -1,0 +1,101 @@
+diff --git a/salt/utils/versions.py b/salt/utils/versions.py
+index 3469acfd54..f1c7308cd6 100644
+--- a/salt/utils/versions.py
++++ b/salt/utils/versions.py
+@@ -171,7 +171,7 @@ def warn_until(
+
+     if _version_ >= version:
+         caller = inspect.getframeinfo(sys._getframe(stacklevel - 1))
+-        deprecated_message = (
++        raise RuntimeError(
+             "The warning triggered on filename '{filename}', line number "
+             "{lineno}, is supposed to be shown until version "
+             "{until_version} is released. Current version is now "
+@@ -180,15 +180,8 @@ def warn_until(
+                 lineno=caller.lineno,
+                 until_version=version.formatted_version,
+                 salt_version=_version_.formatted_version,
+-            )
++            ),
+         )
+-        if os.environ.get("RAISE_DEPRECATIONS_RUNTIME_ERRORS", "0") == "1":
+-            # We don't raise RuntimeError by default since that can break
+-            # users systems. We do however want to raise them in a CI context.
+-            raise RuntimeError(deprecated_message)
+-        # Otherwise, print the deprecated message to STDERR
+-        sys.stderr.write(f"\n{deprecated_message}\n")
+-        sys.stderr.flush()
+
+     if _dont_call_warnings is False and os.environ.get("PYTHONWARNINGS") != "ignore":
+         warnings.warn(
+@@ -246,7 +239,7 @@ def warn_until_date(
+     today = _current_date or datetime.datetime.utcnow().date()
+     if today >= date:
+         caller = inspect.getframeinfo(sys._getframe(stacklevel - 1))
+-        deprecated_message = (
++        raise RuntimeError(
+             "{message} This warning(now exception) triggered on "
+             "filename '{filename}', line number {lineno}, is "
+             "supposed to be shown until {date}. Today is {today}. "
+@@ -258,13 +251,6 @@ def warn_until_date(
+                 today=today.isoformat(),
+             ),
+         )
+-        if os.environ.get("RAISE_DEPRECATIONS_RUNTIME_ERRORS", "0") == "1":
+-            # We don't raise RuntimeError by default since that can break
+-            # users systems. We do however want to raise them in a CI context.
+-            raise RuntimeError(deprecated_message)
+-        # Otherwise, print the deprecated message to STDERR
+-        sys.stderr.write(f"\n{deprecated_message}\n")
+-        sys.stderr.flush()
+
+     if _dont_call_warnings is False and os.environ.get("PYTHONWARNINGS") != "ignore":
+         warnings.warn(
+diff --git a/tests/pytests/functional/modules/test_x509_v2.py b/tests/pytests/functional/modules/test_x509_v2.py
+index dfb973af10..d03cc73f36 100644
+--- a/tests/pytests/functional/modules/test_x509_v2.py
++++ b/tests/pytests/functional/modules/test_x509_v2.py
+@@ -447,7 +447,7 @@ def cert_exts_read():
+             "sha256": "E4:EB:84:87:17:80:E4:6D:6E:B8:9C:A0:EE:88:AF:CA:57:C7:8A:86:5A:A8:53:E1:38:DF:7A:43:D7:19:54:E1",
+         },
+         "issuer": OrderedDict([("C", "US"), ("O", "Salt"), ("CN", "Test")]),
+-        "issuer_hash": "19:2C:28:89",
++        "issuer_hash": "89:28:2C:19",
+         "issuer_str": "O=Salt,CN=Test,C=US",
+         "key_size": 2048,
+         "key_type": "rsa",
+@@ -465,7 +465,7 @@ def cert_exts_read():
+         "serial_number": "0C:F5:41:98:4E:97:67:47:B5:E6:1C:22:D6:54:2B:56:B3:B4:FD:6F",
+         "signature_algorithm": "sha256WithRSAEncryption",
+         "subject": OrderedDict(),
+-        "subject_hash": "D6:DC:44:F9",
++        "subject_hash": "F9:44:DC:D6",
+         "subject_str": "",
+         "version": 3,
+     }
+@@ -532,7 +532,7 @@ def csr_exts_read():
+         "key_type": "rsa",
+         "public_key_hash": "90:B6:4E:36:84:1F:EA:9F:13:DA:D2:E6:32:E5:89:1B:78:92:99:E4",
+         "subject": OrderedDict(),
+-        "subject_hash": "D6:DC:44:F9",
++        "subject_hash": "F9:44:DC:D6",
+         "subject_str": "",
+     }
+
+diff --git a/tests/pytests/unit/utils/test_network.py b/tests/pytests/unit/utils/test_network.py
+index 12d545b015..ee83057762 100644
+--- a/tests/pytests/unit/utils/test_network.py
++++ b/tests/pytests/unit/utils/test_network.py
+@@ -1460,10 +1460,7 @@ def test_ip_to_host(grains):
+     if grains["os"] == "Amazon":
+         assert ret == "localhost6"
+     elif grains["os_family"] == "Debian":
+-        if grains["osmajorrelease"] == 12:
+-            assert ret == "localhost"
+-        else:
+-            assert ret == "ip6-localhost"
++        assert ret == "localhost"
+     elif grains["os_family"] == "RedHat":
+         if grains["oscodename"] == "Photon":
+             assert ret == "ipv6-localhost"
+
