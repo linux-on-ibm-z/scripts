@@ -83,7 +83,7 @@ function installJava() {
         # Install Eclipse Adoptium Temurin Runtime 17
         sudo mkdir -p /opt/java
         cd "$SOURCE_ROOT"
-        sudo wget -O temurin17.tar.gz -q https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.11%2B9/OpenJDK17U-debugimage_s390x_linux_hotspot_17.0.11_9.tar.gz
+        sudo wget -O temurin17.tar.gz -q https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.11%2B9/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.11_9.tar.gz
         sudo tar -C /opt/java -xzf temurin17.tar.gz --strip 1
 
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
