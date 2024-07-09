@@ -4,7 +4,7 @@
 
 ################################################################################################################################################################
 #Script     :   build_calico.sh
-#Description:   The script builds Calico version v3.27.0 on Linux on IBM Z for RHEL (7.8, 7.9, 8.6, 8.8, 8.9, 9.0, 9.2, 9.3), Ubuntu (20.04, 22.04, 23.10) and SLES (12 SP5, 15 SP5).
+#Description:   The script builds Calico version v3.27.0 on Linux on IBM Z for RHEL (8.6, 8.8, 8.9, 9.0, 9.2, 9.3), Ubuntu (20.04, 22.04, 23.10) and SLES (12 SP5, 15 SP5).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Calico mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Calico-3.x ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -163,7 +163,7 @@ EOF
     git clone -b ${GOBUILD_VERSION} https://github.com/projectcalico/go-build $GOPATH/src/github.com/projectcalico/go-build 2>&1 | tee -a "$GOBUILD_LOG"
     cd $GOPATH/src/github.com/projectcalico/go-build
     printf -- "\nApplying patch for go-build Makefile ... \n" | tee -a "$GOBUILD_LOG"
-    curl -s $PATCH_URL/go-build.patch | patch -p1
+    curl -s $PATCH_URL/go-build.patch | git apply --ignore-whitespace -
 
     ARCH=s390x VERSION=${GOBUILD_VERSION} ARCHIMAGE='$(DEFAULTIMAGE)' make image | tee -a "$GOBUILD_LOG"
     docker tag calico/go-build:${GOBUILD_VERSION} calico/go-build:${GOBUILD_VERSION}-s390x | tee -a "$GOBUILD_LOG"
@@ -472,19 +472,6 @@ case "$DISTRO" in
     sudo apt-get install -y patch git curl tar gcc wget make docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin clang 2>&1 | tee -a "$LOG_FILE"
     sudo wget -O /usr/local/bin/yq.v2 https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_s390x
     sudo chmod 755 /usr/local/bin/yq.v2
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-
-"rhel-7.8" | "rhel-7.9")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- "Installing dependencies ... it may take some time.\n"
-    sudo yum install -y yum-utils
-    sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo yum-config-manager --enable docker-ce-stable
-    sudo yum install -y curl git wget tar gcc glibc-static.s390x docker-ce make which patch 2>&1 | tee -a "$LOG_FILE"
-    sudo wget -O /usr/local/bin/yq.v2 https://github.com/mikefarah/yq/releases/download/2.4.1/yq_linux_s390x
-    sudo chmod 755 /usr/local/bin/yq.v2
-    export CC=gcc
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
