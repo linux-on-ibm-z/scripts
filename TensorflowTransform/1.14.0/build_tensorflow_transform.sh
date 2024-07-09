@@ -156,7 +156,7 @@ function configureAndInstall() {
     printf -- 'Installing Apache Beam... \n'
 
     cd "${CURDIR}"                         
-    sudo GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True pip3 install numpy==1.24.3 scipy==1.10.1 'apache-beam[gcp]'==2.47.0
+    sudo GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True pip3 install numpy==1.24.3 scipy==1.14.0 'apache-beam[gcp]'==2.47.0
 
     printf -- 'Apache Beam installed successfully \n'
 
