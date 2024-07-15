@@ -85,13 +85,14 @@ function configureAndInstall() {
     git clone https://github.com/draios/sysdig.git
     cd sysdig
     git checkout "$PACKAGE_VERSION"
+    if [[ ${DISTRO} == rhel-9.* || ${DISTRO} == ubuntu-24.04 ]]; then
+        sed -i 's,7.0.0+driver,7.1.0+driver,g' ./cmake/modules/driver.cmake
+        sed -i 's,9f2a0f14827c0d9d1c3d1abe45b8f074dea531ebeca9859363a92f0d2475757e,ec493d549d7dc6d9a5534e91e0350aa06827f91c7119818d88c22e8a2820f416,g' ./cmake/modules/driver.cmake
+    fi
     mkdir build && cd build
     printf -- '\nStarting Sysdig build. \n'
     cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
     cd $SOURCE_ROOT/sysdig/build
-    if [[ ${DISTRO} == ubuntu-24.04 ]]; then
-       sed -i 's/strlcpy/strscpy/g' $SOURCE_ROOT/sysdig/build/driver/src/ppm_events.c
-    fi
     sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./c-ares-prefix/src/c-ares-stamp/download-c-ares.cmake
     sed -i 's,c-ares.haxx.se/download/,github.com/c-ares/c-ares/releases/download/cares-1_19_1/,g' ./falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules/cares.cmake
     make
