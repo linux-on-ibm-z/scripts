@@ -144,16 +144,9 @@ EOF
     sudo service docker start
     sleep 20s
 
-    # Build `bpftool`
-    export BPFTOOL_LOG="${LOGDIR}/bpftool-$(date +"%F-%T").log"
-    touch $BPFTOOL_LOG
-    printf -- "\nBuilding bpftool ... \n" | tee -a "$BPFTOOL_LOG"
-
-    rm -rf $GOPATH/src/github.com/projectcalico/bpftool
-    git clone https://github.com/projectcalico/bpftool $GOPATH/src/github.com/projectcalico/bpftool 2>&1 | tee -a "$BPFTOOL_LOG"
-    cd $GOPATH/src/github.com/projectcalico/bpftool
-    ARCH=s390x VERSION=v7.4.0 make image 2>&1 | tee -a "$BPFTOOL_LOG"
-
+    # Pull bpftool image
+    docker pull calico/bpftool:v7.4.0-s390x
+    
     # Build go-build v0.89
     export GOBUILD_LOG="${LOGDIR}/go-build-$(date +"%F-%T").log"
     touch $GOBUILD_LOG
@@ -163,7 +156,7 @@ EOF
     git clone -b ${GOBUILD_VERSION} https://github.com/projectcalico/go-build $GOPATH/src/github.com/projectcalico/go-build 2>&1 | tee -a "$GOBUILD_LOG"
     cd $GOPATH/src/github.com/projectcalico/go-build
     printf -- "\nApplying patch for go-build Makefile ... \n" | tee -a "$GOBUILD_LOG"
-    curl -s $PATCH_URL/go-build.patch | git apply --ignore-whitespace -
+    curl -sSL $PATCH_URL/go-build.patch | git apply --ignore-whitespace -
 
     ARCH=s390x VERSION=${GOBUILD_VERSION} ARCHIMAGE='$(DEFAULTIMAGE)' make image | tee -a "$GOBUILD_LOG"
     docker tag calico/go-build:${GOBUILD_VERSION} calico/go-build:${GOBUILD_VERSION}-s390x | tee -a "$GOBUILD_LOG"
