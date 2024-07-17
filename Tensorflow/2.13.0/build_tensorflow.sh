@@ -295,7 +295,7 @@ case "$PYTHON_VERSION" in
 
 "3.11")
 	PYTHON_VERSION=3.11.4
-        SCIPY_VERSION=1.9.2
+        SCIPY_VERSION=1.13.0
         NUMPY_VERSION=1.23.4
 	SCIPY_DEP="libopenblas-dev"  # Extra Dependency for Python 3.11 required by Scipy
 	;;
