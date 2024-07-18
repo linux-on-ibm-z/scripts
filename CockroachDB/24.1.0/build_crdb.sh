@@ -55,7 +55,7 @@ function cleanup() {
     fi
     if [[ -f ${CURDIR}/resolv_wrapper-1.1.8.tar.gz ]]; then
         rm ${CURDIR}/resolv_wrapper-1.1.8.tar.gz
-        sudo rm -r ${CURDIR}/resolv_wrapper-1.1.7
+        sudo rm -r ${CURDIR}/resolv_wrapper-1.1.8
     fi
     if [[ -f ${CURDIR}/gcc-10.5.0.tar.gz ]]; then
         rm ${CURDIR}/gcc-10.5.0.tar.gz
@@ -155,15 +155,14 @@ function configureAndInstall() {
 # Download and configure CockroachDB
     printf -- 'Downloading CockroachDB source code. Please wait.\n'
     cd ${CURDIR}
-    git clone https://github.com/cockroachdb/cockroach
+    git clone -b v$PACKAGE_VERSION --depth 1 https://github.com/cockroachdb/cockroach
     cd cockroach
-    git checkout v$PACKAGE_VERSION
 # Applying patches
     printf -- 'Apply patches....\n'
     cd ${CURDIR}/cockroach
     wget -O ${CURDIR}/cockroachdb.patch $PATCH_URL/crdb.patch
     sed -i "s#SOURCE_ROOT_PATH#${CURDIR}#g" ${CURDIR}/cockroachdb.patch
-    git apply --reject --whitespace=fix ${CURDIR}/cockroachdb.patch
+    git apply --reject ${CURDIR}/cockroachdb.patch
     sudo cp ${CURDIR}/bazel-lib/lib/private/copy_to_directory_toolchain.bzl .
     sudo cp ${CURDIR}/bazel-lib/lib/private/copy_directory_toolchain.bzl .
 # Build CockroachDB
