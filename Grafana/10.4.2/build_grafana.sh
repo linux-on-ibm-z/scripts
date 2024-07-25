@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="grafana"
 PACKAGE_VERSION="10.4.2"
 CURDIR="$(pwd)"
-
+export GOPATH=$CURDIR
 GO_VERSION="1.21.4"
 NODE_JS_VERSION="20.11.1"
 
@@ -94,29 +94,39 @@ function configureAndInstall() {
 
 	cd "${CURDIR}"
 
-	# Install go
-	printf -- "Installing Go... \n"
-	wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh
-	bash build_go.sh -y -v ${GO_VERSION}
-	go version
-	printf -- 'Extracted the tar in /usr/local and created symlink\n'
+	if [[ "${OVERRIDE}" == "true" ]]
+    then
+      printf -- 'Go exists on the system. Override flag is set to true hence updating the same\n ' |& tee -a "$LOG_FILE"
+    fi
 
-	if [[ "${ID}" != "ubuntu" ]]; then
-		sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
-		printf -- 'Symlink done for gcc \n'
-	fi
-	# Set GOPATH if not already set
-	if [[ -z "${GOPATH}" ]]; then
-		printf -- "Setting default value for GOPATH \n"
-
-		#Check if go directory exists
-		if [ ! -d "$HOME/go" ]; then
-			mkdir "$HOME/go"
-		fi
-		export GOPATH="${GO_DEFAULT}"
-	else
-		printf -- "GOPATH already set : Value : %s \n" "$GOPATH"
-	fi
+    # Install Go
+    printf -- 'Downloading go binaries \n'
+    cd $GOPATH
+    wget -q https://storage.googleapis.com/golang/go"${GO_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
+    chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
+    sudo rm -rf /usr/local/go /usr/bin/go
+    sudo tar -C /usr/local -xzf go"${GO_VERSION}".linux-s390x.tar.gz
+    sudo ln -sf /usr/local/go/bin/go /usr/bin/ 
+    sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
+    printf -- 'Extracted the tar in /usr/local and created symlink\n'
+    if [[ "${ID}" != "ubuntu" ]]
+    then
+      sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc 
+      printf -- 'Symlink done for gcc \n' 
+    fi
+    #Clean up the downloaded zip
+    cleanup
+    #Verify if go is configured correctly
+    if go version | grep -q "$GO_VERSION"
+    then
+      printf -- "Installed %s successfully \n" "$GO_VERSION"
+    else
+      printf -- "Error while installing Go, exiting with 127 \n";
+      exit 127;
+    fi
+    go version
+    export PATH=$PATH:$GOPATH/bin
+    printf -- "Install Go success\n"
 	printenv >>"$LOG_FILE"
 
   	# Install yarn
@@ -283,7 +293,7 @@ prepare # Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04"  | "ubuntu-23.10" | "ubuntu-24.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo apt-get update
 	sudo apt-get install -y gcc g++ tar wget git make xz-utils patch curl python3 |& tee -a "$LOG_FILE"
@@ -293,7 +303,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.8"  | "rhel-8.9" | "rhel-9.2" | "rhel-9.3")
+"rhel-8.8"  | "rhel-8.9" | " rhel-8.10" | "rhel-9.2" | "rhel-9.3" | "rhel-9.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	if [[ "$DISTRO" == rhel-9* ]]; then
 		sudo yum install -y --allowerasing make gcc gcc-c++ tar wget git git-core patch xz curl python3 |& tee -a "$LOG_FILE"
@@ -303,7 +313,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-15.5")
+"sles-15.5" | "sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo zypper install -y make gcc gcc-c++ wget tar git-core xz gzip curl patch python3 libnghttp2-devel |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
