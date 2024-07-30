@@ -303,7 +303,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.8"  | "rhel-8.9" | " rhel-8.10" | "rhel-9.2" | "rhel-9.3" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.9" | "rhel-8.10" | "rhel-9.2" | "rhel-9.3" | "rhel-9.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	if [[ "$DISTRO" == rhel-9* ]]; then
 		sudo yum install -y --allowerasing make gcc gcc-c++ tar wget git git-core patch xz curl python3 |& tee -a "$LOG_FILE"
