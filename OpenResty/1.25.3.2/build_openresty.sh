@@ -109,6 +109,8 @@ function runTest() {
         printf -- "TEST Flag is set, continue with running test \n"
         # Install cpan modules
         sudo cpanm --notest Test::Nginx IPC::Run3
+        # Below can be reverted once 000-sanit.t has LuaJIT-2.1-20231117.1
+        cd $SOURCE_ROOT/openresty/t/; sed -i 's/LuaJIT-2.1-20231117/LuaJIT-2.1-20231117.1/g' 000-sanity.t
         cd $SOURCE_ROOT/openresty
         # Run test cases
         printf -- "Start running tests for openresty \n"
