@@ -112,7 +112,12 @@ function bpftoolInstall() {
     fi
     git clone --recurse-submodules https://github.com/libbpf/bpftool.git
     cd bpftool && cd src
-    make
+    #Due to some features requiring the use of "skeletons" (feature-clang-bpf-co-re compilation option) require kernel 5.15 or more recent.
+    if [[ $DISTRO == "ubuntu-20.04" ]]; then
+        CLANG=Nope make
+    else
+        make
+    fi
     sudo make install
 }
 function logDetails() {
