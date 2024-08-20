@@ -73,9 +73,6 @@ function configureAndInstall() {
         printf -- 'Installing Go v1.18.8\n'
         cd $SOURCE_ROOT
         wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Go/1.18.4/build_go.sh
-        if [[ "${DISTRO}" == "ubuntu-24.04" ]]; then
-            sed -i 's:"ubuntu-23.04":"ubuntu-23.04" | "ubuntu-24.04":g' build_go.sh
-	    fi
         bash build_go.sh -y -v 1.18.8
         export GOPATH=$SOURCE_ROOT
         export PATH=$GOPATH/bin:$PATH
@@ -138,14 +135,11 @@ function configureAndInstall() {
     fi
     if [[ "${DISTRO}" == "sles-12.5" ]] || [[ "${DISTRO}" =~ ^rhel-8 ]] || [[ "${DISTRO}" == "ubuntu-20.04" ]]; then
         CMAKE_FLAGS="-DFALCO_ETC_DIR=/etc/falco -DUSE_BUNDLED_DEPS=On -DCMAKE_BUILD_TYPE=Release -DBUILD_DRIVER=On ${CMAKE_TEST_FLAG}"
-    else # sles-15.5, rhel-9, ubuntu-22.04, ubuntu-24.04
+    else # sles-15.5, sles-15.6, rhel-9, ubuntu-22.04, ubuntu-24.04
         CMAKE_FLAGS="-DFALCO_ETC_DIR=/etc/falco -DUSE_BUNDLED_DEPS=On -DCMAKE_BUILD_TYPE=Release -DBUILD_DRIVER=On -DBUILD_BPF=On -DBUILD_FALCO_MODERN_BPF=ON ${CMAKE_TEST_FLAG}"
     fi
     cmake $CMAKE_FLAGS ../
-    if [[ "${DISTRO}" == "rhel-9.3" ]]; then 
-	    cd $SOURCE_ROOT/falco/build/falcosecurity-libs-repo/falcosecurity-libs-prefix/src/falcosecurity-libs/cmake/modules
-	    sed -i '135{h;d};136G' grpc.cmake
-    fi
+    
     printf -- '\nStarting Falco build. \n'
     cd $SOURCE_ROOT/falco/build/
     # Fix c-ares download link
@@ -165,7 +159,7 @@ function configureAndInstall() {
     sudo insmod driver/falco.ko
     printf -- '\nInserted Falco kernel module successfully. \n'
 
-    if [[ "${DISTRO}" =~ ^rhel-9 ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]] || [[ "${DISTRO}" == "ubuntu-24.04" ]] || [[ "${DISTRO}" == "sles-15.5" ]]; then
+    if [[ "${DISTRO}" =~ ^rhel-9 ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]] || [[ "${DISTRO}" == "ubuntu-24.04" ]] || [[ "${DISTRO}" == "sles-15.5" ]] || [[ "${DISTRO}" == "sles-15.6" ]]; then
         # To use eBPF probe driver on supported distros, copy the eBPF driver object file probe.o
         # to the default location.
         sudo mkdir /root/.falco || true
@@ -238,7 +232,7 @@ function printSummary() {
     printf -- "\n* Getting Started * \n"
     printf -- "\n# Kernel module (default driver)"
     printf -- "\nRun sudo falco"
-    if [[ "${DISTRO}" =~ ^rhel-9 ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]] || [[ "${DISTRO}" == "ubuntu-24.04" ]] || [[ "${DISTRO}" == "sles-15.5" ]]; then
+    if [[ "${DISTRO}" =~ ^rhel-9 ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]] || [[ "${DISTRO}" == "ubuntu-24.04" ]] || [[ "${DISTRO}" == "sles-15.5" ]] || [[ "${DISTRO}" == "sles-15.6" ]]; then
         printf -- "\n# eBPF probe"
         printf -- "\nRun sudo FALCO_BPF_PROBE=\"\" falco"
         printf -- "\n# modern eBPF probe"
@@ -304,7 +298,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-8.8" | "rhel-8.9" | "rhel-8.10")
+"rhel-8.8" | "rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
@@ -313,7 +307,7 @@ case "$DISTRO" in
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
-"rhel-9.2" | "rhel-9.3" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
@@ -351,6 +345,21 @@ case "$DISTRO" in
     SLES_KERNEL_PKG_VERSION=$(sudo zypper se -s 'kernel-default-devel' | grep ${SLES_KERNEL_VERSION} | head -n 1 | cut -d "|" -f 4 - | tr -d '[:space:]')
     sudo zypper install -y gcc gcc-c++ gcc12-c++ git-core cmake patch which automake autoconf libtool libelf-devel gawk tar curl vim wget pkg-config glibc-devel-static go1.21 "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" kmod clang14 llvm14 bpftool
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 50
+    export CC=$(which gcc)
+    export CXX=$(which g++)
+    go version
+	
+    configureAndInstall | tee -a "$LOG_FILE"
+    ;;
+    
+"sles-15.6")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+
+    SLES_KERNEL_VERSION=$(uname -r | sed 's/-default//')
+    SLES_KERNEL_PKG_VERSION=$(sudo zypper se -s 'kernel-default-devel' | grep ${SLES_KERNEL_VERSION} | head -n 1 | cut -d "|" -f 4 - | tr -d '[:space:]')
+    sudo zypper install -y gcc gcc-c++ gcc9 gcc9-c++ git-core cmake patch which automake autoconf libtool libelf-devel gawk tar curl vim wget pkg-config glibc-devel-static go1.21 "kernel-default-devel=${SLES_KERNEL_PKG_VERSION}" kmod clang17 llvm17 bpftool
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 50
     export CC=$(which gcc)
     export CXX=$(which g++)
     go version
