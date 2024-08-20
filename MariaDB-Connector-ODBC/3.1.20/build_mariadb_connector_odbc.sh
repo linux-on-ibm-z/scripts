@@ -135,15 +135,6 @@ function runTest() {
             sudo mysql_install_db --user=mysql
             sleep 20s
         fi
-
-        if [[ "$DISTRO" == "rhel-7"* ]]; then
-            sudo mkdir /var/log/mariadb
-            sudo chown mysql:root /var/log/mariadb
-
-            sudo mkdir /var/run/mariadb
-            sudo chown mysql:root /var/run/mariadb
-        fi
-
         
         sudo env PATH=$PATH mysqld_safe --user=mysql &
         sleep 30s
@@ -166,7 +157,7 @@ function runTest() {
                 ;;
         esac
 
-        if [[ "$DISTRO" == "ubuntu"* || "$DISTRO" == "rhel-7"* || "$DISTRO" == "sles-15"* ]]; then
+        if [[ "$DISTRO" == "ubuntu"* || "$DISTRO" == "sles-15"* ]]; then
             sudo env PATH=$PATH mysql -u root -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('');"
         else
             sudo env PATH=$PATH mysql -u root -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('rootpass');"
@@ -178,7 +169,7 @@ function runTest() {
         export TEST_DSN=maodbc_test
         export TEST_UID=root
 
-        if [[ "$DISTRO" == "ubuntu"* || "$DISTRO" == "rhel-7"* || "$DISTRO" == "sles-15"* ]]; then
+        if [[ "$DISTRO" == "ubuntu"* || "$DISTRO" == "sles-15"* ]]; then
             export TEST_PASSWORD=
         else
             export TEST_PASSWORD=rootpass
@@ -237,13 +228,13 @@ EOF
         #Run tests
         cd $SOURCE_ROOT/mariadb-connector-odbc/test
         case $DISTRO in
-                "rhel-7.8" | "rhel-7.9" | "ubuntu"* | "sles-15"* )
+                "ubuntu"* | "sles-15"* )
             export ODBCINI="$PWD/odbc.ini"
             export ODBCSYSINI=$PWD
             ;;
         esac
         ctest 2>&1 |& tee -a "$LOG_FILE"
-        if [[ "$DISTRO" == "ubuntu"* || "$DISTRO" == "rhel-7"* || "$DISTRO" == "sles-15"* ]]; then
+        if [[ "$DISTRO" == "ubuntu"* || "$DISTRO" == "sles-15"* ]]; then
             mysqladmin -u root --password="" shutdown
         else
             mysqladmin -u root --password="rootpass" shutdown
@@ -321,35 +312,24 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10")
+"ubuntu-20.04" | "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo apt-get install -y mariadb-server unixodbc-dev odbcinst git cmake gcc libssl-dev tar curl libcurl4-openssl-dev libkrb5-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.0" | "rhel-9.2" | "rhel-9.3")
+"rhel-9.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo subscription-manager repos --enable=codeready-builder-for-rhel-9-s390x-rpms
     sudo yum install -y mariadb mariadb-server unixODBC unixODBC-devel git cmake gcc libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make glibc-langpack-en |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.6" | "rhel-8.8" | "rhel-8.9")
+"rhel-8.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y mariadb mariadb-server unixODBC unixODBC-devel git cmake gcc libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make glibc-langpack-en |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-"rhel-7.8" | "rhel-7.9")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo subscription-manager repos --enable=rhel-7-server-for-system-z-rhscl-rpms
-    sudo yum install -y wget
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MariaDB/10.10.2/build_mariadb.sh
-    sudo bash build_mariadb.sh -y
-    export PATH=/usr/local/mysql/bin/:$PATH
-    sudo yum install -y wget gcc-c++ unixODBC unixODBC-devel git cmake gcc libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
  "sles-15.5")
