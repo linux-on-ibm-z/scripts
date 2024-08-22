@@ -1,0 +1,716 @@
+diff --git a/WORKSPACE.bazel b/WORKSPACE.bazel
+index 2b03b20803b..6909f742f01 100644
+--- a/WORKSPACE.bazel
++++ b/WORKSPACE.bazel
+@@ -27,10 +27,11 @@ node_repositories(
+     "20.13.1-linux_arm64": ("node-v20.13.1-linux-arm64.tar.xz", "node-v20.13.1-linux-arm64", "5a41797a5815f42e0e9e4d2185d07d5d395386dc681a5a914563586c735ae31f"),
+     "20.13.1-linux_amd64": ("node-v20.13.1-linux-x64.tar.xz", "node-v20.13.1-linux-x64", "eb449c4db6c5769c4219fdbfa1c7cbc8b367b9f8c7be1eb534dc8f6a3c80a97f"),
+     "20.13.1-windows_amd64": ("node-v20.13.1-win-x64.zip", "node-v20.13.1-win-x64", "555a55c0c7441cb90e441115c81f610fca712dd5b192034d5eaafd7c29924425"),
++    "20.13.1-linux_s390x": ("node-v20.13.1-linux-s390x.tar.xz", "node-v20.13.1-linux-s390x", "0bbe63d4ba09527e40ba59e606ea31fdc44f9552b9e726bf2817ac7fe986961e"),
+   },
+   node_version = "20.13.1",
+   node_urls = [
+-    "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v{version}/{filename}",
++    "https://nodejs.org/dist/v{version}/{filename}",
+   ],
+   yarn_repositories = {
+     "1.22.21": ("yarn-v1.22.21.tar.gz", "yarn-v1.22.21", "a55bb4e85405f5dfd6e7154a444e7e33ad305d7ca858bad8546e932a6688df08"),
+@@ -60,6 +61,7 @@ yarn_install(
+     "GECKODRIVER_CDNURL": "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache",
+     "CHROMEDRIVER_CDNURL": "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache",
+     "CHROMEDRIVER_CDNBINARIESURL": "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache",
++    "SASS_BINARY_SITE": "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-sass",
+     "RE2_DOWNLOAD_MIRROR": "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2",
+     "CYPRESS_DOWNLOAD_MIRROR": "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/cypress",
+   }
+diff --git a/kbn_pm/src/lib/bazel.mjs b/kbn_pm/src/lib/bazel.mjs
+index 022447ded12..2ec27b359f1 100644
+--- a/kbn_pm/src/lib/bazel.mjs
++++ b/kbn_pm/src/lib/bazel.mjs
+@@ -150,6 +150,8 @@ export async function installYarnDeps(log, opts = undefined) {
+     offline: opts?.offline,
+     quiet: opts?.quiet,
+     env: {
++      SASS_BINARY_SITE:
++        'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-sass',
+       RE2_DOWNLOAD_MIRROR:
+         'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2',
+     },
+diff --git a/package.json b/package.json
+index b6d2319af2c..290b792b2d3 100644
+--- a/package.json
++++ b/package.json
+@@ -1640,6 +1640,7 @@
+     "mutation-observer": "^1.0.3",
+     "native-hdr-histogram": "^1.0.0",
+     "nock": "12.0.3",
++    "node-sass": "^8.0.0",
+     "null-loader": "^3.0.0",
+     "nyc": "^15.1.0",
+     "oboe": "^2.1.4",
+@@ -1666,10 +1667,8 @@
+     "regenerate": "^1.4.0",
+     "resolve": "^1.22.0",
+     "rxjs-marbles": "^7.0.1",
+-    "sass-embedded": "^1.71.1",
+     "sass-loader": "^10.5.1",
+-    "selenium-webdriver": "^4.21.0",
+-    "sharp": "0.32.6",
++    "selenium-webdriver": "^4.16.0",
+     "simple-git": "^3.16.0",
+     "sinon": "^7.4.2",
+     "sort-package-json": "^1.53.1",
+@@ -1709,4 +1708,4 @@
+     "zod-to-json-schema": "^3.22.3"
+   },
+   "packageManager": "yarn@1.22.21"
+-}
+\ No newline at end of file
++}
+diff --git a/packages/kbn-dom-drag-drop/src/sass/droppable.scss b/packages/kbn-dom-drag-drop/src/sass/droppable.scss
+index e081a8f7610..3009faecd4d 100644
+--- a/packages/kbn-dom-drag-drop/src/sass/droppable.scss
++++ b/packages/kbn-dom-drag-drop/src/sass/droppable.scss
+@@ -80,7 +80,7 @@ $reorderItemMargin: $euiSizeS;
+   position: absolute;
+   width: 100%;
+   top: 0;
+-  height: calc(100% + #{calc($reorderItemMargin / 2)});
++  height: calc(100% + #{$reorderItemMargin / 2});
+ }
+ 
+ .domDroppable--translatable {
+diff --git a/packages/kbn-optimizer/src/worker/webpack.config.ts b/packages/kbn-optimizer/src/worker/webpack.config.ts
+index ecf2ea60376..55ab6731b87 100644
+--- a/packages/kbn-optimizer/src/worker/webpack.config.ts
++++ b/packages/kbn-optimizer/src/worker/webpack.config.ts
+@@ -206,12 +206,12 @@ export function getWebpackConfig(
+                         )
+                       )};\n${content}`;
+                     },
+-                    implementation: require('sass-embedded'),
++                    webpackImporter: false,
++                    implementation: require('node-sass'),
+                     sassOptions: {
+-                      outputStyle: worker.dist ? 'compressed' : 'expanded',
++                      outputStyle: worker.dist ? 'compressed' : 'nested',
+                       includePaths: [Path.resolve(worker.repoRoot, 'node_modules')],
+-                      sourceMap: true,
+-                      quietDeps: true,
++                      sourceMapRoot: `/${bundle.type}:${bundle.id}`,
+                     },
+                   },
+                 },
+diff --git a/packages/kbn-storybook/src/webpack.config.ts b/packages/kbn-storybook/src/webpack.config.ts
+index 12f419f4d32..90f1155660f 100644
+--- a/packages/kbn-storybook/src/webpack.config.ts
++++ b/packages/kbn-storybook/src/webpack.config.ts
+@@ -115,10 +115,9 @@ export default ({ config: storybookConfig }: { config: Configuration }) => {
+                     resolve(REPO_ROOT, 'src/core/public/styles/core_app/_globals_v8light.scss')
+                   )};\n${content}`;
+                 },
+-                implementation: require('sass-embedded'),
++                implementation: require('node-sass'),
+                 sassOptions: {
+                   includePaths: [resolve(REPO_ROOT, 'node_modules')],
+-                  quietDeps: true,
+                 },
+               },
+             },
+diff --git a/packages/kbn-unified-field-list/src/containers/unified_field_list_sidebar/field_list_sidebar.scss b/packages/kbn-unified-field-list/src/containers/unified_field_list_sidebar/field_list_sidebar.scss
+index 617f7516eff..5bd837fde24 100644
+--- a/packages/kbn-unified-field-list/src/containers/unified_field_list_sidebar/field_list_sidebar.scss
++++ b/packages/kbn-unified-field-list/src/containers/unified_field_list_sidebar/field_list_sidebar.scss
+@@ -71,12 +71,14 @@
+ 
+ .unifiedFieldListSidebar .unifiedFieldListItemButton {
+   &.kbnFieldButton {
+-    margin-bottom: calc($euiSizeXS / 2);
+-    background: none;
++    margin-bottom: $euiSizeXS / 2;
++  }
++
++  &.domDragDrop-isDraggable {
+     box-shadow: none;
+   }
+ }
+ 
+ .unifiedFieldListItemButton__dragging {
+   background: $euiColorEmptyShade;
+-}
+\ No newline at end of file
++}
+diff --git a/renovate.json b/renovate.json
+index d07ce08ffa0..e6fa804d285 100644
+--- a/renovate.json
++++ b/renovate.json
+@@ -359,7 +359,7 @@
+     {
+       "groupName": "scss",
+       "packageNames": [
+-        "sass-embedded"
++        "node-sass"
+       ],
+       "reviewers": [
+         "team:kibana-operations"
+@@ -723,4 +723,4 @@
+       "enabled": true
+     }
+   ]
+-}
++}
+\ No newline at end of file
+diff --git a/src/dev/build/lib/platform.ts b/src/dev/build/lib/platform.ts
+index 4c4ec271318..920483f8cdb 100644
+--- a/src/dev/build/lib/platform.ts
++++ b/src/dev/build/lib/platform.ts
+@@ -7,7 +7,7 @@
+  */
+ 
+ export type PlatformName = 'win32' | 'darwin' | 'linux';
+-export type PlatformArchitecture = 'x64' | 'arm64';
++export type PlatformArchitecture = 'x64' | 'arm64' | 's390x';
+ 
+ export class Platform {
+   constructor(
+@@ -51,4 +51,5 @@ export const ALL_PLATFORMS = [
+   new Platform('darwin', 'x64', 'darwin-x86_64'),
+   new Platform('darwin', 'arm64', 'darwin-aarch64'),
+   new Platform('win32', 'x64', 'windows-x86_64'),
++  new Platform('linux', 's390x', 'linux-s390x'),
+ ];
+diff --git a/src/dev/build/tasks/install_dependencies_task.ts b/src/dev/build/tasks/install_dependencies_task.ts
+index 0eebadec5ca..59c9e389112 100644
+--- a/src/dev/build/tasks/install_dependencies_task.ts
++++ b/src/dev/build/tasks/install_dependencies_task.ts
+@@ -32,6 +32,8 @@ export const InstallDependencies: Task = {
+       {
+         cwd: build.resolvePath(),
+         env: {
++          SASS_BINARY_SITE:
++            'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-sass',
+           RE2_DOWNLOAD_MIRROR:
+             'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2',
+         },
+diff --git a/src/dev/build/tasks/nodejs/node_download_info.ts b/src/dev/build/tasks/nodejs/node_download_info.ts
+index 821cdb6973c..a1f5e304f42 100644
+--- a/src/dev/build/tasks/nodejs/node_download_info.ts
++++ b/src/dev/build/tasks/nodejs/node_download_info.ts
+@@ -18,7 +18,7 @@ export function getNodeDownloadInfo(config: Config, platform: Platform) {
+     ? 'win-x64/node.exe'
+     : `node-v${version}-${arch}.tar.gz`;
+ 
+-  const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v${version}/${downloadName}`;
++  const url = `https://nodejs.org/dist/v${version}/${downloadName}`;
+   const downloadPath = config.resolveFromRepo('.node_binaries', version, basename(downloadName));
+   const extractDir = config.resolveFromRepo('.node_binaries', version, arch);
+ 
+diff --git a/src/dev/build/tasks/nodejs/node_shasums.ts b/src/dev/build/tasks/nodejs/node_shasums.ts
+index 850e28d5d3e..791387daaab 100644
+--- a/src/dev/build/tasks/nodejs/node_shasums.ts
++++ b/src/dev/build/tasks/nodejs/node_shasums.ts
+@@ -10,7 +10,7 @@ import { ToolingLog } from '@kbn/tooling-log';
+ import { downloadToString } from '../../lib/download';
+ 
+ export async function getNodeShasums(log: ToolingLog, nodeVersion: string) {
+-  const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v${nodeVersion}/SHASUMS256.txt`;
++  const url = `https://nodejs.org/dist/v${nodeVersion}/SHASUMS256.txt`;
+ 
+   log.debug('Downloading shasum values for node version', nodeVersion, 'from', url);
+ 
+diff --git a/src/dev/build/tasks/patch_native_modules_task.ts b/src/dev/build/tasks/patch_native_modules_task.ts
+index df851036b79..2288754cc99 100644
+--- a/src/dev/build/tasks/patch_native_modules_task.ts
++++ b/src/dev/build/tasks/patch_native_modules_task.ts
+@@ -22,6 +22,9 @@ import {
+   read,
+ } from '../lib';
+ 
++const zUrl = require('url');
++var zFile:string = zUrl.pathToFileURL('linux-s390x-93.gz').toString();
++
+ const DOWNLOAD_DIRECTORY = '.native_modules';
+ 
+ interface Package {
+@@ -62,6 +65,9 @@ const packages: Package[] = [
+       // * `gzip linux-arm64-*`
+       // * capture the sha256 with: `shasum -a 256 linux-arm64-*`
+       // * upload the `linux-arm64-*.gz` artifact to the `yarn-prebuilt-artifacts` bucket in GCS using the correct version number
++      'linux-s390x': {
++        url: zFile,
++      },
+       'linux-arm64': {
+         url: 'https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/node-re2/uhop/node-re2/releases/download/1.20.9/linux-arm64-115.gz',
+         sha256: '6c04136a6658df3dcc5b8ac0041641c227d232bed385fe55f62c8470f8db041d',
+@@ -112,14 +118,19 @@ async function patchModule(
+   log.debug(`Patching ${pkg.name} binaries from ${archive.url} to ${extractPath}`);
+ 
+   await deleteAll([extractPath], log);
+-  await downloadToDisk({
+-    log,
+-    url: archive.url,
+-    destination: downloadPath,
+-    shaChecksum: archive.sha256,
+-    shaAlgorithm: 'sha256',
+-    maxAttempts: 3,
+-  });
++  if (platformName == "linux-s390x") {
++         console.log("Using locally built re2");
++  }
++  else {
++    await downloadToDisk({
++      log,
++      url: archive.url,
++      destination: downloadPath,
++      shaChecksum: archive.sha256,
++      shaAlgorithm: 'sha256',
++      maxAttempts: 3,
++    });
++  }
+   switch (pkg.extractMethod) {
+     case 'gunzip':
+       await gunzip(downloadPath, extractPath);
+diff --git a/src/dev/license_checker/config.ts b/src/dev/license_checker/config.ts
+index 60b4eeca809..3fd45055ce0 100644
+--- a/src/dev/license_checker/config.ts
++++ b/src/dev/license_checker/config.ts
+@@ -89,5 +89,4 @@ export const LICENSE_OVERRIDES = {
+   '@elastic/eui@93.6.0-backport.0': ['SSPL-1.0 OR Elastic License 2.0'],
+   'language-subtag-registry@0.3.21': ['CC-BY-4.0'], // retired ODC‑By license https://github.com/mattcg/language-subtag-registry
+   'buffers@0.1.1': ['MIT'], // license in importing module https://www.npmjs.com/package/binary
+-  '@bufbuild/protobuf@1.2.1': ['Apache-2.0'], // license (Apache-2.0 AND BSD-3-Clause)
+ };
+diff --git a/src/plugins/console/public/styles/_app.scss b/src/plugins/console/public/styles/_app.scss
+index 37f2753b1a9..ddf3144ffdd 100644
+--- a/src/plugins/console/public/styles/_app.scss
++++ b/src/plugins/console/public/styles/_app.scss
+@@ -42,7 +42,7 @@
+     padding: 0 $euiSizeS;
+     display: inline-block;
+     text-decoration: none;
+-    border-radius: calc($euiBorderRadius / 2);
++    border-radius: $euiBorderRadius / 2;
+     white-space: nowrap;
+     vertical-align: middle;
+     cursor: default;
+diff --git a/src/plugins/controls/public/options_list/components/options_list.scss b/src/plugins/controls/public/options_list/components/options_list.scss
+index fc1cdf68e3f..ab66cc0c94a 100644
+--- a/src/plugins/controls/public/options_list/components/options_list.scss
++++ b/src/plugins/controls/public/options_list/components/options_list.scss
+@@ -66,7 +66,7 @@
+     }
+ 
+     .optionsList__actionsRow {
+-      margin: calc($euiSizeS / 2) 0 !important;
++      margin: ($euiSizeS / 2) 0 !important;
+ 
+       .optionsList__actionBarDivider {
+         height: $euiSize;
+@@ -97,4 +97,4 @@
+     color: $euiTextSubduedColor;
+     padding: $euiSizeM;
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/src/plugins/controls/public/range_slider/components/range_slider.scss b/src/plugins/controls/public/range_slider/components/range_slider.scss
+index 6d8d3f435f1..542a41c676b 100644
+--- a/src/plugins/controls/public/range_slider/components/range_slider.scss
++++ b/src/plugins/controls/public/range_slider/components/range_slider.scss
+@@ -25,7 +25,7 @@
+       background-color: transparent;
+       width: $euiSizeS * 2;
+       border-radius: $euiSizeXS;
+-      padding: 0 calc($euiSizeXS / 2);
++      padding: 0 ($euiSizeXS / 2);
+     }
+   }
+ }
+diff --git a/src/plugins/discover/public/components/doc_table/_doc_table.scss b/src/plugins/discover/public/components/doc_table/_doc_table.scss
+index a303d462a57..38315bfdafb 100644
+--- a/src/plugins/discover/public/components/doc_table/_doc_table.scss
++++ b/src/plugins/discover/public/components/doc_table/_doc_table.scss
+@@ -74,7 +74,7 @@
+     dt {
+       background-color: transparentize(shade($euiColorPrimary, 20%), .9);
+       color: $euiTextColor;
+-      padding: calc($euiSizeXS / 2) $euiSizeXS;
++      padding: ($euiSizeXS / 2) $euiSizeXS;
+       margin-right: $euiSizeXS;
+       word-break: normal;
+       border-radius: $euiBorderRadius;
+diff --git a/src/plugins/kibana_react/public/markdown/_markdown.scss b/src/plugins/kibana_react/public/markdown/_markdown.scss
+index a3bba38509b..c11aefe1f4d 100644
+--- a/src/plugins/kibana_react/public/markdown/_markdown.scss
++++ b/src/plugins/kibana_react/public/markdown/_markdown.scss
+@@ -14,7 +14,7 @@
+ $kbnDefaultFontSize: 14px;
+ 
+ @function canvasToEm($size) {
+-  @return #{calc($size / $kbnDefaultFontSize)}em;
++  @return #{$size / $kbnDefaultFontSize}em;
+ }
+ 
+ .kbnMarkdown__body {
+diff --git a/src/plugins/unified_search/public/filter_bar/filter_item/filter_item.scss b/src/plugins/unified_search/public/filter_bar/filter_item/filter_item.scss
+index 362aec72649..1c16adbfc8c 100644
+--- a/src/plugins/unified_search/public/filter_bar/filter_item/filter_item.scss
++++ b/src/plugins/unified_search/public/filter_bar/filter_item/filter_item.scss
+@@ -8,8 +8,8 @@
+   line-height: $euiSize;
+   border: none;
+   color: $euiTextColor;
+-  padding-top: calc($euiSizeM / 2) + 1px;
+-  padding-bottom: calc($euiSizeM / 2) + 1px;
++  padding-top: $euiSizeM / 2 + 1px;
++  padding-bottom: $euiSizeM / 2 + 1px;
+   white-space: normal; /* 1 */
+ 
+   &:not(.globalFilterItem-isDisabled) {
+@@ -54,8 +54,8 @@
+     left: 0;
+     width: $euiSizeXS;
+     background-color: $kbnGlobalFilterItemBorderColor;
+-    border-top-left-radius: calc($euiBorderRadius / 2);
+-    border-bottom-left-radius: calc($euiBorderRadius / 2);
++    border-top-left-radius: $euiBorderRadius / 2;
++    border-bottom-left-radius: $euiBorderRadius / 2;
+   }
+ }
+ 
+diff --git a/src/plugins/unified_search/public/saved_query_management/saved_query_management_list.scss b/src/plugins/unified_search/public/saved_query_management/saved_query_management_list.scss
+index ad78b43fb19..7ce304310ae 100644
+--- a/src/plugins/unified_search/public/saved_query_management/saved_query_management_list.scss
++++ b/src/plugins/unified_search/public/saved_query_management/saved_query_management_list.scss
+@@ -4,10 +4,14 @@
+   overflow-y: hidden;
+ }
+ 
++.kbnSavedQueryManagement__text {
++  padding: $euiSizeM $euiSizeM ($euiSizeM / 2) $euiSizeM;
++}
++
+ .kbnSavedQueryManagement__list {
+   @include euiYScrollWithShadows;
+   max-height: inherit; // Fixes overflow for applied max-height
+   // Left/Right padding is calculated to match the left alignment of the
+   // popover text and buttons
+-  padding: calc($euiSizeM / 2) $euiSizeXS !important; // Override flush
++  padding: ($euiSizeM / 2) $euiSizeXS !important; // Override flush
+ }
+diff --git a/src/plugins/vis_default_editor/public/_agg_params.scss b/src/plugins/vis_default_editor/public/_agg_params.scss
+index c56ef94c3a4..81faa06681c 100644
+--- a/src/plugins/vis_default_editor/public/_agg_params.scss
++++ b/src/plugins/vis_default_editor/public/_agg_params.scss
+@@ -1,7 +1,7 @@
+ .visEditorAggParam--half {
+   margin: $euiSize 0;
+   display: inline-block;
+-  width: calc(50% - #{calc($euiSizeS / 2)});
++  width: calc(50% - #{$euiSizeS / 2});
+ }
+ 
+ .visEditorAggParam--half-size {
+diff --git a/src/plugins/vis_types/timeseries/public/application/components/_vis_with_splits.scss b/src/plugins/vis_types/timeseries/public/application/components/_vis_with_splits.scss
+index 036cf3f6a8f..9e09a6c3477 100644
+--- a/src/plugins/vis_types/timeseries/public/application/components/_vis_with_splits.scss
++++ b/src/plugins/vis_types/timeseries/public/application/components/_vis_with_splits.scss
+@@ -20,7 +20,7 @@
+   > .tvbVis {
+     // Apply the minimum height on the vis itself so it doesn't interfere with flex calculations
+     // Gauges are not completely square, so the height is just slightly less than the width
+-    min-height: calc($euiSize * 12 / 1.25);
++    min-height: $euiSize * 12 / 1.25;
+   }
+ }
+ 
+diff --git a/src/plugins/vis_types/timeseries/public/application/visualizations/views/_metric.scss b/src/plugins/vis_types/timeseries/public/application/visualizations/views/_metric.scss
+index d5eb056dd17..bc2ce4f1a9e 100644
+--- a/src/plugins/vis_types/timeseries/public/application/visualizations/views/_metric.scss
++++ b/src/plugins/vis_types/timeseries/public/application/visualizations/views/_metric.scss
+@@ -101,7 +101,7 @@
+ .tvbVisMetric__label--additional {
+   @include euiTextTruncate;
+   font-size: .25em; /* 1 */
+-  padding: calc($euiSizeXS / 2) 0 0;
++  padding: ($euiSizeXS / 2) 0 0;
+   text-align: center;
+   color: $tvbValueColor;
+   line-height: 1.2; // Ensure the descenders don't get cut off
+diff --git a/src/plugins/vis_types/vislib/public/vislib/lib/layout/_layout.scss b/src/plugins/vis_types/vislib/public/vislib/lib/layout/_layout.scss
+index 8b92af5a4fd..4612602d93f 100644
+--- a/src/plugins/vis_types/vislib/public/vislib/lib/layout/_layout.scss
++++ b/src/plugins/vis_types/vislib/public/vislib/lib/layout/_layout.scss
+@@ -203,7 +203,7 @@
+   }
+ 
+   .slice {
+-    stroke-width: calc($euiSizeXS / 2);
++    stroke-width: $euiSizeXS / 2;
+     stroke: $euiColorEmptyShade;
+ 
+     &:hover {
+diff --git a/x-pack/plugins/canvas/shareable_runtime/webpack.config.js b/x-pack/plugins/canvas/shareable_runtime/webpack.config.js
+index a2ed32fe775..89c6f646628 100644
+--- a/x-pack/plugins/canvas/shareable_runtime/webpack.config.js
++++ b/x-pack/plugins/canvas/shareable_runtime/webpack.config.js
+@@ -128,7 +128,7 @@ module.exports = {
+           {
+             loader: 'sass-loader',
+             options: {
+-              implementation: require('sass-embedded'),
++              implementation: require('node-sass'),
+               sourceMap: !isProd,
+             },
+           },
+@@ -165,9 +165,10 @@ module.exports = {
+                   path.resolve(KIBANA_ROOT, 'src/core/public/styles/core_app/_globals_v8light.scss')
+                 )};\n${content}`;
+               },
+-              implementation: require('sass-embedded'),
++              implementation: require('node-sass'),
++              webpackImporter: false,
+               sassOptions: {
+-                outputStyle: 'expanded',
++                outputStyle: 'nested',
+                 includePaths: [path.resolve(KIBANA_ROOT, 'node_modules')],
+               },
+             },
+diff --git a/x-pack/plugins/canvas/storybook/canvas_webpack.ts b/x-pack/plugins/canvas/storybook/canvas_webpack.ts
+index c6ae4a9dbaa..946b6c5b78c 100644
+--- a/x-pack/plugins/canvas/storybook/canvas_webpack.ts
++++ b/x-pack/plugins/canvas/storybook/canvas_webpack.ts
+@@ -38,7 +38,7 @@ export const canvasWebpack = {
+           {
+             loader: 'sass-loader',
+             options: {
+-              implementation: require('sass-embedded'),
++              implementation: require('node-sass'),
+             },
+           },
+         ],
+diff --git a/x-pack/plugins/data_visualizer/public/application/common/components/stats_table/components/field_data_row/column_chart.scss b/x-pack/plugins/data_visualizer/public/application/common/components/stats_table/components/field_data_row/column_chart.scss
+index a98eb200f02..8a0b9cc992c 100644
+--- a/x-pack/plugins/data_visualizer/public/application/common/components/stats_table/components/field_data_row/column_chart.scss
++++ b/x-pack/plugins/data_visualizer/public/application/common/components/stats_table/components/field_data_row/column_chart.scss
+@@ -16,7 +16,7 @@
+   font-weight: normal;
+   text-align: left;
+   line-height: 1.1;
+-  font-size: #{calc($euiFontSizeL / 2)}; // 10px
++  font-size: #{$euiFontSizeL / 2}; // 10px
+ }
+ 
+ .dataGridChart__legend--numeric {
+diff --git a/x-pack/plugins/graph/public/components/guidance_panel/_guidance_panel.scss b/x-pack/plugins/graph/public/components/guidance_panel/_guidance_panel.scss
+index 28e05afe0c7..add1d0bdf8a 100644
+--- a/x-pack/plugins/graph/public/components/guidance_panel/_guidance_panel.scss
++++ b/x-pack/plugins/graph/public/components/guidance_panel/_guidance_panel.scss
+@@ -28,7 +28,7 @@
+ .gphGuidancePanel__itemIcon {
+   position: absolute;
+   left: 0;
+-  top: -(calc($euiSizeXS / 2));
++  top: -($euiSizeXS / 2);
+   width: $euiSizeL;
+   height: $euiSizeL;
+   padding: $euiSizeXS;
+diff --git a/x-pack/plugins/lens/public/editor_frame_service/editor_frame/suggestion_panel.scss b/x-pack/plugins/lens/public/editor_frame_service/editor_frame/suggestion_panel.scss
+index 35606c67382..cd2ee706c1e 100644
+--- a/x-pack/plugins/lens/public/editor_frame_service/editor_frame/suggestion_panel.scss
++++ b/x-pack/plugins/lens/public/editor_frame_service/editor_frame/suggestion_panel.scss
+@@ -25,8 +25,8 @@
+   flex: 0 0 auto;
+   height: $lnsSuggestionHeight;
+   margin-right: $euiSizeS;
+-  margin-left: calc($euiSizeXS / 2);
+-  margin-bottom: calc($euiSizeXS / 2);
++  margin-left: $euiSizeXS / 2;
++  margin-bottom: $euiSizeXS / 2;
+   padding: 0 $euiSizeS;
+   box-shadow: none !important; // sass-lint:disable-line no-important
+ 
+diff --git a/x-pack/plugins/maps/public/connected_components/right_side_controls/layer_control/layer_toc/toc_entry/_toc_entry.scss b/x-pack/plugins/maps/public/connected_components/right_side_controls/layer_control/layer_toc/toc_entry/_toc_entry.scss
+index 7f1c61801a4..c88f343f7db 100644
+--- a/x-pack/plugins/maps/public/connected_components/right_side_controls/layer_control/layer_toc/toc_entry/_toc_entry.scss
++++ b/x-pack/plugins/maps/public/connected_components/right_side_controls/layer_control/layer_toc/toc_entry/_toc_entry.scss
+@@ -128,7 +128,7 @@
+   background-color: $euiColorEmptyShade;
+   border: $euiBorderThin;
+   color: $euiTextColor;
+-  border-radius: calc($euiBorderRadius / 2);
++  border-radius: $euiBorderRadius / 2;
+   height: $euiSize;
+   width: $euiSizeXL;
+   line-height: $euiSize;
+diff --git a/x-pack/plugins/ml/public/application/components/influencers_list/_influencers_list.scss b/x-pack/plugins/ml/public/application/components/influencers_list/_influencers_list.scss
+index 1b091e4046c..e33811aa9a8 100644
+--- a/x-pack/plugins/ml/public/application/components/influencers_list/_influencers_list.scss
++++ b/x-pack/plugins/ml/public/application/components/influencers_list/_influencers_list.scss
+@@ -28,7 +28,7 @@
+     }
+ 
+     .progress-bar {
+-      height: calc($euiSizeXS / 2);
++      height: $euiSizeXS / 2;
+       margin-top: $euiSizeM;
+       text-align: right;
+       line-height: 18px; // SASSTODO: Calc proper value
+@@ -96,7 +96,7 @@
+     font-size: 11px;
+     line-height: 14px;
+     border-radius: $euiBorderRadius;
+-    padding: calc($euiSizeXS / 2);
++    padding: $euiSizeXS / 2;
+     margin-top: $euiSizeXS;
+     display: inline-block;
+     border: $euiBorderThin;
+diff --git a/x-pack/plugins/ml/public/application/components/rule_editor/_rule_editor.scss b/x-pack/plugins/ml/public/application/components/rule_editor/_rule_editor.scss
+index 09605c40165..03eca2842c3 100644
+--- a/x-pack/plugins/ml/public/application/components/rule_editor/_rule_editor.scss
++++ b/x-pack/plugins/ml/public/application/components/rule_editor/_rule_editor.scss
+@@ -41,7 +41,7 @@
+ 
+   // SASSTODO: Dangerous EUI overwrite
+   .scope-field-checkbox {
+-    margin-right: calc($euiSizeXS / 2);
++    margin-right: $euiSizeXS / 2;
+ 
+     .euiCheckbox {
+       margin-top: $euiSizeXS;
+diff --git a/x-pack/plugins/ml/public/application/explorer/explorer_charts/_explorer_chart.scss b/x-pack/plugins/ml/public/application/explorer/explorer_charts/_explorer_chart.scss
+index 29967e8db9b..55ebfe8ab3e 100644
+--- a/x-pack/plugins/ml/public/application/explorer/explorer_charts/_explorer_chart.scss
++++ b/x-pack/plugins/ml/public/application/explorer/explorer_charts/_explorer_chart.scss
+@@ -15,7 +15,7 @@
+       rect.selected-interval {
+         fill: rgba(200, 200, 200, .1);
+         stroke: $euiColorDarkShade;
+-        stroke-width: calc($euiSizeXS / 2);
++        stroke-width: $euiSizeXS / 2;
+         stroke-opacity: .8;
+       }
+ 
+diff --git a/x-pack/plugins/ml/public/application/timeseriesexplorer/_timeseriesexplorer_annotations.scss b/x-pack/plugins/ml/public/application/timeseriesexplorer/_timeseriesexplorer_annotations.scss
+index 656f38590d3..a7186597b41 100644
+--- a/x-pack/plugins/ml/public/application/timeseriesexplorer/_timeseriesexplorer_annotations.scss
++++ b/x-pack/plugins/ml/public/application/timeseriesexplorer/_timeseriesexplorer_annotations.scss
+@@ -40,10 +40,10 @@ $mlAnnotationRectDefaultFillOpacity: .05;
+ }
+ 
+ .mlAnnotationRect-isBlur {
+-  stroke-opacity: calc($mlAnnotationRectDefaultStrokeOpacity / 2);
++  stroke-opacity: $mlAnnotationRectDefaultStrokeOpacity / 2;
+   transition: stroke-opacity $euiAnimSpeedFast;
+ 
+-  fill-opacity: calc($mlAnnotationRectDefaultFillOpacity / 2);
++  fill-opacity: $mlAnnotationRectDefaultFillOpacity / 2;
+   transition: fill-opacity $euiAnimSpeedFast;
+ }
+ 
+@@ -95,9 +95,9 @@ $mlAnnotationRectDefaultFillOpacity: .05;
+ }
+ 
+ .mlContextAnnotationRect-isBlur {
+-  stroke-opacity: calc($mlAnnotationRectDefaultStrokeOpacity / 2);
++  stroke-opacity: $mlAnnotationRectDefaultStrokeOpacity / 2;
+   transition: stroke-opacity $euiAnimSpeedFast;
+ 
+-  fill-opacity: calc($mlAnnotationRectDefaultFillOpacity / 2);
++  fill-opacity: $mlAnnotationRectDefaultFillOpacity / 2;
+   transition: fill-opacity $euiAnimSpeedFast;
+ }
+diff --git a/x-pack/plugins/monitoring/public/components/elasticsearch/shard_allocation/shard_allocation.scss b/x-pack/plugins/monitoring/public/components/elasticsearch/shard_allocation/shard_allocation.scss
+index 961e0350ccc..c46d7a048b9 100644
+--- a/x-pack/plugins/monitoring/public/components/elasticsearch/shard_allocation/shard_allocation.scss
++++ b/x-pack/plugins/monitoring/public/components/elasticsearch/shard_allocation/shard_allocation.scss
+@@ -22,7 +22,7 @@
+     margin: $euiSizeS;
+     border: 1px solid $euiColorMediumShade;
+     border-radius: $euiSizeXS;
+-    padding: calc($euiSizeXS / 2) 0;
++    padding: $euiSizeXS / 2 0;
+ 
+     &.monChild--index {
+       border-left: $euiSizeXS solid $euiColorSuccess;
+diff --git a/x-pack/plugins/monitoring/public/components/status_icon/_status_icon.scss b/x-pack/plugins/monitoring/public/components/status_icon/_status_icon.scss
+index 50c705f8065..2d36e7fc90f 100644
+--- a/x-pack/plugins/monitoring/public/components/status_icon/_status_icon.scss
++++ b/x-pack/plugins/monitoring/public/components/status_icon/_status_icon.scss
+@@ -1,7 +1,7 @@
+ .monStatusIcon {
+   display: inline-block;
+   margin-left: $euiSizeXS;
+-  padding: calc($euiSizeXS / 2) $euiSizeS;
++  padding: ($euiSizeXS / 2) $euiSizeS;
+   border-radius: $euiBorderRadius;
+   color: $euiColorGhost;
+   min-width: 1.9em;
+diff --git a/x-pack/plugins/snapshot_restore/public/application/components/policy_form/_policy_form.scss b/x-pack/plugins/snapshot_restore/public/application/components/policy_form/_policy_form.scss
+index 389e925f392..0a5187908f8 100644
+--- a/x-pack/plugins/snapshot_restore/public/application/components/policy_form/_policy_form.scss
++++ b/x-pack/plugins/snapshot_restore/public/application/components/policy_form/_policy_form.scss
+@@ -4,7 +4,7 @@
+ .snapshotRestore__policyForm__stepSettings {
+   .euiFormRow--hasEmptyLabelSpace {
+     min-height: auto;
+-    margin-top: $euiFontSizeXS + $euiSizeS + calc($euiSizeXXL / 4);
++    margin-top: $euiFontSizeXS + $euiSizeS + ($euiSizeXXL / 4);
+   }
+ }
+ 
+@@ -13,4 +13,4 @@
+  */
+ .snapshotRestore__policyForm__stepSettings__indicesFieldWrapper .euiFormLabel {
+   width: 100%;
+-}
++}
+\ No newline at end of file
+diff --git a/x-pack/plugins/snapshot_restore/public/application/components/restore_snapshot_form/_restore_snapshot_form.scss b/x-pack/plugins/snapshot_restore/public/application/components/restore_snapshot_form/_restore_snapshot_form.scss
+index ec680472edf..6a8f0b951c9 100644
+--- a/x-pack/plugins/snapshot_restore/public/application/components/restore_snapshot_form/_restore_snapshot_form.scss
++++ b/x-pack/plugins/snapshot_restore/public/application/components/restore_snapshot_form/_restore_snapshot_form.scss
+@@ -5,7 +5,7 @@
+ .snapshotRestore__restoreForm__stepSettings {
+   .euiFormRow--hasEmptyLabelSpace {
+     min-height: auto;
+-    margin-top: $euiFontSizeXS + $euiSizeS + calc($euiSizeXXL / 4);
++    margin-top: $euiFontSizeXS + $euiSizeS + ($euiSizeXXL / 4);
+   }
+ }
+ 
+@@ -14,4 +14,4 @@
+  */
+ .snapshotRestore__restoreForm__stepLogistics__indicesFieldWrapper .euiFormLabel {
+   width: 100%;
+-}
++}
+\ No newline at end of file
+diff --git a/x-pack/plugins/upgrade_assistant/public/application/components/es_deprecation_logs/fix_deprecation_logs/deprecation_logging_toggle/_deprecation_logging_toggle.scss b/x-pack/plugins/upgrade_assistant/public/application/components/es_deprecation_logs/fix_deprecation_logs/deprecation_logging_toggle/_deprecation_logging_toggle.scss
+index abcc87b75cd..e8b6ec06ed7 100644
+--- a/x-pack/plugins/upgrade_assistant/public/application/components/es_deprecation_logs/fix_deprecation_logs/deprecation_logging_toggle/_deprecation_logging_toggle.scss
++++ b/x-pack/plugins/upgrade_assistant/public/application/components/es_deprecation_logs/fix_deprecation_logs/deprecation_logging_toggle/_deprecation_logging_toggle.scss
+@@ -3,5 +3,5 @@
+ // them. With this selector we offset the difference so that the content
+ // of the page doesnt jump when toggling between states.
+ .upgToggleLoading > .upgLoadingItem {
+-  margin: calc($euiSizeM / 2);
++  margin: $euiSizeM / 2;
+ }
+diff --git a/yarn.lock b/yarn.lock
+index c6287ff4ace..d59deed7c65 100644
+--- a/yarn.lock
++++ b/yarn.lock
+@@ -7067,9 +7067,9 @@
+     eslint-scope "5.1.1"
+ 
+ "@noble/hashes@^1.1.5":
+-  version "1.3.3"
+-  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.3.3.tgz#39908da56a4adc270147bb07968bf3b16cfe1699"
+-  integrity sha512-V7/fPHgl+jsVPXqqeOzT8egNj2iBIVt+ECeMMG8TdcnTikP3oaBtUVqpT/gYCR68aEBJSF+XbYUxStjbFMqIIA==
++  version "1.4.0"
++  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.4.0.tgz#45814aa329f30e4fe0ba49426f49dfccdd066426"
++  integrity sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==
+ 
+ "@nodelib/fs.scandir@2.1.5":
+   version "2.1.5"
