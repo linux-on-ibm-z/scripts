@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2022, 2023.
+# © Copyright IBM Corporation 2022, 2024.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -171,14 +171,14 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-8.7" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2" | "rhel-9.3")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-8.7" | "rhel-8.8" | "rhel-8.9" | "rhel-8.10" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2" | "rhel-9.3" | "rhel-9.4")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y  tar wget gcc  |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
 
-"sles-12.5" | "sles-15.3" | "sles-15.4" | "sles-15.5")
+"sles-12.5" | "sles-15.3" | "sles-15.4" | "sles-15.5" | "sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Go from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper  install -y  tar wget gcc gzip |& tee -a "${LOG_FILE}" 
