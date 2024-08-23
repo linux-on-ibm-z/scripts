@@ -342,7 +342,7 @@ case "$DISTRO" in
  "sles-12.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y mariadb unixODBC unixODBC-devel git cmake gcc libopenssl-devel openssl glibc-locale tar curl libcurl-devel krb5-devel |& tee -a "$LOG_FILE"
+    sudo zypper install -y mariadb unixODBC-devel-2.3.6-7.9.1 git cmake gcc libopenssl-devel openssl glibc-locale tar curl libcurl-devel krb5-devel |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
