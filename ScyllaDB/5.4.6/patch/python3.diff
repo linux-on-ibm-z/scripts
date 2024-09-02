@@ -1,0 +1,121 @@
+diff --git a/SCYLLA-VERSION-GEN b/SCYLLA-VERSION-GEN
+index e9233bd..31e9163 100755
+--- a/SCYLLA-VERSION-GEN
++++ b/SCYLLA-VERSION-GEN
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+
+ PRODUCT=scylla
+ VERSION=$(python3 -V | cut -d' ' -f2)
+diff --git a/install.sh b/install.sh
+index 0921b62..dc175d0 100755
+--- a/install.sh
++++ b/install.sh
+@@ -102,8 +102,6 @@ install -d -m755 "$rprefix"/python3/lib64
+ cp -r ./lib64/* "$rprefix"/python3/lib64
+ install -d -m755 "$rprefix"/python3/libexec
+ cp -r ./libexec/* "$rprefix"/python3/libexec
+-install -d -m755 "$rprefix"/python3/licenses
+-cp -r ./licenses/* "$rprefix"/python3/licenses
+
+ PYSCRIPTS=$(find bin -maxdepth 1 -type f -exec grep -Pls '\A#!/usr/bin/env python3' {} +)
+ PYSYMLINKS="$(cat ./SCYLLA-PYTHON3-PIP-SYMLINKS-FILE)"
+diff --git a/scripts/create-relocatable-package.py b/scripts/create-relocatable-package.py
+index 251bd9c..eda3ec5 100755
+--- a/scripts/create-relocatable-package.py
++++ b/scripts/create-relocatable-package.py
+@@ -230,36 +230,27 @@ def filter_basic_packages(package):
+
+ def dependencies(package_list):
+     '''Generates a list of RPM dependencies for the python interpreter and its modules'''
+-    output = subprocess.check_output(['repoquery',
+-                # Some architectures like x86_64 also carry packages for
+-                # their 32-bit versions. In thise cases, we won't want
+-                # to mix them since we will only install lib64/
+-                '--archlist=noarch,{machine}'.format(machine=os.uname().machine),
+-                # Don't look into the yum cache. Guarantees consistent builds
+-                '--cacheonly',
+-                '--installed',
+-                '--resolve',
+-                '--requires',
+-                '--recursive'] + package_list,
+-                universal_newlines=True).splitlines()
++    p1 = subprocess.Popen(['apt-cache',
++                'depends', '--recurse', '--no-recommends', '--no-suggests',
++                '--no-conflicts', '--no-breaks', '--no-replaces', '--no-enhances'] +
++                package_list, stdout=subprocess.PIPE)
++    p2 = subprocess.Popen(['grep', '^\w'],
++                 stdin=p1.stdout, stdout=subprocess.PIPE)
++    p1.stdout.close()
++    output = subprocess.check_output(['sort',
++                '-u'], stdin=p2.stdout,
++                 universal_newlines=True).splitlines()
++    p2.stdout.close()
+
+     output = [x for x in output if not filter_basic_packages(x)]
+     return output + package_list
+
+ def generate_file_list(executables):
+     '''Given the RPM files that we want to scan in this run, returns a list of all files in those packages that are of interest to us'''
+-
+     exclusions = []
+-    for exe in executables:
+-        exclusions += subprocess.check_output(['rpm', '-qd', exe], universal_newlines=True).splitlines()
+-
+-    # we don't want to use --list the first time: For one, we want to be able to filter out some packages with files we don't want to copy
+-    # Second, repoquery --list do not include the actual package files when used with --resolve and --recursive (only its dependencies').
+-    # So we need a separate step in which all packages are added together.
+-    candidates = subprocess.check_output(['repoquery',
+-                                 '--installed',
+-                                 '--cacheonly',
+-                                 '--list' ] + executables, universal_newlines=True).splitlines()
++    p1 = subprocess.Popen(['dpkg', '-L'] + executables, stdout=subprocess.PIPE)
++    candidates = subprocess.check_output("perl -nE 'chomp; say unless -d'", stdin=p1.stdout, shell=True, universal_newlines=True).splitlines()
++    p1.stdout.close()
+
+     return [x for x in set(candidates) - set(exclusions) if should_copy(x)]
+
+@@ -267,7 +258,7 @@ def pip_generate_file_list(package_list):
+     candidates = []
+     PIPPackageEntry = collections.namedtuple('PIPPackageEntry', ['path', 'binfile'])
+     for pkg in package_list:
+-        pip_info = subprocess.check_output(['pip3','show', '-f', pkg], universal_newlines=True).splitlines()
++        pip_info = subprocess.check_output(['python3', '-m', 'pip','show', '-f', pkg], universal_newlines=True).splitlines()
+         location = None
+         files_found = False
+         for l in pip_info:
+@@ -280,7 +271,8 @@ def pip_generate_file_list(package_list):
+                 if l.lstrip().startswith('../../../bin/'):
+                     binfile = True
+                 e = PIPPackageEntry(str(pathlib.PurePath(location) / l.lstrip()), binfile=binfile)
+-                candidates.append(e)
++                if binfile:
++                    candidates.append(e)
+             else:
+                 m = re.match(r'^Location:\s(.+)$', l)
+                 if m:
+@@ -288,7 +280,7 @@ def pip_generate_file_list(package_list):
+                 m = re.match(r'^Files:$', l)
+                 if m:
+                     files_found = True
+-    return [x for x in candidates if should_copy(x.path)]
++    return candidates
+
+
+ ap = argparse.ArgumentParser(description='Create a relocatable python3 interpreter.')
+@@ -298,11 +290,12 @@ ap.add_argument('--pip-modules', nargs='*', help='list of pip modules to add, se
+ ap.add_argument('--modules', nargs='*', help='list of python modules to add, separated by spaces')
+
+ args = ap.parse_args()
+-packages= ["python3"] + args.modules
++packages= ["python3","python3-yaml","python3-requests","python3-setuptools","python3-distro","python3-click","python3-six"]
+ ar = tarfile.open(args.output, mode='w|gz')
+
+ file_list = generate_file_list(dependencies(packages))
+-pip_file_list = pip_generate_file_list(args.pip_modules)
++pip_packages = ["pyparsing","scylla-driver","traceback-with-variables","scylla-api-client","geomet"]
++pip_file_list = pip_generate_file_list(pip_packages)
+ # relocatable package format version = 2
+ with open('build/.relocatable_package_version', 'w') as f:
+     f.write('2\n')
