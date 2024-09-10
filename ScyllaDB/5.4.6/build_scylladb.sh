@@ -647,7 +647,7 @@ case "$DISTRO" in
   LD_LIBRARY_PATH+=:${PREFIX}/lib
   LD_LIBRARY_PATH+=:/usr/lib64
   export LD_LIBRARY_PATH
-  export PATH=$PATH:${SOURCE_ROOT}/.rustup/toolchains/stable-s390x-unknown-linux-gnu/lib/rustlib/s390x-unknown-linux-gnu/bin/gcc-ld
+  export PATH=$PATH:$HOME/.rustup/toolchains/stable-s390x-unknown-linux-gnu/lib/rustlib/s390x-unknown-linux-gnu/bin/gcc-ld
   LD_RUN_PATH=${PREFIX}/lib64${LD_RUN_PATH:+:${LD_RUN_PATH}}
   LD_RUN_PATH+=:${PREFIX}/lib
   LD_RUN_PATH+=:/usr/lib64
@@ -717,7 +717,7 @@ case "$DISTRO" in
 
   installRust |& tee -a "$LOG_FILE"
   export PATH="$HOME/.cargo/bin:$PATH"
-  export PATH=$PATH:${SOURCE_ROOT}/.rustup/toolchains/stable-s390x-unknown-linux-gnu/lib/rustlib/s390x-unknown-linux-gnu/bin/gcc-ld
+  export PATH=$PATH:$HOME/.rustup/toolchains/stable-s390x-unknown-linux-gnu/lib/rustlib/s390x-unknown-linux-gnu/bin/gcc-ld
   buildBinutils |& tee -a "$LOG_FILE"
 
   #Build Python 3.11.8
@@ -792,7 +792,7 @@ case "$DISTRO" in
   #Install Wasm and wasm32-wasi
   installRust  |& tee -a "$LOG_FILE"
   export PATH="$HOME/.cargo/bin:$PATH"
-  export PATH=$PATH:${SOURCE_ROOT}/.rustup/toolchains/stable-s390x-unknown-linux-gnu/lib/rustlib/s390x-unknown-linux-gnu/bin/gcc-ld
+  export PATH=$PATH:$HOME/.rustup/toolchains/stable-s390x-unknown-linux-gnu/lib/rustlib/s390x-unknown-linux-gnu/bin/gcc-ld
   buildBinutils |& tee -a "$LOG_FILE"
 
   #Build Python 3.11.8
