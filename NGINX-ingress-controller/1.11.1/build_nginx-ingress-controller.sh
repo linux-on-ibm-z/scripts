@@ -117,6 +117,7 @@ function configureAndInstall() {
     # Add patches
     cd "$GOPATH/src/k8s.io/ingress-nginx/"
     curl -o nginx_ingress_code_patch.diff $PATCH_URL/nginx_ingress_code_patch.diff
+    git apply "$GOPATH/src/k8s.io/ingress-nginx/nginx_ingress_code_patch.diff"
     printf -- "Patched source code successfully.\n" 
 
     # Build test-runner image for s390x
