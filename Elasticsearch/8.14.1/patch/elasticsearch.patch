@@ -283,7 +283,7 @@ index b62fa983dd4..56e4560b9e0 100644
  <% } else {
    // Fetch the appropriate Elasticsearch distribution for this architecture.
    // Keep this command on one line - it is replaced with a `COPY` during local builds.
-@@ -108,10 +109,21 @@ RUN sed -i -e 's/ES_DISTRIBUTION_TYPE=tar/ES_DISTRIBUTION_TYPE=docker/' bin/elas
+@@ -108,10 +109,27 @@ RUN sed -i -e 's/ES_DISTRIBUTION_TYPE=tar/ES_DISTRIBUTION_TYPE=docker/' bin/elas
      mv config/log4j2.docker.properties config/log4j2.properties && \\
      find . -type d -exec chmod 0555 {} + && \\
      find . -type f -exec chmod 0444 {} + && \\
@@ -302,6 +302,12 @@ index b62fa983dd4..56e4560b9e0 100644
 +  cp target/native-Linux-s390x/libjansi.so org/fusesource/jansi/internal/native/Linux/s390x/ && \\
 +  ../jdk/bin/jar uf ../lib/tools/ansi-console/jansi-2.4.0.jar org/fusesource/jansi/internal/native/Linux/s390x/libjansi.so && \\
 +  cd ../ && rm -rf jansi_tmp
++
++RUN mkdir zstd_tmp && cd zstd_tmp && \\
++    curl --retry 10 -S -L -O https://github.com/facebook/zstd/archive/refs/tags/v1.5.5.tar.gz && \\
++    tar -xzvf v1.5.5.tar.gz && \\
++    cd zstd-1.5.5 && \\
++    make DESTDIR=_build install
 +
  <% if (docker_base == "cloud") { %>
  COPY filebeat-${version}.tar.gz metricbeat-${version}.tar.gz /tmp/
