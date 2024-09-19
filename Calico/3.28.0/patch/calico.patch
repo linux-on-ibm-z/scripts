@@ -1,0 +1,96 @@
+diff --git a/apiserver/Makefile b/apiserver/Makefile
+index 56b4fa69a..5292a5ac3 100644
+--- a/apiserver/Makefile
++++ b/apiserver/Makefile
+@@ -143,7 +143,7 @@ run-kubernetes-server: run-k8s-controller-manager
+ 		--rm \
+ 		-v  $(CURDIR):/manifests \
+ 		-v $(CERTS_PATH):/home/user/certs \
+-		bitnami/kubectl:$(subst v,,$(K8S_VERSION)) \
++		rancher/kubectl:v$(subst v,,$(KUBECTL_VERSION)) \
+ 		--kubeconfig=/home/user/certs/kubeconfig \
+ 		apply -f /manifests/test/mock-node.yaml
+ 
+@@ -154,7 +154,7 @@ run-kubernetes-server: run-k8s-controller-manager
+ 		--rm \
+ 		-v  $(CURDIR):/manifests \
+ 		-v $(CERTS_PATH):/home/user/certs \
+-		bitnami/kubectl:$(subst v,,$(K8S_VERSION)) \
++		rancher/kubectl:v$(subst v,,$(KUBECTL_VERSION)) \
+ 		--kubeconfig=/home/user/certs/kubeconfig \
+ 		apply -f /manifests/test/namespaces.yaml
+ 
+diff --git a/calicoctl/tests/st/utils/utils.py b/calicoctl/tests/st/utils/utils.py
+index 38f2df5ad..bcf4f6599 100644
+--- a/calicoctl/tests/st/utils/utils.py
++++ b/calicoctl/tests/st/utils/utils.py
+@@ -242,7 +242,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+ 
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+ 
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
+diff --git a/felix/Makefile b/felix/Makefile
+index 922544fc0..7ae3de39b 100644
+--- a/felix/Makefile
++++ b/felix/Makefile
+@@ -67,7 +67,7 @@ endif
+ 
+ FV_ETCDIMAGE?=$(ETCD_IMAGE)
+ FV_TYPHAIMAGE?=felix-test/typha:latest-$(BUILDARCH)
+-FV_K8SIMAGE=calico/go-build:$(GO_BUILD_VER)
++FV_K8SIMAGE=calico/go-build:$(GO_BUILD_VER)-s390x
+ FV_FELIXIMAGE?=$(FELIX_IMAGE):latest-$(ARCH)
+ 
+ # Total number of batches to split the tests into.  In CI we set this to say 5 batches,
+diff --git a/felix/fv/utils/utils.go b/felix/fv/utils/utils.go
+index bde959b11..9bcd20676 100644
+--- a/felix/fv/utils/utils.go
++++ b/felix/fv/utils/utils.go
+@@ -46,7 +46,7 @@ type EnvConfig struct {
+ 	// Note: These are overridden in the Makefile!
+ 	FelixImage   string `default:"calico/felix:latest"`
+ 	EtcdImage    string `default:"quay.io/coreos/etcd"`
+-	K8sImage     string `default:"calico/go-build:latest"`
++	K8sImage     string `default:"calico/go-build:v0.91-s390x"`
+ 	TyphaImage   string `default:"calico/typha:latest"`
+ 	BusyboxImage string `default:"busybox:latest"`
+ }
+diff --git a/lib.Makefile b/lib.Makefile
+index 97279f97f..e807e9b55 100644
+--- a/lib.Makefile
++++ b/lib.Makefile
+@@ -136,7 +136,7 @@ endif
+ # the one for the host should contain all the necessary cross-compilation tools
+ # we do not need to use the arch since go-build:v0.15 now is multi-arch manifest
+ GO_BUILD_IMAGE ?= calico/go-build
+-CALICO_BUILD    = $(GO_BUILD_IMAGE):$(GO_BUILD_VER)
++CALICO_BUILD    = $(GO_BUILD_IMAGE):$(GO_BUILD_VER)-s390x
+ 
+ 
+ # We use BoringCrypto as FIPS validated cryptography in order to allow users to run in FIPS Mode (amd64 only).
+@@ -265,7 +265,7 @@ CERTS_PATH := $(REPO_ROOT)/hack/test/certs
+ QEMU_IMAGE ?= calico/qemu-user-static:latest
+ 
+ # DOCKER_BUILD is the base build command used for building all images.
+-DOCKER_BUILD=docker buildx build --load --platform=linux/$(ARCH) --pull \
++DOCKER_BUILD=docker buildx build --load --platform=linux/$(ARCH) \
+ 	     --build-arg QEMU_IMAGE=$(QEMU_IMAGE) \
+ 	     --build-arg UBI_IMAGE=$(UBI_IMAGE) \
+ 	     --build-arg GIT_VERSION=$(GIT_VERSION)
+diff --git a/node/calico_test/Dockerfile b/node/calico_test/Dockerfile
+index c40b96e7c..e763a8c05 100644
+--- a/node/calico_test/Dockerfile
++++ b/node/calico_test/Dockerfile
+@@ -33,7 +33,7 @@
+ # - volume mount your ST source code
+ # - run 'nosetests'
+
+-FROM docker:18.09
++FROM s390x/docker:latest
+
+ ARG ETCD_VERSION
+ ARG TARGETARCH
