@@ -1,0 +1,117 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 582e574..4ea0037 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -241,7 +241,7 @@ INCLUDE(FindCouchbaseCurl)
+ INCLUDE(FindCouchbaseLua)
+ INCLUDE(FindCouchbaseErlang)
+ INCLUDE(FindCouchbaseGo)
+-INCLUDE(FindCouchbaseBreakpad)
++#INCLUDE(FindCouchbaseBreakpad)
+ INCLUDE(FindCouchbaseFlatbuffers)
+ INCLUDE(FindCouchbaseValgrind)
+ INCLUDE(FindCouchbaseV8)
+diff --git a/cmake/Modules/CBDownloadDeps.cmake b/cmake/Modules/CBDownloadDeps.cmake
+index dbf0c26..898d7bb 100644
+--- a/cmake/Modules/CBDownloadDeps.cmake
++++ b/cmake/Modules/CBDownloadDeps.cmake
+@@ -319,6 +319,8 @@ IF (NOT CBDownloadDeps_INCLUDED)
+       # Presumed Linux
+       IF (_arch STREQUAL "aarch64")
+         SET (_gofile "go${GOVERSION}.linux-arm64.tar.gz")
++      ELSEIF (_arch STREQUAL "s390x")
++       SET (_gofile "go${GOVERSION}.linux-s390x.tar.gz")
+       ELSE ()
+         SET (_gofile "go${GOVERSION}.linux-amd64.tar.gz")
+       ENDIF ()
+diff --git a/cmake/Modules/FindCouchbaseFolly.cmake b/cmake/Modules/FindCouchbaseFolly.cmake
+index 7153e05..6a2727d 100644
+--- a/cmake/Modules/FindCouchbaseFolly.cmake
++++ b/cmake/Modules/FindCouchbaseFolly.cmake
+@@ -9,7 +9,7 @@ INCLUDE(FindCouchbaseDoubleConversion)
+ INCLUDE(FindCouchbaseGlog)
+ INCLUDE(FindCouchbaseLibevent)
+ INCLUDE(FindCouchbaseOpenSSL)
+-
++INCLUDE(FindCouchbaseGflags)
+ include(PlatformIntrospection)
+ include(SelectLibraryConfigurations)
+
+@@ -95,6 +95,7 @@ endif()
+ set(folly_dependancies ${DOUBLE_CONVERSION_LIBRARIES}
+             ${GLOG_LIBRARIES}
+             ${CMAKE_DL_LIBS}
++           ${GFLAGS_LIBRARIES}
+             Boost::context
+             Boost::filesystem
+             Boost::program_options
+@@ -147,7 +148,8 @@ target_include_directories(Folly::headers INTERFACE
+         ${FOLLY_CONFIG_INCLUDE_DIR}
+         ${Boost_INCLUDE_DIR}
+         ${DOUBLE_CONVERSION_INCLUDE_DIR}
+-        ${GLOG_INCLUDE_DIR})
++        ${GLOG_INCLUDE_DIR}
++       ${GFLAGS_INCLUDE_DIR})
+
+ # Append Folly's depenancies to the include / lib variables so users
+ # of Folly pickup the dependancies automatically.
+@@ -157,6 +159,7 @@ set(FOLLY_INCLUDE_DIR
+     ${Boost_INCLUDE_DIR}
+     ${DOUBLE_CONVERSION_INCLUDE_DIR}
+     ${GLOG_INCLUDE_DIR}
++    ${GFLAGS_INCLUDE_DIR}
+     CACHE STRING "Folly include directories" FORCE)
+
+ foreach(variant FOLLY_LIBRARIES FOLLY_LIBRARIES_UNSANITIZED)
+diff --git a/cmake/Modules/FindCouchbaseGflags.cmake b/cmake/Modules/FindCouchbaseGflags.cmake
+new file mode 100644
+index 0000000..8277e63
+--- /dev/null
++++ b/cmake/Modules/FindCouchbaseGflags.cmake
+@@ -0,0 +1,18 @@
++# Locate Google Glog library
++# This module defines
++#  GLOG_LIBRARIES, Library path and libs
++#  GLOG_INCLUDE_DIR, where to find the headers
++set(_gflags_exploded /usr/local)
++
++find_path(GFLAGS_INCLUDE_DIR gflags/gflags.h
++          PATH_SUFFIXES include
++          PATHS ${_gflags_exploded} /usr)
++
++find_library(GFLAGS_LIBRARIES
++             NAMES gflags
++             HINTS ${_gflags_exploded}/lib
++             /usr/lib/s390x-linux-gnu
++ .           /usr/lib64)
++message(STATUS "Found gflag at ${GFLAGS_INCLUDE_DIR} and ${GFLAGS_LIBRARIES}")
++
++mark_as_advanced(GFLAGS_INCLUDE_DIR GFLAGS_LIBRARIES)
+diff --git a/cmake/Modules/PlatformIntrospection.cmake b/cmake/Modules/PlatformIntrospection.cmake
+index f34f745..5eb5f6f 100644
+--- a/cmake/Modules/PlatformIntrospection.cmake
++++ b/cmake/Modules/PlatformIntrospection.cmake
+@@ -253,8 +253,9 @@ MACRO (CB_GET_SUPPORTED_PLATFORM _is_supported_platform)
+        "linux"
+        "macosx"
+        "rhel8"
++       "rhel9"
+        "suse12" "suse15"
+-       "ubuntu16.04" "ubuntu18.04" "ubuntu20.04"
++       "ubuntu16.04" "ubuntu18.04" "ubuntu20.04" "ubuntu22.04"
+        "windows_msvc2017"
+        "windows_msvc2022")
+   LIST (FIND _supported_platforms ${_platform} _index)
+diff --git a/deps/manifest.cmake b/deps/manifest.cmake
+index 0af72ad..c90bd7f 100644
+--- a/deps/manifest.cmake
++++ b/deps/manifest.cmake
+@@ -17,7 +17,7 @@
+ # in this same directory!
+ #
+ DECLARE_DEP (benchmark VERSION v1.6.2-cb2 PLATFORMS linux macosx windows)
+-DECLARE_DEP (breakpad V2 VERSION 20200430 BUILD 4 PLATFORMS linux windows)
++#DECLARE_DEP (breakpad V2 VERSION 20200430 BUILD 4 PLATFORMS linux windows)
+ DECLARE_DEP (boost VERSION 1.82.0-cb1 PLATFORMS linux macosx windows)
+ DECLARE_DEP (cbpy V2 VERSION 3.11.8 BUILD 2 PLATFORMS linux macosx windows DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/python/interp")
+ DECLARE_DEP (curl V2 VERSION 8.6.0 BUILD 1 PLATFORMS linux macosx windows)
