@@ -86,7 +86,7 @@ function prepare() {
 }
 
 function cleanup() {
-    rm -rf "$SOURCE_ROOT/$GOLANG_VERSION" "$SOURCE_ROOT/etcd-v3.5.6-linux-s390x" "$SOURCE_ROOT/etcd-v3.5.6-linux-s390x.tar.gz"
+    rm -rf "$SOURCE_ROOT/$GO_VER_CALICO" "$SOURCE_ROOT/$GO_VER_GO_BUILD" "$SOURCE_ROOT/etcd-v3.5.6-linux-s390x" "$SOURCE_ROOT/etcd-v3.5.6-linux-s390x.tar.gz"
     printf -- '\nCleaned up the artifacts.\n' >>"$LOG_FILE"
 }
 
