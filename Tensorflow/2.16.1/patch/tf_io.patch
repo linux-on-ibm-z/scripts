@@ -1,0 +1,13 @@
+diff --git a/setup.py b/setup.py
+index 2f8c2ad3..90ba54c2 100644
+--- a/setup.py
++++ b/setup.py
+@@ -167,7 +167,7 @@ setuptools.setup(
+     ],
+     keywords="tensorflow io machine learning",
+     packages=setuptools.find_packages(where=".", exclude=exclude),
+-    python_requires=">=3.7, <3.12",
++    python_requires=">=3.7, <3.12.2",
+     install_requires=install_requires,
+     extras_require={
+         "tensorflow": [require],
