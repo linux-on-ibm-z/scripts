@@ -46,6 +46,19 @@ index 922544fc0..7ae3de39b 100644
  FV_FELIXIMAGE?=$(FELIX_IMAGE):latest-$(ARCH)
  
  # Total number of batches to split the tests into.  In CI we set this to say 5 batches,
+diff --git a/felix/docker-image/Dockerfile b/felix/docker-image/Dockerfile
+index 38b86b34b..6756d6441 100644
+--- a/felix/docker-image/Dockerfile
++++ b/felix/docker-image/Dockerfile
+@@ -23,7 +23,7 @@ FROM ${QEMU_IMAGE} as qemu
+
+ FROM calico/bpftool:v5.3-${TARGETARCH} as bpftool
+
+-FROM debian:11-slim as source
++FROM debian:12-slim as source
+
+ LABEL maintainer="Shaun Crampton <shaun@tigera.io>"
+
 diff --git a/felix/fv/utils/utils.go b/felix/fv/utils/utils.go
 index bde959b11..9bcd20676 100644
 --- a/felix/fv/utils/utils.go
