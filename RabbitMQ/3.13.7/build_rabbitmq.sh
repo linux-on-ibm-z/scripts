@@ -68,12 +68,7 @@ function configureAndInstall() {
 	# Install Erlang
 	printf -- "\nBuilding Erlang \n"
 	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/$ERLANG_VERSION/build_erlang.sh
-    chmod +x build_erlang.sh
-
-	if [[ "$DISTRO" == "sles-15.6" ]]; then
-		sed -i '361d' build_erlang.sh
-		sed -i 's/libopenssl-1_1-devel //' build_erlang.sh
-	fi
+        chmod +x build_erlang.sh
 
 	bash build_erlang.sh -y
 	export ERL_TOP=/usr/local/erlang
@@ -193,7 +188,7 @@ case "$DISTRO" in
 "sles-12.5" | "sles-15.5" | "sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
-	sudo zypper install -y rsync make tar wget gcc gcc-c++ glibc-locale glibc-i18ndata sed curl zip unzip libxslt xsltproc patch subversion procps git-core python3-devel python3-xml java-1_8_0-openjdk  java-1_8_0-openjdk-devel perl libopenssl-devel libssh-devel ncurses-devel unixODBC unixODBC-devel xz gzip gawk libnghttp2-devel net-tools |& tee -a "${LOG_FILE}"
+	sudo zypper install -y rsync make tar wget gcc gcc-c++ glibc-locale glibc-i18ndata sed curl zip unzip libxslt xsltproc patch subversion procps git-core python3-devel python3-xml java-1_8_0-openjdk  java-1_8_0-openjdk-devel perl ncurses-devel unixODBC unixODBC-devel xz gzip gawk libnghttp2-devel net-tools |& tee -a "${LOG_FILE}"
 	sudo ln -sf /usr/bin/python3 /usr/bin/python
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
