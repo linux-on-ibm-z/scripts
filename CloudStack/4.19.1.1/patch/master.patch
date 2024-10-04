@@ -1,0 +1,481 @@
+diff --git a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResource.java b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResource.java
+--- a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResource.java	(revision 4ea342cad3db3bb6cf4758000c9575d1675105bf)
++++ b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResource.java	(revision 2aab5cd1b47985a0bcb7bc90053d732657b2c5cc)
+@@ -242,8 +242,8 @@
+     /**
+      * Machine type.
+      */
+-    private static final String PC = "pc";
+-    private static final String VIRT = "virt";
++    private static final String PC = ("s390x".equals(System.getProperty("os.arch"))) ? "s390-ccw-virtio" : "pc";
++    private static final String VIRT = ("s390x".equals(System.getProperty("os.arch"))) ? "s390-ccw-virtio" :"virt";
+
+     /**
+      * Possible devices to add to VM.
+@@ -299,7 +299,11 @@
+     /**
+      * Constant that defines ARM64 (aarch64) guest architectures.
+      */
+-    private static final String AARCH64 = "aarch64";
++     private static final String AARCH64 = "aarch64";
++     /**
++     * Constant that defines IBM Z Arch (s390x) guest architectures.
++     */
++    private static final String S390X = "s390x";
+
+     public static final String RESIZE_NOTIFY_ONLY = "NOTIFYONLY";
+     public static final String BASEPATH = "/usr/share/cloudstack-common/vms/";
+@@ -1780,7 +1784,8 @@
+             "^dummy",
+             "^lo",
+             "^p\\d+p\\d+",
+-            "^vni"
++            "^vni",
++            "^enc"
+     };
+
+     /**
+@@ -2626,11 +2631,15 @@
+         }
+
+         devices.addDevice(createChannelDef(vmTO));
+-        devices.addDevice(createWatchDogDef());
++        if (!isGuestS390x()) {
++            devices.addDevice(createWatchDogDef());
++        }
+         devices.addDevice(createVideoDef(vmTO));
+         devices.addDevice(createConsoleDef());
+         devices.addDevice(createGraphicDef(vmTO));
+-        devices.addDevice(createTabletInputDef());
++        if (!isGuestS390x()) {
++            devices.addDevice(createTabletInputDef());
++        }
+
+         if (isGuestAarch64()) {
+             createArm64UsbDef(devices);
+@@ -2830,6 +2839,10 @@
+         return AARCH64.equals(guestCpuArch);
+     }
+
++    private boolean isGuestS390x() {
++        return S390X.equals(guestCpuArch);
++    }
++
+     /**
+      * Creates a guest definition from a VM specification.
+      */
+@@ -2838,7 +2851,7 @@
+
+         configureGuestAndVMHypervisorType(vmTO, vm, guest);
+         guest.setGuestArch(guestCpuArch != null ? guestCpuArch : vmTO.getArch());
+-        guest.setMachineType(isGuestAarch64() ? VIRT : PC);
++        guest.setMachineType((isGuestAarch64() || isGuestS390x()) ? VIRT : PC);
+         guest.setBootType(GuestDef.BootType.BIOS);
+         if (MapUtils.isNotEmpty(customParams)) {
+             if (customParams.containsKey(GuestDef.BootType.UEFI.toString())) {
+@@ -2852,7 +2865,9 @@
+             guest.setIothreads(customParams.containsKey(VmDetailConstants.IOTHREADS));
+         }
+         guest.setUuid(uuid);
+-        guest.setBootOrder(GuestDef.BootOrder.CDROM);
++        if(!isGuestS390x()) {
++            guest.setBootOrder(GuestDef.BootOrder.CDROM);
++        }
+         guest.setBootOrder(GuestDef.BootOrder.HARDISK);
+         return guest;
+     }
+@@ -3080,7 +3095,7 @@
+
+                 disk.defISODisk(volPath, devId, isUefiEnabled);
+
+-                if (guestCpuArch != null && guestCpuArch.equals("aarch64")) {
++                if (guestCpuArch != null && (guestCpuArch.equals("aarch64") || guestCpuArch.equals("s390x"))) {
+                     disk.setBusType(DiskDef.DiskBus.SCSI);
+                 }
+             } else {
+@@ -3168,7 +3183,7 @@
+         if (vmSpec.getType() != VirtualMachine.Type.User) {
+             final DiskDef iso = new DiskDef();
+             iso.defISODisk(sysvmISOPath);
+-            if (guestCpuArch != null && guestCpuArch.equals("aarch64")) {
++            if (guestCpuArch != null && (guestCpuArch.equals("aarch64") || guestCpuArch.equals("s390x"))) {
+                 iso.setBusType(DiskDef.DiskBus.SCSI);
+             }
+             vm.getDevices().addDevice(iso);
+@@ -4202,7 +4217,7 @@
+             return DiskDef.DiskBus.VIRTIO;
+         } else if (isUefiEnabled && StringUtils.startsWithAny(platformEmulator, "Windows", "Other")) {
+             return DiskDef.DiskBus.SATA;
+-        } else if (guestCpuArch != null && guestCpuArch.equals("aarch64")) {
++        } else if (guestCpuArch != null && (guestCpuArch.equals("aarch64") || guestCpuArch.equals("s390x"))) {
+             return DiskDef.DiskBus.SCSI;
+         } else {
+             return DiskDef.DiskBus.IDE;
+Index: plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
+===================================================================
+diff --git a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
+--- a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java	(revision 4ea342cad3db3bb6cf4758000c9575d1675105bf)
++++ b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java	(revision 373620faf1f0ce71b3e39c1a699e857ad075e3eb)
+@@ -222,7 +222,9 @@
+                         guestDef.append("<boot dev='" + bo + "'/>\n");
+                     }
+                 }
+-                guestDef.append("<smbios mode='sysinfo'/>\n");
++                if (!(_arch != null && _arch.equals("s390x"))) {
++                    guestDef.append("<smbios mode='sysinfo'/>\n");
++                }
+                 guestDef.append("</os>\n");
+                 if (iothreads) {
+                     guestDef.append(String.format("<iothreads>%s</iothreads>", NUMBER_OF_IOTHREADS));
+@@ -554,7 +556,7 @@
+                 }
+             }
+
+-            if (_emulator != null && _emulator.endsWith("aarch64")) {
++            if (_emulator != null && (_emulator.endsWith("aarch64") || _emulator.endsWith("s390x"))) {
+                 devicesBuilder.append("<controller type='pci' model='pcie-root'/>\n");
+                 for (int i = 0; i < 32; i++) {
+                   devicesBuilder.append("<controller type='pci' model='pcie-root-port'/>\n");
+@@ -1565,7 +1567,7 @@
+             if (_scriptPath != null) {
+                 netBuilder.append("<script path='" + _scriptPath + "'/>\n");
+             }
+-            if (_pxeDisable) {
++            if (_pxeDisable && !"s390x".equals(System.getProperty("os.arch"))) {
+                 netBuilder.append("<rom bar='off' file=''/>");
+             }
+             if (_virtualPortType != null) {
+Index: server/src/main/java/com/cloud/hypervisor/HypervisorGuruBase.java
+===================================================================
+diff --git a/server/src/main/java/com/cloud/hypervisor/HypervisorGuruBase.java b/server/src/main/java/com/cloud/hypervisor/HypervisorGuruBase.java
+--- a/server/src/main/java/com/cloud/hypervisor/HypervisorGuruBase.java	(revision 4ea342cad3db3bb6cf4758000c9575d1675105bf)
++++ b/server/src/main/java/com/cloud/hypervisor/HypervisorGuruBase.java	(revision 2aab5cd1b47985a0bcb7bc90053d732657b2c5cc)
+@@ -267,7 +267,11 @@
+         if (vmProfile.getTemplate().getBits() == 32) {
+             to.setArch("i686");
+         } else {
+-            to.setArch("x86_64");
++            if("s390x".equals(System.getProperty("os.arch"))) {
++                to.setArch("s390x");
++            } else {
++                to.setArch("x86_64");
++            }
+         }
+
+         Map<String, String> detailsInVm = _userVmDetailsDao.listDetailsKeyPairs(vm.getId());
+Index: agent/src/main/java/com/cloud/agent/properties/AgentProperties.java
+===================================================================
+diff --git a/agent/src/main/java/com/cloud/agent/properties/AgentProperties.java b/agent/src/main/java/com/cloud/agent/properties/AgentProperties.java
+--- a/agent/src/main/java/com/cloud/agent/properties/AgentProperties.java	(revision cfbaf190205f9fe1098aeacb026b809d26b473db)
++++ b/agent/src/main/java/com/cloud/agent/properties/AgentProperties.java	(revision 2aab5cd1b47985a0bcb7bc90053d732657b2c5cc)
+@@ -383,7 +383,7 @@
+     /**
+      * This param will set the CPU architecture for the domain to override what the management server would send.<br>
+      * In case of arm64 (aarch64), this will change the machine type to 'virt' and add a SCSI and a USB controller in the domain XML.<br>
+-     * Possible values: x86_64 | aarch64 <br>
++     * Possible values: x86_64 | aarch64 | s390x <br>
+      * Data type: String.<br>
+      * Default value: <code>null</code> (will set use the architecture of the VM's OS).
+      */
+Index: plugins/hypervisors/kvm/src/main/java/org/apache/cloudstack/utils/linux/KVMHostInfo.java
+===================================================================
+diff --git a/plugins/hypervisors/kvm/src/main/java/org/apache/cloudstack/utils/linux/KVMHostInfo.java b/plugins/hypervisors/kvm/src/main/java/org/apache/cloudstack/utils/linux/KVMHostInfo.java
+--- a/plugins/hypervisors/kvm/src/main/java/org/apache/cloudstack/utils/linux/KVMHostInfo.java	(revision cfbaf190205f9fe1098aeacb026b809d26b473db)
++++ b/plugins/hypervisors/kvm/src/main/java/org/apache/cloudstack/utils/linux/KVMHostInfo.java	(revision 2aab5cd1b47985a0bcb7bc90053d732657b2c5cc)
+@@ -130,7 +130,10 @@
+         try {
+             LOGGER.info("Fetching CPU speed from command \"lscpu\".");
+             String command = "lscpu | grep -i 'Model name' | head -n 1 | egrep -o '[[:digit:]].[[:digit:]]+GHz' | sed 's/GHz//g'";
+-            String result = Script.runSimpleBashScript(command);
++            if("s390x".equals(System.getProperty("os.arch"))) {
++                command = "lscpu | grep 'CPU dynamic MHz' | cut -d ':' -f 2 | tr -d ' ' | awk '{printf \"%.1f\\n\", $1 / 1000}'";
++            }
++                String result = Script.runSimpleBashScript(command);
+             long speed = (long) (Float.parseFloat(result) * 1000);
+             LOGGER.info(String.format("Command [%s] resulted in the value [%s] for CPU speed.", command, speed));
+             return speed;
+Index: plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
+===================================================================
+diff --git a/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java b/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
+--- a/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java	(revision cfbaf190205f9fe1098aeacb026b809d26b473db)
++++ b/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java	(revision 2aab5cd1b47985a0bcb7bc90053d732657b2c5cc)
+@@ -390,7 +390,7 @@
+         VirtualMachineTO to = createDefaultVM(false);
+         LibvirtVMDef vm = new LibvirtVMDef();
+         GuestDef guestDef = libvirtComputingResourceSpy.createGuestFromSpec(to, vm, to.getUuid(), null);
+-        verifySysInfo(guestDef, "smbios", to.getUuid(), "pc");
++        verifySysInfo(guestDef, "smbios", to.getUuid(), "s390-ccw-virtio");
+         Assert.assertEquals(GuestDef.BootType.BIOS, guestDef.getBootType());
+         Assert.assertNull(guestDef.getBootMode());
+     }
+@@ -815,7 +815,7 @@
+     }
+
+     private void verifyOsType(Document domainDoc) {
+-        assertXpath(domainDoc, "/domain/os/type/@machine", "pc");
++        assertXpath(domainDoc, "/domain/os/type/@machine", "s390-ccw-virtio");
+         assertXpath(domainDoc, "/domain/os/type/text()", "hvm");
+     }
+
+Index: packaging/centos8/cloud.spec
+===================================================================
+diff --git a/packaging/centos8/cloud.spec b/packaging/centos8/cloud.spec
+--- a/packaging/centos8/cloud.spec	(revision 64adedca0ae6577297ef597089609390457eddb4)
++++ b/packaging/centos8/cloud.spec	(revision 053480ea5672bf568441bb3c7c3af057dd6dfbb7)
+@@ -124,10 +124,9 @@
+ %package baremetal-agent
+ Summary: CloudStack baremetal agent
+ Requires: tftp-server
+-Requires: xinetd
+-Requires: syslinux
++Requires: syslinux-tftpboot
+ Requires: chkconfig
+-Requires: dhcp
++Requires: dhcp-server
+ Requires: httpd
+ Group:     System Environment/Libraries
+ %description baremetal-agent
+Index: tools/appliance/systemvmtemplate/scripts/configure_grub.sh
+===================================================================
+diff --git a/tools/appliance/systemvmtemplate/scripts/configure_grub.sh b/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
+--- a/tools/appliance/systemvmtemplate/scripts/configure_grub.sh	(revision 373620faf1f0ce71b3e39c1a699e857ad075e3eb)
++++ b/tools/appliance/systemvmtemplate/scripts/configure_grub.sh	(revision e3278807b7cdf81f2e012d3fb0d6b39ddc322cdd)
+@@ -42,8 +42,8 @@
+
+ EOF
+
+-  grub-mkconfig -o /boot/grub/grub.cfg
+-  update-grub
++#  grub-mkconfig -o /boot/grub/grub.cfg
++#  update-grub
+ }
+
+ return 2>/dev/null || configure_grub
+Index: tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
+===================================================================
+diff --git a/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh b/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
+--- a/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh	(revision 373620faf1f0ce71b3e39c1a699e857ad075e3eb)
++++ b/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh	(revision e3278807b7cdf81f2e012d3fb0d6b39ddc322cdd)
+@@ -106,7 +106,7 @@
+   # Disable services that slow down boot and are not used anyway
+   systemctl disable apache2
+   systemctl disable conntrackd
+-  systemctl disable console-setup
++#  systemctl disable console-setup
+   systemctl disable dnsmasq
+   systemctl disable haproxy
+   systemctl disable keepalived
+@@ -114,21 +114,21 @@
+   systemctl disable strongswan-starter
+   systemctl disable x11-common
+   systemctl disable xl2tpd
+-  systemctl disable vgauth
++#  systemctl disable vgauth
+   systemctl disable sshd
+   systemctl disable nfs-common
+   systemctl disable portmap
+
+   # Disable guest services which will selectively be started based on hypervisor
+-  systemctl disable open-vm-tools
+-  systemctl disable xe-daemon
+-  systemctl disable hyperv-daemons.hv-fcopy-daemon.service
+-  systemctl disable hyperv-daemons.hv-kvp-daemon.service
+-  systemctl disable hyperv-daemons.hv-vss-daemon.service
++#  systemctl disable open-vm-tools
++#  systemctl disable xe-daemon
++#  systemctl disable hyperv-daemons.hv-fcopy-daemon.service
++#  systemctl disable hyperv-daemons.hv-kvp-daemon.service
++#  systemctl disable hyperv-daemons.hv-vss-daemon.service
+   systemctl disable qemu-guest-agent
+
+   # Disable container services
+-  systemctl disable containerd
++#  systemctl disable containerd
+
+   # Disable cloud init by default
+ cat <<EOF > /etc/cloud/cloud.cfg.d/cloudstack.cfg
+Index: tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
+===================================================================
+diff --git a/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh b/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
+--- a/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh	(revision 373620faf1f0ce71b3e39c1a699e857ad075e3eb)
++++ b/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh	(revision e3278807b7cdf81f2e012d3fb0d6b39ddc322cdd)
+@@ -50,7 +50,7 @@
+
+   local apt_get="apt-get --no-install-recommends -q -y"
+
+-  ${apt_get} install grub-legacy \
++  ${apt_get} install \
+     rsyslog logrotate cron net-tools ifupdown tmux vim-tiny htop netbase iptables nftables \
+     openssh-server e2fsprogs tcpdump iftop socat wget coreutils systemd \
+     python python3 python3-flask ieee-data \
+@@ -63,7 +63,6 @@
+     nfs-common \
+     samba-common cifs-utils \
+     xl2tpd bcrelay ppp tdb-tools \
+-    xenstore-utils libxenstore3.0 \
+     ipvsadm conntrackd libnetfilter-conntrack3 \
+     keepalived irqbalance \
+     openjdk-11-jre-headless \
+@@ -75,7 +74,7 @@
+     radvd \
+     sharutils genisoimage \
+     strongswan libcharon-extra-plugins libstrongswan-extra-plugins strongswan-charon strongswan-starter \
+-    virt-what open-vm-tools qemu-guest-agent hyperv-daemons cloud-guest-utils \
++    virt-what qemu-guest-agent cloud-guest-utils \
+     conntrack apt-transport-https ca-certificates curl gnupg  gnupg-agent software-properties-common
+
+   apt-get install -y python3-json-pointer python3-jsonschema cloud-init
+@@ -94,19 +93,19 @@
+   fi
+
+   # Install docker and containerd for CKS
+-  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+-  apt-key fingerprint 0EBFCD88
+-  add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+-  apt-get update
+-  ${apt_get} install containerd.io
++#  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
++#  apt-key fingerprint 0EBFCD88
++#  add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
++#  apt-get update
++#  ${apt_get} install containerd.io
+
+   apt_clean
+
+-  install_vhd_util
++#  install_vhd_util
+   # Install xenserver guest utilities as debian repos don't have it
+-  wget https://mirrors.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
+-  dpkg -i xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
+-  rm -f xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
++#  wget https://mirrors.kernel.org/ubuntu/pool/main/x/xe-guest-utilities/xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
++#  dpkg -i xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
++#  rm -f xe-guest-utilities_7.10.0-0ubuntu1_amd64.deb
+ }
+
+ return 2>/dev/null || install_packages
+Index: tools/appliance/systemvmtemplate/scripts/build_s390x_systemvm.sh
+===================================================================
+diff --git a/tools/appliance/systemvmtemplate/scripts/build_s390x_systemvm.sh b/tools/appliance/systemvmtemplate/scripts/build_s390x_systemvm.sh
+new file mode 100644
+--- /dev/null	(revision 86769554cf5b262d2a8815a4b47e6f58d6ad3fb9)
++++ b/tools/appliance/systemvmtemplate/scripts/build_s390x_systemvm.sh	(revision 86769554cf5b262d2a8815a4b47e6f58d6ad3fb9)
+@@ -0,0 +1,33 @@
++#!/bin/bash
++
++apt install sudo sharutils
++base_command="echo 'cloud' | sudo -u root -S bash"
++
++scripts=(
++  "../../shar_cloud_scripts.sh"
++  "apt_upgrade.sh"
++  "configure_grub.sh"
++  "configure_locale.sh"
++  "configure_networking.sh"
++  "configure_acpid.sh"
++  "install_systemvm_packages.sh"
++  "configure_conntrack.sh"
++  "authorized_keys.sh"
++  "configure_persistent_config.sh"
++  "configure_login.sh"
++  "cloud_scripts_shar_archive.sh"
++  "configure_systemvm_services.sh"
++  "cleanup.sh"
++  "finalize.sh"
++)
++
++for script in "${scripts[@]}"; do
++  command="$base_command $script"
++  echo "Executing: $script"
++  eval "$command"
++
++  if [ $? -ne 0 ]; then
++    echo "Error executing $script"
++    exit 1
++  fi
++done
+\ No newline at end of file
+Index: tools/appliance/systemvmtemplate/scripts/finalize.sh
+===================================================================
+diff --git a/tools/appliance/systemvmtemplate/scripts/finalize.sh b/tools/appliance/systemvmtemplate/scripts/finalize.sh
+--- a/tools/appliance/systemvmtemplate/scripts/finalize.sh	(revision 1e3d6a8829e9fdbb0968aec8d8c773da77a890d8)
++++ b/tools/appliance/systemvmtemplate/scripts/finalize.sh	(revision 219113b3742e5d84a82a035c7cc806fde1658629)
+@@ -67,7 +67,61 @@
+   done
+ }
+
++# Adding step to rename nic on network change from default enc[n] to eth[n-1]:
++function setup_nic_rename() {
++  touch /etc/boot_marker
++  cat << 'EOF' | sudo tee /usr/local/bin/rename_nics.sh > /dev/null
++#!/bin/bash
++
++current_interfaces=$(ip -o link show | awk -F': ' '{print $2}')
++
++for iface in $(echo "$current_interfaces" | grep -E '^enc[0-9]+$' | sort -V); do
++    if [[ $iface =~ ^enc([0-9]+)$ ]]; then
++        new_iface_name="eth$((${BASH_REMATCH[1]} - 1))"
++
++        if ! ip link show | grep -q "$new_iface_name"; then
++            ip link set $iface down
++            ip link set $iface name $new_iface_name
++            ip link set $new_iface_name up
++        else
++            echo "Skipping $iface: $new_iface_name already exists"
++        fi
++    fi
++done
++fi
++EOF
++
++  chmod +x /usr/local/bin/rename_nics.sh
++  echo 'ACTION=="add|change", SUBSYSTEM=="net", RUN+="/usr/local/bin/rename_nics.sh"' | sudo tee /etc/udev/rules.d/99-rename-nics.rules > /dev/null
++  udevadm control --reload-rules
++
++  cat << 'EOF' | sudo tee /usr/local/bin/chk_reboot.sh > /dev/null
++#!/bin/bash
++if [ -f '/etc/boot_marker' ]; then
++  sleep 10
++  rm -f '/etc/boot_marker'
++  /sbin/reboot
++fi
++EOF
++
++  chmod +x /usr/local/bin/chk_reboot.sh
++  cat << 'EOF' | sudo tee /etc/systemd/system/chk_reboot.service > /dev/null
++[Unit]
++Description=Check for marker file and reboot if found
++[Service]
++Type=oneshot
++ExecStart=/usr/local/bin/chk_reboot.sh
++RemainAfterExit=yes
++[Install]
++WantedBy=multi-user.target
++EOF
++
++  systemctl daemon-reload
++  systemctl enable chk_reboot.service
++}
++
+ function finalize() {
++  setup_nic_rename
+   configure_misc
+   configure_rundisk_size
+   configure_sudoers
+Index: agent/conf/agent.properties
+===================================================================
+diff --git a/agent/conf/agent.properties b/agent/conf/agent.properties
+--- a/agent/conf/agent.properties	(revision 25669e21840837c7457c9226446c7b561c32b2b6)
++++ b/agent/conf/agent.properties	(revision 51399659fd14e67419b805716654ba06666b6cb0)
+@@ -209,9 +209,9 @@
+ # the management server would send.
+ # In case of arm64 (aarch64), this will change the machine type to 'virt' and
+ # adds a SCSI and a USB controller in the domain xml.
+-# Possible values: x86_64 | aarch64
++# Possible values: x86_64 | aarch64 | s390x
+ # If null (default), defaults to the VM's OS architecture
+-#guest.cpu.arch=
++guest.cpu.arch=s390x
+
+ # This param will require CPU features on the CPU section.
+ # The features listed in this property must be separated by a blank space (e.g.: vmx vme)

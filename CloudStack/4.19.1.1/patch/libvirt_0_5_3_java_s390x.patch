@@ -1,0 +1,28 @@
+Subject: [PATCH] libvirt_0.5.3_java_s390x
+---
+Index: src/main/java/org/libvirt/DomainInfo.java
+===================================================================
+diff --git a/src/main/java/org/libvirt/DomainInfo.java b/src/main/java/org/libvirt/DomainInfo.java
+--- a/src/main/java/org/libvirt/DomainInfo.java	(revision bc67940722b7fcfd3fedba0cf2f1829f41f94517)
++++ b/src/main/java/org/libvirt/DomainInfo.java	(date 1726205195726)
+@@ -1,6 +1,7 @@
+ package org.libvirt;
+
+ import org.libvirt.jna.virDomainInfo;
++import java.nio.ByteOrder;
+
+ /**
+  * This object is returned by Domain.getInfo()
+@@ -79,7 +80,11 @@
+         maxMem = info.maxMem.longValue();
+         memory = info.memory.longValue();
+         nrVirtCpu = info.nrVirtCpu;
+-        state = DomainState.values()[info.state];
++        int stateValue = info.state;
++        if (ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN) {
++            stateValue = Integer.reverseBytes(stateValue);
++        }
++        state = DomainState.values()[stateValue];
+     }
+
+     @Override
