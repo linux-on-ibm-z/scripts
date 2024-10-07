@@ -13,7 +13,7 @@ PACKAGE_VERSION="4.19.1.1"
 LIBVIRT_PACKAGE_VERSION=0.5.3
 
 SOURCE_ROOT="$(pwd)"
-export PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/cloudstack/4.19.1.1/patch/"
+export PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CloudStack/4.19.1.1/patch/"
 FORCE="false"
 
 source /etc/os-release
