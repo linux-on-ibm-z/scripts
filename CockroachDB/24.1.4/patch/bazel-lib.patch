@@ -1,0 +1,62 @@
+diff --git a/lib/private/copy_directory_toolchain.bzl b/lib/private/copy_directory_toolchain.bzl
+index dcafb66..b275218 100644
+--- a/lib/private/copy_directory_toolchain.bzl
++++ b/lib/private/copy_directory_toolchain.bzl
+@@ -47,6 +47,12 @@ COPY_DIRECTORY_PLATFORMS = {
+             "@platforms//cpu:x86_64",
+         ],
+     ),
++    "linux_s390x": struct(
++        compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:s390x",
++        ],
++    ),
+ }
+
+ CopyToDirectoryInfo = provider(
+diff --git a/lib/private/copy_to_directory_toolchain.bzl b/lib/private/copy_to_directory_toolchain.bzl
+index 8792ac8..cba9f27 100644
+--- a/lib/private/copy_to_directory_toolchain.bzl
++++ b/lib/private/copy_to_directory_toolchain.bzl
+@@ -47,6 +47,12 @@ COPY_TO_DIRECTORY_PLATFORMS = {
+             "@platforms//cpu:x86_64",
+         ],
+     ),
++    "linux_s390x": struct(
++        compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:s390x",
++        ],
++    ),
+ }
+
+ CopyToDirectoryInfo = provider(
+diff --git a/lib/private/tar_toolchain.bzl b/lib/private/tar_toolchain.bzl
+index 868e1e3..8fe2561 100644
+--- a/lib/private/tar_toolchain.bzl
++++ b/lib/private/tar_toolchain.bzl
+@@ -32,6 +32,12 @@ BSDTAR_PLATFORMS = {
+             "@platforms//cpu:x86_64",
+         ],
+     ),
++    "linux_s390x": struct(
++       compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:s390x",
++        ],
++    ),
+ }
+
+ BSDTAR_PREBUILT = {
+@@ -55,6 +61,10 @@ BSDTAR_PREBUILT = {
+         "https://github.com/libarchive/libarchive/releases/download/v3.7.2/libarchive-v3.7.2-amd64.zip",
+         "e06f10043b1b148eb38ad06cff678af05beade0bdd2edd8735a198c521fa3993",
+     ),
++    "linux_s390x": (
++        "file:///usr/bin/bsdtar",
++        "BSDTAR_SHA256SUM",
++    ),
+ }
+
+ def _bsdtar_binary_repo(rctx):
