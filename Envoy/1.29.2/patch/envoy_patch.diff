@@ -1,5 +1,5 @@
 diff --git a/.bazelrc b/.bazelrc
-index ffd0b37c0f..a274c195e7 100644
+index ffd0b37..a274c19 100644
 --- a/.bazelrc
 +++ b/.bazelrc
 @@ -84,8 +84,9 @@ build:sanitizer --linkopt -ldl
@@ -15,7 +15,7 @@ index ffd0b37c0f..a274c195e7 100644
  build:clang-pch --spawn_strategy=local
  build:clang-pch --define=ENVOY_CLANG_PCH=1
 diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
-index aa93c9c838..ff68acb6c8 100644
+index aa93c9c..bfceb17 100644
 --- a/bazel/repositories.bzl
 +++ b/bazel/repositories.bzl
 @@ -403,6 +403,7 @@ def _boringssl():
@@ -25,7 +25,7 @@ index aa93c9c838..ff68acb6c8 100644
 +           "@envoy//bazel:boringssl-s390x.patch",
          ],
      )
-
+ 
 @@ -702,7 +703,10 @@ def _com_github_facebook_zstd():
  def _com_google_cel_cpp():
      external_http_archive(
@@ -37,8 +37,8 @@ index aa93c9c838..ff68acb6c8 100644
 +	],
          patch_args = ["-p1"],
      )
-
-@@ -1096,6 +1097,8 @@ def _com_github_google_quiche():
+ 
+@@ -1096,6 +1100,8 @@ def _com_github_google_quiche():
      external_http_archive(
          name = "com_github_google_quiche",
          patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
@@ -47,7 +47,7 @@ index aa93c9c838..ff68acb6c8 100644
          build_file = "@envoy//bazel/external:quiche.BUILD",
      )
      native.bind(
-@@ -1148,7 +1151,7 @@ def _com_github_grpc_grpc():
+@@ -1148,7 +1154,7 @@ def _com_github_grpc_grpc():
      external_http_archive(
          name = "com_github_grpc_grpc",
          patch_args = ["-p1"],
@@ -55,8 +55,8 @@ index aa93c9c838..ff68acb6c8 100644
 +        patches = ["@envoy//bazel:grpc.patch","@envoy//bazel:grpc-s390x.patch",],
      )
      external_http_archive("build_bazel_rules_apple")
-
-@@ -1289,7 +1293,7 @@ def _com_github_luajit_luajit():
+ 
+@@ -1289,7 +1295,7 @@ def _com_github_luajit_luajit():
      external_http_archive(
          name = "com_github_luajit_luajit",
          build_file_content = BUILD_ALL_CONTENT,
@@ -65,22 +65,21 @@ index aa93c9c838..ff68acb6c8 100644
          patch_args = ["-p1"],
          patch_cmds = ["chmod u+x build.py"],
      )
-
 diff --git a/bazel/repositories_extra.bzl b/bazel/repositories_extra.bzl
-index a5bc2d5277..070a2c820d 100644
+index a5bc2d5..070a2c8 100644
 --- a/bazel/repositories_extra.bzl
 +++ b/bazel/repositories_extra.bzl
 @@ -9,7 +9,7 @@ def _python_minor_version(python_version):
      return "_".join(python_version.split(".")[:-1])
-
+ 
  # Python version for `rules_python`
 -PYTHON_VERSION = "3.11.3"
 +PYTHON_VERSION = "3.11.4"
  PYTHON_MINOR_VERSION = _python_minor_version(PYTHON_VERSION)
-
+ 
  # Envoy deps that rely on a first stage of dependency loading in envoy_dependencies().
 diff --git a/bazel/repository_locations.bzl b/bazel/repository_locations.bzl
-index 65e7486638..9d484b4f79 100644
+index 65e7486..cd192c0 100644
 --- a/bazel/repository_locations.bzl
 +++ b/bazel/repository_locations.bzl
 @@ -469,21 +469,21 @@ REPOSITORY_LOCATIONS_SPEC = dict(
@@ -111,3 +110,12 @@ index 65e7486638..9d484b4f79 100644
      ),
      com_github_nghttp2_nghttp2 = dict(
          project_name = "Nghttp2",
+@@ -1191,7 +1191,7 @@ REPOSITORY_LOCATIONS_SPEC = dict(
+         project_url = "https://quiche.googlesource.com/googleurl",
+         # Static snapshot of https://quiche.googlesource.com/googleurl/+archive/dd4080fec0b443296c0ed0036e1e776df8813aa7.tar.gz
+         version = "dd4080fec0b443296c0ed0036e1e776df8813aa7",
+-        sha256 = "59f14d4fb373083b9dc8d389f16bbb817b5f936d1d436aa67e16eb6936028a51",
++        sha256 = "fc694942e8a7491dcc1dde1bddf48a31370a1f46fef862bc17acf07c34dc6325",
+         urls = ["https://storage.googleapis.com/quiche-envoy-integration/{version}.tar.gz"],
+         use_category = ["controlplane", "dataplane_core"],
+         extensions = [],
