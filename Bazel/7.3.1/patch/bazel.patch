@@ -241,7 +241,7 @@ index 6cbc5b5..c66fb42 100644
 +            'bazel_dep(name = "rules_java", version = "")',
 +            'local_path_override(',
 +            '    module_name = "rules_java",',
-+            '    path = "/root/rules_java",',
++            '    path = "RULES_JAVA_ROOT_PATH/rules_java",',
 +            ')',
              (
                  'http_jar ='
@@ -259,7 +259,7 @@ index eb52d46..1fea966 100644
 +        'bazel_dep(name = "rules_java", version = "")',
 +        'local_path_override(',
 +        '    module_name = "rules_java",',
-+        '    path = "/root/rules_java",',
++        '    path = "RULES_JAVA_ROOT_PATH/rules_java",',
 +        ')',
 +        'bazel_dep(name="test",version="1.0")',
 +        ])
@@ -317,7 +317,7 @@ index dab1a35..253ac96 100755
 +bazel_dep(name = "rules_java", version = "")
 +local_path_override(
 +  module_name = "rules_java",
-+  path = "/root/rules_java",
++  path = "RULES_JAVA_ROOT_PATH/rules_java",
 +)
  EOF
 
