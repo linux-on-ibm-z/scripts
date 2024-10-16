@@ -439,7 +439,6 @@ EOF
     ncurses-devel boost-devel check-devel perl-Test-Simple perl-Time-HiRes  pam-devel hostname \
     bison aspell MariaDB-server MariaDB-client mysql-devel |& tee -a "$LOG_FILE"
   sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
-  source /opt/rh/gcc-toolset-10/enable
   buildCmocka |& tee -a "$LOG_FILE"
   buildPHP |& tee -a "$LOG_FILE"
   configureAndInstall |& tee -a "$LOG_FILE"
