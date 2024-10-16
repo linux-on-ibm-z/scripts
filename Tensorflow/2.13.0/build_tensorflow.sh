@@ -313,7 +313,7 @@ case "$DISTRO" in
 	setupPython |& tee -a "${LOG_FILE}"
 	sudo ldconfig
 	sudo pip3 install --upgrade pip |& tee -a "${LOG_FILE}"
-	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel scipy==$SCIPY_VERSION portpicker protobuf opt_einsum packaging requests psutil setuptools==59.5.0 |& tee -a "${LOG_FILE}"
+	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel scipy==$SCIPY_VERSION portpicker protobuf opt_einsum packaging requests h5py==3.11.0 psutil setuptools==59.5.0 |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 	
