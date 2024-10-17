@@ -1,0 +1,39 @@
+diff --git a/felix/docker-image/Dockerfile b/felix/docker-image/Dockerfile
+index b4e90aa52..7d3457eb5 100644
+--- a/felix/docker-image/Dockerfile
++++ b/felix/docker-image/Dockerfile
+@@ -23,7 +23,7 @@ FROM ${QEMU_IMAGE} AS qemu
+
+ FROM calico/bpftool:v7.4.0 AS bpftool
+
+-FROM debian:11-slim AS source
++FROM debian:12-slim AS source
+
+ LABEL maintainer="Shaun Crampton <shaun@tigera.io>"
+
+diff --git a/metadata.mk b/metadata.mk
+index 7de5e8791..6696cc49f 100644
+--- a/metadata.mk
++++ b/metadata.mk
+@@ -3,7 +3,7 @@
+ #################################################################################################
+
+ # The version of github.com/projectcalico/go-build to use.
+-GO_BUILD_VER=v0.91
++GO_BUILD_VER=v0.92
+ # Env var to ACK Ginkgo deprecation warnings, may need updating with go-build.
+ ACK_GINKGO=ACK_GINKGO_DEPRECATIONS=1.16.5
+
+diff --git a/node/calico_test/Dockerfile b/node/calico_test/Dockerfile
+index c40b96e7c..e763a8c05 100644
+--- a/node/calico_test/Dockerfile
++++ b/node/calico_test/Dockerfile
+@@ -33,7 +33,7 @@
+ # - volume mount your ST source code
+ # - run 'nosetests'
+
+-FROM docker:18.09
++FROM s390x/docker:latest
+
+ ARG ETCD_VERSION
+ ARG TARGETARCH
