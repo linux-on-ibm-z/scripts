@@ -172,15 +172,6 @@ gettingStarted() {
 eof
 
     case "$DISTRO" in
-    "sles-12.5")
-        cat <<-eof
-      export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/lib64/pkgconfig:\$PKG_CONFIG_PATH
-      export LD_LIBRARY_PATH=$PREFIX/lib:$PREFIX/lib64:\$LD_LIBRARY_PATH
-      export LD_RUN_PATH=$PREFIX/lib:\$LD_RUN_PATH
-      export SSL_CERT_FILE=/usr/local/etc/openssl/cacert.pem
-eof
-        ;;
-		
     "sles-15.5" | "sles-15.6")
         cat <<-eof
 	  export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/lib64/pkgconfig:\$PKG_CONFIG_PATH
@@ -199,21 +190,6 @@ eof
 }
 
 #==============================================================================
-buildOpenssl() {
-    local ver=1.1.1g
-    msg "Building openssl $ver"
-    cd $SOURCE_ROOT
-    wget https://www.openssl.org/source/old/1.1.1/openssl-$ver.tar.gz --no-check-certificate
-    tar xvf openssl-$ver.tar.gz
-    cd openssl-$ver
-    ./config --prefix=$PREFIX
-    make
-    sudo make install
-    sudo mkdir -p /usr/local/etc/openssl
-    cd /usr/local/etc/openssl
-    sudo wget https://curl.se/ca/cacert.pem --no-check-certificate
-}
-
 buildcurl760() {
     local ver=7.60.0
     msg "Building curl $ver"
@@ -313,39 +289,8 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
     #----------------------------------------------------------
-"sles-12.5")
-
-    sudo zypper install -y \
-        autoconf curl libtool libxml2 \
-        libxml2-devel readline readline-devel libcurl4 \
-        libcurl-devel libreadline6 nginx \
-        libzip-devel libzip2 pkg-config oniguruma-devel git \
-        tar postgresql10-devel postgresql10 \
-        sqlite3-devel zlib-devel gcc13 gcc13-c++ bzip2 \
-        make gmp-devel mpfr-devel mpc-devel wget |& tee -a "$LOG_FILE"
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    export CC=/usr/bin/gcc-13
-    export CXX=/usr/bin/g++-13
-    buildcurl760 |& tee -a "$LOG_FILE"
-    buildOpenssl |& tee -a "$LOG_FILE"
-
-    PATH=$PREFIX/bin${PATH:+:$PATH}
-    export PATH
-    PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/lib64/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
-    export PKG_CONFIG_PATH
-    LD_LIBRARY_PATH=$PREFIX/lib:$PREFIX/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-    export LD_LIBRARY_PATH
-    LD_RUN_PATH=$PREFIX/lib:$PREFIX/lib64${LD_RUN_PATH:+:$LD_RUN_PATH}
-    export LD_RUN_PATH
-    export SSL_CERT_FILE=/usr/local/etc/openssl/cacert.pem
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-    #----------------------------------------------------------
-    
 "sles-15.5" | "sles-15.6")
-    
+
     sudo zypper install -y \
         autoconf curl libtool openssl-devel libxml2 \
         libxml2-devel readline readline-devel \
