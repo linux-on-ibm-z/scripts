@@ -210,6 +210,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y curl gzip libnghttp2-devel which gcc git-core make wget awk unzip tar python3 python3-pip |& tee -a "$LOG_FILE"
+    export PATH="${SOURCE_ROOT}/.local/bin:${PATH}"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
