@@ -74,9 +74,6 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
     rm -rf ${CURDIR}/build_netty.sh ${CURDIR}/Chronicle-Bytes
-    if [[ "$VERSION_ID" == "12.5" ]]; then
-        rm -rf ${CURDIR}/Python-3.7.4.tgz
-    fi
     if [[ "$JAVA_PROVIDED" == "Temurin11" ]]; then
         rm -rf ${CURDIR}/temurin11.tar.gz
     fi
@@ -134,16 +131,7 @@ function configureAndInstall() {
 
     # Java setup
     java_setup
-
-    # Install maven (for SLES 12.5)
-    if [[ "$VERSION_ID" == "12.5" ]]; then
-        printf -- "\nInstalling maven\n"
-        cd "$CURDIR"
-        wget https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-        tar -xvzf apache-maven-3.6.3-bin.tar.gz
-        export PATH=$PATH:$CURDIR/apache-maven-3.6.3/bin/
-    fi
-
+    
     # Build netty
     printf -- "Build netty\n" >>"$LOG_FILE"
     cd "$CURDIR"
@@ -175,32 +163,6 @@ function configureAndInstall() {
 
         echo 'export PATH=$ANT_HOME/bin:$PATH' >>"$BUILD_ENV"
         printf -- "Installed Ant \n" >>"$LOG_FILE"
-    fi
-
-    # Install Python3.7 (Only SLES 12.5)
-    if [[ "$VERSION_ID" == "12.5" ]]; then
-        printf -- "Build openssl 1.1.1q for sles12.5\n" >>"$LOG_FILE"
-        wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz --no-check-certificate
-        tar -xzf openssl-1.1.1q.tar.gz
-        cd openssl-1.1.1q
-        ./config --prefix=/usr/local --openssldir=/usr/local
-        make
-        sudo make install
-        sudo ldconfig /usr/local/lib64
-        export PATH=/usr/local/bin:$PATH
-
-        export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
-        export LD_LIBRARY_PATH="/usr/local/lib/:/usr/local/lib64/"
-        export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
-
-        printf -- "Build python3 for sles12.5\n" >>"$LOG_FILE"
-        cd "$CURDIR"
-        wget https://www.python.org/ftp/python/3.11.2/Python-3.11.2.tgz
-        tar -xzf Python-3.11.2.tgz
-        cd Python-3.11.2
-        ./configure
-        make -j$(nproc)
-        sudo make install
     fi
 
     # Set Env
@@ -347,15 +309,6 @@ case "$DISTRO" in
 "rhel-9.2" | "rhel-9.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo yum install -y curl ant junit ant-junit git which gcc-c++ make automake autoconf libtool libstdc++ tar wget patch words libXt-devel libX11-devel texinfo unzip python3-devel maven procps gawk |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-
-"sles-12.5")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo zypper install -y curl git which make wget tar zip unzip words gcc7 gcc7-c++ patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libffi48-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo gawk gdbm-devel libbz2-devel libdb-4_8-devel libopenssl-devel libuuid-devel readline-devel xz-devel zlib-devel libffi48-devel |& tee -a "$LOG_FILE"
-    sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
-    sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
-    sudo ln -sf /usr/bin/gcc /usr/bin/cc
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 

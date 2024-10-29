@@ -112,58 +112,7 @@ function configureAndInstall() {
     export PATH=$JAVA_HOME/bin:$PATH
     printf -- "Java version is :\n"
     java -version
-
-    # Install ninja (for SLES 12 SP5 and RHEL 7.x)
-    if [[ "${DISTRO}" == "rhel-7"* || "$VERSION_ID" == "12.5" ]]; then
-
-        printf -- "\nInstalling ninja . . . \n"
-        cd $SOURCE_ROOT
-        git clone https://github.com/ninja-build/ninja
-        cd ninja
-        git checkout v1.8.2
-        ./configure.py --bootstrap
-        export PATH=$SOURCE_ROOT/ninja:$PATH
-    fi
-
-    # Install maven (for SLES and RHEL 7.x)
-    if [[ "${DISTRO}" == "rhel-7"* || "$VERSION_ID" == "12.5" ]]; then
-    #if [[ "${DISTRO}" == "rhel-7"* || "$ID" == "sles" ]]; then
-        printf -- "\nInstalling maven . . . \n"
-        cd $SOURCE_ROOT
-        wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
-        tar -xvzf apache-maven-${MAVEN_VERSION}-bin.tar.gz
-        export PATH=$PATH:$SOURCE_ROOT/apache-maven-${MAVEN_VERSION}/bin/
-    fi
-
-    # Install GO (for RHEL 7.x and SLES only)
-    if [[ "${DISTRO}" == "rhel-7"* || "$VERSION_ID" == "12.5" ]]; then
-    #if [[ "$ID" == "sles" || "${DISTRO}" == "rhel-7"* ]]; then
-        cd $SOURCE_ROOT
-        sudo rm -rf /usr/local/go /usr/bin/go
-        wget https://storage.googleapis.com/golang/go1.18.linux-s390x.tar.gz
-        sudo tar -C /usr/local -xzf go1.18.linux-s390x.tar.gz
-        export PATH=/usr/local/go/bin:$PATH
-        export GOROOT=/usr/local/go
-        export GOPATH=/usr/local/go/bin
-    fi
-
-    # Install cmake 3.7 (for RHEL 7.x and SLES 12 SP5)
-    if [[ "${DISTRO}" == "rhel-7"* ]]; then
-        cd $SOURCE_ROOT
-        wget https://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
-        tar xzf cmake-3.7.2.tar.gz
-        cd cmake-3.7.2
-        ./configure --prefix=/usr/local
-        sudo make && sudo make install
-    elif [[ "$VERSION_ID" == "12.5" ]]; then
-        cd $SOURCE_ROOT
-        wget https://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
-        tar xzf cmake-3.7.2.tar.gz
-        cd cmake-3.7.2
-        ./bootstrap --prefix=/usr
-        sudo gmake && sudo gmake install
-    fi
-
+    
     # Build netty-tcnative
     cd $SOURCE_ROOT
     git clone https://github.com/netty/netty-tcnative.git
@@ -179,7 +128,7 @@ function configureAndInstall() {
     sed -i '55,55 s/chromium-stable/patch-s390x-Jan2021/g' boringssl-static/pom.xml
     sed -i 's/verbose=\"on\"/verbose=\"on\" retries=\"5\"/g' libressl-static/pom.xml
 
-    if [[ "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-23.10" || "${DISTRO}" == "ubuntu-24.04" || "${DISTRO}" == "rhel-9"* ]]; then
+    if [[ "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-24.04" || "${DISTRO}" == "rhel-9"* ]]; then
         curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff
         cp gcc_patch.diff /tmp/gcc_patch.diff
 
@@ -253,19 +202,11 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10" | "ubuntu-24.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update -y
     sudo apt-get install -y ninja-build cmake perl golang libssl-dev libapr1-dev autoconf automake libtool make tar git wget maven curl |& tee -a "${LOG_FILE}"
-    configureAndInstall |& tee -a "${LOG_FILE}"
-    ;;
-"rhel-7.8" | "rhel-7.9")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo subscription-manager repos --enable=rhel-7-server-for-system-z-rhscl-rpms || true
-    sudo yum install -y perl devtoolset-7-gcc-c++ devtoolset-7-gcc openssl-devel apr-devel autoconf automake libtool make tar git wget |& tee -a "${LOG_FILE}"
-    source /opt/rh/devtoolset-7/enable
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 "rhel-8."* | "rhel-9."*)
@@ -274,16 +215,7 @@ case "$DISTRO" in
     sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive openssl-devel apr-devel autoconf automake libtool make tar git wget golang |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
-"sles-12.5")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y perl libopenssl-devel libapr1-devel autoconf automake libtool make tar git wget gcc7 gcc7-c++ gmake |& tee -a "${LOG_FILE}"
-    sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
-    sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
-    sudo ln -sf /usr/bin/gcc /usr/bin/cc
-    configureAndInstall |& tee -a "${LOG_FILE}"
-    ;;
-"sles-15.5")
+"sles-15.5" | "sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y awk ninja cmake perl libopenssl-devel apr-devel autoconf automake libtool make tar git wget gcc gcc-c++ gzip maven go |& tee -a "${LOG_FILE}"
