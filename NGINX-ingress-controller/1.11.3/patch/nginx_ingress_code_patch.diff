@@ -1,0 +1,99 @@
+diff --git a/Makefile b/Makefile
+index 1c35c12..dab04c7 100644
+--- a/Makefile
++++ b/Makefile
+@@ -49,7 +49,7 @@ BUILD_ID ?= "UNSET"
+ PKG = k8s.io/ingress-nginx
+
+ HOST_ARCH = $(shell which go >/dev/null 2>&1 && go env GOARCH)
+-ARCH ?= $(HOST_ARCH)
++ARCH ?= s390x
+ ifeq ($(ARCH),)
+     $(error mandatory variable ARCH is empty, either set it when calling the command or make sure 'go env GOARCH' works)
+ endif
+@@ -240,8 +240,8 @@ ensure-buildx:
+ show-version:
+ 	echo -n $(TAG)
+
+-PLATFORMS ?= amd64 arm arm64
+-BUILDX_PLATFORMS ?= linux/amd64,linux/arm,linux/arm64
++PLATFORMS ?= amd64 arm arm64 s390x
++BUILDX_PLATFORMS ?= linux/amd64,linux/arm,linux/arm64,linnux/s390x
+
+ .PHONY: release # Build a multi-arch docker image
+ release: ensure-buildx clean
+diff --git a/build/run-in-docker.sh b/build/run-in-docker.sh
+index 095e09b..bb1c3d5 100755
+--- a/build/run-in-docker.sh
++++ b/build/run-in-docker.sh
+@@ -44,7 +44,7 @@ function cleanup {
+ }
+ trap cleanup EXIT
+
+-E2E_IMAGE=${E2E_IMAGE:-registry.k8s.io/ingress-nginx/e2e-test-runner:v20241004-114a6abb@sha256:1389ec0589abbf5c431c9290c4c307437c8396995c63dda5eac26abd70963dc8}
++E2E_IMAGE=${E2E_IMAGE:-gcr.io/ingress-nginx/e2e-test-runner:v1.11.3}
+
+ if [[ "$RUNTIME" == podman ]]; then
+   # Podman does not support both tag and digest
+diff --git a/images/test-runner/Makefile b/images/test-runner/Makefile
+index 74da208..5ed77fd 100644
+--- a/images/test-runner/Makefile
++++ b/images/test-runner/Makefile
+@@ -36,7 +36,7 @@ GO_VERSION ?= $(shell cat $(DIR)/../../GOLANG_VERSION)
+ export DOCKER_CLI_EXPERIMENTAL=enabled
+
+ # build with buildx
+-PLATFORMS?=linux/amd64,linux/arm64
++PLATFORMS?=linux/amd64,linux/arm64,linux/s390x
+ OUTPUT?=
+ PROGRESS=plain
+
+@@ -63,9 +63,8 @@ image:
+ 		--build-arg GOLINT_VERSION=latest \
+ 		-t ${IMAGE}:${TAG} rootfs
+
+-build: ensure-buildx
+-	docker buildx build \
+-		--platform=${PLATFORMS} ${OUTPUT} \
++build:
++	docker build \
+ 		--progress=${PROGRESS} \
+ 		--pull \
+ 		--build-arg BASE_IMAGE=${NGINX_BASE_IMAGE} \
+@@ -82,6 +81,7 @@ build: ensure-buildx
+ 		--build-arg HELM_VERSION=3.14.4 \
+ 		--build-arg GINKGO_VERSION=2.20.2 \
+ 		--build-arg GOLINT_VERSION=latest \
++		--build-arg TARGETARCH=s390x \
+ 		-t ${IMAGE}:${TAG} rootfs
+
+ # push the cross built image
+diff --git a/images/test-runner/rootfs/Dockerfile b/images/test-runner/rootfs/Dockerfile
+index 7bcc2f2..e93bff0 100644
+--- a/images/test-runner/rootfs/Dockerfile
++++ b/images/test-runner/rootfs/Dockerfile
+@@ -48,6 +48,7 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+
+ COPY --from=etcd /usr/local/bin/etcd /usr/local/bin/etcd
+
++ENV ETCD_UNSUPPORTED_ARCH=s390x
+ RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+
+ RUN apk update && apk upgrade && apk add --no-cache \
+@@ -99,16 +100,6 @@ RUN wget -qO /usr/local/bin/kube-apiserver \
+   https://dl.k8s.io/release/${K8S_RELEASE}/bin/linux/${TARGETARCH}/kube-apiserver \
+   && chmod +x /usr/local/bin/kube-apiserver
+
+-RUN wget -qO /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz \
+-  https://github.com/helm/chart-testing/releases/download/v${CHART_TESTING_VERSION}/chart-testing_${CHART_TESTING_VERSION}_linux_${TARGETARCH}.tar.gz \
+-  && mkdir -p /tmp/ct-download \
+-  && tar xzvf /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz -C /tmp/ct-download \
+-  && rm /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz \
+-  && cp /tmp/ct-download/ct /usr/local/bin \
+-  && mkdir -p /etc/ct \
+-  && cp -R /tmp/ct-download/etc/* /etc/ct \
+-  && rm -rf /tmp/*
+-
+ RUN wget -qO /usr/local/bin/lj-releng \
+   https://raw.githubusercontent.com/openresty/openresty-devel-utils/master/lj-releng \
+   && chmod +x /usr/local/bin/lj-releng
