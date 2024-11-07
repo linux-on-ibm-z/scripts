@@ -1,0 +1,40 @@
+diff --git a/pkg/agent/plugin/nodeattestor/tpmdevid/devid_test.go b/pkg/agent/plugin/nodeattestor/tpmdevid/devid_test.go
+index e164342d..ba06b31e 100644
+--- a/pkg/agent/plugin/nodeattestor/tpmdevid/devid_test.go
++++ b/pkg/agent/plugin/nodeattestor/tpmdevid/devid_test.go
+@@ -1,4 +1,4 @@
+-//go:build !darwin
++//go:build !darwin && !s390x
+ 
+ package tpmdevid_test
+ 
+diff --git a/pkg/agent/plugin/nodeattestor/tpmdevid/tpmutil/session_test.go b/pkg/agent/plugin/nodeattestor/tpmdevid/tpmutil/session_test.go
+index 53bff710..5491e6ed 100644
+--- a/pkg/agent/plugin/nodeattestor/tpmdevid/tpmutil/session_test.go
++++ b/pkg/agent/plugin/nodeattestor/tpmdevid/tpmutil/session_test.go
+@@ -1,4 +1,4 @@
+-//go:build !darwin
++//go:build !darwin && !s390x
+ 
+ package tpmutil_test
+ 
+diff --git a/pkg/server/plugin/nodeattestor/tpmdevid/devid_test.go b/pkg/server/plugin/nodeattestor/tpmdevid/devid_test.go
+index a6745059..b73bdbe0 100644
+--- a/pkg/server/plugin/nodeattestor/tpmdevid/devid_test.go
++++ b/pkg/server/plugin/nodeattestor/tpmdevid/devid_test.go
+@@ -1,4 +1,4 @@
+-//go:build !darwin
++//go:build !darwin && !s390x
+ 
+ package tpmdevid_test
+ 
+diff --git a/test/tpmsimulator/simulator.go b/test/tpmsimulator/simulator.go
+index 83e2c3c6..98a612d1 100644
+--- a/test/tpmsimulator/simulator.go
++++ b/test/tpmsimulator/simulator.go
+@@ -1,4 +1,4 @@
+-//go:build !darwin
++//go:build !darwin && !s390x
+ 
+ package tpmsimulator
+ 
