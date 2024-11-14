@@ -1,0 +1,413 @@
+diff --git a/source/extensions/common/wasm/context.cc b/source/extensions/common/wasm/context.cc
+index d21983da96..8c079fea5f 100644
+--- a/source/extensions/common/wasm/context.cc
++++ b/source/extensions/common/wasm/context.cc
+@@ -336,9 +336,49 @@ void Context::onStatsUpdate(Envoy::Stats::MetricSnapshot& snapshot) {
+   wasm()->on_stats_update_(this, id_, counter_block_size + gauge_block_size);
+ }
+ 
++static void assignNumeric(const char* value, size_t length, std::string* result,
++                          [[maybe_unused]] bool uses_wasm_byte_order) {
++#ifdef ABSL_IS_LITTLE_ENDIAN
++  result->assign(value, length);
++#else
++  if (!uses_wasm_byte_order) {
++    result->assign(value, length);
++    return;
++  }
++
++  switch (length) {
++  case 8: {
++    uint64_t value_uint64_le;
++    safeMemcpyUnsafeSrc(&value_uint64_le, value);
++    value_uint64_le = le64toh(value_uint64_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint64_le), length);
++    break;
++  }
++  case 4: {
++    uint32_t value_uint32_le;
++    safeMemcpyUnsafeSrc(&value_uint32_le, value);
++    value_uint32_le = le32toh(value_uint32_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint32_le), length);
++    break;
++  }
++  case 2: {
++    uint16_t value_uint16_le;
++    safeMemcpyUnsafeSrc(&value_uint16_le, value);
++    value_uint16_le = le16toh(value_uint16_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint16_le), length);
++    break;
++  }
++  default:
++    result->assign(value, length);
++    break;
++  }
++#endif
++}
++
+ // Native serializer carrying over bit representation from CEL value to the extension.
+ // This implementation assumes that the value type is static and known to the consumer.
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result) {
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order) {
+   using Filters::Common::Expr::CelValue;
+   int64_t out_int64;
+   uint64_t out_uint64;
+@@ -354,15 +394,18 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     return WasmResult::Ok;
+   case CelValue::Type::kInt64:
+     out_int64 = value.Int64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kUint64:
+     out_uint64 = value.Uint64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kDouble:
+     out_double = value.DoubleOrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_double), sizeof(double));
++    assignNumeric(reinterpret_cast<const char*>(&out_double), sizeof(double), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kBool:
+     out_bool = value.BoolOrDie();
+@@ -371,12 +414,14 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+   case CelValue::Type::kDuration:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToInt64Nanoseconds(value.DurationOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kTimestamp:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToUnixNanos(value.TimestampOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kMessage:
+     out_message = value.MessageOrDie();
+@@ -394,10 +439,11 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& keys = *keys_list.value();
+     std::vector<std::pair<std::string, std::string>> pairs(map.size(), std::make_pair("", ""));
+     for (auto i = 0; i < map.size(); i++) {
+-      if (serializeValue(keys[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(keys[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+-      if (serializeValue(map[keys[i]].value(), &pairs[i].second) != WasmResult::Ok) {
++      if (serializeValue(map[keys[i]].value(), &pairs[i].second, uses_wasm_byte_order) !=
++          WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -414,7 +460,7 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& list = *value.ListOrDie();
+     std::vector<std::pair<std::string, std::string>> pairs(list.size(), std::make_pair("", ""));
+     for (auto i = 0; i < list.size(); i++) {
+-      if (serializeValue(list[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(list[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -652,7 +698,7 @@ WasmResult Context::getProperty(std::string_view path, std::string* result) {
+     }
+   }
+ 
+-  return serializeValue(value, result);
++  return serializeValue(value, result, wasmVm()->usesWasmByteOrder());
+ }
+ 
+ // Header/Trailer/Metadata Maps.
+diff --git a/source/extensions/common/wasm/context.h b/source/extensions/common/wasm/context.h
+index 77dbba0..34a8484 100644
+--- a/source/extensions/common/wasm/context.h
++++ b/source/extensions/common/wasm/context.h
+@@ -453,7 +453,8 @@ protected:
+ };
+ using ContextSharedPtr = std::shared_ptr<Context>;
+ 
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result);
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order);
+ 
+ } // namespace Wasm
+ } // namespace Common
+diff --git a/source/extensions/common/wasm/foreign.cc b/source/extensions/common/wasm/foreign.cc
+index 17527f8dac..4f555c06e3 100644
+--- a/source/extensions/common/wasm/foreign.cc
++++ b/source/extensions/common/wasm/foreign.cc
+@@ -207,7 +207,7 @@ public:
+         return WasmResult::InternalFailure;
+       }
+       std::string result;
+-      auto serialize_status = serializeValue(value, &result);
++      auto serialize_status = serializeValue(value, &result, false);
+       if (serialize_status != WasmResult::Ok) {
+         return serialize_status;
+       }
+diff --git a/test/extensions/common/wasm/context_test.cc b/test/extensions/common/wasm/context_test.cc
+index 5e91cc99d0..9ab8be56e5 100644
+--- a/test/extensions/common/wasm/context_test.cc
++++ b/test/extensions/common/wasm/context_test.cc
+@@ -193,13 +193,13 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   CelValue value = CelValue::CreateMap(&mock_cel_map_);
+   EXPECT_CALL(mock_cel_map_, ListKeys())
+       .WillOnce(testing::Return(absl::UnimplementedError("CelMap::ListKeys is not implemented")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_map_, size()).WillRepeatedly(testing::Return(1));
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -207,7 +207,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -215,7 +215,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+
+ TEST_F(ContextTest, SerializeValueListTest) {
+@@ -225,12 +225,12 @@ TEST_F(ContextTest, SerializeValueListTest) {
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_list_, size()).WillRepeatedly(testing::Return(1));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(1)
+       .WillRepeatedly(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+
+ TEST_F(ContextTest, FindValueTest) {
+diff --git a/test/extensions/filters/http/wasm/test_data/test_cpp.cc b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+index 16fbd59f3c..7e2ed3981d 100644
+--- a/test/extensions/filters/http/wasm/test_data/test_cpp.cc
++++ b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+@@ -77,10 +77,11 @@ bool TestRootContext::onConfigure(size_t size) {
+     }
+     {
+       // Some properties are defined in the root context.
++      const uint64_t expected_listener_direction = 1; // INBOUND
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"listener_direction"}, std::string("\x1\0\0\0\0\0\0\0\0", 8)}, // INBOUND
++          {{"listener_direction"}, std::string(reinterpret_cast<const char*>(&expected_listener_direction), 8)},
+           {{"listener_metadata"}, ""},
+           {{"xds", "node", "metadata", "istio.io/metadata"}, "sample_data"},
+       };
+@@ -585,14 +586,16 @@ void TestContext::onLog() {
+     }
+     {
+       // Some properties are defined in the stream context.
++      const uint64_t expected_listener_direction = 1; // INBOUND
++      const uint64_t expected_connection_id = 4;
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"listener_direction"}, std::string("\x1\0\0\0\0\0\0\0\0", 8)}, // INBOUND
++          {{"listener_direction"}, std::string(reinterpret_cast<const char*>(&expected_listener_direction), 8)},
+           {{"listener_metadata"}, ""},
+           {{"route_name"}, "route12"},
+           {{"cluster_name"}, "fake_cluster"},
+-          {{"connection_id"}, std::string("\x4\0\0\0\0\0\0\0\0", 8)},
++          {{"connection_id"}, std::string(reinterpret_cast<const char*>(&expected_connection_id), 8)},
+           {{"connection", "requested_server_name"}, "w3.org"},
+           {{"source", "address"}, "127.0.0.1:0"},
+           {{"destination", "address"}, "127.0.0.2:0"},
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index bf506c486a..d01ad6d358 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -1271,6 +1271,7 @@ def _proxy_wasm_cpp_host():
+         patch_args = ["-p1"],
+         patches = [
+             "@envoy//bazel:proxy_wasm_cpp_host.patch",
++            "@envoy//bazel:proxy_wasm_cpp_host-s390x.patch",
+         ],
+     )
+
+diff --git a/bazel/proxy_wasm_cpp_host-s390x.patch b/bazel/proxy_wasm_cpp_host-s390x.patch
+new file mode 100644
+index 0000000000..f3e0f98ee7
+--- /dev/null
++++ b/bazel/proxy_wasm_cpp_host-s390x.patch
+@@ -0,0 +1,55 @@
++diff --git a/src/exports.cc b/src/exports.cc
++index 0290dcf..502bb71 100644
++--- a/src/exports.cc
+++++ b/src/exports.cc
++@@ -266,7 +266,7 @@ Word register_shared_queue(Word queue_name_ptr, Word queue_name_size, Word token
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -298,7 +298,7 @@ Word resolve_shared_queue(Word vm_id_ptr, Word vm_id_size, Word queue_name_ptr,
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -524,12 +524,12 @@ Word http_call(Word uri_ptr, Word uri_size, Word header_pairs_ptr, Word header_p
++   uint32_t token = 0;
++   // NB: try to write the token to verify the memory before starting the async
++   // operation.
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   auto result =
++       context->httpCall(uri.value(), headers, body.value(), trailers, timeout_milliseconds, &token);
++-  context->wasm()->setDatatype(token_ptr, token);
+++  context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()));
++   return result;
++ }
++ 
++@@ -596,7 +596,7 @@ Word grpc_call(Word service_ptr, Word service_size, Word service_name_ptr, Word
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
++@@ -621,7 +621,7 @@ Word grpc_stream(Word service_ptr, Word service_size, Word service_name_ptr, Wor
++   if (result != WasmResult::Ok) {
++     return result;
++   }
++-  if (!context->wasm()->setDatatype(token_ptr, token)) {
+++  if (!context->wasm()->setDatatype(token_ptr, htowasm(token, context->wasmVm()->usesWasmByteOrder()))) {
++     return WasmResult::InvalidMemoryAccess;
++   }
++   return WasmResult::Ok;
+diff --git a/source/common/network/io_socket_handle_impl.cc b/source/common/network/io_socket_handle_impl.cc
+index c1d9131..bca2a12 100644
+--- a/source/common/network/io_socket_handle_impl.cc
++++ b/source/common/network/io_socket_handle_impl.cc
+@@ -1,5 +1,6 @@
+ #include "source/common/network/io_socket_handle_impl.h"
+ 
++#include <cstdint>
+ #include <memory>
+ 
+ #include "envoy/buffer/buffer.h"
+@@ -281,6 +282,37 @@ absl::optional<uint32_t> maybeGetPacketsDroppedFromHeader([[maybe_unused]] const
+   return absl::nullopt;
+ }
+ 
++template <typename T> absl::optional<T> maybeGetUnsignedIntFromHeader(const cmsghdr& cmsg) {
++  static_assert(std::is_unsigned_v<T>, "return type must be unsigned integral");
++  switch (cmsg.cmsg_len) {
++  case CMSG_LEN(sizeof(uint8_t)):
++    return static_cast<T>(*reinterpret_cast<const uint8_t*>(CMSG_DATA(&cmsg)));
++  case CMSG_LEN(sizeof(uint16_t)):
++    return static_cast<T>(*reinterpret_cast<const uint16_t*>(CMSG_DATA(&cmsg)));
++  case CMSG_LEN(sizeof(uint32_t)):
++    return static_cast<T>(*reinterpret_cast<const uint32_t*>(CMSG_DATA(&cmsg)));
++  case CMSG_LEN(sizeof(uint64_t)):
++    return static_cast<T>(*reinterpret_cast<const uint64_t*>(CMSG_DATA(&cmsg)));
++  default:;
++  }
++  IS_ENVOY_BUG(
++      fmt::format("unexpected cmsg_len value for unsigned integer payload: {}", cmsg.cmsg_len));
++  return absl::nullopt;
++}
++
++absl::optional<uint8_t> maybeGetTosFromHeader(const cmsghdr& cmsg) {
++  if (
++#ifdef __APPLE__
++      (cmsg.cmsg_level == IPPROTO_IP && cmsg.cmsg_type == IP_RECVTOS) ||
++#else
++      (cmsg.cmsg_level == IPPROTO_IP && cmsg.cmsg_type == IP_TOS) ||
++#endif // __APPLE__
++      (cmsg.cmsg_level == IPPROTO_IPV6 && cmsg.cmsg_type == IPV6_TCLASS)) {
++    return maybeGetUnsignedIntFromHeader<uint8_t>(cmsg);
++  }
++  return absl::nullopt;
++}
++
+ Api::IoCallUint64Result IoSocketHandleImpl::recvmsg(Buffer::RawSlice* slices,
+                                                     const uint64_t num_slice, uint32_t self_port,
+                                                     RecvMsgOutput& output) {
+@@ -352,17 +384,17 @@ Api::IoCallUint64Result IoSocketHandleImpl::recvmsg(Buffer::RawSlice* slices,
+       }
+ #ifdef UDP_GRO
+       if (cmsg->cmsg_level == SOL_UDP && cmsg->cmsg_type == UDP_GRO) {
+-        output.msg_[0].gso_size_ = *reinterpret_cast<uint16_t*>(CMSG_DATA(cmsg));
++        absl::optional<uint16_t> maybe_gso = maybeGetUnsignedIntFromHeader<uint16_t>(*cmsg);
++        if (maybe_gso) {
++          output.msg_[0].gso_size_ = *maybe_gso;
++        }
+       }
+ #endif
+-      if (receive_ecn_ &&
+-#ifdef __APPLE__
+-          ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_RECVTOS) ||
+-#else
+-          ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
+-#endif // __APPLE__
+-           (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS))) {
+-        output.msg_[0].tos_ = *(reinterpret_cast<uint8_t*>(CMSG_DATA(cmsg)));
++      if (receive_ecn_) {
++        absl::optional<uint8_t> maybe_tos = maybeGetTosFromHeader(*cmsg);
++        if (maybe_tos) {
++          output.msg_[0].tos_ = *maybe_tos;
++        }
+       }
+     }
+   }
+@@ -440,15 +472,12 @@ Api::IoCallUint64Result IoSocketHandleImpl::recvmmsg(RawSliceArrays& slices, uin
+       struct cmsghdr* cmsg;
+       for (cmsg = CMSG_FIRSTHDR(&hdr); cmsg != nullptr; cmsg = CMSG_NXTHDR(&hdr, cmsg)) {
+         Address::InstanceConstSharedPtr addr = maybeGetDstAddressFromHeader(*cmsg, self_port);
+-        if (receive_ecn_ &&
+-#ifdef __APPLE__
+-            ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_RECVTOS) ||
+-#else
+-            ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
+-#endif // __APPLE__
+-             (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS))) {
+-          output.msg_[i].tos_ = *(reinterpret_cast<uint8_t*>(CMSG_DATA(cmsg)));
+-          continue;
++        if (receive_ecn_) {
++          absl::optional<uint8_t> maybe_tos = maybeGetTosFromHeader(*cmsg);
++          if (maybe_tos) {
++            output.msg_[0].tos_ = *maybe_tos;
++            continue;
++          }
+         }
+         if (addr != nullptr) {
+           // This is a IP packet info message.
