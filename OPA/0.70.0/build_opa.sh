@@ -99,7 +99,7 @@ function configureAndInstall() {
         git clone --depth 1 -b v$PACKAGE_VERSION https://github.com/open-policy-agent/opa.git
     fi
     cd opa
-    curl -sSL ${PATCH_URL}/opa.diff | patch -p1 --forward || echo "Error: patch failed."
+    curl -sSL ${PATCH_URL}/opa.diff | git apply - || echo "Error: patch failed."
 
     #Build OPA
     if [[ $DISTRO == "rhel-9.2" || $DISTRO == "rhel-9.4" || $DISTRO == "ubuntu-22.04" || $DISTRO == "ubuntu-24.04" || $DISTRO == "ubuntu-24.10" ]]; then
