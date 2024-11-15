@@ -62,16 +62,6 @@ function prepare() {
     fi
 }
 
-function buildCmake() {
-    cd "${CURDIR}"
-    local cmake_short_version=${CMAKE_VERSION%.*}
-	wget https://cmake.org/files/v${cmake_short_version}/cmake-${CMAKE_VERSION}.tar.gz
-	tar xzf cmake-${CMAKE_VERSION}.tar.gz
-	cd cmake-${CMAKE_VERSION}
-	./configure --prefix=/usr/local
-	make && sudo make install
-}
-
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
 
@@ -95,7 +85,7 @@ function configureAndInstall() {
 	
     # Build Boringssl
     cd $CURDIR/boringssl
-    if [[ $DISTRO == "ubuntu-23.10" || $DISTRO == "ubuntu-24.04" ]]; then
+    if [[ $DISTRO == "ubuntu-24.04" ]]; then
         # This is needed to fix a build error with newer g++ versions
         curl -sSL https://github.com/google/boringssl/commit/e3d9b69e8c6f6b78120006282c020c71803a8075.patch | git apply -
     fi
@@ -173,14 +163,14 @@ DISTRO="$ID-$VERSION_ID"
 rm -f "$ENV_VARS"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10" | "ubuntu-24.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo apt-get install -y wget tar make gcc g++ cmake ninja-build git curl |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-8.8" | "rhel-8.9" | "rhel-8.10")
+"rhel-8.8" | "rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget tar make gcc-toolset-12-gcc-c++ gcc-toolset-12-libstdc++-devel bzip2 zlib zlib-devel git xz diffutils cmake ninja-build libarchive-devel.s390x curl |& tee -a "$LOG_FILE"
@@ -188,24 +178,13 @@ case "$DISTRO" in
     echo "source /opt/rh/gcc-toolset-12/enable" >>$ENV_VARS
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-9.2" | "rhel-9.3" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget tar make gcc gcc-c++ bzip2 zlib zlib-devel git xz diffutils cmake ninja-build libarchive-devel.s390x |& tee -a "$LOG_FILE"
     sudo yum install -y --allowerasing curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"sles-12.5")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y wget git tar gzip ninja zlib-devel gcc12 gcc12-c++ make openssl-devel curl |& tee -a "$LOG_FILE"
-    export CC=/usr/bin/gcc-12
-    export CXX=/usr/bin/g++-12
-    echo "export CC=$CC" >>$ENV_VARS
-    echo "export CXX=$CXX" >>$ENV_VARS
-    buildCmake |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 "sles-15.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
