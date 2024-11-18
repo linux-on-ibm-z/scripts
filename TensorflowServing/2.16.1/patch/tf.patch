@@ -1,0 +1,36 @@
+diff --git a/tensorflow/workspace2.bzl b/tensorflow/workspace2.bzl
+index 9e15c75c183..50d85abd903 100644
+--- a/tensorflow/workspace2.bzl
++++ b/tensorflow/workspace2.bzl
+@@ -813,7 +813,9 @@ def _tf_repositories():
+         name = "upb",
+         sha256 = "61d0417abd60e65ed589c9deee7c124fe76a4106831f6ad39464e1525cef1454",
+         strip_prefix = "upb-9effcbcb27f0a665f9f345030188c0b291e32482",
+-        patch_file = ["//third_party/grpc:upb_platform_fix.patch"],
++        patch_file = ["//third_party/grpc:upb_platform_fix.patch",
++                      "//third_party/grpc:upb_str_fix.patch",
++       ],
+         urls = tf_mirror_urls("https://github.com/protocolbuffers/upb/archive/9effcbcb27f0a665f9f345030188c0b291e32482.tar.gz"),
+     )
+ 
+diff --git a/third_party/tf_runtime/temporary.patch b/third_party/tf_runtime/temporary.patch
+index 568d0443a45..e5aecadda6f 100644
+--- a/third_party/tf_runtime/temporary.patch
++++ b/third_party/tf_runtime/temporary.patch
+@@ -55,3 +55,16 @@ index ddaa7b1b..c585054e 100644
+    return DeserializeTensorMetadataInternal(serialized.data(),
+                                             serialized.size());
+  }
++diff --git a/include/tfrt/bef/bef_reader.h b/include/tfrt/bef/bef_reader.h
++index b0ff7ab5..20bc6e62 100644
++--- a/include/tfrt/bef/bef_reader.h
+++++ b/include/tfrt/bef/bef_reader.h
++@@ -146,7 +146,7 @@ class BEFKernel {
++                                                    kKernelEntryAlignment) /
++                                          kKernelEntryAlignment),
++         body_start_(result_table_ + header_->num_results) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++   }
++
++   uint32_t kernel_code() const { return header_->kernel_code; }

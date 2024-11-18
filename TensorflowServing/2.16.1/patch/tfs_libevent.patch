@@ -1,0 +1,85 @@
+diff --git a/tensorflow_serving/workspace.bzl b/tensorflow_serving/workspace.bzl
+index de1203a7..58102dde 100644
+--- a/tensorflow_serving/workspace.bzl
++++ b/tensorflow_serving/workspace.bzl
+@@ -40,6 +40,8 @@ def tf_serving_workspace():
+         sha256 = "70158101eab7ed44fd9cc34e7f247b3cae91a8e4490745d9d6eb7edc184e4d96",
+         strip_prefix = "libevent-release-2.1.8-stable",
+         build_file = "@//third_party/libevent:BUILD",
++        patches = ["//third_party/libevent:libevent.patch"],
++        patch_args = ["-p1"],
+     )
+
+     # ===== ICU dependency =====
+diff --git a/third_party/libevent/libevent.patch b/third_party/libevent/libevent.patch
+new file mode 100644
+index 00000000000..162a5464cbc
+--- /dev/null
++++ b/third_party/libevent/libevent.patch
+@@ -0,0 +1,66 @@
++diff --git a/CMakeLists.txt b/CMakeLists.txt
++index b4a34f3d..38b8e34e 100644
++--- a/CMakeLists.txt
+++++ b/CMakeLists.txt
++@@ -330,6 +330,7 @@ CHECK_FUNCTION_EXISTS_EX(sysctl EVENT__HAVE_SYSCTL)
++ CHECK_FUNCTION_EXISTS_EX(accept4 EVENT__HAVE_ACCEPT4)
++ CHECK_FUNCTION_EXISTS_EX(arc4random EVENT__HAVE_ARC4RANDOM)
++ CHECK_FUNCTION_EXISTS_EX(arc4random_buf EVENT__HAVE_ARC4RANDOM_BUF)
+++CHECK_FUNCTION_EXISTS_EX(arc4random_addrandom EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
++ CHECK_FUNCTION_EXISTS_EX(epoll_create1 EVENT__HAVE_EPOLL_CREATE1)
++ CHECK_FUNCTION_EXISTS_EX(getegid EVENT__HAVE_GETEGID)
++ CHECK_FUNCTION_EXISTS_EX(geteuid EVENT__HAVE_GETEUID)
++diff --git a/configure.ac b/configure.ac
++index 7528d37e..b3db7aca 100644
++--- a/configure.ac
+++++ b/configure.ac
++@@ -342,6 +342,7 @@ AC_CHECK_FUNCS([ \
++   accept4 \
++   arc4random \
++   arc4random_buf \
+++  arc4random_addrandom \
++   eventfd \
++   epoll_create1 \
++   fcntl \
++diff --git a/evutil_rand.c b/evutil_rand.c
++index 046a14b0..cb2eec47 100644
++--- a/evutil_rand.c
+++++ b/evutil_rand.c
++@@ -192,13 +192,14 @@ evutil_secure_rng_get_bytes(void *buf, size_t n)
++ 	ev_arc4random_buf(buf, n);
++ }
++ 
+++#if !defined(EVENT__HAVE_ARC4RANDOM) || defined(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
++ void
++ evutil_secure_rng_add_bytes(const char *buf, size_t n)
++ {
++ 	arc4random_addrandom((unsigned char*)buf,
++ 	    n>(size_t)INT_MAX ? INT_MAX : (int)n);
++ }
++-
+++#endif
++ void
++ evutil_free_secure_rng_globals_(void)
++ {
++diff --git a/include/event2/util.h b/include/event2/util.h
++index dd4bbb69..962c0744 100644
++--- a/include/event2/util.h
+++++ b/include/event2/util.h
++@@ -841,7 +841,7 @@ int evutil_secure_rng_init(void);
++  */
++ EVENT2_EXPORT_SYMBOL
++ int evutil_secure_rng_set_urandom_device_file(char *fname);
++-
+++#ifdef EVENT__HAVE_ARC4RANDOM_ADDRANDOM
++ /** Seed the random number generator with extra random bytes.
++ 
++     You should almost never need to call this function; it should be
++@@ -858,7 +858,7 @@ int evutil_secure_rng_set_urandom_device_file(char *fname);
++  */
++ EVENT2_EXPORT_SYMBOL
++ void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
++-
+++#endif
++ #ifdef __cplusplus
++ }
++ #endif
