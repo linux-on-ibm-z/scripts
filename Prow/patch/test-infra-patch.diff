@@ -172,7 +172,7 @@ index 0f8ebc7eea..4646c11fcb 100755
  cd "${REPO_ROOT}"
  
 -PY_IMAGE='python:3.9-slim-buster'
-+PY_IMAGE='python:3.9-slim-bullseye'
++PY_IMAGE='python:3.9-slim-bookworm'
  
  docker run \
      --rm -i \
@@ -273,3 +273,16 @@ index 8e83907bac..e3484fd848 100755
      CMD_ARGS+="${BIN_DIR}/${tool} "
  done
  
+diff --git a/hack/run-in-node-container.sh b/hack/run-in-node-container.sh
+index b7dd02699d..568dd4a665 100755
+--- a/hack/run-in-node-container.sh
++++ b/hack/run-in-node-container.sh
+@@ -22,7 +22,7 @@ set -o pipefail
+ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+ cd "${REPO_ROOT}"
+
+-NODE_IMAGE='node:18-bullseye-slim'
++NODE_IMAGE='node:18-bookworm-slim'
+
+ DOCKER=(docker)
+
