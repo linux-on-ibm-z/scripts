@@ -5,11 +5,29 @@
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CFSSL/1.6.3/build_cfssl.sh
 # Execute build script: bash build_cfssl.sh    (provide -h for help)
+# -----------------------------------------------------------------------------
+#
+# Package	    : CFSSL
+# Version	    : v1.6.3
+# Source repo	    : https://github.com/cloudflare/cfssl
+# Tested on	    : UBI: 9.3
+# Language          : go
+# Travis-Check      : True
+# Script License    : Apache License, Version 2 or later
+# Maintainer	    : Aloc Jose <Aloc.Jose@ibm.com>
+#
+# Disclaimer: This script has been tested in root mode on given
+# ==========  platform using the mentioned version of the package.
+#             It may not work as expected with newer versions of the
+#             package and/or distribution. In such case, please
+#             contact "Maintainer" of this script.
+#
+# ----------------------------------------------------------------------------
 
 set -e -o pipefail
 
 PACKAGE_NAME="CFSSL"
-PACKAGE_VERSION="1.6.3"
+PACKAGE_VERSION=${1:-"1.6.3"}
 GO_VERSION="1.18.8"
 SOURCE_ROOT="$(pwd)"
 
