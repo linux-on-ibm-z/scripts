@@ -195,7 +195,7 @@ case "$DISTRO" in
     sudo mkdir -p /lib/modules/$(uname -r)
     version=$(ls /usr/src/ | grep generic | tail -1)
     sudo ln -s /usr/src/$version /lib/modules/$(uname -r)/build
-    if [[ ${DISTRO} == ubuntu-24.04 ]]; then
+    if [[ ${DISTRO} == ubuntu-22.04 ]] || [[ ${DISTRO} == ubuntu-24.04 ]] || [[ ${DISTRO} == ubuntu-24.10 ]]; then
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y  g++-11
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
