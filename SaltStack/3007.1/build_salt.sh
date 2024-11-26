@@ -133,9 +133,9 @@ function configureAndInstall()
 	
 	#Install python packages
 	if [[ "$ID" == "ubuntu" ]]; then
-		pip3 install pyzmq 'PyYAML<5.1' pycrypto msgpack-python jinja2 psutil futures==2.2.0 tornado python-dateutil genshi
+		pip3 install pyzmq 'PyYAML<5.1' pycrypto msgpack-python jinja2 psutil futures==2.2.0 tornado python-dateutil genshi looseversion packaging distro
 	else
-		pip3 install pyzmq 'PyYAML<5.1' pycrypto msgpack-python jinja2 psutil futures tornado python-dateutil genshi 
+		pip3 install pyzmq 'PyYAML<5.1' pycrypto msgpack-python jinja2 psutil futures tornado python-dateutil genshi looseversion packaging distro
 	fi	
 	
 	#Download Salt
