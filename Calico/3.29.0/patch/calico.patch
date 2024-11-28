@@ -1,0 +1,26 @@
+diff --git a/calicoctl/tests/st/utils/utils.py b/calicoctl/tests/st/utils/utils.py
+index 74fee5b..711d090 100644
+--- a/calicoctl/tests/st/utils/utils.py
++++ b/calicoctl/tests/st/utils/utils.py
+@@ -242,7 +242,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
+diff --git a/node/calico_test/Dockerfile b/node/calico_test/Dockerfile
+index c40b96e..e763a8c 100644
+--- a/node/calico_test/Dockerfile
++++ b/node/calico_test/Dockerfile
+@@ -33,7 +33,7 @@
+ # - volume mount your ST source code
+ # - run 'nosetests'
+
+-FROM docker:18.09
++FROM s390x/docker:latest
+
+ ARG ETCD_VERSION
+ ARG TARGETARCH

@@ -1,0 +1,34 @@
+diff --git a/Dockerfile b/Dockerfile
+index bed351f..462aadc 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -51,6 +51,8 @@ RUN dnf upgrade -y && dnf install -y \
+     xz \
+     zip
+
++RUN ln -s /usr/bin/clang /usr/bin/clang-17
++
+ # Install system dependencies that are not in UBI repos
+ COPY almalinux/RPM-GPG-KEY-AlmaLinux /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux
+ COPY almalinux/almalinux*.repo /etc/yum.repos.d/
+@@ -203,6 +205,7 @@ FROM scratch
+ ENV GOPATH=/go
+ ENV GOTOOLCHAIN=local
+ ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
++ENV CGO_ENABLED=0
+
+ COPY --from=ubi / /
+
+diff --git a/Makefile b/Makefile
+index 8ee1f05..9fe7080 100644
+--- a/Makefile
++++ b/Makefile
+@@ -76,7 +76,7 @@ $(QEMU_IMAGE_CREATED):
+        touch $@
+
+ .PHONY: image
+-image: register image-qemu
++image: register
+        docker buildx build $(DOCKER_PROGRESS) --load --platform=linux/$(ARCH) -t $(GOBUILD_ARCH_IMAGE) -f Dockerfile .
+ ifeq ($(ARCH),amd64)
+        docker tag $(GOBUILD_ARCH_IMAGE) $(GOBUILD_IMAGE)
