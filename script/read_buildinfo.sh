@@ -4,7 +4,7 @@
  image_name="icr.io/s390x-oss/$package_name-s390x:$VERSION"
  url_prefix=${files_upload_link}${package_name}'-s390x/'${VERSION}
  initial_char=${package_name:0:1}
- package_dirpath="$initial_char/$package_name/"
+ package_dirpath="$package_name/"
  buildinfo_path=$package_dirpath'build_info.json'
  match_version=$VERSION
  
@@ -12,7 +12,7 @@
 if [ -f $buildinfo_path ]; then
   echo $package_dirpath 'exists'
 else
-  package_dirpath="$initial_char/$PACKAGE_NAME/"
+  package_dirpath="$PACKAGE_NAME/"
   echo "Correct package_dirpath is $package_dirpath"
 fi
 
