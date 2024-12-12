@@ -1,10 +1,10 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021, 2023.
+# © Copyright IBM Corporation 2021,2024.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 ################################################################################################################################################################
 #Script     :   build_prow.sh
-#Description:   The script builds Prow (commits till 28-Feb-2023) on Linux on IBM Z for RHEL (7.8, 7.9, 8.6, 9.0), Ubuntu (20.04, 22.04) and SLES (12 SP5, 15 SP4).
+#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.8, 8.10, 9.2, 9.4, 9.5), Ubuntu (20.04, 22.04, 24.04, 24.10) and SLES 15 SP6.
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Prow mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Prow ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -19,7 +19,6 @@
 USER_IN_GROUP_DOCKER=$(id -nGz $USER | tr '\0' '\n' | grep '^docker$' | wc -l)
 set -e
 set -o pipefail
-
 PACKAGE_NAME="prow"
 PACKAGE_VERSION="master"
 GOLANG_VERSION="go1.19.5.linux-s390x.tar.gz"
@@ -32,7 +31,6 @@ GO_DEFAULT="$CURDIR/go"
 GO_FLAG="DEFAULT"
 LOGDIR="$CURDIR/logs"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-
 trap cleanup 0 1 2 ERR
 
 # Check if directory exists
@@ -45,7 +43,6 @@ if [ -f "/etc/os-release" ]; then
 fi
 
 function prepare() {
-
     if command -v "sudo" >/dev/null; then
         printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
     else
@@ -124,28 +121,15 @@ function configureAndInstall() {
         printf --  'Did not found s390x-linux-gnu-gcc binary in the PATH. Creating symlink...\n' >>"$LOG_FILE"
         sudo ln -s /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
     fi
-	
-    if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]]; then
-        cd "$CURDIR"
-        wget --no-check-certificate https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.25.1.tar.gz
-        tar xf git-2.25.1.tar.gz
-        cd git-2.25.1/
-        make configure
-        ./configure --prefix=/usr/local
-        make all
-        sudo make install
-        git --version
-    fi
-	
+
     export PATH=/usr/local/go/bin:$PATH
     export PATH=/usr/local/bin:$PATH
     
     # Build jq
     printf -- "Building jq ...\n"
     cd "$CURDIR"
-    git clone https://github.com/stedolan/jq.git
+    git clone -b jq-1.5 https://github.com/stedolan/jq.git
     cd jq/
-    git checkout jq-1.5
     autoreconf -fi
     ./configure --disable-valgrind
     sudo make LDFLAGS=-all-static -j$(nproc)
@@ -185,7 +169,6 @@ function logDetails() {
     if [ -f "/etc/os-release" ]; then
         cat "/etc/os-release" >>"$LOG_FILE"
     fi
-
     cat /proc/version >>"$LOG_FILE"
     printf -- "\nDetected %s \n" "$PRETTY_NAME"
     printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
@@ -217,7 +200,6 @@ while getopts "h?dyt" opt; do
             printf -- "%s is detected with version %s .\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
             runTest |& tee -a "$LOG_FILE"
             exit 0
-
         else
             TESTS="true"
         fi
@@ -237,6 +219,20 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- "Installing dependencies ... it may take some time.\n"
+    sudo yum install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-CPAN perl-devel 2>&1 | tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+
+"sles-15.6")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- "Installing dependencies ... it may take some time.\n"
+    sudo zypper install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf gawk rsync 2>&1 | tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+
 "ubuntu-20.04" | "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
@@ -244,25 +240,12 @@ case "$DISTRO" in
     sudo apt-get install -y zip tar unzip git vim wget make curl python2.7-dev python3.8-dev gcc g++ python3-distutils libtool libtool-bin autoconf 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-	
-"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-9.0")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- "Installing dependencies ... it may take some time.\n"
-    sudo yum install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-CPAN perl-devel 2>&1 | tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 
-"sles-12.5")
+"ubuntu-24.04" | "ubuntu-24.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo zypper install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf libnghttp2-devel 2>&1 | tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-    
-"sles-15.4")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- "Installing dependencies ... it may take some time.\n"
-    sudo zypper install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf 2>&1 | tee -a "$LOG_FILE"
+    sudo apt-get update
+    sudo apt-get install -y zip tar unzip git vim wget make curl python3-dev gcc g++ python3-distutils-extra libtool libtool-bin autoconf 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
