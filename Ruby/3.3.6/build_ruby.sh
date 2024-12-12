@@ -137,12 +137,12 @@ logDetails
 checkPrequisites  #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel readline-devel gdbm-devel gcc make wget tar libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo zypper install -y bison flex libopenssl-devel readline-devel gdbm-devel gcc make wget tar gawk gzip libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
