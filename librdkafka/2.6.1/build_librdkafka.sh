@@ -175,6 +175,10 @@ case "$DISTRO" in
 		sudo yum install -y wget tar perl |& tee -a "${LOG_FILE}"
 		buildOssl |& tee -a "${LOG_FILE}"
 	fi
+  if [ $ID$VERSION_ID == rhel9.2 ] || [ $ID$VERSION_ID == rhel9.4 ]; then
+    rm ~/.bash_profile
+    touch ~/.bash_profile
+	fi
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 "sles-15.5" | "sles-15.6")
