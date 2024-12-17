@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-echo "$cos-access-service-id-api-key-z-team" | docker login -u iamapikey --password-stdin icr.io
+echo "${cos-access-service-id-api-key-z-team}" | docker login -u iamapikey --password-stdin icr.io
 if [ $? -ne 0 ]; then
     echo "Docker login failed. Exiting script."
     exit 1
