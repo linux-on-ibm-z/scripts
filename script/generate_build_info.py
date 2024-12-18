@@ -226,7 +226,7 @@ final_json = {
     "github_url": github_url,
     "version": dockerfile_versions[-1]['version'] if dockerfile_versions else default_version,
     "default_branch": get_default_branch(github_url),
-    "build_script": "$build_script",
+    "build_script": default_build_script,
     "package_dir": dir_name.replace(ROOT, '').strip(path_separator),
     "docker_build": True if dockerfile_versions else False,
     "validate_build_script": True if build_scripts_versions else False,
