@@ -152,7 +152,7 @@ def get_github_url(build_script):
 def get_default_build_script(build_scripts_versions):
     result=[]
     for data in build_scripts_versions:
-        if 'ubi_9.3' in data['file']:
+        if '.sh' in data['file']:
             return [data['version'],data['file']]
         else:
             result.append((data['version'],data['file']))
