@@ -306,12 +306,12 @@ case "$DISTRO" in
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update
 	sudo DEBIAN_FRONTEND=noninteractive apt-get install wget git unzip zip openjdk-11-jdk pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran curl patchelf gcc-10 g++-10 libopenblas-dev libatlas-base-dev wget -y |& tee -a "${LOG_FILE}"
-	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 60
-	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 60
 	buildBazel |& tee -a "${LOG_FILE}"
 	setupPython |& tee -a "${LOG_FILE}"
 	sudo ldconfig
-    sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
+ 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 60
+	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 60
+    	sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
 	sudo pip3 install --no-cache-dir numpy==$NUMPY_VERSION wheel packaging requests opt_einsum portpicker protobuf scipy==$SCIPY_VERSION psutil setuptools==68.2.2 h5py==3.11.0 |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;

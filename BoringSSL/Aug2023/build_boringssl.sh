@@ -65,13 +65,13 @@ function prepare() {
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
 
-	# Download and Install Go
-	cd $CURDIR
+    # Download and Install Go
+    cd $CURDIR
     wget https://storage.googleapis.com/golang/go${GO_VERSION}.linux-s390x.tar.gz
     tar -xzf go${GO_VERSION}.linux-s390x.tar.gz
     export PATH=$CURDIR/go/bin:$PATH
     export GOROOT=$CURDIR/go
-  	export GOPATH=$CURDIR/go/bin
+    export GOPATH=$CURDIR/go/bin
     echo "export PATH=$PATH" >>$ENV_VARS
     echo "export GOROOT=$GOROOT" >>$ENV_VARS
     echo "export GOPATH=$GOPATH" >>$ENV_VARS
@@ -85,7 +85,7 @@ function configureAndInstall() {
 	
     # Build Boringssl
     cd $CURDIR/boringssl
-    if [[ $DISTRO == "ubuntu-24.04" ]]; then
+    if [[ $DISTRO == "ubuntu-24.04" || $DISTRO == "ubuntu-24.10" || $DISTRO == "sles-15.6" ]]; then
         # This is needed to fix a build error with newer g++ versions
         curl -sSL https://github.com/google/boringssl/commit/e3d9b69e8c6f6b78120006282c020c71803a8075.patch | git apply -
     fi
@@ -163,7 +163,7 @@ DISTRO="$ID-$VERSION_ID"
 rm -f "$ENV_VARS"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -178,14 +178,14 @@ case "$DISTRO" in
     echo "source /opt/rh/gcc-toolset-12/enable" >>$ENV_VARS
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-9.2" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget tar make gcc gcc-c++ bzip2 zlib zlib-devel git xz diffutils cmake ninja-build libarchive-devel.s390x |& tee -a "$LOG_FILE"
     sudo yum install -y --allowerasing curl |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"sles-15.5")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y wget git tar gzip cmake ninja zlib-devel gcc12 gcc12-c++ curl |& tee -a "$LOG_FILE"
