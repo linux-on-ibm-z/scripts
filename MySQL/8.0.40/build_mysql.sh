@@ -199,7 +199,7 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.2" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y --allowerasing curl
@@ -214,16 +214,16 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.5")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y curl make cmake bison gcc12 gcc12-c++ git hostname ncurses-devel openssl procps openssl-devel pkg-config gawk doxygen libtirpc-devel rpcgen tar wget net-tools-deprecated xz timezone |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
+    sudo zypper install -y curl make cmake bison gcc14 gcc14-c++ git hostname ncurses-devel openssl procps openssl-devel pkg-config gawk doxygen libtirpc-devel rpcgen tar wget net-tools-deprecated xz timezone |& tee -a "$LOG_FILE"
+    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 14
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 14
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-14 14
     sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
-    sudo ln -sf /usr/bin/cpp-12 /usr/bin/cpp
+    sudo ln -sf /usr/bin/cpp-14 /usr/bin/cpp
 
     buildPython2 |& tee -a "$LOG_FILE"
     curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
