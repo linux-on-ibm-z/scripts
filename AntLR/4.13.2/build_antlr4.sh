@@ -205,17 +205,9 @@ function configureAndInstallJava() {
             export ANT_JAVA_HOME=/usr/lib/jvm/java-21-openjdk
             export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
         elif [[ "$ID" == "sles" ]]; then
-            if [[ "$DISTRO" == "sles-12.5" ]]; then
-                printf "$JAVA_PROVIDED is not available on SLES 12 SP5.  Please use use valid variant from {Temurin11, Temurin17, Temurin21, Semeru11, Semeru17, Semeru21, OpenJDK11}.\n"
-                exit 1
-            elif [[ "$DISTRO" == "sles-15.5" ]]; then
-                printf "$JAVA_PROVIDED is not available on SLES 15 SP5.  Please use use valid variant from {Temurin11, Temurin17, Temurin21, Semeru11, Semeru17, Semeru21, OpenJDK11, OpenJDK17}.\n"
-                exit 1
-            else
-                sudo zypper install -y java-21-openjdk java-21-openjdk-devel
-                export ANT_JAVA_HOME=/usr/lib64/jvm/java-21-openjdk
-                export JAVA_HOME=/usr/lib64/jvm/java-21-openjdk
-            fi
+            sudo zypper install -y java-21-openjdk java-21-openjdk-devel
+            export ANT_JAVA_HOME=/usr/lib64/jvm/java-21-openjdk
+            export JAVA_HOME=/usr/lib64/jvm/java-21-openjdk
         fi
         printf -- "Installation of OpenJDK 21 is successful\n" >> "$LOG_FILE"
 
@@ -230,14 +222,9 @@ function configureAndInstallJava() {
             export ANT_JAVA_HOME=/usr/lib/jvm/java-17-openjdk
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
         elif [[ "$ID" == "sles" ]]; then
-            if [[ "$DISTRO" == "sles-12.5" ]]; then
-                printf "$JAVA_PROVIDED is not available on SLES 12 SP5.  Please use use valid variant from {Temurin11, Temurin17, Temurin21, Semeru11, Semeru17, Semeru21, OpenJDK11}.\n"
-                exit 1
-            else
-                sudo zypper install -y java-17-openjdk java-17-openjdk-devel
-                export ANT_JAVA_HOME=/usr/lib64/jvm/java-17-openjdk
-                export JAVA_HOME=/usr/lib64/jvm/java-17-openjdk
-            fi
+            sudo zypper install -y java-17-openjdk java-17-openjdk-devel
+            export ANT_JAVA_HOME=/usr/lib64/jvm/java-17-openjdk
+            export JAVA_HOME=/usr/lib64/jvm/java-17-openjdk
         fi
         printf -- "Installation of OpenJDK 17 is successful\n" >> "$LOG_FILE"
 
@@ -308,25 +295,13 @@ function installAdditionalDependencies() {
       libarchive clang
     ;;
 
-  "rhel-9.2" | "rhel-9.4")
+  "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python3 cmake libarchive clang
     ;;
 
-  "sles-12.5")
-    printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
-    sudo zypper install -y unzip tar xz xz-devel libuuid-devel curl wget git make diffutils gcc8 gcc8-c++ gcc11 \
-      gcc11-c++ python python-typing cmake gawk gdbm-devel libbz2-devel libdb-4_8-devel libffi48-devel ncurses-devel \
-      readline-devel sqlite3-devel tk-devel zlib-devel openssl-devel libcurl-devel
 
-    #switch to GCC 11
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 50
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 50
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 50
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-11 50
-    ;;
-
-  "sles-15.5" | "sles-15.6")
+  "sles-15.6")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo zypper install -y unzip xz xz-devel libuuid-devel curl wget git make diffutils gcc13 gcc13-c++ \
     python cmake clang13 gawk gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libnsl-devel libopenssl-devel \
@@ -353,7 +328,7 @@ function installAdditionalDependencies() {
     make python2 bzip2 tk-dev libghc-bzlib-dev gcc g++ cmake clang pkg-config
     ;;
 
-  "ubuntu-24.04")
+  "ubuntu-24.04" | "ubuntu-24.10")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y unzip xz-utils uuid-dev curl wget git \
@@ -385,64 +360,6 @@ function installGO() {
   printf -- "go env -w GO111MODULE=auto\n" >> "$BUILD_ENV"
 }
 
-function buildAndInstallOpenSSL() {
-  cd $SOURCE_ROOT
-  wget $OPENSSL_URL
-  tar -xzf "$OPENSSL_VERSION.tar.gz"
-  cd $OPENSSL_VERSION
-  ./config --prefix=/usr/local --openssldir=/usr/local
-  make
-  sudo make install
-
-  export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
-  export LD_LIBRARY_PATH=/usr/local/lib/:/usr/local/lib64/:/usr/lib/:/usr/lib64/$LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH
-  export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
-
-  printf -- "export LDFLAGS=$LDFLAGS\n" >> "$BUILD_ENV"
-  printf -- "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH\n" >> "$BUILD_ENV"
-  printf -- "export CPPFLAGS=$CPPFLAGS\n" >> "$BUILD_ENV"
-}
-
-function buildAndInstallPython3() {
-  cd $SOURCE_ROOT
-  wget $PYTHON_URL
-  tar -xzf "Python-$PYTHON_VERSION.tgz"
-  cd "Python-$PYTHON_VERSION"
-  ./configure
-  make && sudo make install
-  python3 -V
-}
-
-function buildAndInstallCmake() {
-  cd $SOURCE_ROOT
-  wget $CMAKE_URL
-  tar -xzf "cmake-$CMAKE_VERSION.tar.gz"
-  cd "cmake-$CMAKE_VERSION"
-  ./bootstrap --system-curl
-  make
-  sudo make install
-  export PATH=/usr/local/bin:$PATH
-  printf -- "export PATH=$PATH\n" >> "$BUILD_ENV"
-}
-
-function buildAndInstallClang() {
-  cd $SOURCE_ROOT
-  wget $LLVM_URL
-  tar -xf "llvm-$LLVM_VERSION.src.tar.xz"
-  cd "llvm-$LLVM_VERSION.src/"
-  mkdir -p build && cd build
-  cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=release -DCMAKE_C_COMPILER=/usr/bin/gcc-8 -DCMAKE_CXX_COMPILER=/usr/bin/g++-8 ..
-  make && sudo make install
-
-  cd $SOURCE_ROOT
-  wget $CLANG_URL
-  tar -xf "cfe-$CLANG_VERSION.src.tar.xz"
-  cd "cfe-$CLANG_VERSION.src/"
-  mkdir -p build && cd build
-  cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=release -DCMAKE_C_COMPILER=/usr/bin/gcc-8 -DCMAKE_CXX_COMPILER=/usr/bin/g++-8 ..
-  make && sudo make install
-}
-
 function installNodeJS() {
   cd $SOURCE_ROOT
   curl -s -S -L -O $NODEJS_URL
@@ -463,14 +380,6 @@ function downloadAntlrSource() {
 
 function fullBuildAllRuntimes() {
   installGO
-
-  if [[ "$DISTRO" == "sles-12.5" ]]; then
-    buildAndInstallOpenSSL
-    buildAndInstallPython3
-    buildAndInstallCmake
-    buildAndInstallClang
-  fi
-
   installNodeJS
   installMaven
   cd $SOURCE_ROOT
@@ -499,8 +408,8 @@ function runFullBuildTests() {
   cd $SOURCE_ROOT
   cd $PACKAGE_NAME-$PACKAGE_VERSION/runtime-testsuite
   mvn -Dtest=java.** test
-  if [[ "$DISTRO" != "rhel-9."* ]] && [[ "$DISTRO" != "sles-15."* ]] && [[ "$DISTRO" != "ubuntu-24.04" ]]; then
-    mvn -Dtest=python2.** test     # except for RHEL 9.x, SLES 15.x and Ubuntu 24.04 as Python 2 has been removed from these distros
+  if [[ "$DISTRO" != "rhel-9."* ]] && [[ "$DISTRO" != "sles-15."* ]] && [[ "$DISTRO" != "ubuntu-24.04" ]] && [[ "$DISTRO" != "ubuntu-24.10" ]]; then
+    mvn -Dtest=python2.** test     # except for RHEL 9.x, SLES 15.x and Ubuntu 24.x as Python 2 has been removed from these distros
   fi
   mvn -Dtest=python3.** test
   sudo env "PATH=$PATH" "GOROOT=$GOROOT" mvn -Dtest=go.** test
@@ -604,19 +513,19 @@ logDetails
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        sudo yum install -y wget tar which curl diffutils |& tee -a "$LOG_FILE"
+        sudo yum install -y wget tar which curl diffutils --allowerasing |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"sles-12.5" | "sles-15.5" | "sles-15.6")
+"sles-15.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo zypper install -y wget gzip tar curl xz diffutils |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y wget tar curl diffutils |& tee -a "$LOG_FILE"
