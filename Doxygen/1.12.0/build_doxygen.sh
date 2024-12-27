@@ -64,7 +64,7 @@ function cleanup() {
 }
 
 function install_cmake() {
-    # Install cmake only for RHEL and SLES 12 SP5
+    # Install cmake only for RHEL
     printf -- "Installing cmake... \n" |& tee -a "$LOG_FILE"
     cd $SOURCE_ROOT
     wget https://cmake.org/files/v3.26/cmake-3.26.4.tar.gz
@@ -171,26 +171,13 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git flex cmake bison wget unzip gcc gcc-c++ python3 make qt5-devel texlive diffutils openssl-devel |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y git flex bison wget tar unzip gcc8 gcc8-c++ curl libnghttp2-devel libxml2-devel texlive-bibtex-bin make libqt5-qtbase-devel texlive openssl-devel |& tee -a "$LOG_FILE"
-    sudo ln -sf /usr/bin/g++-8 /usr/bin/c++
-    sudo ln -sf /usr/bin/g++-8 /usr/bin/g++
-    sudo ln -sf /usr/bin/gcc-8 /usr/bin/cc
-    #Install Python 3.7
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.7.4/build_python3.sh
-    bash build_python3.sh -y |& tee -a "${LOG_FILE}"
-    install_cmake |& tee -a "${LOG_FILE}"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y git flex bison wget tar unzip gcc gcc-c++ libxml2-devel glibc-locale texlive-bibtex-bin make libqt5-qtbase-devel cmake openssl-devel |& tee -a "$LOG_FILE"
@@ -203,7 +190,7 @@ case "$DISTRO" in
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git flex bison wget unzip python qt5-default build-essential libxml2-utils cmake texlive-full texlive-latex-extra |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-22.04" | "ubuntu-24.04")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
