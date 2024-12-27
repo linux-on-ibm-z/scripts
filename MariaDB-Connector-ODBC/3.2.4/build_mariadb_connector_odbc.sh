@@ -210,7 +210,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum groupinstall -y 'Development Tools'
@@ -218,16 +218,12 @@ case "$DISTRO" in
     installUnixODBC |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     export ver=10.11.8
     sudo rpm --import https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
-    if [[ "$DISTRO" == "sles-12"* ]]; then
-        sudo zypper addrepo --gpgcheck --refresh https://archive.mariadb.org/mariadb-${ver}/yum/sles12-s390x/ mariadb
-    else
-        sudo zypper addrepo --gpgcheck --refresh https://archive.mariadb.org/mariadb-${ver}/yum/sles15-s390x/ mariadb
-    fi
+    sudo zypper addrepo --gpgcheck --refresh https://archive.mariadb.org/mariadb-${ver}/yum/sles15-s390x/ mariadb
     sudo zypper --gpg-auto-import-keys refresh
     sudo zypper install -y git cmake MariaDB-server gcc gcc-c++ libopenssl-devel openssl glibc-locale tar curl libcurl-devel krb5-devel autoconf automake libtool awk |& tee -a "$LOG_FILE"
     installUnixODBC |& tee -a "$LOG_FILE"
