@@ -81,7 +81,7 @@ function configureAndInstall() {
     export LOG_FILE="$LOGDIR/configuration-$(date +"%F-%T").log"
     printf -- "\nInstalling Go ... \n" | tee -a "$LOG_FILE"
     wget -q https://storage.googleapis.com/golang/go"${GOLANG_VERSION}".linux-s390x.tar.gz
-    sudo tar -C /usr/local -xzf $GOLANG_VERSION
+    sudo tar -C /usr/local -xzf go"${GOLANG_VERSION}".linux-s390x.tar.gz
     sudo ln -sf /usr/local/go/bin/go /usr/bin/
     sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
 
