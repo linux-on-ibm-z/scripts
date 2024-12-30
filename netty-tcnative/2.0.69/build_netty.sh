@@ -95,9 +95,6 @@ elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
                 elif [[ "${ID}" == "rhel" ]]; then
                         sudo yum install -y java-11-openjdk-devel
                         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
-                elif [[ "${ID}" == "sles" ]]; then
-                        sudo zypper install -y java-11-openjdk  java-11-openjdk-devel
-                        export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
                 fi
                 printf -- "Installation of OpenJDK 11 is successful\n" >> "$LOG_FILE"
 elif [[ "$JAVA_PROVIDED" == "Semeru17" ]]; then
@@ -124,9 +121,6 @@ elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
                         sudo yum install -y java-17-openjdk java-17-openjdk-devel
 			java_version=`ls /usr/lib/jvm/ | grep java-17-openjdk-17.*`
 			export JAVA_HOME=/usr/lib/jvm/`echo $java_version | cut -d' ' -f1`
-                elif [[ "${ID}" == "sles" ]]; then
-                        sudo zypper install -y java-17-openjdk java-17-openjdk-devel
-                        export JAVA_HOME=/usr/lib64/jvm/java-17-openjdk
                 fi
                 printf -- "Installation of OpenJDK 17 is successful\n" >> "$LOG_FILE"
 elif [[ "$JAVA_PROVIDED" == "Semeru8" ]]; then
@@ -152,13 +146,6 @@ elif [[ "$JAVA_PROVIDED" == "OpenJDK8" ]]; then
                         sudo update-alternatives --set java "/usr/lib/jvm/java-1.8.0-openjdk/bin/java"
                         sudo update-alternatives --set javac "/usr/lib/jvm/java-1.8.0-openjdk/bin/javac"
                         export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-                elif [[ "${ID}" == "sles" ]]; then
-                        sudo zypper install -y java-1_8_0-openjdk-devel
-                        sudo update-alternatives --install "/usr/bin/java" "java" "/usr/lib64/jvm/java-1.8.0-openjdk/bin/java" 20
-                        sudo update-alternatives --install "/usr/bin/javac" "javac" "/usr/lib64/jvm/java-1.8.0-openjdk/bin/javac" 20
-                        sudo update-alternatives --set java "/usr/lib64/jvm/java-1.8.0-openjdk/bin/java"
-                        sudo update-alternatives --set javac "/usr/lib64/jvm/java-1.8.0-openjdk/bin/javac"
-                        export JAVA_HOME=/usr/lib64/jvm/java-1.8.0-openjdk
                 fi
                 printf -- "Installation of OpenJDK 8 is successful\n" >> "$LOG_FILE"
 elif [[ "$JAVA_PROVIDED" == "Temurin8" ]]; then
@@ -186,9 +173,6 @@ elif [[ "$JAVA_PROVIDED" == "Temurin8" ]]; then
                                 exit 1
                         fi
                 elif [[ "${ID}" == "rhel" ]]; then
-                        printf -- "$JAVA_PROVIDED is not supported, Please use valid java from {Semeru8, OpenJDK8, Semeru11, Temurin11, OpenJDK11, Semeru17, Temurin17, OpenJDK17} only"
-                        exit 1 
-                elif [[ "${ID}" == "sles" ]]; then      
                         printf -- "$JAVA_PROVIDED is not supported, Please use valid java from {Semeru8, OpenJDK8, Semeru11, Temurin11, OpenJDK11, Semeru17, Temurin17, OpenJDK17} only"
                         exit 1 
                 fi                
@@ -275,20 +259,10 @@ logDetails
 prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget curl golang curl libstdc++-static.s390x xz-devel gzip libcryptui-devel python3-devel patch |& tee -a "${LOG_FILE}"
-        configureAndInstall |& tee -a "${LOG_FILE}"
-        ;;
-"sles-15.5" | "sles-15.6")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- "Installing dependencies... it may take some time.\n"
-        sudo zypper ref -s
-        sudo zypper install -y perl libopenssl-devel libapr1-devel autoconf automake libtool make tar git wget curl gcc7 gcc7-c++ gmake xz-devel gzip python3-devel patch go ninja cmake libnghttp2-devel awk |& tee -a "${LOG_FILE}"
-        sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
-        sudo ln -sf /usr/bin/g++-7 /usr/bin/g++
-        sudo ln -sf /usr/bin/gcc /usr/bin/cc
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
