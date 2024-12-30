@@ -188,9 +188,9 @@ case "$DISTRO" in
 "sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y wget git tar gzip cmake ninja zlib-devel gcc12 gcc12-c++ curl |& tee -a "$LOG_FILE"
-    export CC=/usr/bin/gcc-12
-    export CXX=/usr/bin/g++-12
+    sudo zypper install -y wget git tar gzip cmake ninja zlib-devel gcc13 gcc13-c++ curl |& tee -a "$LOG_FILE"
+    export CC=/usr/bin/gcc-13
+    export CXX=/usr/bin/g++-13
     echo "export CC=$CC" >>$ENV_VARS
     echo "export CXX=$CXX" >>$ENV_VARS
     configureAndInstall |& tee -a "$LOG_FILE"
