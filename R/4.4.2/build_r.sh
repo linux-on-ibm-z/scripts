@@ -96,12 +96,6 @@ function runTest() {
     printf -- "Installing the dependencies for testing %s,$PACKAGE_NAME \n"
 
   case "$DISTRO" in
-  "rhel-"*)
-      sudo yum install -y texlive
-      export LANG="en_US.UTF-8"
-      printf -- 'export LANG="en_US.UTF-8"\n'  >> "$BUILD_ENV" 
-    ;;
-
   "sles-"*)
       sudo zypper install -y texlive-courier texlive-dvips
       export LANG="en_US.UTF-8"
@@ -190,7 +184,7 @@ logDetails
 checkPrequisites
 
 case "$DISTRO" in
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
   sudo zypper install -y \
