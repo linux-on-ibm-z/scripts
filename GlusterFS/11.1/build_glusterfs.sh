@@ -81,86 +81,27 @@ function configureAndInstall() {
 
 	cd "${SOURCE_ROOT}"
 	
-	# Install gcc11 for rhel-7.x
-	if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]]; then
-		yum install -y devtoolset-11-gcc
-		source /opt/rh/devtoolset-11/enable
-	fi
-	
 	# Install gcc11 for rhel-8.x
-	if [[ "${DISTRO}" == "rhel-8.8" ]] || [[ "${DISTRO}" == "rhel-8.9" ]]; then
+	if [[ "${DISTRO}" == "rhel-8.8" ]] || [[ "${DISTRO}" == "rhel-8.10" ]]; then
 		yum install -y gcc-toolset-11-gcc-c++
 		source /opt/rh/gcc-toolset-11/enable
 	fi
 
-	# Install gcc11 for sles-12.5
-	if [[ "${DISTRO}" == "sles-12.5" ]]; then
-		zypper ref -s
-		zypper addrepo https://download.opensuse.org/repositories/devel:gcc/SLE-12/devel:gcc.repo
-		zypper --gpg-auto-import-keys ref
-		zypper install -y gcc11
-		update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 50
-		gcc --version
-	fi
-
-	cd "${SOURCE_ROOT}"
-	# Install userspace-rcu for rhel-7.x and sles-12.5
-	if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
-		cd "${SOURCE_ROOT}"
-		git clone git://git.liburcu.org/userspace-rcu.git
-		cd userspace-rcu/
-		git checkout v0.7.14
-		./bootstrap
-		./configure
-		make
-		make install
-		ldconfig
-	fi
-
-	cd "${SOURCE_ROOT}"
-	
-	# Install Openssl 1.1.1 for rhel-7.x and sles-12.5
-	if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]] || [[ "${DISTRO}" == "sles-12.5" ]]; then
-		cd "${SOURCE_ROOT}"
-		git clone https://github.com/openssl/openssl.git
-		cd openssl/
-		git checkout OpenSSL_1_1_1k
-		./config --prefix=/usr
-		make
-		make install
-		ldconfig
-		openssl version -a
-	fi
-
 	cd "${SOURCE_ROOT}"	
 
-  # Download and configure GlusterFS
+        # Download and configure GlusterFS
 	printf -- '\n-----------------------------------\nDownloading GlusterFS. Please wait.\n-----------------------------------\n' 
 	git clone https://github.com/gluster/glusterfs.git
 	cd "${SOURCE_ROOT}/glusterfs"
 	git checkout v$PACKAGE_VERSION
 	./autogen.sh
 
-	if [[ "${DISTRO}" == "sles-12.5" ]]; then
-		./configure --enable-gnfs --disable-linux-io_uring
-	elif [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]]; then
-		./configure --enable-gnfs --enable-debug --disable-linux-io_uring --without-libtirpc
-	else
-		./configure --enable-gnfs
-	fi
+	./configure --enable-gnfs
 	printf -- '\n-------------------------------\n Applying patches.\n--------------------------------\n' 
   
-  # Apply patches
+        # Apply patches
 	cd "${SOURCE_ROOT}/glusterfs"
-	if [[ "${DISTRO}" == "rhel-7.8" ]] || [[ "${DISTRO}" == "rhel-7.9" ]]; then
-		curl -sSL $PATCH_URL/GFS_RH7.patch | git apply 
-		printf -- '\n---Patches are applied-----\n'
-	fi	
-        if [[ "${DISTRO}" == "sles-12.5" ]]; then
-	  	curl -sSL $PATCH_URL/GFS_SL12.patch | git apply 
-		printf -- '\n---Patches are applied-----\n'
-	fi
-	if [[ "${DISTRO}" == "rhel-9.2" ]] || [[ "${DISTRO}" == "rhel-9.3" ]]; then
+	if [[ "${DISTRO}" == "rhel-9.2" ]] || [[ "${DISTRO}" == "rhel-9.4" ]] || [[ "${DISTRO}" == "rhel-9.5" ]]; then
 		curl -sSL $PATCH_URL/GFS_RH9.patch | git apply
 		printf -- '\n---Patches are applied-----\n'
 	fi
@@ -178,7 +119,7 @@ function configureAndInstall() {
 
 	cd "${HOME}"
 	if [[ "$(grep LD_LIBRARY_PATH .bashrc)" ]]; then
-		printf -- '\nChanging LD_LIBRARY_PATH\n' 
+		printf -- '\nChanging LD_LIBRARY_PATH\n'
 		sed -n 's/^.*\bLD_LIBRARY_PATH\b.*$/export LD_LIBRARY_PATH=\/usr\/local\/lib:\/usr\/local\/lib64/p' .bashrc
 	else
 		echo "export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64" >>.bashrc
@@ -218,22 +159,12 @@ function runTest() {
 			echo "Running Tests: "
 
 			case "$DISTRO" in			
-			"rhel-7.8" | "rhel-7.9")
-				yum install -y acl attr bc bind-utils boost-devel docbook-style-xsl expat-devel gdb net-tools nfs-utils psmisc vim xfsprogs yajl redhat-rpm-config perl-Test-Harness popt-devel procps-ng pyxattr python3-pip
-				pip3 install prettytable
-				;;
-
-			"rhel-8.8" | "rhel-8.9" | "rhel-9.2" | "rhel-9.3")
+			"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
 				yum install -y dbench perl-Test-Harness yajl net-tools psmisc nfs-utils xfsprogs attr procps-ng gdb python3
 				pip3 install prettytable
 				;;
 
-			"sles-12.5")
-				zypper install -y acl attr bc bind-utils gdb libxml2-tools net-tools nfs-utils psmisc vim xfsprogs python-PrettyTable libselinux-devel selinux-tools popt-devel sysvinit-tools libexpat-devel boost-devel
-				pip3 install prettytable
-				;;
-			
-			"sles-15.5")
+			"sles-15.6")
 				zypper install -y acl attr bc bind-utils gdb libxml2-tools net-tools-deprecated nfs-utils psmisc thin-provisioning-tools vim xfsprogs python3-PrettyTable libselinux-devel selinux-tools popt-devel libyajl2 libyajl-devel sysvinit-tools
 				pip3 install prettytable
 				wget https://ftp.lysator.liu.se/pub/opensuse/ports/aarch64/distribution/leap/15.4/repo/oss/s390x/yajl-2.1.0-2.12.s390x.rpm
@@ -246,8 +177,8 @@ function runTest() {
 				ln -sf `which gstack` /usr/bin/pstack
 			fi
 						
-			# Install dbench (RHEL 7.x and SLES12 SP5 only)
-			if [[ "${DISTRO}" == "rhel-7.8" || "${DISTRO}" == "rhel-7.9" || "${DISTRO}" == "sles-12.5" ]]; then
+			# Install dbench SLES only
+			if [[ "${DISTRO}" == "sles-15.6" ]]; then
 				cd "${SOURCE_ROOT}"
 				git clone https://github.com/sahlberg/dbench
 				cd dbench
@@ -258,8 +189,8 @@ function runTest() {
 				make install
 			fi
 			
-			# Install thin-provisioning-tools (RHEL 7.x and SLES only)
-			if [[ "${DISTRO}" == "rhel-7.8" || "${DISTRO}" == "rhel-7.9" || "${DISTRO}" == "sles-12.5" || "${DISTRO}" == "sles-15.5" ]]; then
+			# Install thin-provisioning-tools SLES only
+			if [[ "${DISTRO}" == "sles-15.6" ]]; then
 				cd "${SOURCE_ROOT}"
 				git clone https://github.com/jthornber/thin-provisioning-tools
 				cd thin-provisioning-tools
@@ -270,17 +201,6 @@ function runTest() {
 				make install
 			fi
 
-			# Install yajl (SLES12 SP5 only)
-			if [[ "${DISTRO}" == "sles-12.5" ]]; then
-				cd "${SOURCE_ROOT}"
-				# Install YAJL
-				git clone https://github.com/lloyd/yajl
-				cd yajl
-				git checkout 2.1.0
-				./configure
-				make install
-			fi
-			
 			# Apply patches for testcase fix
 			cd $SOURCE_ROOT/glusterfs	 
 			
@@ -369,35 +289,21 @@ export LD_RUN_PATH
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-7.8" | "rhel-7.9")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	yum install -y curl rpcgen libtirpc-devel g++ gcc-c++ langpacks-en glibc-langpack-en automake autoconf libtool flex bison openssl-devel libxml2-devel python-devel libaio-devel libibverbs-devel librdmacm-devel readline-devel lvm2-devel glib2-devel userspace-rcu-devel libcmocka-devel libacl-devel sqlite-devel fuse-devel libuuid-devel redhat-rpm-config git gperftools-devel gperftools-libs openssl popt-devel gperf gperftools-devel
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-	
-"rhel-8.8" | "rhel-8.9")
+"rhel-8.8" | "rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	yum install -y autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces  readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-9.2" | "rhel-9.3")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	yum install -y curl autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces  readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel iproute
     configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-12.5")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	zypper install -y curl tar autoconf automake bison cmake flex fuse-devel gcc-c++ git-core glib2-devel libacl-devel libaio-devel librdmacm1 libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 python3-xattr rdma-core-devel readline-devel openssl-devel zlib-devel which gawk dmraid popt-devel gperftools-devel gperf gperftools libtirpc-devel util-linux iproute util-linux-systemd keyutils-devel
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
-"sles-15.5")
+"sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	zypper install -y curl autoconf automake bison cmake flex fuse-devel gcc-c++ git-core glib2-devel libacl-devel libaio-devel librdmacm1 libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 python3-xattr rdma-core-devel readline-devel openssl-devel zlib-devel which wget gawk dmraid popt-devel gperftools-devel gperf gperftools libtirpc-devel rpcgen liburing-devel util-linux hostname iproute util-linux-systemd keyutils-devel
