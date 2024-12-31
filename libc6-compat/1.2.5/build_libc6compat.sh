@@ -124,29 +124,20 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo apt-get install -y gcc g++ tar wget make cmake bzip2 zlib1g-dev g++-multilib |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-23.10")
-    sudo apt-get update
-    sudo apt-get install -y gcc-10 g++-10 tar wget make cmake bzip2 zlib1g-dev g++-10-multilib |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-10 40 |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 40 |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 40 |& tee -a "$LOG_FILE"
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-10 40 |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y gcc gcc-c++ make wget tar |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-12.5" | "sles-15.5")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y gcc gcc-c++ make wget tar bzip2 zlib-devel gzip |& tee -a "$LOG_FILE"
