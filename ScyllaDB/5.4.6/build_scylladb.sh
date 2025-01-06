@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2019, 2024
+# © Copyright IBM Corporation 2019, 2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -147,7 +147,7 @@ configureAndInstall() {
    msg "Building Boost $ver"
 
    cd "$SOURCE_ROOT"
-   URL=https://boostorg.jfrog.io/artifactory/main/release/${ver}/source/boost_${uver}.tar.gz
+   URL=https://sourceforge.net/projects/boost/files/boost/${ver}/boost_${uver}.tar.gz
    curl -sSL $URL | tar xzf - || error "Boost $ver"
    cd boost_${uver}
 
