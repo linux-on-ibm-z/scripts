@@ -38,6 +38,8 @@ fi
 
 python3 script/validate_builds_currency.py "$PKG_DIR_PATH$BUILD_SCRIPT" "$VERSION" "$docker_image" > build_log &
 
+cat build_log
+
 SCRIPT_PID=$!
 while ps -p $SCRIPT_PID > /dev/null
 do 
