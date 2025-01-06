@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2024
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -108,7 +108,7 @@ function configureAndInstall() {
 	git clone -b $PACKAGE_VERSION https://github.com/rethinkdb/rethinkdb && cd rethinkdb
 
 	# Configure and build RethinkDB 
-	./configure --allow-fetch
+	./configure --allow-fetch --fetch protoc
 	make -j4
 	
 	#  Install RethinkDB
