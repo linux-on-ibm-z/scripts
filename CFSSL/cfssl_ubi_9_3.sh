@@ -86,9 +86,10 @@ function configureAndInstall() {
 	
 	#Installing CFSSL
 	cd $SOURCE_ROOT
-	go install github.com/cloudflare/cfssl/cmd/cfssl@v${PACKAGE_VERSION}
-	go install github.com/cloudflare/cfssl/cmd/cfssljson@v${PACKAGE_VERSION}
-	
+
+	go install github.com/cloudflare/cfssl/cmd/cfssl@${PACKAGE_VERSION}
+	go install github.com/cloudflare/cfssl/cmd/cfssljson@${PACKAGE_VERSION}
+
 	printf -- 'CFSSL installed successfully. \n'
 	printf -- "The tools will be installed in $GOPATH/bin."
 	
@@ -104,7 +105,7 @@ function runTest() {
 		cd $GOPATH/src/github.com/cloudflare
 		git clone https://github.com/cloudflare/cfssl.git
 		cd $GOPATH/src/github.com/cloudflare/cfssl
-		git checkout "v${PACKAGE_VERSION}"
+		git checkout "${PACKAGE_VERSION}"
 		cd $GOPATH/src/github.com/cloudflare/cfssl
 		go install golang.org/x/lint/golint@latest
 		go mod vendor
