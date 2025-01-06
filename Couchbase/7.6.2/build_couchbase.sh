@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -255,7 +255,7 @@ function buildBoost() {
     PACKAGE_BOOST=$NAME_BOOST-linux-s390x-$VERSION_BOOST-$BUILD_BOOST
 
     printf -- "Start building %s .\n" "$PACKAGE_BOOST"
-    if [ -d  $SOURCE_ROOT/boost_1_82_0 ]; then
+    if [ -d  $SOURCE_ROOT/boost-1.82.0 ]; then
         printf -- "The file already exists. Nothing to do. \n"
         return 0
     fi
@@ -263,12 +263,9 @@ function buildBoost() {
     sudo ldconfig /usr/local/lib64 /usr/local/lib
     cd $SOURCE_ROOT
     TOOLSET=gcc
-    URL=https://boostorg.jfrog.io/artifactory/main/release/$VERSION_BOOST/source/boost_1_82_0.tar.gz
+    URL=https://github.com/boostorg/boost/releases/download/boost-$VERSION_BOOST/boost-$VERSION_BOOST.tar.gz
     curl -sSL $URL | tar xzf -
-    cd boost_1_82_0
-    sed -i 's/array\.hpp/array_wrapper.hpp/g' boost/numeric/ublas/matrix.hpp
-    sed -i 's/array\.hpp/array_wrapper.hpp/g' boost/numeric/ublas/storage.hpp
-
+    cd boost-1.82.0
     ./bootstrap.sh --with-libraries=context,chrono,date_time,filesystem,program_options,regex,system,thread --prefix=$(pwd)/_build --libdir=$(pwd)/_build/lib
     options=(toolset=$TOOLSET variant=release link=static runtime-link=shared threading=multi --without-python address-model=64 cflags=-fno-omit-frame-pointer cxxflags=-fno-omit-frame-pointer cxxflags=-fPIC cxxflags=-std=c++17)
     ./b2 -j 4 ${options[@]} install
@@ -722,7 +719,7 @@ function buildFolly() {
     JEMALLOC_BUILD=$SOURCE_ROOT/jemalloc/_build
     FMT_BUILD=$SOURCE_ROOT/fmt/_build
     GLOG_BUILD=$SOURCE_ROOT/glog/_build
-    BOOST_BUILD=$SOURCE_ROOT/boost_1_82_0/_build
+    BOOST_BUILD=$SOURCE_ROOT/boost-1.82.0/_build
     DOUBLE_CONVERSION_BUILD=$SOURCE_ROOT/double-conversion/_build
     LIBEVENT_BUILD=$SOURCE_ROOT/libevent/_build
     OPENSSL_BUILD=$SOURCE_ROOT/openssl-3.1.4/_build
@@ -1045,7 +1042,7 @@ SET_PROPERTY (GLOBAL APPEND PROPERTY CBDEPS_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE
 EOF
 
     mkdir -p cmake && cd cmake
-    wget https://raw.githubusercontent.com/couchbase/build-tools/master/cbdeps/jemalloc_noprefix/package/cmake/Jemalloc_NoprefixConfig.cmake 
+    wget https://raw.githubusercontent.com/couchbase/build-tools/master/cbdeps/jemalloc_noprefix/package/cmake/Jemalloc_NoprefixConfig.cmake
 
     cd $SOURCE_ROOT/jemalloc_noprefix/_build
     # Packaging build files
@@ -1636,7 +1633,7 @@ EOF
 
     cd v8
     wget $PATCH_URL/v8.diff -P $SOURCE_ROOT/patch
-    git apply $SOURCE_ROOT/patch/v8.diff 
+    git apply $SOURCE_ROOT/patch/v8.diff
     sed -i 's/-Wl,-z,relro/-Wl,-z,relro,-lstdc++/' ./build/config/compiler/BUILD.gn
     V8_ARGS='is_component_build=true target_cpu="s390x" v8_target_cpu="s390x" use_goma=false goma_dir="None" v8_enable_backtrace=true treat_warnings_as_errors=false is_clang=false use_custom_libcxx_for_host=false use_custom_libcxx=false v8_use_external_startup_data=false  use_sysroot=false use_gold=false linux_use_bundled_binutils=false    v8_enable_pointer_compression=false'
     # build release
@@ -1806,7 +1803,7 @@ function buildCouchbase() {
 
     cd $SOURCE_ROOT/couchbase/
     sudo ldconfig /usr/local/lib64 /usr/local/lib
-    sudo cp tlm/CMakeLists.txt CMakeLists.txt 
+    sudo cp tlm/CMakeLists.txt CMakeLists.txt
     LD_LIBRARY_PATH=$CB_PREFIX/lib:$LD_LIBRARY_PATH CC=$CC CXX=$CXX EXTRA_CMAKE_OPTIONS="$OPTIONS" ./Build.sh everything
 }
 
@@ -1838,12 +1835,12 @@ function main() {
 
     rhel9.2 | rhel9.4)
         prepareRHEL9
-        ;; 
+        ;;
 
     sles15.5 | sles15.6)
         prepareSUSE15
         ;;
-    
+
     ubuntu20.04)
         prepareUB20
         ;;
