@@ -36,6 +36,8 @@ fi
 
 source "/etc/os-release"
 
+yum install -y sudo
+
 function prepare() {
     if command -v "sudo" >/dev/null; then
         printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
