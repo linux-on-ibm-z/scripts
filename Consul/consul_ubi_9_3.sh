@@ -107,7 +107,7 @@ function configureAndInstall() {
     rm -rf consul
 
     printf -- "Building and installing consul\n"
-    git clone --depth 1 -b v${PACKAGE_VERSION} https://github.com/hashicorp/consul.git
+    git clone --depth 1 -b ${PACKAGE_VERSION} https://github.com/hashicorp/consul.git
     cd consul
     make tools
     make dev
