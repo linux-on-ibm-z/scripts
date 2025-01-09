@@ -73,6 +73,7 @@ function configureAndInstall() {
     curl -sSL "${PATCH_URL}/NdbHW.patch" | git apply -
     curl -sSL "${PATCH_URL}/router-test.patch" | git apply -
     curl -sSL "${PATCH_URL}/ut0rnd.patch" | git apply -
+    curl -sSL "${PATCH_URL}/type-vector.patch" | git apply -
     # Copy duktape files in to mysql source
     mkdir build
     cd build
@@ -209,7 +210,7 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.2" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y --allowerasing curl
@@ -230,7 +231,7 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y curl make cmake bison gcc13 gcc13-c++ git-core hostname ncurses-devel openssl procps \
