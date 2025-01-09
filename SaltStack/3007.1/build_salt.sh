@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2024
+# © Copyright IBM Corporation 2024, 2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -65,12 +65,8 @@ function runTest() {
 if [[ "$TESTS" == "true" ]]; then
 	printf -- 'Running tests \n\n'		
 	cd "${CURDIR}/${PACKAGE_NAME}"
-	pip3 install nox      
-	if [[ "$VERSION_ID" == "12.5" ]]; then 
-        CFLAGS="-std=c99" python3 -m nox -e "test-3(coverage=False)" -- --core-tests --slow-tests || true    
-	else 
-        python3 -m nox -e "test-3(coverage=False)" -- --core-tests --slow-tests || true
-	fi
+	pip3 install nox       
+    python3 -m nox -e "test-3(coverage=False)" -- --core-tests --slow-tests || true
 	printf -- 'Test Completed \n\n'
 fi
 }
@@ -78,29 +74,7 @@ fi
 function configureAndInstall()
 {
   printf -- 'Configuration and Installation started \n'
-	if [[ "$VERSION_ID" == "12.5" ]]; then
-		printf -- '#Build and install openssl \n'
-		cd "${CURDIR}"
-		wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz --no-check-certificate
-		tar -xzf openssl-1.1.1q.tar.gz
-		cd openssl-1.1.1q
-		./config --prefix=/usr/local --openssldir=/usr/local
-		make
-		sudo make install
-		sudo ldconfig /usr/local/lib64
-
-		export PATH=/usr/local/bin:$PATH
-		export LDFLAGS="-L/usr/local/lib/ -L/usr/local/lib64/"
-		export LD_LIBRARY_PATH="/usr/local/lib/:/usr/local/lib64/"
-		export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig
-		export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl"
-
-		printf -- 'export PATH="/usr/local/bin:${PATH}"\n'  >> "${BUILD_ENV}"
-		printf -- "export LDFLAGS=\"$LDFLAGS\"\n" >> "${BUILD_ENV}"
-		printf -- "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"\n" >> "${BUILD_ENV}"
-		printf -- "export CPPFLAGS=\"$CPPFLAGS\"\n" >> "${BUILD_ENV}"
-  	fi
-
+  
 	printf -- 'Building Python \n'
 	cd "${CURDIR}"
 	wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz 
@@ -205,37 +179,32 @@ logDetails
 checkPrequisites  #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
+"rhel-8.8" | "rhel-8.10")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget cmake bzip2-devel gdbm-devel libdb-devel libnsl2-devel libuuid-devel ncurses-devel openssl openssl-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel glibc-langpack-en diffutils bzip2-devel sqlite-devel |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
+;;
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man openssl-devel swig tar wget cmake python3-devel python3-pip bzip2-devel sqlite-devel |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
+;;
+"sles-15.6")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 libbz2-devel |& tee -a "${LOG_FILE}"
+    configureAndInstall |& tee -a "${LOG_FILE}"
+;;
 "ubuntu-20.04")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update
   sudo apt-get install -y wget g++ gcc git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man python3-dev python3-pip tar libz-dev pkg-config apt-utils curl cmake libbz2-dev libsqlite3-dev |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
-"ubuntu-22.04" | "ubuntu-24.04")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update
   sudo apt-get install -y wget g++ gcc git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man tar wget libz-dev pkg-config apt-utils curl cmake libbz2-dev libdb-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev tk-dev uuid-dev xz-utils zlib1g-dev libbz2-dev libsqlite3-dev |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
-;;
-"rhel-8.8" | "rhel-8.9" | "rhel-8.10")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget cmake bzip2-devel gdbm-devel libdb-devel libnsl2-devel libuuid-devel ncurses-devel openssl openssl-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel glibc-langpack-en diffutils bzip2-devel sqlite-devel |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "${LOG_FILE}"
-;;
-"rhel-9.2" | "rhel-9.3" | "rhel-9.4")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man openssl-devel swig tar wget cmake python3-devel python3-pip bzip2-devel sqlite-devel |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "${LOG_FILE}"
-;;
-"sles-12.5")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi48-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 libbz2-devel |& tee -a "${LOG_FILE}"
-	configureAndInstall |& tee -a "${LOG_FILE}"
-;;
-"sles-15.5")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 libbz2-devel |& tee -a "${LOG_FILE}"
-    configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 *)
   printf -- "%s not supported \n" "$DISTRO"|& tee -a "$LOG_FILE"
