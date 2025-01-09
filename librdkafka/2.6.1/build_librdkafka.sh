@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -85,7 +85,7 @@ function buildOssl() {
 function configureAndInstall() {
 	source $PRESERVE_ENVARS
 	printf -- 'Configuration and Installation started \n'
-	if [ $ID$VERSION_ID == rhel8.8 ] || [ $ID$VERSION_ID == rhel8.10 ] || [ $ID$VERSION_ID == sles15.5 ] || [ $ID$VERSION_ID == ubuntu20.04 ]; then
+	if [ $ID$VERSION_ID == rhel8.8 ] || [ $ID$VERSION_ID == rhel8.10 ] || [ $ID$VERSION_ID == ubuntu20.04 ]; then
 		export CFLAGS="-I/usr/local/include"
 		export LIBS="-L/usr/local/lib"
 	fi
@@ -167,7 +167,7 @@ echo "export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> $PRESERVE_ENVAR
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git make openssl-devel cyrus-sasl-devel python3 gcc gcc-c++ zlib-devel binutils |& tee -a "${LOG_FILE}"
@@ -175,13 +175,13 @@ case "$DISTRO" in
 		sudo yum install -y wget tar perl |& tee -a "${LOG_FILE}"
 		buildOssl |& tee -a "${LOG_FILE}"
 	fi
-  if [ $ID$VERSION_ID == rhel9.2 ] || [ $ID$VERSION_ID == rhel9.4 ]; then
+  if [ $ID$VERSION_ID == rhel9.2 ] || [ $ID$VERSION_ID == rhel9.4 ] || [ $ID$VERSION_ID == rhel9.5 ]; then
     rm ~/.bash_profile
     touch ~/.bash_profile
 	fi
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo zypper install -y binutils gcc make libz1 zlib-devel git gcc-c++ openssl-devel |& tee -a "${LOG_FILE}"
