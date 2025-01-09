@@ -81,43 +81,78 @@ function install_go() {
     	printf -- "Completed go installation successfully. \n" >>"$LOG_FILE"
 }
 function configureAndInstall() {
-    	printf -- "Configuration and Installation started \n"
-	printf -- "Build and install Consul \n"
-	
-	#Installing Consul
-	cd $SOURCE_ROOT
+    printf -- "Configuration and Installation started \n"
+    
+    if ! [[ $DISTRO =~ "ubuntu" ]]
+    then
+      sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+    fi
+    
+    # Install Go
+    printf -- 'Installing go\n'
+    cd ${GOPATH}
+    wget https://go.dev/dl/go${GO_VERSION}.linux-s390x.tar.gz
+    tar -xzf go${GO_VERSION}.linux-s390x.tar.gz
+    
+    sudo rm -rf /usr/local/go /usr/bin/go
+    sudo ln -sf $GOPATH/go/bin/go /usr/bin/ 
+    sudo ln -sf $GOPATH/go/bin/gofmt /usr/bin/
 
-	go install github.com/hashicorp/consul@${PACKAGE_VERSION}
+    go version
+    printf -- "Install Go success\n"
 
-	printf -- 'Consul installed successfully. \n'
-	printf -- "The tools will be installed in $GOPATH/bin."
-	
-	#runTests
-	runTest    
+    # Build and install consul
+    mkdir -p $GOPATH/src/github.com/hashicorp
+    cd $GOPATH/src/github.com/hashicorp
+    rm -rf consul
+
+    printf -- "Building and installing consul\n"
+    git clone --depth 1 -b v${PACKAGE_VERSION} https://github.com/hashicorp/consul.git
+    cd consul
+    make tools
+    make dev
+
+    # Create a symlink
+    sudo ln -sf $GOPATH/bin/consul /usr/bin/consul
+    printf -- "Build and install consul success\n"
+
+    # Run Test
+    runTest
+
+    cd "$SOURCE_ROOT"
+
+    # Verify consul installation
+    if command -v "consul" >/dev/null; then
+        printf -- " %s Installation verified.\n" "$PACKAGE_NAME"
+    else
+        printf -- "Error while installing %s, exiting with 127 \n" "$PACKAGE_NAME"
+        exit 127
+    fi
 }
 
 function runTest() {
-	set +e
-	if [[ "$TESTS" == "true" ]]; then
-		printf -- "\nTEST Flag is set, continue with running test \n"
-		mkdir -p $GOPATH/src/github.com/hashicorp
-		cd $GOPATH/src/github.com/hashicorp
-		git clone https://github.com/hashicorp/consul.git
-		cd $GOPATH/src/github.com/hashicorp/consul
-		git checkout "${PACKAGE_VERSION}"
-		cd $GOPATH/src/github.com/hashicorp/consul
-		go install golang.org/x/lint/golint@latest
-		go mod vendor
-		cp -r $GOPATH/bin  $GOPATH/src/github.com/hashicorp/consul
-		export PATH=$PATH:$GOPATH/bin
-		export GO111MODULE=on
-		export GOFLAGS="-mod=vendor"
-		./test.sh
-        	printf -- "Tests completed. \n" 
-	fi
-	set -e
-}
+    set +e
+    if [[ "$TESTS" == "true" ]]; then
+        printf -- 'Running consul tests \n\n'
+        cd $GOPATH/src/github.com/hashicorp/consul/
+  
+	printf -- 'Increasing go test and ci timeout \n\n'
+        sed -i "s/timeout: 10m/timeout: 2h/1" .golangci.yml
+        sed -i "s/  go test -v/  go test -v -timeout=2h/1" Makefile
 
+        make test 2>&1 | tee -a maketestlog
+        grep "FAIL" maketestlog | grep github.com | awk '{print $2}' >>test.txt
+
+        if [ -s $GOPATH/src/github.com/hashicorp/consul/test.txt ]; then
+            printf -- '*****************************************************************************************************************************\n'
+            printf -- '\nUnexpected test failures detected. Tip : Try running them individually as go test -v <package_name> -run <failed_test_name>
+                                         or increasing the timeout using -timeout option to go test command.\n'
+            printf -- '*****************************************************************************************************************************\n'
+        fi
+    fi
+
+    set -e
+}
 function logDetails() {
     printf -- '**************************** SYSTEM DETAILS *************************************************************\n' >"$LOG_FILE"
     if [ -f "/etc/os-release" ]; then
