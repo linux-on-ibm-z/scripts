@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024
+# © Copyright IBM Corporation 2024,2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -210,7 +210,7 @@ case "$DISTRO" in
     installLibxml2 |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     	;;
-"rhel-9.2" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git make libtool libxslt-devel libtool-ltdl-devel diffutils tar wget perl-CPAN |& tee -a "$LOG_FILE"
@@ -220,7 +220,7 @@ case "$DISTRO" in
     export CPPFLAGS="-I/usr/local/include/ -I/usr/local/include/openssl" 
     configureAndInstall |& tee -a "$LOG_FILE"
     	;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y git-core gcc make libtool libxslt-devel libopenssl-devel gawk libxmlsec1-openssl1 |& tee -a "$LOG_FILE"
