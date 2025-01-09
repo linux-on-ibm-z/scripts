@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -135,32 +135,25 @@ checkPrequisites #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.10")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-    	sudo apt-get update -y >/dev/null
-	sudo apt install -y libncursesw5-dev autotools-dev autoconf build-essential git |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
-"rhel-7.8" | "rhel-7.9" | "rhel-8.6" | "rhel-8.8" | "rhel-8.9" | "rhel-9.0" | "rhel-9.2" | "rhel-9.3")
+"rhel-8.8" | "rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y ncurses-devel automake autoconf gcc git make |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
-"sles-12.5")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-        sudo zypper install -y ncurses ncurses-devel-5.9-72.1 gcc make wget tar awk git autoconf libtool xz gzip|& tee -a "$LOG_FILE"
-        configureAndInstall |& tee -a "$LOG_FILE"
-        ;;
-
-"sles-15.5")
+"sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y ncurses ncurses-devel gcc make wget tar awk git autoconf libtool xz gzip|& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+
+"ubuntu-20.04" | "ubuntu-22.04")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
+    	sudo apt-get update -y >/dev/null
+	sudo apt install -y libncursesw5-dev autotools-dev autoconf build-essential git |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
