@@ -232,7 +232,7 @@ configureAndInstall() {
   elif [[ $DISTRO =~ "ubuntu-2" ]]; then
     curl -sSL ${PATCH_URL}/scylla_ub.diff | patch -p1 || error "scylla_ub.diff"
   fi
-
+  find . -type f -exec sed -i 's,wasm32-wasi,wasm32-wasip1,g' {} +
   msg "Building scylla"
 
   export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PREFIX/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
@@ -567,7 +567,7 @@ function installRust() {
   cargo install cxxbridge-cmd --root $SOURCE_ROOT/cxxbridge
   sudo cp -r $SOURCE_ROOT/cxxbridge/. /usr/local
   cargo install wasm-opt |& tee -a "$LOG_FILE"
-  rustup target add wasm32-wasi |& tee -a "$LOG_FILE"
+  rustup target add wasm32-wasip1 |& tee -a "$LOG_FILE"
 }
 
 #==============================================================================
