@@ -24,7 +24,6 @@ if [ $validate_build_script == true ];then
   	make db-fetch-langs db-fetch-vuln-list
    	make build
     	make db-build
-     	sudo cp /trivy-db/out/trivy.db /root/.cache/trivy/db/trivy.db
         chmod 644 /root/.cache/trivy/db/trivy.db
 	export TRIVY_DB_FILE=./out/trivy.db
  
@@ -32,6 +31,7 @@ if [ $validate_build_script == true ];then
 	tar -xf trivy_0.45.0_Linux-S390X.tar.gz
         chmod +x trivy
         sudo mv trivy /usr/bin
+	sudo cp /trivy-db/out/trivy.db /root/.cache/trivy/db/trivy.db
 	echo "Executing trivy scanner"
 	sudo trivy -q fs --timeout 30m -f json ${cloned_package} > trivy_source_vulnerabilities_results.json
  	#cat trivy_source_vulnerabilities_results.json
