@@ -203,3 +203,4 @@ index 24ea313..91b6995 100644
  	if strings.HasPrefix(platformName, "openSUSE Tumbleweed") {
  		// Tumbleweed has no version, it is a rolling release
  		return platformOpenSUSETumbleweedFormat
+                
