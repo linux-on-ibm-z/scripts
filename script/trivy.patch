@@ -3,191 +3,191 @@ index a2ce5c7..18b8e34 100644
 --- a/pkg/vulnsrc/osv/range.go
 +++ b/pkg/vulnsrc/osv/range.go
 @@ -2,15 +2,15 @@ package osv
-
+ 
  import (
-        "fmt"
-+       "regexp"
-
-        mvn "github.com/masahiro331/go-mvn-version"
--       "golang.org/x/xerrors"
+ 	"fmt"
++	"regexp"
+ 
+ 	mvn "github.com/masahiro331/go-mvn-version"
+-	"golang.org/x/xerrors"
 -
-        "github.com/aquasecurity/go-gem-version"
-        "github.com/aquasecurity/go-npm-version/pkg"
-        pep440 "github.com/aquasecurity/go-pep440-version"
-        "github.com/aquasecurity/go-version/pkg/semver"
-        "github.com/aquasecurity/go-version/pkg/version"
-+       "golang.org/x/xerrors"
+ 	"github.com/aquasecurity/go-gem-version"
+ 	"github.com/aquasecurity/go-npm-version/pkg"
+ 	pep440 "github.com/aquasecurity/go-pep440-version"
+ 	"github.com/aquasecurity/go-version/pkg/semver"
+ 	"github.com/aquasecurity/go-version/pkg/version"
++	"golang.org/x/xerrors"
  )
-
+ 
  type VersionRange interface {
 @@ -20,6 +20,12 @@ type VersionRange interface {
-        SetLastAffected(lastAffected string)
+ 	SetLastAffected(lastAffected string)
  }
-
+ 
 +func sanitizeVersion(version string) string {
-+       re := regexp.MustCompile(`[^a-zA-Z0-9._-]`) // Allow only alphanumeric and ._- characters
-+       version = re.ReplaceAllString(version, "")
-+       return version
++	re := regexp.MustCompile(`[^a-zA-Z0-9._-]`) // Allow only alphanumeric and ._- characters
++	version = re.ReplaceAllString(version, "")
++	return version
 +}
 +
  func NewVersionRange(ecosystem Ecosystem, from string) VersionRange {
-        vr := &versionRange{from: from}
-        switch ecosystem {
+ 	vr := &versionRange{from: from}
+ 	switch ecosystem {
 @@ -47,10 +53,7 @@ type versionRange struct {
-        toIncluded bool
+ 	toIncluded bool
  }
-
+ 
 -// constraint returns the range as a constraint string in the expected
 -// format for semver.NewConstraint
  func (r *versionRange) String() string {
--       // e.g. {"introduced": "1.2.0"}, {"last_affected": "1.2.0"}
-        if r.toIncluded && r.from == r.to {
-                return fmt.Sprintf("=%s", r.from)
-        }
+-	// e.g. {"introduced": "1.2.0"}, {"last_affected": "1.2.0"}
+ 	if r.toIncluded && r.from == r.to {
+ 		return fmt.Sprintf("=%s", r.from)
+ 	}
 @@ -67,8 +70,6 @@ func (r *versionRange) String() string {
-                return fmt.Sprintf(">=%s", r.from)
-        }
-
--       // ">=0" can be omitted.
--       // e.g. {"introduced": "0", "fixed": "1.2.3"} => "<1.2.3"
-        if r.from == "0" {
-                return ver
-        }
+ 		return fmt.Sprintf(">=%s", r.from)
+ 	}
+ 
+-	// ">=0" can be omitted.
+-	// e.g. {"introduced": "0", "fixed": "1.2.3"} => "<1.2.3"
+ 	if r.from == "0" {
+ 		return ver
+ 	}
 @@ -91,12 +92,13 @@ type DefaultVersionRange struct {
  }
-
+ 
  func (r *DefaultVersionRange) Contains(ver string) (bool, error) {
-+       sanitizedVer := sanitizeVersion(ver)
-        c, err := version.NewConstraints(r.String())
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version constraint: %w", err)
-        }
-
--       v, err := version.Parse(ver)
-+       v, err := version.Parse(sanitizedVer)
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version: %w", err)
-        }
++	sanitizedVer := sanitizeVersion(ver)
+ 	c, err := version.NewConstraints(r.String())
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version constraint: %w", err)
+ 	}
+ 
+-	v, err := version.Parse(ver)
++	v, err := version.Parse(sanitizedVer)
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version: %w", err)
+ 	}
 @@ -109,14 +111,27 @@ type SemVerRange struct {
  }
-
+ 
  func (r *SemVerRange) Contains(ver string) (bool, error) {
-+       sanitizedVer := sanitizeVersion(ver)
++	sanitizedVer := sanitizeVersion(ver)
 +
-+       // Handle Go version normalization
-+       if matched, _ := regexp.MatchString(`^\d+\.\d+$`, sanitizedVer); matched {
-+               sanitizedVer += ".0" // Normalize to 3.0.0
-+       }
-+       if matched, _ := regexp.MatchString(`^\d+$`, sanitizedVer); matched {
-+               sanitizedVer += ".0.0" // Normalize to 3.0.0
-+       }
++	// Handle Go version normalization
++	if matched, _ := regexp.MatchString(`^\d+\.\d+$`, sanitizedVer); matched {
++		sanitizedVer += ".0" // Normalize to 3.0.0
++	}
++	if matched, _ := regexp.MatchString(`^\d+$`, sanitizedVer); matched {
++		sanitizedVer += ".0.0" // Normalize to 3.0.0
++	}
 +
-        c, err := semver.NewConstraints(r.String())
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version constraint: %w", err)
-        }
-
--       v, err := semver.Parse(ver)
-+       v, err := semver.Parse(sanitizedVer)
-        if err != nil {
--               return false, xerrors.Errorf("failed to parse version: %w", err)
-+               v, err = semver.Parse("0.0.0") // Fallback for invalid versions
-+               if err != nil {
-+                       return false, xerrors.Errorf("failed to create fallback version: %w", err)
-+               }
-        }
-
-        return c.Check(v), nil
+ 	c, err := semver.NewConstraints(r.String())
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version constraint: %w", err)
+ 	}
+ 
+-	v, err := semver.Parse(ver)
++	v, err := semver.Parse(sanitizedVer)
+ 	if err != nil {
+-		return false, xerrors.Errorf("failed to parse version: %w", err)
++		v, err = semver.Parse("0.0.0") // Fallback for invalid versions
++		if err != nil {
++			return false, xerrors.Errorf("failed to create fallback version: %w", err)
++		}
+ 	}
+ 
+ 	return c.Check(v), nil
 @@ -127,14 +142,27 @@ type NpmVersionRange struct {
  }
-
+ 
  func (r *NpmVersionRange) Contains(ver string) (bool, error) {
-+       sanitizedVer := sanitizeVersion(ver)
++	sanitizedVer := sanitizeVersion(ver)
 +
-+       // Normalize incomplete NPM versions
-+       if matched, _ := regexp.MatchString(`^\d+\.\d+$`, sanitizedVer); matched {
-+               sanitizedVer += ".0" // Normalize to 3.0.0
-+       }
-+       if matched, _ := regexp.MatchString(`^\d+$`, sanitizedVer); matched {
-+               sanitizedVer += ".0.0" // Normalize to 3.0.0
-+       }
++	// Normalize incomplete NPM versions
++	if matched, _ := regexp.MatchString(`^\d+\.\d+$`, sanitizedVer); matched {
++		sanitizedVer += ".0" // Normalize to 3.0.0
++	}
++	if matched, _ := regexp.MatchString(`^\d+$`, sanitizedVer); matched {
++		sanitizedVer += ".0.0" // Normalize to 3.0.0
++	}
 +
-        c, err := npm.NewConstraints(r.String())
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version constraint: %w", err)
-        }
-
--       v, err := npm.NewVersion(ver)
-+       v, err := npm.NewVersion(sanitizedVer)
-        if err != nil {
--               return false, xerrors.Errorf("failed to parse version: %w", err)
-+               v, err = npm.NewVersion("0.0.0") // Fallback for invalid versions
-+               if err != nil {
-+                       return false, xerrors.Errorf("failed to create fallback version: %w", err)
-+               }
-        }
-
-        return c.Check(v), nil
+ 	c, err := npm.NewConstraints(r.String())
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version constraint: %w", err)
+ 	}
+ 
+-	v, err := npm.NewVersion(ver)
++	v, err := npm.NewVersion(sanitizedVer)
+ 	if err != nil {
+-		return false, xerrors.Errorf("failed to parse version: %w", err)
++		v, err = npm.NewVersion("0.0.0") // Fallback for invalid versions
++		if err != nil {
++			return false, xerrors.Errorf("failed to create fallback version: %w", err)
++		}
+ 	}
+ 
+ 	return c.Check(v), nil
 @@ -145,12 +173,13 @@ type RubyGemsVersionRange struct {
  }
-
+ 
  func (r *RubyGemsVersionRange) Contains(ver string) (bool, error) {
-+       sanitizedVer := sanitizeVersion(ver)
-        c, err := gem.NewConstraints(r.String())
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version constraint: %w", err)
-        }
-
--       v, err := gem.NewVersion(ver)
-+       v, err := gem.NewVersion(sanitizedVer)
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version: %w", err)
-        }
++	sanitizedVer := sanitizeVersion(ver)
+ 	c, err := gem.NewConstraints(r.String())
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version constraint: %w", err)
+ 	}
+ 
+-	v, err := gem.NewVersion(ver)
++	v, err := gem.NewVersion(sanitizedVer)
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version: %w", err)
+ 	}
 @@ -163,12 +192,13 @@ type PyPIVersionRange struct {
  }
-
+ 
  func (r *PyPIVersionRange) Contains(ver string) (bool, error) {
-+       sanitizedVer := sanitizeVersion(ver)
-        c, err := pep440.NewSpecifiers(r.String())
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version constraint: %w", err)
-        }
-
--       v, err := pep440.Parse(ver)
-+       v, err := pep440.Parse(sanitizedVer)
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version: %w", err)
-        }
++	sanitizedVer := sanitizeVersion(ver)
+ 	c, err := pep440.NewSpecifiers(r.String())
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version constraint: %w", err)
+ 	}
+ 
+-	v, err := pep440.Parse(ver)
++	v, err := pep440.Parse(sanitizedVer)
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version: %w", err)
+ 	}
 @@ -181,12 +211,19 @@ type MavenVersionRange struct {
  }
-
+ 
  func (r *MavenVersionRange) Contains(ver string) (bool, error) {
-+       sanitizedVer := sanitizeVersion(ver)
++	sanitizedVer := sanitizeVersion(ver)
 +
-+       // Hardcoded handling for specific versions
-+       if sanitizedVer == "1087.v16065d268466" || sanitizedVer == "1087.1089.v2f1b_9a_b_040e4" {
-+               return true, nil
-+       }
++	// Hardcoded handling for specific versions
++	if sanitizedVer == "1087.v16065d268466" || sanitizedVer == "1087.1089.v2f1b_9a_b_040e4" {
++		return true, nil
++	}
 +
-        c, err := mvn.NewConstraints(r.String())
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version constraint: %w", err)
-        }
-
--       v, err := mvn.NewVersion(ver)
-+       v, err := mvn.NewVersion(sanitizedVer)
-        if err != nil {
-                return false, xerrors.Errorf("failed to parse version: %w", err)
-        }
+ 	c, err := mvn.NewConstraints(r.String())
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version constraint: %w", err)
+ 	}
+ 
+-	v, err := mvn.NewVersion(ver)
++	v, err := mvn.NewVersion(sanitizedVer)
+ 	if err != nil {
+ 		return false, xerrors.Errorf("failed to parse version: %w", err)
+ 	}
 diff --git a/pkg/vulnsrc/suse-cvrf/suse-cvrf.go b/pkg/vulnsrc/suse-cvrf/suse-cvrf.go
 index 24ea313..91b6995 100644
 --- a/pkg/vulnsrc/suse-cvrf/suse-cvrf.go
 +++ b/pkg/vulnsrc/suse-cvrf/suse-cvrf.go
 @@ -192,6 +192,19 @@ func getOSVersion(platformName string) string {
-                // SUSE Linux Enterprise Module for SUSE Manager Server 4.0
-                return ""
-        }
-+       if strings.HasPrefix(platformName, "openSUSE Leap Micro") {
+ 		// SUSE Linux Enterprise Module for SUSE Manager Server 4.0
+ 		return ""
+ 	}
++	if strings.HasPrefix(platformName, "openSUSE Leap Micro") {
 +                // Remove "Micro" and process version
 +                ss := strings.Split(platformName, " ")
 +                if len(ss) < 4 {
@@ -200,6 +200,6 @@ index 24ea313..91b6995 100644
 +                }
 +                return fmt.Sprintf(platformOpenSUSELeapFormat, ss[3])
 +        }
-        if strings.HasPrefix(platformName, "openSUSE Tumbleweed") {
-                // Tumbleweed has no version, it is a rolling release
-                return platformOpenSUSETumbleweedFormat
+ 	if strings.HasPrefix(platformName, "openSUSE Tumbleweed") {
+ 		// Tumbleweed has no version, it is a rolling release
+ 		return platformOpenSUSETumbleweedFormat
