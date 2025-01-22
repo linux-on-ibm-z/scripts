@@ -21,9 +21,9 @@ if [ $validate_build_script == true ];then
 	sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
 	sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
 
-  	make db-fetch-langs db-fetch-vuln-list
+  	travis_wait 30 make db-fetch-langs db-fetch-vuln-list
    	make build
-    	make db-build
+    	travis_wait 30 make db-build
 	export TRIVY_DB_FILE=./out/trivy.db
  
 	wget https://github.com/aquasecurity/trivy/releases/download/v0.45.0/trivy_0.45.0_Linux-S390X.tar.gz
