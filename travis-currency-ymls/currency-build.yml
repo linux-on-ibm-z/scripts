@@ -72,7 +72,7 @@ jobs:
       script:
         - ls -ltr package-cache
         - source package-cache/variable.sh;
-        - chmod +x ./script/scanner-scripts/trivy_code_scan.sh;bash ./script/scanner-scripts/trivy_code_scan.sh;
+        - travis_wait 30 chmod +x ./script/scanner-scripts/trivy_code_scan.sh;bash ./script/scanner-scripts/trivy_code_scan.sh;
         - mkdir source_trivy
         - mv package-cache/trivy_source_vulnerabilities_results.json package-cache/trivy_source_sbom_results.cyclonedx source_trivy
       workspaces:
