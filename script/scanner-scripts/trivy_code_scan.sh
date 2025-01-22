@@ -2,6 +2,7 @@
 
 validate_build_script=$VALIDATE_BUILD_SCRIPT
 cloned_package=$CLONED_PACKAGE
+current_dir=$(pwd)
 cd /root
 if [ $validate_build_script == true ];then
 
@@ -29,12 +30,11 @@ if [ $validate_build_script == true ];then
 	tar -xf trivy_0.45.0_Linux-S390X.tar.gz
         chmod +x trivy
         sudo mv trivy /usr/bin
-	chmod 644 /root/.cache/trivy/db/trivy.db
 	echo "Executing trivy scanner"
+ 	cd $current_dir/package-cache
 	sudo trivy -q fs --timeout 30m -f json ${cloned_package} > trivy_source_vulnerabilities_results.json || true
- 	sudo cp /trivy-db/out/trivy.db /root/.cache/trivy/db/trivy.db
-	sudo chmod 644 /root/.cache/trivy/db/trivy.db
-  	cd /package-cache
+ 	sudo chmod 644 /root/.cache/trivy/db/trivy.db
+ 	sudo cp /root/trivy-db/out/trivy.db /root/.cache/trivy/db/trivy.db
 	sudo trivy -q fs --timeout 30m -f json ${cloned_package} > trivy_source_vulnerabilities_results.json
  	#cat trivy_source_vulnerabilities_results.json
 	sudo trivy -q fs --timeout 30m -f cyclonedx ${cloned_package} > trivy_source_sbom_results.cyclonedx
