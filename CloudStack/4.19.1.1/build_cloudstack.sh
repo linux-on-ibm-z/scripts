@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024
+# © Copyright IBM Corporation 2024,2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -74,7 +74,7 @@ function installLibvirt() {
     cd $SOURCE_ROOT
     git clone -b v${LIBVIRT_PACKAGE_VERSION} https://github.com/libvirt/libvirt-java.git
     cd libvirt-java
-    if [[ $DISTRO == sles-15* ]]; then
+    if [[ $DISTRO == sles* ]]; then
         mkdir -p lib && cd lib && wget -O jna.jar https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.5.0/jna-5.5.0.jar && wget -O junit.jar https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar  && cd ..;
         sed -i '0,/\${jar.dir}/s/\${jar.dir}/lib/; 0,/\${jar.dir}/s/\${jar.dir}/lib/' build.xml
     fi
@@ -107,11 +107,11 @@ function configureAndInstall() {
     replace_line_in_file centos8/cloud.spec "$search_line" "$replacement_line"
 
     # Build rpm
-    sudo ./package.sh -d centos8
+    ./package.sh -d centos8
 
     # Install rpm
     cd ../dist/rpmbuild/RPMS/${arch}/
-    sudo rpm -i cloudstack-common-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-management-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-ui-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-baremetal-agent-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-integration-tests-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-marvin-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-usage-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-agent-${PACKAGE_VERSION}-1.${arch}.rpm
+    sudo rpm --nodeps -i cloudstack-common-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-management-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-ui-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-baremetal-agent-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-usage-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-agent-${PACKAGE_VERSION}-1.${arch}.rpm
     printf -- "Build and install CloudStack success\n"
 
     cd $SOURCE_ROOT
@@ -151,14 +151,15 @@ function configureAndInstallUb() {
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
     # Build deb
     if [[ $DISTRO == ubuntu-24.* ]]; then
-        nvm exec 10 sudo -E dpkg-buildpackage
+        nvm exec 10 sudo -E dpkg-buildpackage -d
     else
-        nvm exec 12 sudo -E dpkg-buildpackage
+        nvm exec 12 sudo -E dpkg-buildpackage -d
     fi
 
     # Install deb
     cd $SOURCE_ROOT
-    sudo dpkg -i ./cloudstack-common_${PACKAGE_VERSION}_all.deb ./cloudstack-management_${PACKAGE_VERSION}_all.deb ./cloudstack-ui_${PACKAGE_VERSION}_all.deb ./cloudstack-integration-tests_${PACKAGE_VERSION}_all.deb ./cloudstack-marvin_${PACKAGE_VERSION}_all.deb ./cloudstack-usage_${PACKAGE_VERSION}_all.deb ./cloudstack-agent_${PACKAGE_VERSION}_all.deb
+    sudo dpkg --force-all -i ./cloudstack-common_${PACKAGE_VERSION}_all.deb ./cloudstack-management_${PACKAGE_VERSION}_all.deb ./cloudstack-ui_${PACKAGE_VERSION}_all.deb ./cloudstack-usage_${PACKAGE_VERSION}_all.deb ./cloudstack-agent_${PACKAGE_VERSION}_all.deb || true
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -f -y || true
     printf -- "Build and install CloudStack success\n"
 
     cd $SOURCE_ROOT
@@ -197,7 +198,7 @@ function configureAndInstallSLES() {
 
     # Install rpm
     cd ../dist/rpmbuild/RPMS/${arch}/
-    sudo rpm --nodeps -i cloudstack-common-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-management-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-ui-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-baremetal-agent-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-integration-tests-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-marvin-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-usage-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-agent-${PACKAGE_VERSION}-1.${arch}.rpm
+    sudo rpm --nodeps -i cloudstack-common-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-management-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-ui-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-baremetal-agent-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-usage-${PACKAGE_VERSION}-1.${arch}.rpm cloudstack-agent-${PACKAGE_VERSION}-1.${arch}.rpm
     printf -- "Build and install CloudStack success\n"
 
     cd $SOURCE_ROOT
@@ -250,41 +251,6 @@ while getopts "h?dyt" opt; do
     esac
 done
 
-
-
-
-setupJava() {
-    export JAVA_HOME=$(find /usr/lib/jvm -type d -name 'java-11-*' | sort -V | tail -n 1)
-    echo "Setting up Java = $JAVA_HOME"
-    if ! grep -qF "export PATH=${JAVA_HOME}/bin:\$PATH" ~/.bash_profile; then
-        echo "export PATH=${JAVA_HOME}/bin:\$PATH" >> ~/.bash_profile
-        echo "Updated PATH in ~/.bash_profile"
-        source ~/.bash_profile || true
-    fi
-
-    echo "Setting up Java conf"
-    # Setting Java before building CloudStack
-    CONF_FILE="/etc/java/java.conf"
-    if [[ -f "$CONF_FILE" ]]; then
-        if grep -q '^JAVA_HOME=' $CONF_FILE; then
-            echo "JAVA_HOME entry already exists in $CONF_FILE"
-            sudo sed -i "s|^JAVA_HOME=.*|JAVA_HOME='${JAVA_HOME}'|" "$CONF_FILE"
-        else
-            echo "JAVA_HOME='${JAVA_HOME}'" >> $CONF_FILE
-            echo "JAVA_HOME has been added to $CONF_FILE"
-        fi
-    fi
-
-    sudo update-alternatives --install /usr/bin/java java $JAVA_HOME/bin/java 40
-    sudo update-alternatives --set java $JAVA_HOME/bin/java
-
-    sudo update-alternatives --install /usr/bin/javac javac $JAVA_HOME/bin/javac 40
-    sudo update-alternatives --set javac $JAVA_HOME/bin/javac
-
-    java -version
-    javac -version
-    echo "Java setup done"
-}
 
 setupNodejs() {
     if command -v nvm &> /dev/null; then
@@ -355,44 +321,32 @@ prepare # Check Prequisites
 
 case "$DISTRO" in
 
-    "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+    "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum groupinstall -y "Development Tools" |& tee -a "$LOG_FILE"
-        sudo yum install -y git python3 python3-pip java-11-openjdk-devel maven genisoimage mysql mysql-server createrepo \
+        sudo yum install -y git python3 python3-pip java-11-openjdk java-11-openjdk-devel maven genisoimage mysql mysql-server createrepo \
         nfs-utils qemu-img ipmitool python3-devel python3-libvirt libvirt perl qemu-kvm rng-tools dhcp-server httpd \
         syslinux-tftpboot tftp-server libffi-devel ant curl chkconfig |& tee -a "$LOG_FILE"
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+        export PATH="${JAVA_HOME}/bin:${PATH}"
         sudo yum update -y |& tee -a "$LOG_FILE"
         setupNodejs |& tee -a "$LOG_FILE"
         sudo yum install -y nodejs |& tee -a "$LOG_FILE"
-        setupJava |& tee -a "$LOG_FILE"
+        
         sudo pip3 install mysql-connector-python
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-    "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
+    "sles-15.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo apt-get install -y dpkg-dev debhelper openjdk-11-jdk genisoimage build-essential python3 python3-setuptools python3-mysql.connector \
-        maven ant libjna-java nodejs npm mysql-client augeas-tools mysql-client qemu-utils rng-tools python3-dnspython qemu-kvm libvirt-daemon-system \
-        ebtables vlan ipset python3-libvirt ethtool iptables cpu-checker libffi-dev |& tee -a "$LOG_FILE"
-        export DEBIAN_FRONTEND=noninteractive
-        echo "ufw ufw/configuration-changed boolean true" | sudo debconf-set-selections
-        sudo apt-get install -y ufw |& tee -a "$LOG_FILE"
-        sudo apt-get update -y |& tee -a "$LOG_FILE"
-        setupPython2 |& tee -a "$LOG_FILE"
-        setupNodejs |& tee -a "$LOG_FILE"
-        setupJava |& tee -a "$LOG_FILE"
-        configureAndInstallUb |& tee -a "$LOG_FILE"
-        ;;
-
-    "sles-15.5" | "sles-15.6")
-        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        printf -- "Installing dependencies... it may take some time.\n"
-        for pkg in sudo wget git java-11-openjdk-devel ant ant-junit python3-libvirt-python libvirt selinux-tools dhcp-server qemu-img qemu-kvm dhcp \
+        for pkg in sudo wget git java-11-openjdk java-11-openjdk-devel ant ant-junit python3-libvirt-python libvirt selinux-tools dhcp-server qemu-img qemu-kvm dhcp \
         python3 python2 ipmitool python3-pip unzip cryptsetup ethtool ipset python3-setuptools mkisofs tftp mariadb mysql httpd qemu-tools timezone-java nfs-utils libffi-devel libopenssl-devel rpm-build python3-devel; do
             zypper -n install "$pkg" || true;
         done
+        export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
+        export PATH="${JAVA_HOME}/bin:${PATH}"
         wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
         tar -xvzf apache-maven-3.8.8-bin.tar.gz
         sudo mv apache-maven-3.8.8 /opt/maven
@@ -401,6 +355,23 @@ case "$DISTRO" in
         setupNodejs |& tee -a "$LOG_FILE"
         configureAndInstallSLES |& tee -a "$LOG_FILE"
     ;;
+
+   "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo apt-get install -y curl dpkg-dev debhelper openjdk-11-jdk genisoimage build-essential python3 python3-setuptools python3-mysql.connector \
+        maven ant libjna-java nodejs npm mysql-client augeas-tools mysql-client qemu-utils rng-tools python3-dnspython qemu-kvm libvirt-daemon-system \
+        ebtables vlan ipset python3-libvirt ethtool iptables cpu-checker libffi-dev rustc cargo |& tee -a "$LOG_FILE"
+        export DEBIAN_FRONTEND=noninteractive
+        echo "ufw ufw/configuration-changed boolean true" | sudo debconf-set-selections
+        sudo apt-get install -y ufw |& tee -a "$LOG_FILE"
+        sudo apt-get update -y |& tee -a "$LOG_FILE"
+        export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
+        export PATH="${JAVA_HOME}/bin:${PATH}"
+        setupPython2 |& tee -a "$LOG_FILE"
+        setupNodejs |& tee -a "$LOG_FILE"
+        configureAndInstallUb |& tee -a "$LOG_FILE"
+        ;;
 
     *)
         printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
