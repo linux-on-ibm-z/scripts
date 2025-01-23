@@ -71,8 +71,13 @@ jobs:
       name: Run trivy scan
       script:
         - ls -ltr package-cache
-        - source package-cache/variable.sh;
+        - echo "Contents of package-cache/variable.sh:"
+        - cat package-cache/variable.sh 
+        - source package-cache/variable.sh
+        - while true; do echo "---- Build in Progress ----"; sleep 180; done & 
+        - printer_pid=$!
         - travis_wait 30 chmod +x ./script/scanner-scripts/trivy_code_scan.sh;bash ./script/scanner-scripts/trivy_code_scan.sh;
+        - kill $printer_pid
         - mkdir source_trivy
         - mv package-cache/trivy_source_vulnerabilities_results.json package-cache/trivy_source_sbom_results.cyclonedx source_trivy
       workspaces:
