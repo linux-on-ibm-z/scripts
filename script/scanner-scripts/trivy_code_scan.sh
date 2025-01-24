@@ -3,7 +3,7 @@
 validate_build_script=$VALIDATE_BUILD_SCRIPT
 cloned_package=$CLONED_PACKAGE
 current_dir=$(pwd)
-cd "$current_dir"
+cd package-cache
 
 # Function to periodically print the build log's to avoid timeout
 printer() {
@@ -15,7 +15,7 @@ printer() {
 }
 
 if [ "$validate_build_script" == true ]; then
-    sudo yum install make wget -y
+    sudo apt-get install -y make wget
 
     # Clone and prepare the trivy-db repository
     git clone https://github.com/aquasecurity/trivy-db.git
@@ -49,26 +49,23 @@ if [ "$validate_build_script" == true ]; then
     # Stop the printer
     kill $printer_pid
 
-    export TRIVY_DB_FILE=./out/trivy.db
+    export TRIVY_DB_FILE="./out/trivy.db"
 
-    wget https://github.com/aquasecurity/trivy/releases/download/v0.45.0/trivy_0.45.0_Linux-S390X.tar.gz
+    wget -q https://github.com/aquasecurity/trivy/releases/download/v0.45.0/trivy_0.45.0_Linux-S390X.tar.gz
     tar -xf trivy_0.45.0_Linux-S390X.tar.gz
     chmod +x trivy
     sudo mv trivy /usr/bin
 
-    echo "Executing Trivy scanner"
-    cd "$current_dir/package-cache"
 
     printer &
     printer_pid=$!
 
-    
     {
-        sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json || true
-        sudo cp /$current_dir/trivy-db/out/trivy.db /root/.cache/trivy/db/trivy.db
-        sudo chmod 644 /$current_dir/trivy-db/out/trivy.db
-        sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json
-        sudo trivy -q fs --timeout 30m -f cyclonedx "${cloned_package}" > trivy_source_sbom_results.cyclonedx
+        sudo mkdir -p /root/.cache/trivy/db
+        sudo cp "trivy-db/out/trivy.db" /root/.cache/trivy/db/trivy.db
+        sudo chmod 644 /root/.cache/trivy/db/trivy.db
+        sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json || exit 1
+        sudo trivy -q fs --timeout 30m -f cyclonedx "${cloned_package}" > trivy_source_sbom_results.cyclonedx || exit 1
     } >> build-progress.log 2>&1
 
     # Stop the printer
