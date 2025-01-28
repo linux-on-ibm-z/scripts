@@ -2,75 +2,19 @@
 
 validate_build_script=$VALIDATE_BUILD_SCRIPT
 cloned_package=$CLONED_PACKAGE
-current_dir=$(pwd)
-cd "$current_dir"
+cd package-cache
 
-# Function to periodically print the build log's to avoid timeout
-printer() {
-    while :; do
-        echo "---- Build Progress ----"
-        tail -n 10 build-progress.log
-        sleep 200
-    done
-}
+DOCKER_IMAGE="sankalppersi/trivy-db:latest"
+docker pull "$DOCKER_IMAGE"
+docker run -d --name trivy-container "$DOCKER_IMAGE"
+sudo docker cp trivy-container:/trivy.db /root/.cache/trivy/db/trivy.db
+docker rm -f trivy-container
 
-if [ "$validate_build_script" == true ]; then
-    sudo yum install make wget -y
-
-    # Clone and prepare the trivy-db repository
-    git clone https://github.com/aquasecurity/trivy-db.git
-    cd trivy-db
-    git checkout 492b9fcc1279a323f1e6f97f316d109c00da4528
-    wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/refs/heads/master/script/trivy.patch
-    git apply trivy.patch
-
-    # Install Go
-    GO_VERSION=1.23.1
-    wget -q https://storage.googleapis.com/golang/go"${GO_VERSION}".linux-s390x.tar.gz
-    chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
-    sudo rm -rf /usr/local/go /usr/bin/go
-    sudo tar -C /usr/local -xzf go"${GO_VERSION}".linux-s390x.tar.gz
-    sudo ln -sf /usr/local/go/bin/go /usr/bin/
-    sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
-    sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
-
-    # Start printer in the background
-    printer &
-    printer_pid=$!
-
-    # Build trivy database and capture logs
-    {
-        echo "Starting make commands for trivy-db..."
-        make db-fetch-langs db-fetch-vuln-list
-        make build
-        make db-build
-    } > build-progress.log 2>&1
-
-    # Stop the printer
-    kill $printer_pid
-
-    export TRIVY_DB_FILE=./out/trivy.db
-
+if [ $validate_build_script == true ];then
     wget https://github.com/aquasecurity/trivy/releases/download/v0.45.0/trivy_0.45.0_Linux-S390X.tar.gz
     tar -xf trivy_0.45.0_Linux-S390X.tar.gz
     chmod +x trivy
     sudo mv trivy /usr/bin
-
-    echo "Executing Trivy scanner"
-    cd "$current_dir/package-cache"
-
-    printer &
-    printer_pid=$!
-
-    
-    {
-        sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json || true
-        sudo cp /$current_dir/trivy-db/out/trivy.db /root/.cache/trivy/db/trivy.db
-        sudo chmod 644 /$current_dir/trivy-db/out/trivy.db
-        sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json
-        sudo trivy -q fs --timeout 30m -f cyclonedx "${cloned_package}" > trivy_source_sbom_results.cyclonedx
-    } >> build-progress.log 2>&1
-
-    # Stop the printer
-    kill $printer_pid
+    sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json
+    sudo trivy -q fs --timeout 30m -f cyclonedx "${cloned_package}" > trivy_source_sbom_results.cyclonedx
 fi
