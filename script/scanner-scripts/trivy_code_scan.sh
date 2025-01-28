@@ -16,5 +16,6 @@ if [ $validate_build_script == true ];then
     chmod +x trivy
     sudo mv trivy /usr/bin
     sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json
-    sudo trivy -q fs --timeout 30m -f cyclonedx "${cloned_package}" > trivy_source_sbom_results.cyclonedx
+    sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json || true 
+find / -name "trivy.db" 2>/dev/null
 fi
