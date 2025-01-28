@@ -7,6 +7,7 @@ cd package-cache
 DOCKER_IMAGE="sankalppersi/trivy-db:latest"
 docker pull "$DOCKER_IMAGE"
 docker run -d --name trivy-container "$DOCKER_IMAGE"
+sudo mkdir -p /root/.cache/trivy/db
 sudo docker cp trivy-container:/trivy.db /root/.cache/trivy/db/trivy.db
 docker rm -f trivy-container
 
