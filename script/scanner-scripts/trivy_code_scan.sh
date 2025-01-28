@@ -15,10 +15,11 @@ if [ $validate_build_script == true ];then
     sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json || true
     echo "trivy.db not found, copying again.."
     find / -name "trivy.db" 2>/dev/null
-    docker run -d --name trivy-container "$DOCKER_IMAGE"
-    docker cp trivy-container:/trivy.db $HOME/.cache/trivy/db/trivy.db
-    docker rm -f trivy-container
-
+    sudo chmod -R 755 "$HOME/.cache/trivy/db"
+    sudo docker run -d --name trivy-container "$DOCKER_IMAGE"
+    sudo docker cp trivy-container:/trivy.db $HOME/.cache/trivy/db/trivy.db
+    sudo docker rm -f trivy-container
+    
     sudo trivy -q fs --timeout 30m -f json "${cloned_package}" > trivy_source_vulnerabilities_results.json
     sudo trivy -q fs --timeout 30m -f cyclonedx "${cloned_package}" > trivy_source_sbom_results.cyclonedx
     
