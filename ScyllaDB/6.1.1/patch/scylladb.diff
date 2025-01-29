@@ -1,0 +1,97 @@
+diff --git a/configure.py b/configure.py
+index c9e60bf..e2fae68 100755
+--- a/configure.py
++++ b/configure.py
+@@ -149,9 +149,9 @@ def flag_supported(flag, compiler):
+ 
+ def linker_flags(compiler):
+     src_main = 'int main(int argc, char **argv) { return 0; }'
+-    link_flags = ['-fuse-ld=lld']
++    link_flags = ['-fuse-ld=bfd']
+     if try_compile_and_link(source=src_main, flags=link_flags, compiler=compiler):
+-        print('Note: using the lld linker')
++        print('Note: using the bfd linker')
+         return ' '.join(link_flags)
+     link_flags = ['-fuse-ld=gold']
+     if try_compile_and_link(source=src_main, flags=link_flags, compiler=compiler):
+@@ -1951,8 +1951,8 @@ def write_build_file(f,
+             command = clang --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry $in -o $out
+             description = C2WASM $out
+         rule rust2wasm
+-            command = cargo build --target=wasm32-wasi --example=$example --locked --manifest-path=test/resource/wasm/rust/Cargo.toml --target-dir=$builddir/wasm/ $
+-                && wasm-opt -Oz $builddir/wasm/wasm32-wasi/debug/examples/$example.wasm -o $builddir/wasm/$example.wasm $
++            command = cargo build --target=wasm32-wasip1 --example=$example --locked --manifest-path=test/resource/wasm/rust/Cargo.toml --target-dir=$builddir/wasm/ $
++                && wasm-opt -Oz $builddir/wasm/wasm32-wasip1/debug/examples/$example.wasm -o $builddir/wasm/$example.wasm $
+                 && wasm-strip $builddir/wasm/$example.wasm
+             description = RUST2WASM $out
+         rule wasm2wat
+diff --git a/test/boost/crc_test.cc b/test/boost/crc_test.cc
+index 3b5a8a6..978921f 100644
+--- a/test/boost/crc_test.cc
++++ b/test/boost/crc_test.cc
+@@ -11,9 +11,10 @@
+ #include <boost/test/unit_test.hpp>
+ #include "utils/crc.hh"
+ #include "utils/clmul.hh"
+-#include "utils/gz/barrett.hh"
+ #include <seastar/core/print.hh>
+ 
++#if !defined(__s390x__)
++#include "utils/gz/barrett.hh"
+ constexpr uint32_t input_32_1_c = 0x12345678;
+ uint32_t input_32_1 = input_32_1_c; // NOT constexpr
+ 
+@@ -32,6 +33,7 @@ BOOST_AUTO_TEST_CASE(barrett_fold_constexpr_equals_native) {
+     constexpr auto constexpr_result = crc32_fold_barrett_u64(input_64_1_c);
+     BOOST_REQUIRE_EQUAL(crc32_fold_barrett_u64(input_64_1), constexpr_result);
+ }
++#endif
+ inline
+ uint32_t
+ do_compute_crc(utils::crc32& c) {
+diff --git a/utils/exceptions.hh b/utils/exceptions.hh
+index a8281b2..e07a582 100644
+--- a/utils/exceptions.hh
++++ b/utils/exceptions.hh
+@@ -10,7 +10,7 @@
+ 
+ #include <cstddef>
+ 
+-#if defined(__GLIBCXX__) && (defined(__x86_64__) || defined(__aarch64__))
++#if defined(__GLIBCXX__) && (defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__))
+   #define OPTIMIZED_EXCEPTION_HANDLING_AVAILABLE
+ #endif
+ 
+diff --git a/utils/gz/crc_combine_table.cc b/utils/gz/crc_combine_table.cc
+index 6439802..d523a90 100644
+--- a/utils/gz/crc_combine_table.cc
++++ b/utils/gz/crc_combine_table.cc
+@@ -58,8 +58,4 @@ constinit std::array<uint32_t, 256> crc32_x_pow_radix_8_table_base_8 = make_crc3
+ constinit std::array<uint32_t, 256> crc32_x_pow_radix_8_table_base_16 = make_crc32_table(16, radix_bits, one, pows);
+ constinit std::array<uint32_t, 256> crc32_x_pow_radix_8_table_base_24 = make_crc32_table(24, radix_bits, one, pows);
+ 
+-#else
+-
+-#error "Not implemented for this CPU architecture."
+-
+ #endif
+diff --git a/vint-serialization.cc b/vint-serialization.cc
+index b011749..bfd4042 100644
+--- a/vint-serialization.cc
++++ b/vint-serialization.cc
+@@ -105,7 +105,6 @@ vint_size_type unsigned_vint::serialized_size(uint64_t value) noexcept {
+ 
+ uint64_t unsigned_vint::deserialize(bytes_view v) {
+     auto src = v.data();
+-    auto len = v.size();
+     const int8_t first_byte = *src;
+ 
+     // No additional bytes, since the most significant bit is not set.
+@@ -119,6 +118,7 @@ uint64_t unsigned_vint::deserialize(bytes_view v) {
+     auto result = uint64_t(first_byte) & first_byte_value_mask(extra_bytes_size);
+ 
+ #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++    auto len = v.size();
+     uint64_t value;
+     // If we can overread do that. It is cheaper to have a single 64-bit read and
+     // then mask out the unneeded part than to do 8x 1 byte reads.
