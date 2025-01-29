@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2023.
+# © Copyright IBM Corporation 2023, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -175,7 +175,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-23.04")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update -y
@@ -183,14 +183,14 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"sles-15.4" | "sles-15.5")
+"sles-15.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo zypper install -y git wget tar unzip hostname make gcc-c++ xz gzip python3 nmap procps  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.6" | "rhel-8.8" | "rhel-9.0" | "rhel-9.2")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git wget tar unzip hostname make gcc-c++ xz gzip python3 nmap procps netcat |& tee -a "${LOG_FILE}"
