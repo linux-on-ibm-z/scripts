@@ -26,7 +26,7 @@ PACKAGE_VERSION=${1:-v1.6.3}
 PACKAGE_URL=https://github.com/cloudflare/cfssl
 
 # Install dependencies
-yum install -y git golang make wget tar gcc
+yum install -y git golang make wget tar gcc sudo
 sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
 
 OS_NAME=$(cat /etc/os-release | grep ^PRETTY_NAME | cut -d= -f2)
