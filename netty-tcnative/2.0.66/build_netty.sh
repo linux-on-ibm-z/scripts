@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -260,7 +260,7 @@ case "$DISTRO" in
 "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget curl golang curl libstdc++-static.s390x xz-devel gzip libcryptui-devel python3-devel patch |& tee -a "${LOG_FILE}"
+        sudo yum install -y ninja-build cmake perl gcc gcc-c++ libarchive  openssl-devel apr-devel autoconf automake libtool make tar git wget curl golang libstdc++-static.s390x xz-devel gzip libcryptui-devel python3-devel patch |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 "sles-12.5" | "sles-15.5" | "sles-15.6")
