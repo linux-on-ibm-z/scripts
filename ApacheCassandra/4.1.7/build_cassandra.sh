@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024
+# © Copyright IBM Corporation 2024, 2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -122,7 +122,7 @@ function java_setup() {
             sudo yum install -y java-11-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
         elif [[ "${ID}" == "sles" ]]; then
-            sudo zypper install -y java-11-openjdk
+            sudo zypper install -y java-11-openjdk-devel
             export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
         fi
         printf -- "Installation of  OpenJDK11 is successful\n" >>"$LOG_FILE"

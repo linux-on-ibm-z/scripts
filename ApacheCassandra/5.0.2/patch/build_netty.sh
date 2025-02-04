@@ -101,7 +101,7 @@ function configureAndInstall() {
             sudo yum install -y java-17-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
         elif [[ "${ID}" == "sles" ]]; then
-            sudo zypper install -y java-17-openjdk
+            sudo zypper install -y java-17-openjdk-devel
             export JAVA_HOME=/usr/lib64/jvm/java-17-openjdk
         fi
         printf -- "Installation of OpenJDK17 Runtime is successful\n" >>"$LOG_FILE"
@@ -113,7 +113,7 @@ function configureAndInstall() {
             sudo yum install -y java-11-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
         elif [[ "${ID}" == "sles" ]]; then
-            sudo zypper install -y java-11-openjdk
+            sudo zypper install -y java-11-openjdk-devel
             export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
         fi
         printf -- "Installation of  OpenJDK11 is successful\n" >>"$LOG_FILE"
