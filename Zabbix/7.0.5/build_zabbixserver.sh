@@ -432,15 +432,15 @@ gpgkey = https://mirror.its.dal.ca/mariadb/yum/RPM-GPG-KEY-MariaDB
 gpgcheck = 1
 EOF
   sudo mv MariaDB.repo /etc/yum.repos.d/
-  sudo yum install -y autoconf libtool cmake openssl-devel libcurl libcurl-devel libxml2 libxml2-devel readline readline-devel \
+    sudo yum install -y autoconf libtool cmake openssl-devel libcurl libcurl-devel libxml2 libxml2-devel readline readline-devel \
     libzip-devel libzip nginx openssl pkgconf zlib-devel bzip2 sqlite-libs sqlite-devel oniguruma oniguruma-devel libpq-devel \
-    git curl tar make binutils gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ binutils wget  \
-    initscripts httpd tar wget curl vim pcre pcre-devel pcre2-devel make net-snmp net-snmp-devel httpd-devel \
+    git curl tar  gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ binutils wget  \
+    initscripts httpd vim pcre pcre-devel pcre2-devel make net-snmp net-snmp-devel httpd-devel \
     git libxml2-devel libjpeg-devel libpng-devel freetype freetype-devel openldap openldap-devel \
     libevent-devel libyaml-devel perl-IPC-Run3 bzip2-devel curl-devel \
     enchant-devel gmp-devel krb5-devel postgresql-devel aspell-devel cyrus-sasl-devel libXpm-devel libxslt-devel \
-    recode-devel readline-devel gdbm-devel libdb-devel automake patch pkgconfig perl-YAML-LibYAML perl-Path-Tiny \
-    ncurses-devel boost-devel check-devel perl-Test-Simple perl-Time-HiRes  pam-devel hostname unixODBC-devel \
+    recode-devel  gdbm-devel libdb-devel automake patch pkgconfig perl-YAML-LibYAML perl-Path-Tiny \
+    ncurses-devel boost-devel check-devel php-fpm perl-Test-Simple perl-Time-HiRes  pam-devel hostname unixODBC-devel \
     bison aspell MariaDB-server MariaDB-client mysql-devel |& tee -a "$LOG_FILE"
   sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
   buildCmocka |& tee -a "$LOG_FILE"
