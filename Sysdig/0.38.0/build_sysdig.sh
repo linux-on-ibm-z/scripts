@@ -181,7 +181,7 @@ case "$DISTRO" in
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update >/dev/null
     export DEBIAN_FRONTEND=noninteractive
-    sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl wget tar patch git g++ gcc zlib1g  libelf-dev clang llvm linux-headers-generic cmake libelf-dev pkg-config kmod |& tee -a "$LOG_FILE"
+    sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl wget tar patch git g++ gcc zlib1g clang llvm linux-headers-generic cmake libelf-dev pkg-config kmod |& tee -a "$LOG_FILE"
     sudo mkdir -p /lib/modules/$(uname -r)
     version=$(ls /usr/src/ | grep generic | tail -1)
     sudo ln -s /usr/src/$version /lib/modules/$(uname -r)/build
