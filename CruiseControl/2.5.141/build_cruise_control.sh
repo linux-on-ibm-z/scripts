@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -179,14 +179,14 @@ case "$DISTRO" in
     sudo yum install -y wget tar git curl gzip procps-ng
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.2" | "rhel-9.4")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     # Use --allowerasing to allow 'curl' to be installed in case of conflicts with the package 'curl-minimal'
     sudo yum install -y --allowerasing wget tar git curl gzip procps-ng
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y wget tar git curl gzip gawk libnghttp2-devel
