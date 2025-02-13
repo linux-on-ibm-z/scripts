@@ -1,0 +1,364 @@
+diff --git a/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala b/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala
+index d63b9805e55..879e0fba714 100644
+--- a/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala
++++ b/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.kafka010
+ 
+ import java.io._
++import java.nio.ByteOrder
+ import java.nio.charset.StandardCharsets.UTF_8
+ import java.nio.file.{Files, Paths}
+ import java.util.{Locale, Optional}
+@@ -1705,6 +1706,10 @@ class KafkaMicroBatchV2SourceSuite extends KafkaMicroBatchSourceSuiteBase {
+   }
+ 
+   test("default config of includeHeader doesn't break existing query from Spark 2.4") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     import testImplicits._
+ 
+     // This topic name is migrated from Spark 2.4.3 test run
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala
+index b535d7e48d0..f8ae92a26da 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.execution.streaming.state
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import org.apache.commons.io.FileUtils
+ 
+@@ -34,6 +35,10 @@ import org.apache.spark.util.Utils
+ class StateStoreCompatibilitySuite extends StreamTest with StateStoreCodecsTest {
+    testWithAllCodec(
+       "SPARK-33263: Recovery from checkpoint before codec config introduced") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+      val resourceUri = this.getClass.getResource(
+        "/structured-streaming/checkpoint-version-3.0.0-streaming-statestore-codec/").toURI
+      val checkpointDir = Utils.createTempDir().getCanonicalFile
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
+index 0b076e05957..a5824c3d35a 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
+@@ -19,6 +19,7 @@ package org.apache.spark.sql.streaming
+ 
+ import java.{util => ju}
+ import java.io.File
++import java.nio.ByteOrder
+ import java.text.SimpleDateFormat
+ import java.util.{Calendar, Date, Locale}
+ import java.util.concurrent.TimeUnit._
+@@ -229,6 +230,10 @@ class EventTimeWatermarkSuite extends StreamTest with BeforeAndAfter with Matche
+   }
+ 
+   test("recovery from Spark ver 2.3.1 commit log without commit metadata (SPARK-24699)") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // All event time metrics where watermarking is set
+     val inputData = MemoryStream[Int]
+     val aggWithWatermark = inputData.toDF()
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala
+index b597a244710..d9f3d024c68 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import org.apache.commons.io.FileUtils
+ 
+@@ -143,6 +144,10 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in 3.2.x - with initial state") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+@@ -244,6 +249,10 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in 3.2.x - without initial state") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+@@ -336,6 +345,10 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in prior to 3.2") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala
+index a3774bf17e6..8c453c3e06f 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ import java.sql.Timestamp
+ 
+ import org.apache.commons.io.FileUtils
+@@ -581,6 +582,10 @@ class FlatMapGroupsWithStateSuite extends StateStoreMetricsTest {
+   }
+ 
+   test("flatMapGroupsWithState - recovery from checkpoint uses state format version 1") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[(String, Int)]
+     val result =
+       inputData.toDS
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
+index c97979a57a5..6aa88a06f52 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.{File, InterruptedIOException, UncheckedIOException}
++import java.nio.ByteOrder
+ import java.nio.channels.ClosedByInterruptException
+ import java.time.ZoneId
+ import java.util.concurrent.{CountDownLatch, ExecutionException, TimeUnit}
+@@ -734,6 +735,10 @@ class StreamSuite extends StreamTest {
+   }
+ 
+   testQuietly("recover from a Spark v2.1 checkpoint") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     var inputData: MemoryStream[Int] = null
+     var query: DataStreamWriter[Row] = null
+ 
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala
+index b4c4ec7acbf..937f410320e 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import org.apache.commons.io.FileUtils
+ import org.scalatest.Assertions
+@@ -89,6 +90,9 @@ class StreamingAggregationDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: streaming aggregation should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in prior to 3.3") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+ 
+     val inputData = MemoryStream[Int]
+     val df1 = inputData.toDF().select($"value" as Symbol("key1"), $"value" * 2 as Symbol("key2"),
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala
+index 03780478b33..28ff8c41125 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ import java.util.{Locale, TimeZone}
+ 
+ import scala.annotation.tailrec
+@@ -717,6 +718,10 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
+ 
+ 
+   test("simple count, update mode - recovery from checkpoint uses state format version 1") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Int]
+ 
+     val aggregated =
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala
+index e23a44f06a4..914cdec47bc 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import org.apache.commons.io.FileUtils
+ 
+@@ -62,6 +63,10 @@ class StreamingDeduplicationDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: streaming deduplication should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in prior to 3.3") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+ 
+     val inputData = MemoryStream[Int]
+     val df1 = inputData.toDF()
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala
+index c69088589cc..eed991d25ac 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import org.apache.commons.io.FileUtils
+ 
+@@ -452,6 +453,10 @@ class StreamingDeduplicationSuite extends StateStoreMetricsTest {
+   }
+ 
+   test("SPARK-39650: recovery from checkpoint having all columns as value schema") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // NOTE: We are also changing the schema of input compared to the checkpoint. In the checkpoint
+     // we define the input schema as (String, Int).
+     val inputData = MemoryStream[(String, Int, String)]
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala
+index 3e1bc57dfa2..71b45df1074 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala
+@@ -19,6 +19,7 @@ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
+ import java.lang.{Integer => JInteger}
++import java.nio.ByteOrder
+ import java.sql.Timestamp
+ import java.util.{Locale, UUID}
+ 
+@@ -631,6 +632,10 @@ class StreamingInnerJoinSuite extends StreamingJoinSuite {
+   }
+ 
+   test("SPARK-26187 restore the stream-stream inner join query from Spark 2.4") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputStream = MemoryStream[(Int, Long)]
+     val df = inputStream.toDS()
+       .select(col("_1").as("value"), timestamp_seconds($"_2").as("timestamp"))
+@@ -1093,6 +1098,10 @@ class StreamingOuterJoinSuite extends StreamingJoinSuite {
+   }
+ 
+   test("SPARK-26187 restore the stream-stream outer join query from Spark 2.4") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputStream = MemoryStream[(Int, Long)]
+     val df = inputStream.toDS()
+       .select(col("_1").as("value"), timestamp_seconds($"_2").as("timestamp"))
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala
+index 36c7459ce82..e11e7de733c 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import org.apache.commons.io.FileUtils
+ 
+@@ -114,6 +115,10 @@ class StreamingSessionWindowDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: session window aggregation should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in 3.2") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+ 
+     withSQLConf(
+       // exclude partial merging session to simplify test
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala
+index 4827d06d64d..6476a8695b7 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.io.File
++import java.nio.ByteOrder
+ 
+ import scala.annotation.tailrec
+ 
+@@ -53,6 +54,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("common functions") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Int]
+     val aggregated =
+       inputData.toDF().toDF("value")
+@@ -125,6 +130,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("statistical functions") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Long]
+     val aggregated =
+       inputData.toDF().toDF("value")
+@@ -188,6 +197,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("deduplicate with all columns") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Long]
+     val result = inputData.toDF().toDF("value")
+       .selectExpr(
+@@ -222,6 +235,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("SPARK-28067 changed the sum decimal unsafe row format") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Int]
+     val aggregated =
+       inputData.toDF().toDF("value")

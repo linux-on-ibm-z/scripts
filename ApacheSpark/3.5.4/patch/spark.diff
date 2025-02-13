@@ -1,0 +1,261 @@
+diff --git a/connector/connect/client/jvm/src/test/scala/org/apache/spark/sql/ClientE2ETestSuite.scala b/connector/connect/client/jvm/src/test/scala/org/apache/spark/sql/ClientE2ETestSuite.scala
+index feefd19000d..c616e6995ca 100644
+--- a/connector/connect/client/jvm/src/test/scala/org/apache/spark/sql/ClientE2ETestSuite.scala
++++ b/connector/connect/client/jvm/src/test/scala/org/apache/spark/sql/ClientE2ETestSuite.scala
+@@ -102,11 +102,12 @@ class ClientE2ETestSuite extends RemoteSparkSession with SQLHelper with PrivateM
+   }
+ 
+   test("spark deep recursion") {
++    var recursionDepth = if (System.getProperty("os.arch") == "s390x") 400 else 500
+     var df = spark.range(1)
+-    for (a <- 1 to 500) {
++    for (a <- 1 to recursionDepth) {
+       df = df.union(spark.range(a, a + 1))
+     }
+-    assert(df.collect().length == 501)
++    assert(df.collect().length == recursionDepth + 1)
+   }
+ 
+   test("handle unknown exception") {
+diff --git a/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/UnsafeArrayData.java b/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/UnsafeArrayData.java
+index 6bea714e7d5..a98f77895da 100644
+--- a/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/UnsafeArrayData.java
++++ b/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/UnsafeArrayData.java
+@@ -225,8 +225,9 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable,
+     if (isNullAt(ordinal)) return null;
+     final long offsetAndSize = getLong(ordinal);
+     final int offset = (int) (offsetAndSize >> 32);
+-    final int months = Platform.getInt(baseObject, baseOffset + offset);
+-    final int days = Platform.getInt(baseObject, baseOffset + offset + 4);
++    final long monthAndDays = Platform.getLong(baseObject, baseOffset + offset);
++    final int months = (int) (0xFFFFFFFFL & monthAndDays);
++    final int days = (int) ((0xFFFFFFFF00000000L & monthAndDays) >> 32);
+     final long microseconds = Platform.getLong(baseObject, baseOffset + offset + 8);
+     return new CalendarInterval(months, days, microseconds);
+   }
+diff --git a/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/codegen/UnsafeWriter.java b/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/codegen/UnsafeWriter.java
+index 8d4e187d01a..f27f5b61f3e 100644
+--- a/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/codegen/UnsafeWriter.java
++++ b/sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/codegen/UnsafeWriter.java
+@@ -139,8 +139,9 @@ public abstract class UnsafeWriter {
+       BitSetMethods.set(getBuffer(), startingOffset, ordinal);
+     } else {
+       // Write the months, days and microseconds fields of interval to the variable length portion.
+-      Platform.putInt(getBuffer(), cursor(), input.months);
+-      Platform.putInt(getBuffer(), cursor() + 4, input.days);
++      long longVal =
++        ((long) input.months & 0xFFFFFFFFL) | (((long) input.days << 32) & 0xFFFFFFFF00000000L);
++      Platform.putLong(getBuffer(), cursor(), longVal);
+       Platform.putLong(getBuffer(), cursor() + 8, input.microseconds);
+     }
+     // we need to reserve the space so that we can update it later.
+diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala
+index c31a51e67cf..1f085ef183a 100644
+--- a/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala
++++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala
+@@ -17,11 +17,15 @@
+ 
+ package org.apache.spark.sql.catalyst.util
+ 
++import java.nio.ByteOrder.{nativeOrder, BIG_ENDIAN}
++
+ import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+ import org.apache.spark.sql.types._
+ 
+ object UnsafeRowUtils {
+ 
++  private final val isBigEndian = nativeOrder().equals(BIG_ENDIAN)
++
+   /**
+    * Use the following rules to check the integrity of the UnsafeRow:
+    * - schema.fields.length == row.numFields should always be true
+@@ -74,23 +78,23 @@ object UnsafeRowUtils {
+       case (field, index) if UnsafeRow.isFixedLength(field.dataType) && !row.isNullAt(index) =>
+         field.dataType match {
+           case BooleanType =>
+-            if ((row.getLong(index) >> 1) != 0L) {
++            if ((row.getByte(index) >> 1) != 0.toByte && getPadding(row, index, 1) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case ByteType =>
+-            if ((row.getLong(index) >> 8) != 0L) {
++            if (getPadding(row, index, 1) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case ShortType =>
+-            if ((row.getLong(index) >> 16) != 0L) {
++            if (getPadding(row, index, 2) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case IntegerType =>
+-            if ((row.getLong(index) >> 32) != 0L) {
++            if (getPadding(row, index, 4) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case FloatType =>
+-            if ((row.getLong(index) >> 32) != 0L) {
++            if (getPadding(row, index, 4) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case _ =>
+@@ -150,6 +154,14 @@ object UnsafeRowUtils {
+     (offset, size)
+   }
+ 
++  def getPadding(row: UnsafeRow, index: Int, valueLengthInBytes: Int): Long = {
++    val padding = row.getLong(index)
++    if (isBigEndian) {
++      return padding << (valueLengthInBytes * 8)
++    }
++    padding >> (valueLengthInBytes * 8)
++  }
++
+   /**
+    * Returns a Boolean indicating whether one should avoid calling
+    * UnsafeRow.setNullAt for a field of the given data type.
+diff --git a/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/ArrayBasedMapBuilderSuite.scala b/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/ArrayBasedMapBuilderSuite.scala
+index 5811f4cd4c8..4cd765054d3 100644
+--- a/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/ArrayBasedMapBuilderSuite.scala
++++ b/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/ArrayBasedMapBuilderSuite.scala
+@@ -17,6 +17,8 @@
+ 
+ package org.apache.spark.sql.catalyst.util
+ 
++import java.nio.ByteOrder.{nativeOrder, BIG_ENDIAN}
++
+ import org.apache.spark.SparkFunSuite
+ import org.apache.spark.SparkRuntimeException
+ import org.apache.spark.sql.catalyst.InternalRow
+@@ -113,12 +115,15 @@ class ArrayBasedMapBuilderSuite extends SparkFunSuite with SQLHelper {
+     val builder = new ArrayBasedMapBuilder(new StructType().add("i", "int"), IntegerType)
+     builder.put(InternalRow(1), 1)
+     builder.put(InternalRow(2), 2)
++    // The UnsafeRow.toString() method output is based on the underlying bytes and is
++    // endian dependent.
++    val keyAsString = if (nativeOrder().equals(BIG_ENDIAN)) "[0,100000000]" else "[0,1]"
+     // By default duplicated map key fails the query.
+     checkError(
+       exception = intercept[SparkRuntimeException](builder.put(unsafeRow, 3)),
+       errorClass = "DUPLICATED_MAP_KEY",
+       parameters = Map(
+-        "key" -> "[0,1]",
++        "key" -> keyAsString,
+         "mapKeyDedupPolicy" -> "\"spark.sql.mapKeyDedupPolicy\"")
+     )
+ 
+diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelper.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelper.scala
+index b68c08b3ea5..c2a690dc346 100644
+--- a/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelper.scala
++++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelper.scala
+@@ -152,7 +152,7 @@ object FlatMapGroupsWithStateExecHelper {
+       shouldStoreTimestamp: Boolean) extends StateManagerImplBase(shouldStoreTimestamp) {
+ 
+     private val timestampTimeoutAttribute =
+-      AttributeReference("timeoutTimestamp", dataType = IntegerType, nullable = false)()
++      AttributeReference("timeoutTimestamp", dataType = LongType, nullable = false)()
+ 
+     private val stateAttributes: Seq[Attribute] = {
+       val encSchemaAttribs = toAttributes(stateEncoder.schema)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/connector/WriteDistributionAndOrderingSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/connector/WriteDistributionAndOrderingSuite.scala
+index 40938eb6424..12007cd94cd 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/connector/WriteDistributionAndOrderingSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/connector/WriteDistributionAndOrderingSuite.scala
+@@ -70,7 +70,7 @@ class WriteDistributionAndOrderingSuite extends DistributionAndOrderingSuiteBase
+   private val tableNameAsString = "testcat." + ident.toString
+   private val emptyProps = Collections.emptyMap[String, String]
+   private val schema = new StructType()
+-    .add("id", IntegerType)
++    .add("id", LongType)
+     .add("data", StringType)
+     .add("day", DateType)
+ 
+@@ -1122,7 +1122,7 @@ class WriteDistributionAndOrderingSuite extends DistributionAndOrderingSuiteBase
+         Seq.empty
+       ),
+       catalyst.expressions.SortOrder(
+-        ApplyFunctionExpression(BucketFunction, Seq(Literal(10), Cast(attr("id"), LongType))),
++        ApplyFunctionExpression(BucketFunction, Seq(Literal(10), attr("id"))),
+         catalyst.expressions.Descending,
+         catalyst.expressions.NullsFirst,
+         Seq.empty
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/CoalesceShufflePartitionsSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/CoalesceShufflePartitionsSuite.scala
+index e11191da6a9..555573a3c36 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/CoalesceShufflePartitionsSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/CoalesceShufflePartitionsSuite.scala
+@@ -17,6 +17,8 @@
+ 
+ package org.apache.spark.sql.execution
+ 
++import java.nio.ByteOrder.{nativeOrder, BIG_ENDIAN}
++
+ import org.apache.spark.{SparkConf, SparkFunSuite}
+ import org.apache.spark.internal.config.IO_ENCRYPTION_ENABLED
+ import org.apache.spark.internal.config.UI.UI_ENABLED
+@@ -175,16 +177,21 @@ class CoalesceShufflePartitionsSuite extends SparkFunSuite {
+ 
+     test(s"determining the number of reducers: complex query 1$testNameNote") {
+       val test: (SparkSession) => Unit = { spark: SparkSession =>
++        // The default lz4 compression does not generate the same compressed
++        // stream on all architectures especially for different endianness.
++        // Increase the maxRange on big endian so the same number of partitions
++        // are generated as on little endian.
++        val maxRange = if (nativeOrder().equals(BIG_ENDIAN)) 2000 else 1000
+         val df1 =
+           spark
+-            .range(0, 1000, 1, numInputPartitions)
++            .range(0, maxRange, 1, numInputPartitions)
+             .selectExpr("id % 500 as key1", "id as value1")
+             .groupBy("key1")
+             .count()
+             .toDF("key1", "cnt1")
+         val df2 =
+           spark
+-            .range(0, 1000, 1, numInputPartitions)
++            .range(0, maxRange, 1, numInputPartitions)
+             .selectExpr("id % 500 as key2", "id as value2")
+             .groupBy("key2")
+             .count()
+@@ -196,7 +203,7 @@ class CoalesceShufflePartitionsSuite extends SparkFunSuite {
+         val expectedAnswer =
+           spark
+             .range(0, 500)
+-            .selectExpr("id", "2 as cnt")
++            .selectExpr("id", s"${maxRange/500}L as cnt")
+         QueryTest.checkAnswer(
+           join,
+           expectedAnswer.collect())
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/adaptive/AdaptiveQueryExecSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/adaptive/AdaptiveQueryExecSuite.scala
+index cab3e69b0d1..7d4a57810fb 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/adaptive/AdaptiveQueryExecSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/adaptive/AdaptiveQueryExecSuite.scala
+@@ -1063,7 +1063,7 @@ class AdaptiveQueryExecSuite
+         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
+         SQLConf.SHUFFLE_PARTITIONS.key -> "100",
+         SQLConf.SKEW_JOIN_SKEWED_PARTITION_THRESHOLD.key -> "800",
+-        SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "1000") {
++        SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "900") {
+         withTempView("skewData1", "skewData2") {
+           spark
+             .range(0, 1000, 1, 10)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala
+index ea6fd8ab312..3d25192b2cd 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala
+@@ -42,7 +42,7 @@ class FlatMapGroupsWithStateExecHelperSuite extends StreamTest {
+   test(s"StateManager v1 - primitive type - with timestamp") {
+     val schema = new StructType()
+       .add("value", IntegerType, nullable = false)
+-      .add("timeoutTimestamp", IntegerType, nullable = false)
++      .add("timeoutTimestamp", LongType, nullable = false)
+     testStateManagerWithTimestamp[Int](version = 1, schema, Seq(0, 10))
+   }
+ 
+@@ -75,7 +75,7 @@ class FlatMapGroupsWithStateExecHelperSuite extends StreamTest {
+         StructField("d", DoubleType, nullable = false),
+         StructField("str", StringType))
+       )),
+-      StructField("timeoutTimestamp", IntegerType, nullable = false)
++      StructField("timeoutTimestamp", LongType, nullable = false)
+     ))
+ 
+     val testValues = Seq(

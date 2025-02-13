@@ -1,0 +1,1203 @@
+diff --git a/src/main/java/io/airlift/compress/lz4/Lz4RawCompressor.java b/src/main/java/io/airlift/compress/lz4/Lz4RawCompressor.java
+index f17163c..cc05e88 100644
+--- a/src/main/java/io/airlift/compress/lz4/Lz4RawCompressor.java
++++ b/src/main/java/io/airlift/compress/lz4/Lz4RawCompressor.java
+@@ -20,6 +20,7 @@ import static io.airlift.compress.lz4.Lz4Constants.MIN_MATCH;
+ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.lz4.UnsafeUtil.littleEndian;
+ 
+ public final class Lz4RawCompressor
+ {
+@@ -103,10 +104,10 @@ public final class Lz4RawCompressor
+ 
+         // First Byte
+         // put position in hash
+-        table[hash(UNSAFE.getLong(inputBase, input), mask)] = (int) (input - inputAddress);
++        table[hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask)] = (int) (input - inputAddress);
+ 
+         input++;
+-        int nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
++        int nextHash = hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask);
+ 
+         boolean done = false;
+         do {
+@@ -129,12 +130,12 @@ public final class Lz4RawCompressor
+ 
+                 // get position on hash
+                 matchIndex = inputAddress + table[hash];
+-                nextHash = hash(UNSAFE.getLong(inputBase, nextInputIndex), mask);
++                nextHash = hash(littleEndian(UNSAFE.getLong(inputBase, nextInputIndex)), mask);
+ 
+                 // put position on hash
+                 table[hash] = (int) (input - inputAddress);
+             }
+-            while (UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input) || matchIndex + MAX_DISTANCE < input);
++            while (littleEndian(UNSAFE.getInt(inputBase, matchIndex)) != littleEndian(UNSAFE.getInt(inputBase, input)) || matchIndex + MAX_DISTANCE < input);
+ 
+             // catch up
+             while ((input > anchor) && (matchIndex > inputAddress) && (UNSAFE.getByte(inputBase, input - 1) == UNSAFE.getByte(inputBase, matchIndex - 1))) {
+@@ -164,16 +165,16 @@ public final class Lz4RawCompressor
+                 }
+ 
+                 long position = input - 2;
+-                table[hash(UNSAFE.getLong(inputBase, position), mask)] = (int) (position - inputAddress);
++                table[hash(littleEndian(UNSAFE.getLong(inputBase, position)), mask)] = (int) (position - inputAddress);
+ 
+                 // Test next position
+-                int hash = hash(UNSAFE.getLong(inputBase, input), mask);
++                int hash = hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask);
+                 matchIndex = inputAddress + table[hash];
+                 table[hash] = (int) (input - inputAddress);
+ 
+-                if (matchIndex + MAX_DISTANCE < input || UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input)) {
++                if (matchIndex + MAX_DISTANCE < input || littleEndian(UNSAFE.getInt(inputBase, matchIndex)) != littleEndian(UNSAFE.getInt(inputBase, input))) {
+                     input++;
+-                    nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
++                    nextHash = hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask);
+                     break;
+                 }
+ 
+@@ -208,7 +209,7 @@ public final class Lz4RawCompressor
+     private static long emitMatch(Object outputBase, long output, long tokenAddress, short offset, long matchLength)
+     {
+         // write offset
+-        UNSAFE.putShort(outputBase, output, offset);
++        UNSAFE.putShort(outputBase, output, littleEndian(offset));
+         output += SIZE_OF_SHORT;
+ 
+         // write match length
+@@ -246,7 +247,7 @@ public final class Lz4RawCompressor
+         // first, compare long at a time
+         int count = 0;
+         while (count < remaining - (SIZE_OF_LONG - 1)) {
+-            long diff = UNSAFE.getLong(inputBase, match) ^ UNSAFE.getLong(inputBase, input);
++            long diff = littleEndian(UNSAFE.getLong(inputBase, match)) ^ littleEndian(UNSAFE.getLong(inputBase, input));
+             if (diff != 0) {
+                 return count + (Long.numberOfTrailingZeros(diff) >> 3);
+             }
+diff --git a/src/main/java/io/airlift/compress/lz4/Lz4RawDecompressor.java b/src/main/java/io/airlift/compress/lz4/Lz4RawDecompressor.java
+index 785e478..fe4cf37 100644
+--- a/src/main/java/io/airlift/compress/lz4/Lz4RawDecompressor.java
++++ b/src/main/java/io/airlift/compress/lz4/Lz4RawDecompressor.java
+@@ -21,6 +21,7 @@ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_INT;
+ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.lz4.UnsafeUtil.littleEndian;
+ 
+ public final class Lz4RawDecompressor
+ {
+@@ -110,7 +111,7 @@ public final class Lz4RawDecompressor
+ 
+             // get offset
+             // we know we can read two bytes because of the bounds check performed before copying the literal above
+-            int offset = UNSAFE.getShort(inputBase, input) & 0xFFFF;
++            int offset = littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF;
+             input += SIZE_OF_SHORT;
+ 
+             long matchAddress = output - offset;
+diff --git a/src/main/java/io/airlift/compress/lz4/UnsafeUtil.java b/src/main/java/io/airlift/compress/lz4/UnsafeUtil.java
+index 05aadb5..c5b0a7b 100644
+--- a/src/main/java/io/airlift/compress/lz4/UnsafeUtil.java
++++ b/src/main/java/io/airlift/compress/lz4/UnsafeUtil.java
+@@ -20,21 +20,19 @@ import java.lang.reflect.Field;
+ import java.nio.Buffer;
+ import java.nio.ByteOrder;
+ 
+-import static java.lang.String.format;
++import static java.lang.Integer.reverseBytes;
++import static java.lang.Long.reverseBytes;
++import static java.lang.Short.reverseBytes;
+ 
+ final class UnsafeUtil
+ {
+     public static final Unsafe UNSAFE;
+     private static final long ADDRESS_OFFSET;
++    private static final boolean IS_LITTLE_ENDIAN = ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN);
+ 
+     private UnsafeUtil() {}
+ 
+     static {
+-        ByteOrder order = ByteOrder.nativeOrder();
+-        if (!order.equals(ByteOrder.LITTLE_ENDIAN)) {
+-            throw new IncompatibleJvmException(format("LZ4 requires a little endian platform (found %s)", order));
+-        }
+-
+         try {
+             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+             theUnsafe.setAccessible(true);
+@@ -61,4 +59,19 @@ final class UnsafeUtil
+ 
+         return UNSAFE.getLong(buffer, ADDRESS_OFFSET);
+     }
++
++    public static int littleEndian(int i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static long littleEndian(long i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static short littleEndian(short i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
+ }
+diff --git a/src/main/java/io/airlift/compress/lzo/LzoRawCompressor.java b/src/main/java/io/airlift/compress/lzo/LzoRawCompressor.java
+index 917416e..92339f4 100644
+--- a/src/main/java/io/airlift/compress/lzo/LzoRawCompressor.java
++++ b/src/main/java/io/airlift/compress/lzo/LzoRawCompressor.java
+@@ -19,6 +19,7 @@ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_INT;
+ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
+ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_SHORT;
+ import static io.airlift.compress.lzo.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.lzo.UnsafeUtil.littleEndian;
+ 
+ public final class LzoRawCompressor
+ {
+@@ -109,10 +110,10 @@ public final class LzoRawCompressor
+ 
+         // First Byte
+         // put position in hash
+-        table[hash(UNSAFE.getLong(inputBase, input), mask)] = (int) (input - inputAddress);
++        table[hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask)] = (int) (input - inputAddress);
+ 
+         input++;
+-        int nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
++        int nextHash = hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask);
+ 
+         boolean done = false;
+         boolean firstLiteral = true;
+@@ -137,7 +138,7 @@ public final class LzoRawCompressor
+ 
+                 // get position on hash
+                 matchIndex = inputAddress + table[hash];
+-                nextHash = hash(UNSAFE.getLong(inputBase, nextInputIndex), mask);
++                nextHash = hash(littleEndian(UNSAFE.getLong(inputBase, nextInputIndex)), mask);
+ 
+                 // put position on hash
+                 table[hash] = (int) (input - inputAddress);
+@@ -175,16 +176,16 @@ public final class LzoRawCompressor
+                 }
+ 
+                 long position = input - 2;
+-                table[hash(UNSAFE.getLong(inputBase, position), mask)] = (int) (position - inputAddress);
++                table[hash(littleEndian(UNSAFE.getLong(inputBase, position)), mask)] = (int) (position - inputAddress);
+ 
+                 // Test next position
+-                int hash = hash(UNSAFE.getLong(inputBase, input), mask);
++                int hash = hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask);
+                 matchIndex = inputAddress + table[hash];
+                 table[hash] = (int) (input - inputAddress);
+ 
+                 if (matchIndex + MAX_DISTANCE < input || UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input)) {
+                     input++;
+-                    nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
++                    nextHash = hash(littleEndian(UNSAFE.getLong(inputBase, input)), mask);
+                     break;
+                 }
+ 
+@@ -205,7 +206,7 @@ public final class LzoRawCompressor
+ 
+         // first, compare long at a time
+         while (current < matchLimit - (SIZE_OF_LONG - 1)) {
+-            long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
++            long diff = littleEndian(UNSAFE.getLong(inputBase, matchStart)) ^ littleEndian(UNSAFE.getLong(inputBase, current));
+             if (diff != 0) {
+                 current += Long.numberOfTrailingZeros(diff) >> 3;
+                 return (int) (current - start);
+@@ -352,7 +353,7 @@ public final class LzoRawCompressor
+ 
+     private static long encodeOffset(final Object outputBase, final long outputAddress, final int offset)
+     {
+-        UNSAFE.putShort(outputBase, outputAddress, (short) (offset << 2));
++        UNSAFE.putShort(outputBase, outputAddress, littleEndian((short) (offset << 2)));
+         return outputAddress + 2;
+     }
+ 
+diff --git a/src/main/java/io/airlift/compress/lzo/LzoRawDecompressor.java b/src/main/java/io/airlift/compress/lzo/LzoRawDecompressor.java
+index 9803d2b..3daf66e 100644
+--- a/src/main/java/io/airlift/compress/lzo/LzoRawDecompressor.java
++++ b/src/main/java/io/airlift/compress/lzo/LzoRawDecompressor.java
+@@ -19,6 +19,7 @@ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_INT;
+ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
+ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_SHORT;
+ import static io.airlift.compress.lzo.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.lzo.UnsafeUtil.littleEndian;
+ import static java.lang.Integer.toBinaryString;
+ 
+ public final class LzoRawDecompressor
+@@ -168,7 +169,7 @@ public final class LzoRawDecompressor
+                     if (input + SIZE_OF_SHORT > inputLimit) {
+                         throw new MalformedInputException(input - inputAddress);
+                     }
+-                    int trailer = UNSAFE.getShort(inputBase, input) & 0xFFFF;
++                    int trailer = littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF;
+                     input += SIZE_OF_SHORT;
+ 
+                     // copy offset :: 16 bits :: valid range [16383..49151]
+@@ -209,7 +210,7 @@ public final class LzoRawDecompressor
+                     if (input + SIZE_OF_SHORT > inputLimit) {
+                         throw new MalformedInputException(input - inputAddress);
+                     }
+-                    int trailer = UNSAFE.getShort(inputBase, input) & 0xFFFF;
++                    int trailer = littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF;
+                     input += SIZE_OF_SHORT;
+ 
+                     // copy offset :: 14 bits :: valid range [0..16383]
+diff --git a/src/main/java/io/airlift/compress/lzo/UnsafeUtil.java b/src/main/java/io/airlift/compress/lzo/UnsafeUtil.java
+index aec2f51..4c79763 100644
+--- a/src/main/java/io/airlift/compress/lzo/UnsafeUtil.java
++++ b/src/main/java/io/airlift/compress/lzo/UnsafeUtil.java
+@@ -20,21 +20,19 @@ import java.lang.reflect.Field;
+ import java.nio.Buffer;
+ import java.nio.ByteOrder;
+ 
+-import static java.lang.String.format;
++import static java.lang.Integer.reverseBytes;
++import static java.lang.Long.reverseBytes;
++import static java.lang.Short.reverseBytes;
+ 
+ final class UnsafeUtil
+ {
+     public static final Unsafe UNSAFE;
+     private static final long ADDRESS_OFFSET;
++    private static final boolean IS_LITTLE_ENDIAN = ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN);
+ 
+     private UnsafeUtil() {}
+ 
+     static {
+-        ByteOrder order = ByteOrder.nativeOrder();
+-        if (!order.equals(ByteOrder.LITTLE_ENDIAN)) {
+-            throw new IncompatibleJvmException(format("LZO requires a little endian platform (found %s)", order));
+-        }
+-
+         try {
+             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+             theUnsafe.setAccessible(true);
+@@ -61,4 +59,19 @@ final class UnsafeUtil
+ 
+         return UNSAFE.getLong(buffer, ADDRESS_OFFSET);
+     }
++
++    public static int littleEndian(int i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static long littleEndian(long i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static short littleEndian(short i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
+ }
+diff --git a/src/main/java/io/airlift/compress/snappy/SnappyRawCompressor.java b/src/main/java/io/airlift/compress/snappy/SnappyRawCompressor.java
+index 29b4824..ba30980 100644
+--- a/src/main/java/io/airlift/compress/snappy/SnappyRawCompressor.java
++++ b/src/main/java/io/airlift/compress/snappy/SnappyRawCompressor.java
+@@ -21,6 +21,7 @@ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_INT;
+ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
+ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_SHORT;
+ import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.snappy.UnsafeUtil.littleEndian;
+ 
+ public final class SnappyRawCompressor
+ {
+@@ -139,7 +140,7 @@ public final class SnappyRawCompressor
+                 long candidateIndex = 0;
+                 for (input += 1; input + (skip >>> 5) <= fastInputLimit; input += ((skip++) >>> 5)) {
+                     // hash the 4 bytes starting at the input pointer
+-                    int currentInt = UNSAFE.getInt(inputBase, input);
++                    int currentInt = littleEndian(UNSAFE.getInt(inputBase, input));
+                     int hash = hashBytes(currentInt, shift);
+ 
+                     // get the position of a 4 bytes sequence with the same hash
+@@ -152,7 +153,7 @@ public final class SnappyRawCompressor
+ 
+                     // if the 4 byte sequence a the candidate index matches the sequence at the
+                     // current position, proceed to the next phase
+-                    if (currentInt == UNSAFE.getInt(inputBase, candidateIndex)) {
++                    if (currentInt == littleEndian(UNSAFE.getInt(inputBase, candidateIndex))) {
+                         break;
+                     }
+                 }
+@@ -202,7 +203,7 @@ public final class SnappyRawCompressor
+ 
+                     // We could immediately start working at input now, but to improve
+                     // compression we first update table[Hash(ip - 1, ...)].
+-                    long longValue = UNSAFE.getLong(inputBase, input - 1);
++                    long longValue = littleEndian(UNSAFE.getLong(inputBase, input - 1));
+                     int prevInt = (int) longValue;
+                     inputBytes = (int) (longValue >>> 8);
+ 
+@@ -215,7 +216,7 @@ public final class SnappyRawCompressor
+ 
+                     candidateIndex = blockAddress + (table[curHash] & 0xFFFF);
+                     table[curHash] = (short) (input - blockAddress);
+-                } while (inputBytes == UNSAFE.getInt(inputBase, candidateIndex));
++                } while (inputBytes == littleEndian(UNSAFE.getInt(inputBase, candidateIndex)));
+                 nextEmitAddress = input;
+             }
+ 
+@@ -237,7 +238,7 @@ public final class SnappyRawCompressor
+ 
+         // first, compare long at a time
+         while (current < matchLimit - (SIZE_OF_LONG - 1)) {
+-            long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
++            long diff = littleEndian(UNSAFE.getLong(inputBase, matchStart)) ^ littleEndian(UNSAFE.getLong(inputBase, current));
+             if (diff != 0) {
+                 current += Long.numberOfTrailingZeros(diff) >> 3;
+                 return (int) (current - start);
+@@ -247,12 +248,12 @@ public final class SnappyRawCompressor
+             matchStart += SIZE_OF_LONG;
+         }
+ 
+-        if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
++        if (current < matchLimit - (SIZE_OF_INT - 1) && littleEndian(UNSAFE.getInt(inputBase, matchStart)) == littleEndian(UNSAFE.getInt(inputBase, current))) {
+             current += SIZE_OF_INT;
+             matchStart += SIZE_OF_INT;
+         }
+ 
+-        if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
++        if (current < matchLimit - (SIZE_OF_SHORT - 1) && littleEndian(UNSAFE.getShort(inputBase, matchStart)) == littleEndian(UNSAFE.getShort(inputBase, current))) {
+             current += SIZE_OF_SHORT;
+             matchStart += SIZE_OF_SHORT;
+         }
+@@ -290,7 +291,7 @@ public final class SnappyRawCompressor
+                 bytes = 4;
+             }
+             // System is assumed to be little endian, so low bytes will be zero for the smaller numbers
+-            UNSAFE.putInt(outputBase, output, n);
++            UNSAFE.putInt(outputBase, output, littleEndian(n));
+             output += bytes;
+         }
+         return output;
+@@ -315,7 +316,7 @@ public final class SnappyRawCompressor
+         // Emit 64 byte copies but make sure to keep at least four bytes reserved
+         while (matchLength >= 68) {
+             UNSAFE.putByte(outputBase, output++, (byte) (COPY_2_BYTE_OFFSET + ((64 - 1) << 2)));
+-            UNSAFE.putShort(outputBase, output, (short) offset);
++            UNSAFE.putShort(outputBase, output, littleEndian((short) offset));
+             output += SIZE_OF_SHORT;
+             matchLength -= 64;
+         }
+@@ -324,7 +325,7 @@ public final class SnappyRawCompressor
+         // length < 68
+         if (matchLength > 64) {
+             UNSAFE.putByte(outputBase, output++, (byte) (COPY_2_BYTE_OFFSET + ((60 - 1) << 2)));
+-            UNSAFE.putShort(outputBase, output, (short) offset);
++            UNSAFE.putShort(outputBase, output, littleEndian((short) offset));
+             output += SIZE_OF_SHORT;
+             matchLength -= 60;
+         }
+@@ -337,7 +338,7 @@ public final class SnappyRawCompressor
+         }
+         else {
+             UNSAFE.putByte(outputBase, output++, (byte) (COPY_2_BYTE_OFFSET + ((matchLength - 1) << 2)));
+-            UNSAFE.putShort(outputBase, output, (short) offset);
++            UNSAFE.putShort(outputBase, output, littleEndian((short) offset));
+             output += SIZE_OF_SHORT;
+         }
+         return output;
+diff --git a/src/main/java/io/airlift/compress/snappy/SnappyRawDecompressor.java b/src/main/java/io/airlift/compress/snappy/SnappyRawDecompressor.java
+index b11907b..21600fc 100644
+--- a/src/main/java/io/airlift/compress/snappy/SnappyRawDecompressor.java
++++ b/src/main/java/io/airlift/compress/snappy/SnappyRawDecompressor.java
+@@ -19,6 +19,7 @@ import static io.airlift.compress.snappy.SnappyConstants.LITERAL;
+ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_INT;
+ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
+ import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.snappy.UnsafeUtil.littleEndian;
+ 
+ public final class SnappyRawDecompressor
+ {
+@@ -87,7 +88,7 @@ public final class SnappyRawDecompressor
+             int trailerBytes = entry >>> 11;
+             int trailer = 0;
+             if (input + SIZE_OF_INT < inputLimit) {
+-                trailer = UNSAFE.getInt(inputBase, input) & wordmask[trailerBytes];
++                trailer = littleEndian(UNSAFE.getInt(inputBase, input)) & wordmask[trailerBytes];
+             }
+             else {
+                 if (input + trailerBytes > inputLimit) {
+diff --git a/src/main/java/io/airlift/compress/snappy/UnsafeUtil.java b/src/main/java/io/airlift/compress/snappy/UnsafeUtil.java
+index 5b80935..9affbd2 100644
+--- a/src/main/java/io/airlift/compress/snappy/UnsafeUtil.java
++++ b/src/main/java/io/airlift/compress/snappy/UnsafeUtil.java
+@@ -20,21 +20,19 @@ import java.lang.reflect.Field;
+ import java.nio.Buffer;
+ import java.nio.ByteOrder;
+ 
+-import static java.lang.String.format;
++import static java.lang.Integer.reverseBytes;
++import static java.lang.Long.reverseBytes;
++import static java.lang.Short.reverseBytes;
+ 
+ final class UnsafeUtil
+ {
+     public static final Unsafe UNSAFE;
+     private static final long ADDRESS_OFFSET;
++    private static final boolean IS_LITTLE_ENDIAN = ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN);
+ 
+     private UnsafeUtil() {}
+ 
+     static {
+-        ByteOrder order = ByteOrder.nativeOrder();
+-        if (!order.equals(ByteOrder.LITTLE_ENDIAN)) {
+-            throw new IncompatibleJvmException(format("Snappy requires a little endian platform (found %s)", order));
+-        }
+-
+         try {
+             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+             theUnsafe.setAccessible(true);
+@@ -61,4 +59,19 @@ final class UnsafeUtil
+ 
+         return UNSAFE.getLong(buffer, ADDRESS_OFFSET);
+     }
++
++    public static int littleEndian(int i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static long littleEndian(long i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static short littleEndian(short i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
+ }
+diff --git a/src/main/java/io/airlift/compress/zstd/BitInputStream.java b/src/main/java/io/airlift/compress/zstd/BitInputStream.java
+index c6d6c29..4f5d9d1 100644
+--- a/src/main/java/io/airlift/compress/zstd/BitInputStream.java
++++ b/src/main/java/io/airlift/compress/zstd/BitInputStream.java
+@@ -16,6 +16,7 @@ package io.airlift.compress.zstd;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.highestBit;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.verify;
+ 
+ /**
+@@ -119,7 +120,7 @@ class BitInputStream
+             int inputSize = (int) (endAddress - startAddress);
+             if (inputSize >= SIZE_OF_LONG) {  /* normal case */
+                 currentAddress = endAddress - SIZE_OF_LONG;
+-                bits = UNSAFE.getLong(inputBase, currentAddress);
++                bits = littleEndian(UNSAFE.getLong(inputBase, currentAddress));
+             }
+             else {
+                 currentAddress = startAddress;
+@@ -183,7 +184,7 @@ class BitInputStream
+             if (currentAddress >= startAddress + SIZE_OF_LONG) {
+                 if (bytes > 0) {
+                     currentAddress -= bytes;
+-                    bits = UNSAFE.getLong(inputBase, currentAddress);
++                    bits = littleEndian(UNSAFE.getLong(inputBase, currentAddress));
+                 }
+                 bitsConsumed &= 0b111;
+             }
+@@ -191,13 +192,13 @@ class BitInputStream
+                 bytes = (int) (currentAddress - startAddress);
+                 currentAddress = startAddress;
+                 bitsConsumed -= bytes * SIZE_OF_LONG;
+-                bits = UNSAFE.getLong(inputBase, startAddress);
++                bits = littleEndian(UNSAFE.getLong(inputBase, startAddress));
+                 return true;
+             }
+             else {
+                 currentAddress -= bytes;
+                 bitsConsumed -= bytes * SIZE_OF_LONG;
+-                bits = UNSAFE.getLong(inputBase, currentAddress);
++                bits = littleEndian(UNSAFE.getLong(inputBase, currentAddress));
+             }
+ 
+             return false;
+diff --git a/src/main/java/io/airlift/compress/zstd/BitOutputStream.java b/src/main/java/io/airlift/compress/zstd/BitOutputStream.java
+index 766dc2e..17f8a3c 100644
+--- a/src/main/java/io/airlift/compress/zstd/BitOutputStream.java
++++ b/src/main/java/io/airlift/compress/zstd/BitOutputStream.java
+@@ -16,6 +16,7 @@ package io.airlift.compress.zstd;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.checkArgument;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ 
+ class BitOutputStream
+ {
+@@ -65,7 +66,7 @@ class BitOutputStream
+     {
+         int bytes = bitCount >>> 3;
+ 
+-        UNSAFE.putLong(outputBase, currentAddress, container);
++        UNSAFE.putLong(outputBase, currentAddress, littleEndian(container));
+         currentAddress += bytes;
+ 
+         if (currentAddress > outputLimit) {
+diff --git a/src/main/java/io/airlift/compress/zstd/DoubleFastBlockCompressor.java b/src/main/java/io/airlift/compress/zstd/DoubleFastBlockCompressor.java
+index a799b76..17006ac 100644
+--- a/src/main/java/io/airlift/compress/zstd/DoubleFastBlockCompressor.java
++++ b/src/main/java/io/airlift/compress/zstd/DoubleFastBlockCompressor.java
+@@ -16,6 +16,7 @@ package io.airlift.compress.zstd;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ 
+ class DoubleFastBlockCompressor
+         implements BlockCompressor
+@@ -71,7 +72,7 @@ class DoubleFastBlockCompressor
+             int shortHash = hash(inputBase, input, shortHashBits, matchSearchLength);
+             long shortMatchAddress = baseAddress + shortHashTable[shortHash];
+ 
+-            int longHash = hash8(UNSAFE.getLong(inputBase, input), longHashBits);
++            int longHash = hash8(littleEndian(UNSAFE.getLong(inputBase, input)), longHashBits); // TODO ja revert?
+             long longMatchAddress = baseAddress + longHashTable[longHash];
+ 
+             // update hash tables
+@@ -102,7 +103,7 @@ class DoubleFastBlockCompressor
+                 else {
+                     // check prefix short match
+                     if (shortMatchAddress > windowBaseAddress && UNSAFE.getInt(inputBase, shortMatchAddress) == UNSAFE.getInt(inputBase, input)) {
+-                        int nextOffsetHash = hash8(UNSAFE.getLong(inputBase, input + 1), longHashBits);
++                        int nextOffsetHash = hash8(littleEndian(UNSAFE.getLong(inputBase, input + 1)), longHashBits); // TODO ja revert?
+                         long nextOffsetMatchAddress = baseAddress + longHashTable[nextOffsetHash];
+                         longHashTable[nextOffsetHash] = current + 1;
+ 
+@@ -145,10 +146,10 @@ class DoubleFastBlockCompressor
+ 
+             if (input <= inputLimit) {
+                 // Fill Table
+-                longHashTable[hash8(UNSAFE.getLong(inputBase, baseAddress + current + 2), longHashBits)] = current + 2;
++                longHashTable[hash8(littleEndian(UNSAFE.getLong(inputBase, baseAddress + current + 2)), longHashBits)] = current + 2;
+                 shortHashTable[hash(inputBase, baseAddress + current + 2, shortHashBits, matchSearchLength)] = current + 2;
+ 
+-                longHashTable[hash8(UNSAFE.getLong(inputBase, input - 2), longHashBits)] = (int) (input - 2 - baseAddress);
++                longHashTable[hash8(littleEndian(UNSAFE.getLong(inputBase, input - 2)), longHashBits)] = (int) (input - 2 - baseAddress);
+                 shortHashTable[hash(inputBase, input - 2, shortHashBits, matchSearchLength)] = (int) (input - 2 - baseAddress);
+ 
+                 while (input <= inputLimit && offset2 > 0 && UNSAFE.getInt(inputBase, input) == UNSAFE.getInt(inputBase, input - offset2)) {
+@@ -160,7 +161,7 @@ class DoubleFastBlockCompressor
+                     offset1 = temp;
+ 
+                     shortHashTable[hash(inputBase, input, shortHashBits, matchSearchLength)] = (int) (input - baseAddress);
+-                    longHashTable[hash8(UNSAFE.getLong(inputBase, input), longHashBits)] = (int) (input - baseAddress);
++                    longHashTable[hash8(littleEndian(UNSAFE.getLong(inputBase, input)), longHashBits)] = (int) (input - baseAddress);
+ 
+                     output.storeSequence(inputBase, anchor, 0, 0, repetitionLength - MIN_MATCH);
+ 
+@@ -193,7 +194,7 @@ class DoubleFastBlockCompressor
+         // first, compare long at a time
+         int count = 0;
+         while (count < remaining - (SIZE_OF_LONG - 1)) {
+-            long diff = UNSAFE.getLong(inputBase, match) ^ UNSAFE.getLong(inputBase, input);
++            long diff = littleEndian(UNSAFE.getLong(inputBase, match)) ^ littleEndian(UNSAFE.getLong(inputBase, input));
+             if (diff != 0) {
+                 return count + (Long.numberOfTrailingZeros(diff) >> 3);
+             }
+@@ -216,15 +217,15 @@ class DoubleFastBlockCompressor
+     {
+         switch (matchSearchLength) {
+             case 8:
+-                return hash8(UNSAFE.getLong(inputBase, inputAddress), bits);
++                return hash8(littleEndian(UNSAFE.getLong(inputBase, inputAddress)), bits);
+             case 7:
+-                return hash7(UNSAFE.getLong(inputBase, inputAddress), bits);
++                return hash7(littleEndian(UNSAFE.getLong(inputBase, inputAddress)), bits);
+             case 6:
+-                return hash6(UNSAFE.getLong(inputBase, inputAddress), bits);
++                return hash6(littleEndian(UNSAFE.getLong(inputBase, inputAddress)), bits);
+             case 5:
+-                return hash5(UNSAFE.getLong(inputBase, inputAddress), bits);
++                return hash5(littleEndian(UNSAFE.getLong(inputBase, inputAddress)), bits);
+             default:
+-                return hash4(UNSAFE.getInt(inputBase, inputAddress), bits);
++                return hash4(littleEndian(UNSAFE.getInt(inputBase, inputAddress)), bits);
+         }
+     }
+ 
+diff --git a/src/main/java/io/airlift/compress/zstd/FiniteStateEntropy.java b/src/main/java/io/airlift/compress/zstd/FiniteStateEntropy.java
+index 1c67147..e3cfb8b 100644
+--- a/src/main/java/io/airlift/compress/zstd/FiniteStateEntropy.java
++++ b/src/main/java/io/airlift/compress/zstd/FiniteStateEntropy.java
+@@ -19,6 +19,7 @@ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.checkArgument;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.verify;
+ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+ 
+@@ -447,7 +448,7 @@ class FiniteStateEntropy
+                     bitStream |= (0b11_11_11_11_11_11_11_11 << bitCount);
+                     checkArgument(output + SIZE_OF_SHORT <= outputLimit, "Output buffer too small");
+ 
+-                    UNSAFE.putShort(outputBase, output, (short) bitStream);
++                    UNSAFE.putShort(outputBase, output, littleEndian((short) bitStream));
+                     output += SIZE_OF_SHORT;
+ 
+                     // flush now, so no need to increase bitCount by 16
+@@ -469,7 +470,7 @@ class FiniteStateEntropy
+                 if (bitCount > 16) {
+                     checkArgument(output + SIZE_OF_SHORT <= outputLimit, "Output buffer too small");
+ 
+-                    UNSAFE.putShort(outputBase, output, (short) bitStream);
++                    UNSAFE.putShort(outputBase, output, littleEndian((short) bitStream));
+                     output += SIZE_OF_SHORT;
+ 
+                     bitStream >>>= Short.SIZE;
+@@ -502,7 +503,7 @@ class FiniteStateEntropy
+             if (bitCount > 16) {
+                 checkArgument(output + SIZE_OF_SHORT <= outputLimit, "Output buffer too small");
+ 
+-                UNSAFE.putShort(outputBase, output, (short) bitStream);
++                UNSAFE.putShort(outputBase, output, littleEndian((short) bitStream));
+                 output += SIZE_OF_SHORT;
+ 
+                 bitStream >>>= Short.SIZE;
+@@ -512,7 +513,7 @@ class FiniteStateEntropy
+ 
+         // flush remaining bitstream
+         checkArgument(output + SIZE_OF_SHORT <= outputLimit, "Output buffer too small");
+-        UNSAFE.putShort(outputBase, output, (short) bitStream);
++        UNSAFE.putShort(outputBase, output, littleEndian((short) bitStream));
+         output += (bitCount + 7) / 8;
+ 
+         checkArgument(symbol <= maxSymbol + 1, "Error"); // TODO
+diff --git a/src/main/java/io/airlift/compress/zstd/FseTableReader.java b/src/main/java/io/airlift/compress/zstd/FseTableReader.java
+index c2204f1..dcf0357 100644
+--- a/src/main/java/io/airlift/compress/zstd/FseTableReader.java
++++ b/src/main/java/io/airlift/compress/zstd/FseTableReader.java
+@@ -17,6 +17,7 @@ import static io.airlift.compress.zstd.FiniteStateEntropy.MAX_SYMBOL;
+ import static io.airlift.compress.zstd.FiniteStateEntropy.MIN_TABLE_LOG;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.highestBit;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.verify;
+ 
+ class FseTableReader
+@@ -34,7 +35,7 @@ class FseTableReader
+         int symbolNumber = 0;
+         boolean previousIsZero = false;
+ 
+-        int bitStream = UNSAFE.getInt(inputBase, input);
++        int bitStream = littleEndian(UNSAFE.getInt(inputBase, input));
+ 
+         int tableLog = (bitStream & 0xF) + MIN_TABLE_LOG;
+ 
+@@ -54,7 +55,7 @@ class FseTableReader
+                     n0 += 24;
+                     if (input < inputLimit - 5) {
+                         input += 2;
+-                        bitStream = (UNSAFE.getInt(inputBase, input) >>> bitCount);
++                        bitStream = (littleEndian(UNSAFE.getInt(inputBase, input)) >>> bitCount);
+                     }
+                     else {
+                         // end of bit stream
+@@ -78,7 +79,7 @@ class FseTableReader
+                 if ((input <= inputLimit - 7) || (input + (bitCount >>> 3) <= inputLimit - 4)) {
+                     input += bitCount >>> 3;
+                     bitCount &= 7;
+-                    bitStream = UNSAFE.getInt(inputBase, input) >>> bitCount;
++                    bitStream = littleEndian(UNSAFE.getInt(inputBase, input)) >>> bitCount;
+                 }
+                 else {
+                     bitStream >>>= 2;
+@@ -117,7 +118,7 @@ class FseTableReader
+                 bitCount -= (int) (8 * (inputLimit - 4 - input));
+                 input = inputLimit - 4;
+             }
+-            bitStream = UNSAFE.getInt(inputBase, input) >>> (bitCount & 31);
++            bitStream = littleEndian(UNSAFE.getInt(inputBase, input)) >>> (bitCount & 31);
+         }
+ 
+         verify(remaining == 1 && bitCount <= 32, input, "Input is corrupted");
+diff --git a/src/main/java/io/airlift/compress/zstd/Huffman.java b/src/main/java/io/airlift/compress/zstd/Huffman.java
+index 29fb74e..f7af2ec 100644
+--- a/src/main/java/io/airlift/compress/zstd/Huffman.java
++++ b/src/main/java/io/airlift/compress/zstd/Huffman.java
+@@ -21,6 +21,7 @@ import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.isPowerOf2;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.verify;
+ 
+ class Huffman
+@@ -168,9 +169,9 @@ class Huffman
+         verify(inputLimit - inputAddress >= 10, inputAddress, "Input is corrupted"); // jump table + 1 byte per stream
+ 
+         long start1 = inputAddress + 3 * SIZE_OF_SHORT; // for the shorts we read below
+-        long start2 = start1 + (UNSAFE.getShort(inputBase, inputAddress) & 0xFFFF);
+-        long start3 = start2 + (UNSAFE.getShort(inputBase, inputAddress + 2) & 0xFFFF);
+-        long start4 = start3 + (UNSAFE.getShort(inputBase, inputAddress + 4) & 0xFFFF);
++        long start2 = start1 + (littleEndian(UNSAFE.getShort(inputBase, inputAddress)) & 0xFFFF);
++        long start3 = start2 + (littleEndian(UNSAFE.getShort(inputBase, inputAddress + 2)) & 0xFFFF);
++        long start4 = start3 + (littleEndian(UNSAFE.getShort(inputBase, inputAddress + 4)) & 0xFFFF);
+ 
+         verify(start2 < start3 && start3 < start4 && start4 < inputLimit, inputAddress, "Input is corrupted");
+ 
+diff --git a/src/main/java/io/airlift/compress/zstd/HuffmanCompressor.java b/src/main/java/io/airlift/compress/zstd/HuffmanCompressor.java
+index 7d6614d..7cd8a6f 100644
+--- a/src/main/java/io/airlift/compress/zstd/HuffmanCompressor.java
++++ b/src/main/java/io/airlift/compress/zstd/HuffmanCompressor.java
+@@ -16,6 +16,7 @@ package io.airlift.compress.zstd;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ 
+ class HuffmanCompressor
+ {
+@@ -49,7 +50,7 @@ class HuffmanCompressor
+         if (compressedSize == 0) {
+             return 0;
+         }
+-        UNSAFE.putShort(outputBase, outputAddress, (short) compressedSize);
++        UNSAFE.putShort(outputBase, outputAddress, littleEndian((short) compressedSize));
+         output += compressedSize;
+         input += segmentSize;
+ 
+@@ -58,7 +59,7 @@ class HuffmanCompressor
+         if (compressedSize == 0) {
+             return 0;
+         }
+-        UNSAFE.putShort(outputBase, outputAddress + SIZE_OF_SHORT, (short) compressedSize);
++        UNSAFE.putShort(outputBase, outputAddress + SIZE_OF_SHORT, littleEndian((short) compressedSize));
+         output += compressedSize;
+         input += segmentSize;
+ 
+@@ -67,7 +68,7 @@ class HuffmanCompressor
+         if (compressedSize == 0) {
+             return 0;
+         }
+-        UNSAFE.putShort(outputBase, outputAddress + SIZE_OF_SHORT + SIZE_OF_SHORT, (short) compressedSize);
++        UNSAFE.putShort(outputBase, outputAddress + SIZE_OF_SHORT + SIZE_OF_SHORT, littleEndian((short) compressedSize));
+         output += compressedSize;
+         input += segmentSize;
+ 
+diff --git a/src/main/java/io/airlift/compress/zstd/SequenceEncoder.java b/src/main/java/io/airlift/compress/zstd/SequenceEncoder.java
+index e42233d..1a37782 100644
+--- a/src/main/java/io/airlift/compress/zstd/SequenceEncoder.java
++++ b/src/main/java/io/airlift/compress/zstd/SequenceEncoder.java
+@@ -30,6 +30,7 @@ import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.zstd.FiniteStateEntropy.optimalTableLog;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.checkArgument;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ 
+ class SequenceEncoder
+ {
+@@ -83,7 +84,7 @@ class SequenceEncoder
+         else {
+             UNSAFE.putByte(outputBase, output, (byte) 0xFF);
+             output++;
+-            UNSAFE.putShort(outputBase, output, (short) (sequenceCount - LONG_NUMBER_OF_SEQUENCES));
++            UNSAFE.putShort(outputBase, output, littleEndian((short) (sequenceCount - LONG_NUMBER_OF_SEQUENCES)));
+             output += SIZE_OF_SHORT;
+         }
+ 
+diff --git a/src/main/java/io/airlift/compress/zstd/UnsafeUtil.java b/src/main/java/io/airlift/compress/zstd/UnsafeUtil.java
+index 885decd..eff46c1 100644
+--- a/src/main/java/io/airlift/compress/zstd/UnsafeUtil.java
++++ b/src/main/java/io/airlift/compress/zstd/UnsafeUtil.java
+@@ -18,9 +18,6 @@ import sun.misc.Unsafe;
+ 
+ import java.lang.reflect.Field;
+ import java.nio.Buffer;
+-import java.nio.ByteOrder;
+-
+-import static java.lang.String.format;
+ 
+ final class UnsafeUtil
+ {
+@@ -30,11 +27,6 @@ final class UnsafeUtil
+     private UnsafeUtil() {}
+ 
+     static {
+-        ByteOrder order = ByteOrder.nativeOrder();
+-        if (!order.equals(ByteOrder.LITTLE_ENDIAN)) {
+-            throw new IncompatibleJvmException(format("Zstandard requires a little endian platform (found %s)", order));
+-        }
+-
+         try {
+             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+             theUnsafe.setAccessible(true);
+diff --git a/src/main/java/io/airlift/compress/zstd/Util.java b/src/main/java/io/airlift/compress/zstd/Util.java
+index 8adc914..7ff25c7 100644
+--- a/src/main/java/io/airlift/compress/zstd/Util.java
++++ b/src/main/java/io/airlift/compress/zstd/Util.java
+@@ -15,11 +15,18 @@ package io.airlift.compress.zstd;
+ 
+ import io.airlift.compress.MalformedInputException;
+ 
++import java.nio.ByteOrder;
++
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
++import static java.lang.Integer.reverseBytes;
++import static java.lang.Long.reverseBytes;
++import static java.lang.Short.reverseBytes;
+ 
+ final class Util
+ {
++    private static final boolean IS_LITTLE_ENDIAN = ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN);
++
+     private Util()
+     {
+     }
+@@ -109,13 +116,13 @@ final class Util
+ 
+     public static int get24BitLittleEndian(Object inputBase, long inputAddress)
+     {
+-        return (UNSAFE.getShort(inputBase, inputAddress) & 0xFFFF)
++        return (littleEndian(UNSAFE.getShort(inputBase, inputAddress)) & 0xFFFF)
+                 | ((UNSAFE.getByte(inputBase, inputAddress + SIZE_OF_SHORT) & 0xFF) << Short.SIZE);
+     }
+ 
+     public static void put24BitLittleEndian(Object outputBase, long outputAddress, int value)
+     {
+-        UNSAFE.putShort(outputBase, outputAddress, (short) value);
++        UNSAFE.putShort(outputBase, outputAddress, littleEndian((short) value));
+         UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_SHORT, (byte) (value >>> Short.SIZE));
+     }
+ 
+@@ -130,4 +137,19 @@ final class Util
+         int minBitsSymbols = highestBit(maxSymbolValue) + 2;
+         return Math.min(minBitsSrc, minBitsSymbols);
+     }
++
++    public static short littleEndian(short i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static int littleEndian(int i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
++
++    public static long littleEndian(long i)
++    {
++        return (IS_LITTLE_ENDIAN) ? i : reverseBytes(i);
++    }
+ }
+diff --git a/src/main/java/io/airlift/compress/zstd/XxHash64.java b/src/main/java/io/airlift/compress/zstd/XxHash64.java
+index 48609e9..6567188 100644
+--- a/src/main/java/io/airlift/compress/zstd/XxHash64.java
++++ b/src/main/java/io/airlift/compress/zstd/XxHash64.java
+@@ -19,6 +19,7 @@ import java.io.InputStream;
+ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.checkPositionIndexes;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static java.lang.Long.rotateLeft;
+ import static java.lang.Math.min;
+ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+@@ -133,10 +134,10 @@ final class XxHash64
+     {
+         int remaining = length;
+         while (remaining >= 32) {
+-            v1 = mix(v1, UNSAFE.getLong(base, address));
+-            v2 = mix(v2, UNSAFE.getLong(base, address + 8));
+-            v3 = mix(v3, UNSAFE.getLong(base, address + 16));
+-            v4 = mix(v4, UNSAFE.getLong(base, address + 24));
++            v1 = mix(v1, littleEndian(UNSAFE.getLong(base, address)));
++            v2 = mix(v2, littleEndian(UNSAFE.getLong(base, address + 8)));
++            v3 = mix(v3, littleEndian(UNSAFE.getLong(base, address + 16)));
++            v4 = mix(v4, littleEndian(UNSAFE.getLong(base, address + 24)));
+ 
+             address += 32;
+             remaining -= 32;
+@@ -199,12 +200,12 @@ final class XxHash64
+     private static long updateTail(long hash, Object base, long address, int index, int length)
+     {
+         while (index <= length - 8) {
+-            hash = updateTail(hash, UNSAFE.getLong(base, address + index));
++            hash = updateTail(hash, littleEndian(UNSAFE.getLong(base, address + index)));
+             index += 8;
+         }
+ 
+         if (index <= length - 4) {
+-            hash = updateTail(hash, UNSAFE.getInt(base, address + index));
++            hash = updateTail(hash, littleEndian(UNSAFE.getInt(base, address + index)));
+             index += 4;
+         }
+ 
+@@ -227,10 +228,10 @@ final class XxHash64
+ 
+         int remaining = length;
+         while (remaining >= 32) {
+-            v1 = mix(v1, UNSAFE.getLong(base, address));
+-            v2 = mix(v2, UNSAFE.getLong(base, address + 8));
+-            v3 = mix(v3, UNSAFE.getLong(base, address + 16));
+-            v4 = mix(v4, UNSAFE.getLong(base, address + 24));
++            v1 = mix(v1, littleEndian(UNSAFE.getLong(base, address)));
++            v2 = mix(v2, littleEndian(UNSAFE.getLong(base, address + 8)));
++            v3 = mix(v3, littleEndian(UNSAFE.getLong(base, address + 16)));
++            v4 = mix(v4, littleEndian(UNSAFE.getLong(base, address + 24)));
+ 
+             address += 32;
+             remaining -= 32;
+diff --git a/src/main/java/io/airlift/compress/zstd/ZstdFrameCompressor.java b/src/main/java/io/airlift/compress/zstd/ZstdFrameCompressor.java
+index 3d9b257..dcc68d1 100644
+--- a/src/main/java/io/airlift/compress/zstd/ZstdFrameCompressor.java
++++ b/src/main/java/io/airlift/compress/zstd/ZstdFrameCompressor.java
+@@ -29,6 +29,7 @@ import static io.airlift.compress.zstd.Huffman.MAX_SYMBOL;
+ import static io.airlift.compress.zstd.Huffman.MAX_SYMBOL_COUNT;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.checkArgument;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.put24BitLittleEndian;
+ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+ 
+@@ -53,7 +54,7 @@ class ZstdFrameCompressor
+     {
+         checkArgument(outputLimit - outputAddress >= SIZE_OF_INT, "Output buffer too small");
+ 
+-        UNSAFE.putInt(outputBase, outputAddress, MAGIC_NUMBER);
++        UNSAFE.putInt(outputBase, outputAddress, littleEndian(MAGIC_NUMBER));
+         return SIZE_OF_INT;
+     }
+ 
+@@ -106,11 +107,11 @@ class ZstdFrameCompressor
+                 }
+                 break;
+             case 1:
+-                UNSAFE.putShort(outputBase, output, (short) (inputSize - 256));
++                UNSAFE.putShort(outputBase, output, littleEndian((short) (inputSize - 256)));
+                 output += SIZE_OF_SHORT;
+                 break;
+             case 2:
+-                UNSAFE.putInt(outputBase, output, inputSize);
++                UNSAFE.putInt(outputBase, output, littleEndian(inputSize));
+                 output += SIZE_OF_INT;
+                 break;
+             default:
+@@ -129,7 +130,7 @@ class ZstdFrameCompressor
+ 
+         long hash = XxHash64.hash(0, inputBase, inputAddress, inputSize);
+ 
+-        UNSAFE.putInt(outputBase, outputAddress, (int) hash);
++        UNSAFE.putInt(outputBase, outputAddress, littleEndian((int) hash));
+ 
+         return SIZE_OF_INT;
+     }
+@@ -365,12 +366,12 @@ class ZstdFrameCompressor
+             }
+             case 4: { // 2 - 2 - 14 - 14
+                 int header = encodingType | (2 << 2) | (literalsSize << 4) | (totalSize << 18);
+-                UNSAFE.putInt(outputBase, outputAddress, header);
++                UNSAFE.putInt(outputBase, outputAddress, littleEndian(header));
+                 break;
+             }
+             case 5: { // 2 - 2 - 18 - 18
+                 int header = encodingType | (3 << 2) | (literalsSize << 4) | (totalSize << 22);
+-                UNSAFE.putInt(outputBase, outputAddress, header);
++                UNSAFE.putInt(outputBase, outputAddress, littleEndian(header));
+                 UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_INT, (byte) (totalSize >>> 10));
+                 break;
+             }
+@@ -390,10 +391,10 @@ class ZstdFrameCompressor
+                 UNSAFE.putByte(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (inputSize << 3)));
+                 break;
+             case 2: // 2 - 2 - 12
+-                UNSAFE.putShort(outputBase, outputAddress, (short) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
++                UNSAFE.putShort(outputBase, outputAddress, littleEndian((short) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4))));
+                 break;
+             case 3: // 2 - 2 - 20
+-                UNSAFE.putInt(outputBase, outputAddress, RLE_LITERALS_BLOCK | 3 << 2 | inputSize << 4);
++                UNSAFE.putInt(outputBase, outputAddress, littleEndian(RLE_LITERALS_BLOCK | 3 << 2 | inputSize << 4));
+                 break;
+             default:   // impossible. headerSize is {1,2,3}
+                 throw new IllegalStateException();
+@@ -428,7 +429,7 @@ class ZstdFrameCompressor
+                 UNSAFE.putByte(outputBase, outputAddress, (byte) (RAW_LITERALS_BLOCK | (inputSize << 3)));
+                 break;
+             case 2:
+-                UNSAFE.putShort(outputBase, outputAddress, (short) (RAW_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
++                UNSAFE.putShort(outputBase, outputAddress, littleEndian((short) (RAW_LITERALS_BLOCK | (1 << 2) | (inputSize << 4))));
+                 break;
+             case 3:
+                 put24BitLittleEndian(outputBase, outputAddress, RAW_LITERALS_BLOCK | (3 << 2) | (inputSize << 4));
+diff --git a/src/main/java/io/airlift/compress/zstd/ZstdFrameDecompressor.java b/src/main/java/io/airlift/compress/zstd/ZstdFrameDecompressor.java
+index 8476eec..18dcbe8 100644
+--- a/src/main/java/io/airlift/compress/zstd/ZstdFrameDecompressor.java
++++ b/src/main/java/io/airlift/compress/zstd/ZstdFrameDecompressor.java
+@@ -51,6 +51,7 @@ import static io.airlift.compress.zstd.Constants.TREELESS_LITERALS_BLOCK;
+ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.fail;
+ import static io.airlift.compress.zstd.Util.get24BitLittleEndian;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.mask;
+ import static io.airlift.compress.zstd.Util.verify;
+ import static java.lang.String.format;
+@@ -198,7 +199,7 @@ class ZstdFrameDecompressor
+                 long hash = XxHash64.hash(0, outputBase, outputStart, decodedFrameSize);
+ 
+                 verify(input + SIZE_OF_INT <= inputLimit, input, "Not enough input bytes");
+-                int checksum = UNSAFE.getInt(inputBase, input);
++                int checksum = littleEndian(UNSAFE.getInt(inputBase, input));
+                 if (checksum != (int) hash) {
+                     throw new MalformedInputException(input, format("Bad checksum. Expected: %s, actual: %s", Integer.toHexString(checksum), Integer.toHexString((int) hash)));
+                 }
+@@ -332,7 +333,7 @@ class ZstdFrameDecompressor
+         if (sequenceCount != 0) {
+             if (sequenceCount == 255) {
+                 verify(input + SIZE_OF_SHORT <= inputLimit, input, "Not enough input bytes");
+-                sequenceCount = (UNSAFE.getShort(inputBase, input) & 0xFFFF) + LONG_NUMBER_OF_SEQUENCES;
++                sequenceCount = (littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF) + LONG_NUMBER_OF_SEQUENCES;
+                 input += SIZE_OF_SHORT;
+             }
+             else if (sequenceCount > 127) {
+@@ -736,7 +737,7 @@ class ZstdFrameDecompressor
+             case 0:
+                 singleStream = true;
+             case 1: {
+-                int header = UNSAFE.getInt(inputBase, input);
++                int header = littleEndian(UNSAFE.getInt(inputBase, input));
+ 
+                 headerSize = 3;
+                 uncompressedSize = (header >>> 4) & mask(10);
+@@ -744,7 +745,7 @@ class ZstdFrameDecompressor
+                 break;
+             }
+             case 2: {
+-                int header = UNSAFE.getInt(inputBase, input);
++                int header = littleEndian(UNSAFE.getInt(inputBase, input));
+ 
+                 headerSize = 4;
+                 uncompressedSize = (header >>> 4) & mask(14);
+@@ -754,7 +755,7 @@ class ZstdFrameDecompressor
+             case 3: {
+                 // read 5 little-endian bytes
+                 long header = UNSAFE.getByte(inputBase, input) & 0xFF |
+-                        (UNSAFE.getInt(inputBase, input + 1) & 0xFFFF_FFFFL) << 8;
++                        (littleEndian(UNSAFE.getInt(inputBase, input + 1)) & 0xFFFF_FFFFL) << 8;
+ 
+                 headerSize = 5;
+                 uncompressedSize = (int) ((header >>> 4) & mask(18));
+@@ -802,13 +803,13 @@ class ZstdFrameDecompressor
+                 input++;
+                 break;
+             case 1:
+-                outputSize = (UNSAFE.getShort(inputBase, input) & 0xFFFF) >>> 4;
++                outputSize = (littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF) >>> 4;
+                 input += 2;
+                 break;
+             case 3:
+                 // we need at least 4 bytes (3 for the header, 1 for the payload)
+                 verify(blockSize >= SIZE_OF_INT, input, "Not enough input bytes");
+-                outputSize = (UNSAFE.getInt(inputBase, input) & 0xFF_FFFF) >>> 4;
++                outputSize = (littleEndian(UNSAFE.getInt(inputBase, input)) & 0xFF_FFFF) >>> 4;
+                 input += 3;
+                 break;
+             default:
+@@ -840,13 +841,13 @@ class ZstdFrameDecompressor
+                 input++;
+                 break;
+             case 1:
+-                literalSize = (UNSAFE.getShort(inputBase, input) & 0xFFFF) >>> 4;
++                literalSize = (littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF) >>> 4;
+                 input += 2;
+                 break;
+             case 3:
+                 // read 3 little-endian bytes
+                 int header = ((UNSAFE.getByte(inputBase, input) & 0xFF) |
+-                        ((UNSAFE.getShort(inputBase, input + 1) & 0xFFFF) << 8));
++                        ((littleEndian(UNSAFE.getShort(inputBase, input + 1)) & 0xFFFF) << 8));
+ 
+                 literalSize = header >>> 4;
+                 input += 3;
+@@ -913,11 +914,11 @@ class ZstdFrameDecompressor
+                 input += SIZE_OF_BYTE;
+                 break;
+             case 2:
+-                dictionaryId = UNSAFE.getShort(inputBase, input) & 0xFFFF;
++                dictionaryId = littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF;
+                 input += SIZE_OF_SHORT;
+                 break;
+             case 3:
+-                dictionaryId = UNSAFE.getInt(inputBase, input) & 0xFFFF_FFFFL;
++                dictionaryId = littleEndian(UNSAFE.getInt(inputBase, input)) & 0xFFFF_FFFFL;
+                 input += SIZE_OF_INT;
+                 break;
+         }
+@@ -933,16 +934,16 @@ class ZstdFrameDecompressor
+                 }
+                 break;
+             case 1:
+-                contentSize = UNSAFE.getShort(inputBase, input) & 0xFFFF;
++                contentSize = littleEndian(UNSAFE.getShort(inputBase, input)) & 0xFFFF;
+                 contentSize += 256;
+                 input += SIZE_OF_SHORT;
+                 break;
+             case 2:
+-                contentSize = UNSAFE.getInt(inputBase, input) & 0xFFFF_FFFFL;
++                contentSize = littleEndian(UNSAFE.getInt(inputBase, input)) & 0xFFFF_FFFFL;
+                 input += SIZE_OF_INT;
+                 break;
+             case 3:
+-                contentSize = UNSAFE.getLong(inputBase, input);
++                contentSize = littleEndian(UNSAFE.getLong(inputBase, input));
+                 input += SIZE_OF_LONG;
+                 break;
+         }
+@@ -968,7 +969,7 @@ class ZstdFrameDecompressor
+     {
+         verify(inputLimit - inputAddress >= 4, inputAddress, "Not enough input bytes");
+ 
+-        int magic = UNSAFE.getInt(inputBase, inputAddress);
++        int magic = littleEndian(UNSAFE.getInt(inputBase, inputAddress));
+         if (magic != MAGIC_NUMBER) {
+             if (magic == V07_MAGIC_NUMBER) {
+                 throw new MalformedInputException(inputAddress, "Data encoded in unsupported ZSTD v0.7 format");
+diff --git a/src/main/java/io/airlift/compress/zstd/ZstdIncrementalFrameDecompressor.java b/src/main/java/io/airlift/compress/zstd/ZstdIncrementalFrameDecompressor.java
+index c1993fc..a4e0fd7 100644
+--- a/src/main/java/io/airlift/compress/zstd/ZstdIncrementalFrameDecompressor.java
++++ b/src/main/java/io/airlift/compress/zstd/ZstdIncrementalFrameDecompressor.java
+@@ -27,6 +27,7 @@ import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+ import static io.airlift.compress.zstd.Util.checkArgument;
+ import static io.airlift.compress.zstd.Util.checkState;
+ import static io.airlift.compress.zstd.Util.fail;
++import static io.airlift.compress.zstd.Util.littleEndian;
+ import static io.airlift.compress.zstd.Util.verify;
+ import static io.airlift.compress.zstd.ZstdFrameDecompressor.MAX_WINDOW_SIZE;
+ import static io.airlift.compress.zstd.ZstdFrameDecompressor.decodeRawBlock;
+@@ -182,13 +183,13 @@ public class ZstdIncrementalFrameDecompressor
+                     return;
+                 }
+                 if (inputBufferSize >= SIZE_OF_INT) {
+-                    blockHeader = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
++                    blockHeader = littleEndian(UNSAFE.getInt(inputBase, input)) & 0xFF_FFFF;
+                 }
+                 else {
+                     blockHeader = UNSAFE.getByte(inputBase, input) & 0xFF |
+                             (UNSAFE.getByte(inputBase, input + 1) & 0xFF) << 8 |
+                             (UNSAFE.getByte(inputBase, input + 2) & 0xFF) << 16;
+-                    int expected = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
++                    int expected = littleEndian(UNSAFE.getInt(inputBase, input)) & 0xFF_FFFF;
+                     verify(blockHeader == expected, input, "oops");
+                 }
+                 input += SIZE_OF_BLOCK_HEADER;
+@@ -257,7 +258,7 @@ public class ZstdIncrementalFrameDecompressor
+                     }
+ 
+                     // read checksum
+-                    int checksum = UNSAFE.getInt(inputBase, input);
++                    int checksum = littleEndian(UNSAFE.getInt(inputBase, input));
+                     input += SIZE_OF_INT;
+ 
+                     checkState(partialHash != null, "Partial hash not set");
