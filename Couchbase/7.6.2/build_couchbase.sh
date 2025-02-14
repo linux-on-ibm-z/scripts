@@ -1042,8 +1042,8 @@ SET_PROPERTY (GLOBAL APPEND PROPERTY CBDEPS_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE
 EOF
 
     mkdir -p cmake && cd cmake
-    wget https://raw.githubusercontent.com/couchbase/build-tools/master/cbdeps/jemalloc_noprefix/package/cmake/Jemalloc_NoprefixConfig.cmake
-
+    wget https://raw.githubusercontent.com/couchbase/build-tools/master/cbdeps/jemalloc_noprefix/package/cmake/Jemalloc_noprefixConfig.cmake
+    mv Jemalloc_noprefixConfig.cmake Jemalloc_NoprefixConfig.cmake
     cd $SOURCE_ROOT/jemalloc_noprefix/_build
     # Packaging build files
     tar -czvf $PACKAGE_JEMALLOC.tgz *
