@@ -119,7 +119,18 @@ function configureAndInstall()
 	cd salt
 	curl -sSL $PATCH_URL/salt.patch |  git apply -
 	pip3 install -e .
-
+    
+	#Install pyzmq
+    if [[ "$ID-$VERSION_ID" == "sles-15.6" ]]; then
+		wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
+    	tar -xzf zeromq-4.3.4.tar.gz
+		cd zeromq-4.3.4
+    	./configure
+    	make
+    	sudo make install
+    	sudo ldconfig
+    	pip install pyzmq
+	fi
 #Run tests
   runTest
 
@@ -181,7 +192,7 @@ DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "rhel-8.8" | "rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget cmake bzip2-devel gdbm-devel libdb-devel libnsl2-devel libuuid-devel ncurses-devel openssl openssl-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel glibc-langpack-en diffutils |& tee -a "${LOG_FILE}"
+	sudo yum install -y procps-ng zeromq-devel cyrus-sasl-devel gcc gcc-c++ git libffi-devel libtool libxml2-devel libxslt-devel make man swig tar wget cmake bzip2-devel gdbm-devel libdb-devel libnsl2-devel libuuid-devel ncurses-devel openssl openssl-devel readline-devel sqlite-devel tk-devel xz xz-devel zlib-devel glibc-langpack-en diffutils bzip2-devel sqlite-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
@@ -191,19 +202,26 @@ case "$DISTRO" in
 ;;
 "sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 |& tee -a "${LOG_FILE}"
-    configureAndInstall |& tee -a "${LOG_FILE}"
+    sudo zypper install -y curl cyrus-sasl-devel gawk gcc autoconf python3-pip libtool pkg-config gcc-c++ git libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 libbz2-devel |& tee -a "${LOG_FILE}"    
+	configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 "ubuntu-20.04")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update
-  sudo apt-get install -y wget g++ gcc git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man python3-dev python3-pip tar libz-dev pkg-config apt-utils curl cmake libbz2-dev libsqlite3-dev |& tee -a "${LOG_FILE}"
+  sudo apt-get install -y wget g++  gcc c++ git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man python3-dev python3-devel python3-pip tar libz-dev pkg-config apt-utils curl cmake libbz2-dev libsqlite3-dev libzmq5 libzmq5-devel |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update
-  sudo apt-get install -y wget g++ gcc git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man tar libz-dev pkg-config apt-utils curl cmake libbz2-dev libdb-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev tk-dev uuid-dev xz-utils zlib1g-dev |& tee -a "${LOG_FILE}"
+  sudo apt-get install -y wget g++ gcc git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man tar wget libz-dev pkg-config apt-utils curl cmake libbz2-dev libdb-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev tk-dev uuid-dev xz-utils zlib1g-dev libbz2-dev libsqlite3-dev |& tee -a "${LOG_FILE}"
+  configureAndInstall |& tee -a "${LOG_FILE}"
+;;
+"ubuntu-24.10")
+  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+  sudo apt update
+  sudo apt install -y gcc-11 g++-11 python3-pip python3-lxml wget git python3-dev python3-venv python3-wheel build-essential libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make curl cmake libbz2-dev libdb-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev tk-dev uuid-dev xz-utils zlib1g-dev pkg-config apt-utils |& tee -a "${LOG_FILE}"
+  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 --slave /usr/bin/g++ g++ /usr/bin/g++-11
   configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 *)
