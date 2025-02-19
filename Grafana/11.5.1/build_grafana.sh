@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="grafana"
 PACKAGE_VERSION="11.5.1"
 CURDIR="$(pwd)"
-GOLANG_VERSION="1.23.1"
+GOLANG_VERSION="1.23.5"
 GO_INSTALL_URL="https://golang.org/dl/go${GOLANG_VERSION}.linux-s390x.tar.gz"
 GO_DEFAULT="$HOME/go"
 NODE_JS_VERSION="20.15.1"
