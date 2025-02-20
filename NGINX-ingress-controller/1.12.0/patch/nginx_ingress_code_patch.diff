@@ -1,0 +1,117 @@
+diff --git a/Makefile b/Makefile
+index 3ff56fc47..fa31773aa 100644
+--- a/Makefile
++++ b/Makefile
+@@ -49,7 +49,7 @@ BUILD_ID ?= "UNSET"
+ PKG = k8s.io/ingress-nginx
+ 
+ HOST_ARCH = $(shell which go >/dev/null 2>&1 && go env GOARCH)
+-ARCH ?= $(HOST_ARCH)
++ARCH ?= s390x
+ ifeq ($(ARCH),)
+     $(error mandatory variable ARCH is empty, either set it when calling the command or make sure 'go env GOARCH' works)
+ endif
+diff --git a/build/run-in-docker.sh b/build/run-in-docker.sh
+index 03cc3de73..5f5d9d038 100755
+--- a/build/run-in-docker.sh
++++ b/build/run-in-docker.sh
+@@ -44,7 +44,7 @@ function cleanup {
+ }
+ trap cleanup EXIT
+ 
+-E2E_IMAGE=${E2E_IMAGE:-registry.k8s.io/ingress-nginx/e2e-test-runner:v20241224-68ed4e7b@sha256:871642296ebc0dd386f9a43b0cf2606028d757d6c4a2737d41180f02f8172823}
++E2E_IMAGE=${E2E_IMAGE:-gcr.io/ingress-nginx/e2e-test-runner:v1.12.0}
+ 
+ if [[ "$RUNTIME" == podman ]]; then
+   # Podman does not support both tag and digest
+diff --git a/images/nginx/Makefile b/images/nginx/Makefile
+index 3ed502759..240f0df65 100644
+--- a/images/nginx/Makefile
++++ b/images/nginx/Makefile
+@@ -32,12 +32,11 @@ IMAGE = $(REGISTRY)/nginx
+ export DOCKER_CLI_EXPERIMENTAL=enabled
+ 
+ # build with buildx
+-PLATFORMS?=linux/amd64,linux/arm,linux/arm64
++PLATFORMS?=linux/amd64,linux/arm,linux/arm64,linux/s390x
+ OUTPUT=
+ PROGRESS=plain
+-build: ensure-buildx
+-	docker buildx build \
+-		--platform=${PLATFORMS} $(OUTPUT) \
++build: 
++	docker build \
+ 		--progress=$(PROGRESS) \
+ 		--pull \
+ 		--tag $(IMAGE):$(TAG) rootfs
+diff --git a/images/test-runner/Makefile b/images/test-runner/Makefile
+index b51293643..1380d6294 100644
+--- a/images/test-runner/Makefile
++++ b/images/test-runner/Makefile
+@@ -63,12 +63,10 @@ image:
+ 		--build-arg GOLINT_VERSION=latest \
+ 		-t ${IMAGE}:${TAG} rootfs
+ 
+-build: ensure-buildx
+-	docker buildx build \
+-		--platform=${PLATFORMS} ${OUTPUT} \
++build: 
++	docker build \
+ 		--progress=${PROGRESS} \
+-		--pull \
+-		--build-arg BASE_IMAGE=${NGINX_BASE_IMAGE} \
++		--build-arg BASE_IMAGE=nginx:v1.1.0 \
+ 		--build-arg GOLANG_VERSION=${GO_VERSION} \
+ 		--build-arg ETCD_VERSION=3.5.13-0 \
+ 		--build-arg K8S_RELEASE=v1.29.2 \
+@@ -82,6 +80,7 @@ build: ensure-buildx
+ 		--build-arg HELM_VERSION=3.14.4 \
+ 		--build-arg GINKGO_VERSION=2.22.1 \
+ 		--build-arg GOLINT_VERSION=latest \
++		--build-arg TARGETARCH=s390x \
+ 		-t ${IMAGE}:${TAG} rootfs
+ 
+ # push the cross built image
+diff --git a/images/test-runner/rootfs/Dockerfile b/images/test-runner/rootfs/Dockerfile
+index d871461bf..3298e045f 100644
+--- a/images/test-runner/rootfs/Dockerfile
++++ b/images/test-runner/rootfs/Dockerfile
+@@ -47,7 +47,7 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+ 
+ COPY --from=etcd /usr/local/bin/etcd /usr/local/bin/etcd
+-
++ENV ETCD_UNSUPPORTED_ARCH=s390x
+ RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+ 
+ RUN apk update && apk upgrade && apk add --no-cache \
+@@ -99,16 +99,6 @@ RUN wget -qO /usr/local/bin/kube-apiserver \
+   https://dl.k8s.io/release/${K8S_RELEASE}/bin/linux/${TARGETARCH}/kube-apiserver \
+   && chmod +x /usr/local/bin/kube-apiserver
+ 
+-RUN wget -qO /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz \
+-  https://github.com/helm/chart-testing/releases/download/v${CHART_TESTING_VERSION}/chart-testing_${CHART_TESTING_VERSION}_linux_${TARGETARCH}.tar.gz \
+-  && mkdir -p /tmp/ct-download \
+-  && tar xzvf /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz -C /tmp/ct-download \
+-  && rm /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz \
+-  && cp /tmp/ct-download/ct /usr/local/bin \
+-  && mkdir -p /etc/ct \
+-  && cp -R /tmp/ct-download/etc/* /etc/ct \
+-  && rm -rf /tmp/*
+-
+ RUN wget -qO /usr/local/bin/lj-releng \
+   https://raw.githubusercontent.com/openresty/openresty-devel-utils/master/lj-releng \
+   && chmod +x /usr/local/bin/lj-releng
+diff --git a/rootfs/Dockerfile b/rootfs/Dockerfile
+index 9b7753b5d..e35a7cf7e 100644
+--- a/rootfs/Dockerfile
++++ b/rootfs/Dockerfile
+@@ -14,7 +14,7 @@
+ 
+ ARG BASE_IMAGE
+ 
+-FROM ${BASE_IMAGE}
++FROM nginx:v1.1.0
+ 
+ ARG TARGETARCH
+ ARG VERSION
