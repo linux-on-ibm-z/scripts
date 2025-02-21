@@ -120,10 +120,15 @@ function configureAndInstall() {
     git apply "$GOPATH/src/k8s.io/ingress-nginx/nginx_ingress_code_patch.diff"
     printf -- "Patched source code successfully.\n"
 
+    # Build nginx image for s390x
+    cd "$GOPATH/src/k8s.io/ingress-nginx/images/nginx/"
+    sudo make build
+    sudo docker tag gcr.io/k8s-staging-ingress-nginx/nginx:v1.1.0 nginx:v1.1.0
+    
     # Build test-runner image for s390x
     cd "$GOPATH/src/k8s.io/ingress-nginx/images/test-runner/"
     sudo make build
-    sudo docker tag local/e2e-test-runner:"v$(date +%Y%m%d)--8ee438427" gcr.io/ingress-nginx/e2e-test-runner:v$PACKAGE_VERSION
+    sudo docker tag local/e2e-test-runner:"v$(date +%Y%m%d)-8ee438427" gcr.io/ingress-nginx/e2e-test-runner:v$PACKAGE_VERSION
 
     # Build NGINX Ingress Controller image
     cd "$GOPATH/src/k8s.io/ingress-nginx/"
