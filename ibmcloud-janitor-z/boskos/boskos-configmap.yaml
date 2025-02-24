@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resources
+  namespace: test-pods
+data:
+  boskos-resources.yaml: |
+    resources:
+      - type: "vpc-service"
+        state: free
+        names:
+          - "boskos-test-vpc"
+          - "s390x-k8s-conformance"
