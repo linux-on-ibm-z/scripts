@@ -1,0 +1,24 @@
+diff --git a/python/pyproject.toml b/python/pyproject.toml
+index edbc4ade6..7b440ffd2 100644
+--- a/python/pyproject.toml
++++ b/python/pyproject.toml
+@@ -17,7 +17,7 @@
+ 
+ [build-system]
+ requires = [
+-    "cython >= 0.29.22",
++    "cython >= 0.29.22, < 3",
+     "oldest-supported-numpy>=0.14",
+     "setuptools_scm",
+     "setuptools >= 40.1.0",
+diff --git a/python/requirements-build.txt b/python/requirements-build.txt
+index 46eb288c5..418f2f879 100644
+--- a/python/requirements-build.txt
++++ b/python/requirements-build.txt
+@@ -1,4 +1,4 @@
+-cython>=0.29
++cython>=0.29,<3
+ oldest-supported-numpy>=0.14
+-setuptools_scm
++setuptools_scm==6.0.1
+ setuptools>=38.6.0
