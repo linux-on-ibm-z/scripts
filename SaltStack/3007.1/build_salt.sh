@@ -202,7 +202,7 @@ case "$DISTRO" in
 ;;
 "sles-15.6")
   printf -- "Inst  %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git python3-devel libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 |& tee -a "${LOG_FILE}"
+  sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git python3-devel python3-pip libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
 "ubuntu-20.04")
