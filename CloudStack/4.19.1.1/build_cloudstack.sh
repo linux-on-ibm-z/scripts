@@ -58,12 +58,12 @@ function prepare() {
 
 function cleanup() {
     # Remove artifacts
-    rm -rf /opt/maven/apache-maven-3.8.8
-    rm -rf $SOURCE_ROOT/libvirt-java
-    rm -rf $SOURCE_ROOT/rpmbuild
-    rm -rf $SOURCE_ROOT/cloudstack/master.patch
-    rm -rf $SOURCE_ROOT/Python-${PYTHON2_VERSION}
-    rm -rf $SOURCE_ROOT/Python-${PYTHON2_VERSION}.tgz
+    sudo rm -rf /opt/maven/apache-maven-3.8.8
+    sudo rm -rf $SOURCE_ROOT/libvirt-java
+    sudo rm -rf $SOURCE_ROOT/rpmbuild
+    sudo rm -rf $SOURCE_ROOT/cloudstack/master.patch
+    sudo rm -rf $SOURCE_ROOT/Python-${PYTHON2_VERSION}
+    sudo rm -rf $SOURCE_ROOT/Python-${PYTHON2_VERSION}.tgz
     printf -- "Cleaned up the artifacts\n" | tee -a "$LOG_FILE"
 }
 
@@ -343,7 +343,7 @@ case "$DISTRO" in
         printf -- "Installing dependencies... it may take some time.\n"
         for pkg in sudo wget git java-11-openjdk java-11-openjdk-devel ant ant-junit python3-libvirt-python libvirt selinux-tools dhcp-server qemu-img qemu-kvm dhcp \
         python3 python2 ipmitool python3-pip unzip cryptsetup ethtool ipset python3-setuptools mkisofs tftp mariadb mysql httpd qemu-tools timezone-java nfs-utils libffi-devel libopenssl-devel rpm-build python3-devel; do
-            zypper -n install "$pkg" || true;
+            sudo zypper -n install "$pkg" || true;
         done
         export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
         export PATH="${JAVA_HOME}/bin:${PATH}"
