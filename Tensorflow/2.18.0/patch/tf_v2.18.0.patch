@@ -1065,18 +1065,14 @@ index 3c2c8ae5ced..b522b41c11e 100644
  
  // Does the padding correspond to "SAME" on given dimension configuration.
 diff --git a/third_party/xla/xla/backends/cpu/runtime/rng_state_thunk.cc b/third_party/xla/xla/backends/cpu/runtime/rng_state_thunk.cc
-index 39a3de9b942..d517e6cdf6f 100644
+index 39a3de9b..4e87e94c 100644
 --- a/third_party/xla/xla/backends/cpu/runtime/rng_state_thunk.cc
 +++ b/third_party/xla/xla/backends/cpu/runtime/rng_state_thunk.cc
-@@ -78,8 +78,9 @@ tsl::AsyncValueRef<Thunk::ExecuteEvent> RngGetAndUpdateStateThunk::Execute(
-   uint64_t low = absl::Int128Low64(state_);
+@@ -79,7 +79,7 @@ tsl::AsyncValueRef<Thunk::ExecuteEvent> RngGetAndUpdateStateThunk::Execute(
    uint64_t high = absl::Int128High64(state_);
    uint64_t* data = static_cast<uint64_t*>(state_data.opaque());
--
+ 
 -  static_assert(ABSL_IS_LITTLE_ENDIAN, "Big endian not supported");
-+  #if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-+    static_assert(ABSL_IS_BIG_ENDIAN, "Big endian not supported");
-+  #endif
++  // static_assert(ABSL_IS_LITTLE_ENDIAN, "Big endian not supported");
    std::memcpy(data, &low, sizeof(low));
    std::memcpy(data + 1, &high, sizeof(high));
- 

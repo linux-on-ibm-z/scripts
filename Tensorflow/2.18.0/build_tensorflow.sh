@@ -170,6 +170,11 @@ function configureAndInstall() {
     cd dist
     pip3 install ./tensorflow_io_gcs_filesystem-0.37.1-cp*-cp*-linux_s390x.whl
 
+    #Install grpcio
+    printf -- "\nInstalling grpcio. . . \n"
+    export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True
+    pip3 install grpcio==1.64.1 |& tee -a "${LOG_FILE}"
+
     # Build TensorFlow
     printf -- '\nDownload Tensorflow source code..... \n'
     cd $SOURCE_ROOT
@@ -180,9 +185,6 @@ function configureAndInstall() {
     curl -o tf_v${PACKAGE_VERSION}.patch ${PATCH_URL}/tf_v${PACKAGE_VERSION}.patch
     patch -p1 < tf_v${PACKAGE_VERSION}.patch
     rm -f tf_v${PACKAGE_VERSION}.patch
-
-    export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True
-    pip3 install -r $REQUIREMENTS_FILE
 
     cp ${SOURCE_ROOT}/icu/icu4c/source/data/out/tmp/icu_conversion_data_big_endian.c.gz.* third_party/icu/data/
  
@@ -290,22 +292,18 @@ case "$PYTHON_V" in
 
 "3.9")
     PY_VERSION=3.9.7
-    REQUIREMENTS_FILE=requirements_lock_3_9.txt
     ;;
 
 "3.10")
     PY_VERSION=3.10.6
-    REQUIREMENTS_FILE=requirements_lock_3_10.txt
     ;;
 
 "3.11")
     PY_VERSION=3.11.4
-    REQUIREMENTS_FILE=requirements_lock_3_11.txt
     ;;
 
 "3.12")
     PY_VERSION=3.12.0
-    REQUIREMENTS_FILE=requirements_lock_3_12.txt
     ;;
 esac
 
@@ -324,7 +322,7 @@ case "$DISTRO" in
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 60
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 60
     sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
-    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION |& tee -a "${LOG_FILE}"
+    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION ml-dtypes==0.4.1 h5py==3.11.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 
@@ -338,7 +336,7 @@ case "$DISTRO" in
     setupPython |& tee -a "${LOG_FILE}"
     sudo ldconfig
     sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
-    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION |& tee -a "${LOG_FILE}"
+    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION ml-dtypes==0.4.1 h5py==3.11.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 
