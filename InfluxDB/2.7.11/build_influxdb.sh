@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -132,6 +132,7 @@ function configureAndInstall() {
     printf -- 'Building InfluxDB \n'
     printf -- 'Build might take some time. Sit back and relax\n'
     export NODE_OPTIONS=--max_old_space_size=4096
+    rustup toolchain install 1.68-s390x-unknown-linux-gnu
     make
     sudo cp ./bin/linux/* /usr/bin
     printf -- 'Successfully installed InfluxDB. \n'
