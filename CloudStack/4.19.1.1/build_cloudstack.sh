@@ -151,6 +151,7 @@ function configureAndInstallUb() {
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
     # Build deb
     if [[ $DISTRO == ubuntu-24.* ]]; then
+        sed -i '/cp tools\/marvin\/dist\/Marvin-\*.tar.gz/i\                cp tools/marvin/dist/marvin-*.tar.gz tools/marvin/dist/Marvin-*.tar.gz' debian/rules
         nvm exec 10 sudo -E dpkg-buildpackage -d
     else
         nvm exec 12 sudo -E dpkg-buildpackage -d
