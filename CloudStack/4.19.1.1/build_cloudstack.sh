@@ -145,13 +145,15 @@ function configureAndInstallUb() {
     replace_line_in_file debian/control "$search" "Depends: \${misc:Depends}, \${python3:Depends}, genisoimage, nfs-common, python3-netaddr"
     replace_line_in_file debian/control "Depends: \${misc:Depends}, python3-pip, python3-dev, libffi-dev" "Depends: \${misc:Depends}, libffi-dev"
     replace_line_in_file debian/rules "$(printf '\t')cd ui && npm install && npm run build && cd .." "$replacement_line"
-
+    if [[ $DISTRO == ubuntu-24.10 ]]; then
+        sed -i '/mkdir -p $(DESTDIR)\/usr\/share\/$(PACKAGE)-marvin/s/$/ \&\& cp tools\/marvin\/dist\/marvin-\*.tar.gz tools\/marvin\/dist\/Marvin-\*.tar.gz/' debian/rules
+    fi
+    
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
     # Build deb
     if [[ $DISTRO == ubuntu-24.* ]]; then
-        sed -i '/cp tools\/marvin\/dist\/Marvin-\*.tar.gz/i\                cp tools/marvin/dist/marvin-*.tar.gz tools/marvin/dist/Marvin-*.tar.gz' debian/rules
         nvm exec 10 sudo -E dpkg-buildpackage -d
     else
         nvm exec 12 sudo -E dpkg-buildpackage -d
