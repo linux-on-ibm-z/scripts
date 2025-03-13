@@ -333,10 +333,8 @@ case "$DISTRO" in
         syslinux-tftpboot tftp-server libffi-devel ant curl chkconfig |& tee -a "$LOG_FILE"
         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
         export PATH="${JAVA_HOME}/bin:${PATH}"
-        sudo yum update -y |& tee -a "$LOG_FILE"
         setupNodejs |& tee -a "$LOG_FILE"
         sudo yum install -y nodejs |& tee -a "$LOG_FILE"
-        
         sudo pip3 install mysql-connector-python
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
