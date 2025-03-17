@@ -149,7 +149,7 @@ function configureAndInstall() {
     # Build netty
     printf -- "Build netty\n" >>"$LOG_FILE"
     cd "$CURDIR"
-    git clone -b netty-4.1.58.Finalhttps://github.com/netty/netty.git
+    git clone -b netty-4.1.58.Final https://github.com/netty/netty.git
     cd netty
     curl -sSL ${PATCH_URL}/netty.patch | git apply
     mvn -T 1C install -DskipTests -Dmaven.javadoc.skip=true
