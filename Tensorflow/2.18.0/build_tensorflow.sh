@@ -308,6 +308,7 @@ case "$PYTHON_V" in
 esac
 
 DISTRO="$ID-$VERSION_ID"
+export SETUPTOOLS_USE_DISTUTILS=stdlib
 
 case "$DISTRO" in
 "ubuntu-20.04")
