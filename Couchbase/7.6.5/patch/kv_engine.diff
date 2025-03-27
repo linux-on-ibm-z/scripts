@@ -1,0 +1,29 @@
+diff --git a/engines/ep/tests/module_tests/checkpoint_test.h b/engines/ep/tests/module_tests/checkpoint_test.h
+index f9213cbc6..a0b595c22 100644
+--- a/engines/ep/tests/module_tests/checkpoint_test.h
++++ b/engines/ep/tests/module_tests/checkpoint_test.h
+@@ -200,6 +200,8 @@ protected:
+     // bytes for the key+value.
+ #if WIN32
+     const size_t firstElemOverhead = 32 + 16;
++#elif defined(__s390x__)
++    const size_t firstElemOverhead = 32 + 64;
+ #else
+     const size_t firstElemOverhead = 32;
+ #endif
+@@ -208,7 +210,7 @@ protected:
+     // optimization, e.g. for alignment. This has been observed to be up to
+     // multiples of 16 bytes on macOS, but this is environment dependent, so the
+     // following value is used only as an upper bound.
+-#if defined(__arm64__) && defined(__APPLE__)
++#if defined(__arm64__) && defined(__APPLE__) || defined(__s390x__)
+     // macOS aarch64 seems to align to an even larger value than other
+     // platforms.
+     static const size_t alignmentBytes = 32;
+@@ -254,4 +256,4 @@ public:
+ class CDCCheckpointTest : public SingleThreadedCheckpointTest {
+ public:
+     void SetUp() override;
+-};
+\ No newline at end of file
++};

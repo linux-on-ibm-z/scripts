@@ -1,0 +1,76 @@
+diff --git a/CMake/folly-config.h.cmake b/CMake/folly-config.h.cmake
+index a5d7b12..2b198fe 100644
+--- a/CMake/folly-config.h.cmake
++++ b/CMake/folly-config.h.cmake
+@@ -57,7 +57,6 @@
+ #cmakedefine FOLLY_HAVE_VLA 1
+ #cmakedefine FOLLY_HAVE_WEAK_SYMBOLS 1
+ #cmakedefine FOLLY_HAVE_LINUX_VDSO 1
+-#cmakedefine FOLLY_HAVE_MALLOC_USABLE_SIZE 1
+ #cmakedefine FOLLY_HAVE_INT128_T 1
+ #cmakedefine FOLLY_HAVE_WCHAR_SUPPORT 1
+ #cmakedefine FOLLY_HAVE_EXTRANDOM_SFMT19937 1
+diff --git a/folly/Demangle.cpp b/folly/Demangle.cpp
+index 1af58f2..6b025b4 100644
+--- a/folly/Demangle.cpp
++++ b/folly/Demangle.cpp
+@@ -29,10 +29,10 @@
+ //  symbol basename. Unfortunately, the declarations are different. So including
+ //  both headers in the same translation unit fails due to the two conflicting
+ //  declarations. Since <demangle.h> includes <libiberty.h> we must be careful.
+-#if __has_include(<demangle.h>)
++#if __has_include(<Demangle.h>)
+ #pragma push_macro("HAVE_DECL_BASENAME")
+ #define HAVE_DECL_BASENAME 1
+-#include <demangle.h> // @manual
++#include <Demangle.h> // @manual
+ #pragma pop_macro("HAVE_DECL_BASENAME")
+ #endif
+
+@@ -58,7 +58,7 @@ static constexpr auto cxxabi_demangle = static_cast<char* (*)(...)>(nullptr);
+ //
+ //  in contrast with cxxabi, where there are certainly other referenced symbols
+
+-#if __has_include(<demangle.h>)
++#if __has_include(<Demangle.h>)
+
+ static constexpr auto liberty_demangle = cplus_demangle_v3_callback;
+
+diff --git a/folly/PackedSyncPtr.h b/folly/PackedSyncPtr.h
+index d36be25..6954937 100644
+--- a/folly/PackedSyncPtr.h
++++ b/folly/PackedSyncPtr.h
+@@ -23,7 +23,7 @@
+ #include <folly/Portability.h>
+ #include <folly/synchronization/SmallLocks.h>
+
+-#if !FOLLY_X64 && !FOLLY_PPC64 && !FOLLY_AARCH64
++#if !FOLLY_X64 && !FOLLY_PPC64 && !FOLLY_AARCH64 && !defined(__s390x__)
+ #error "PackedSyncPtr is x64, ppc64 or aarch64 specific code."
+ #endif
+
+diff --git a/folly/experimental/QuotientMultiSet.h b/folly/experimental/QuotientMultiSet.h
+index 831a7ba..bd8cf50 100644
+--- a/folly/experimental/QuotientMultiSet.h
++++ b/folly/experimental/QuotientMultiSet.h
+@@ -26,7 +26,7 @@
+ #include <folly/io/IOBufQueue.h>
+
+ // A 128-bit integer type is needed for fast division.
+-#define FOLLY_QUOTIENT_MULTI_SET_SUPPORTED FOLLY_HAVE_INT128_T
++#define FOLLY_QUOTIENT_MULTI_SET_SUPPORTED FALSE
+
+ #if FOLLY_QUOTIENT_MULTI_SET_SUPPORTED
+
+diff --git a/folly/stats/detail/BufferedStat.h b/folly/stats/detail/BufferedStat.h
+index 4c63e2b..38b5987 100644
+--- a/folly/stats/detail/BufferedStat.h
++++ b/folly/stats/detail/BufferedStat.h
+@@ -17,6 +17,7 @@
+ #pragma once
+
+ #include <folly/SharedMutex.h>
++#include "glog/logging.h"
+ #include <folly/stats/DigestBuilder.h>
+ #include <folly/stats/detail/SlidingWindow.h>
+
