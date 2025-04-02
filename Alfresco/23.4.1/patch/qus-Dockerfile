@@ -1,0 +1,70 @@
+# © Copyright IBM Corporation 2025
+# LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+# This image will register static qemu binaries for linux binfmt_misc.
+# ARGs are provided to set the qemu git repo and tag.
+
+# The image can be built on an s390x machine to provide 'qemu-x86_64-static'
+# or on and x86_64 machine to provide 'qemu-s390x-static'.
+
+# Build the image:
+# > docker build -t qus:1 .
+#   will build https://github.com/qemu/qemu.git master branch
+# > docker build --build-arg QEMU_TAG=v7.1.0 -t qus:1 .
+#   will build https://github.com/qemu/qemu.git at the v7.1.0 tag
+
+# Run the image:
+# > docker run -it --rm --privileged qus:1
+
+# You may add one of the following options to the 'docker run' command above:
+# Add '--force' to replace an already registered qemu-<arch>-static
+# Add '--unregister' to unregister an already registered qemu-<arch>-static
+
+FROM ubuntu:22.04 AS builder
+
+ARG QEMU_REPO_URL="https://github.com/qemu/qemu.git"
+ARG QEMU_TAG=master
+
+WORKDIR /tmp/release
+
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential \
+        ninja-build \
+        git \
+        python3 \
+        pkg-config \
+        libglib2.0-dev \
+        libfdt-dev \
+        libpixman-1-dev \
+        zlib1g-dev \
+    && mkdir /tmp/build \
+    && cd /tmp/build \
+    && git clone --depth=1 --single-branch -b "$QEMU_TAG" "$QEMU_REPO_URL" \
+    && cd /tmp/build \
+    && mkdir scripts
+
+COPY configure-qemu.sh linux-user-default-to-preserve-argv0.patch /tmp/build/scripts/
+
+RUN cd /tmp/build/ \
+    && chmod +x scripts/configure-qemu.sh \
+    && cd qemu \
+    && git apply ../scripts/linux-user-default-to-preserve-argv0.patch \
+    && cd ../ \
+    && mkdir build_qemu \
+    && cd build_qemu \
+    && ../scripts/configure-qemu.sh ../qemu \
+    && make -j "$(getconf _NPROCESSORS_ONLN)" \
+    && make install \
+    && cd /usr/local/bin \
+    && for f in qemu-*; do cp "$f" "/tmp/release/${f}-static"; done
+
+COPY register.sh register.sh
+
+FROM alpine:3.20
+ENV QEMU_BIN_DIR=/usr/bin
+COPY --from=builder /tmp/release/register.sh /register.sh
+COPY --from=builder /tmp/release/qemu-* /usr/bin/
+RUN apk add --no-cache bash \
+    && chmod +x /register.sh \
+    && chmod +x /usr/bin/qemu-*
+ENTRYPOINT ["/register.sh"]
