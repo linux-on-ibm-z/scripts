@@ -61,19 +61,10 @@ function checkPrequisites() {
         fi
 
         if [[ "$JAVA_PROVIDED" != "Eclipse_Adoptium_Temurin_runtime_11" && "$JAVA_PROVIDED" != "Eclipse_Adoptium_Temurin_runtime_17" && "$JAVA_PROVIDED" != "OpenJDK11" && "$JAVA_PROVIDED" != "OpenJDK17" && "$JAVA_PROVIDED" != "SemeruJDK11" &&"$JAVA_PROVIDED" != "SemeruJDK17" ]]; then
-                if [[ $DISTRO == "sles-12.5" ]]; then
-                        printf "$JAVA_PROVIDED is not supported, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, SemeruJDK11, SemeruJDK17} only"
-                else
-                        printf "$JAVA_PROVIDED is not supported, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, OpenJDK17, SemeruJDK11, SemeruJDK17} only"
-                fi
+                printf "$JAVA_PROVIDED is not supported, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, OpenJDK17, SemeruJDK11, SemeruJDK17} only"
                 exit 1
         fi
          
-        if [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]  &&  [[ $DISTRO == "sles-12.5" ]]; then        
-                printf "$JAVA_PROVIDED is not supported on $DISTRO, Please use valid java from {Eclipse_Adoptium_Temurin_runtime_11, Eclipse_Adoptium_Temurin_runtime_17, OpenJDK11, SemeruJDK11, SemeruJDK17} only"
-                exit 1
-        fi
-
         if [[ "$FORCE" == "true" ]]; then
                 printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
         else
@@ -329,7 +320,7 @@ checkPrequisites #Check Prequisites
 
 if [[ "$USEAS" == "server" ]]; then
         case "$DISTRO" in
-        "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
+        "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
                 printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo apt-get update >/dev/null
@@ -337,23 +328,14 @@ if [[ "$USEAS" == "server" ]]; then
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
-        "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+        "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
                 printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo yum install -y gcc-c++ tar unzip openssl-devel make git wget zip gzip gawk zlib-devel bison flex readline-devel gdbm-devel libyaml-devel libffi-devel |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
-        "sles-12.5")
-                printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-                printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-                sudo zypper install -y gcc7-c++ tar unzip libopenssl-devel make git wget zip gzip gawk libnghttp2-devel zlib-devel bison flex readline-devel gdbm-devel libyaml-devel libffi-devel |& tee -a "$LOG_FILE"
-                sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
-                sudo ln -sf /usr/bin/gcc /usr/bin/cc                
-                configureAndInstall |& tee -a "$LOG_FILE"
-                ;;
-
-        "sles-15.5" | "sles-15.6")
+        "sles-15.6")
                 printf -- "Installing %s Server %s for %s \n" "$PACKAGE_NAME" "$SERVER_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo zypper install -y gcc-c++ tar unzip libopenssl-devel make git wget zip gzip gawk zlib-devel bison flex readline-devel gdbm-devel libyaml-devel libffi-devel |& tee -a "$LOG_FILE"
@@ -368,7 +350,7 @@ if [[ "$USEAS" == "server" ]]; then
 
 elif [[ "$USEAS" == "agent" ]]; then
         case "$DISTRO" in
-        "ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
+        "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
                 printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo apt-get update >/dev/null
@@ -376,23 +358,14 @@ elif [[ "$USEAS" == "agent" ]]; then
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
-        "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+        "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
                 printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo yum install -y gcc-c++ tar make wget openssl-devel gzip gawk zlib-devel bison flex readline-devel gdbm-devel libyaml-devel libffi-devel |& tee -a "$LOG_FILE"
                 configureAndInstall |& tee -a "$LOG_FILE"
                 ;;
 
-        "sles-12.5")
-                printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-                printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
-                sudo zypper install -y gcc7-c++ tar libopenssl-devel make wget gzip gawk zlib-devel bison flex readline-devel gdbm-devel libyaml-devel libffi-devel |& tee -a "$LOG_FILE"
-                sudo ln -sf /usr/bin/gcc-7 /usr/bin/gcc
-                sudo ln -sf /usr/bin/gcc /usr/bin/cc    
-                configureAndInstall |& tee -a "$LOG_FILE"
-                ;;
-
-        "sles-15.5" | "sles-15.6")
+        "sles-15.6")
                 printf -- "Installing %s Agent %s for %s \n" "$PACKAGE_NAME" "$AGENT_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
                 printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
                 sudo zypper install -y gcc-c++ tar make wget libopenssl-devel gzip gawk zlib-devel bison flex readline-devel gdbm-devel libyaml-devel libffi-devel |& tee -a "$LOG_FILE"
