@@ -131,7 +131,7 @@ function configureAndInstall() {
     rm get-pip.py
 
     pip3 install wheel -v
-    pip3 install "cython<3.0.0" pyyaml==5.4.1 --no-build-isolation -v
+    pip3 install "cython<3.0.0" pyyaml==6.0.2 --no-build-isolation -v
     
     printf -- 'Installing Rust \n'
     wget -q -O rustup-init.sh https://sh.rustup.rs
