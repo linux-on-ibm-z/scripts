@@ -302,7 +302,7 @@ case "$DISTRO" in
 
     sudo zypper install -y lsof libopenssl-devel gcc make python312-devel python312-pip gawk apache2 apache2-devel mariadb libmariadb-devel gcc-c++ cargo curl wget
 	
-    sudo pip3 install bcrypt==4.0.1 keystone==26.0.0 python-openstackclient mysqlclient mod-wsgi uwsgi
+    sudo pip3 install cryptography==41.0.7 bcrypt==4.0.1 keystone==26.0.0 python-openstackclient mysqlclient mod-wsgi uwsgi
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 
