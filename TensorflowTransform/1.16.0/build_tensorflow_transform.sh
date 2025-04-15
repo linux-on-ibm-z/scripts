@@ -85,26 +85,6 @@ function configureAndInstall() {
     bash build_tensorflow.sh -y -p $PYTHON_VERSION
     printf -- 'TensorFlow installed successfully \n'
 
-    if [[ "${DISTRO}" == "ubuntu-20.04" ]]; then
-        # Build CMake 3.21.2
-        printf -- 'Installing CMake 3.21.2 ... \n'
-
-        # Check if CMake directory exists
-        cd "${CURDIR}"
-        if [ -d "$CURDIR/cmake-3.21.2" ]; then
-            rm -rf $CURDIR/cmake-3.21.2
-        fi
-
-        wget https://github.com/Kitware/CMake/releases/download/v3.21.2/cmake-3.21.2.tar.gz
-        tar -xzf cmake-3.21.2.tar.gz
-        cd cmake-3.21.2
-        ./bootstrap --prefix=/usr
-        make
-        sudo make install
-
-        printf -- 'CMake installed successfully \n'
-    fi
-
     # Install Apache Arrow
     printf -- 'Installing Apache Arrow... \n'
 
@@ -278,12 +258,6 @@ prepare # Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo apt-get update
-    sudo apt-get install -y build-essential cargo curl git libopenblas-dev libgeos-dev |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 "ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
