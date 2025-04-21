@@ -1,10 +1,10 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2021,2024.
+# © Copyright IBM Corporation 2021, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 ################################################################################################################################################################
 #Script     :   build_prow.sh
-#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.8, 8.10, 9.2, 9.4, 9.5), Ubuntu (20.04, 22.04, 24.04, 24.10) and SLES 15 SP6.
+#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.8, 8.10, 9.2, 9.4, 9.5), Ubuntu (22.04, 24.04, 24.10) and SLES 15 SP6.
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Prow mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Prow ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -233,7 +233,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"ubuntu-20.04" | "ubuntu-22.04")
+"ubuntu-22.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
