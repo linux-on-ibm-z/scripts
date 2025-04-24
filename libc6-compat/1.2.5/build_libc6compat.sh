@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -124,13 +124,6 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo apt-get update
-    sudo apt-get install -y gcc g++ tar wget make cmake bzip2 zlib1g-dev g++-multilib |& tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 "rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
@@ -141,6 +134,13 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y gcc gcc-c++ make wget tar bzip2 zlib-devel gzip |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"ubuntu-22.04" | "ubuntu-24.04")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo apt-get update
+    sudo apt-get install -y gcc g++ tar wget make cmake bzip2 zlib1g-dev g++-multilib |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
