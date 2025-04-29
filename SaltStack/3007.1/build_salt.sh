@@ -205,12 +205,6 @@ case "$DISTRO" in
   sudo zypper install -y curl cyrus-sasl-devel gawk gcc gcc-c++ git python3-devel python3-pip libopenssl-devel libxml2-devel libxslt-devel make man tar wget cmake libnghttp2-devel gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite3-devel tk-devel xz-devel zlib-devel gzip bzip2 |& tee -a "${LOG_FILE}"
   configureAndInstall |& tee -a "${LOG_FILE}"
 ;;
-"ubuntu-20.04")
-  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  sudo apt-get update
-  sudo apt-get install -y wget g++ gcc git libffi-dev libsasl2-dev libssl-dev libxml2-dev libxslt1-dev libzmq3-dev make man python3-dev python3-pip tar libz-dev pkg-config apt-utils curl cmake libbz2-dev libsqlite3-dev |& tee -a "${LOG_FILE}"
-  configureAndInstall |& tee -a "${LOG_FILE}"
-;;
 "ubuntu-22.04" | "ubuntu-24.04")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update
