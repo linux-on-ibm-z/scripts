@@ -1,0 +1,21 @@
+diff --git a/Dockerfile b/Dockerfile
+index 94e0bd4..7906241 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -50,6 +50,8 @@ RUN dnf upgrade -y && dnf install -y \
+     xz \
+     zip
+ 
++RUN ln -s /usr/bin/clang /usr/bin/clang-17
++
+ # Install system dependencies that are not in UBI repos
+ COPY almalinux/RPM-GPG-KEY-AlmaLinux /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux
+ COPY almalinux/almalinux*.repo /etc/yum.repos.d/
+@@ -213,6 +215,7 @@ FROM scratch
+ ENV GOPATH=/go
+ ENV GOTOOLCHAIN=local
+ ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
++ENV CGO_ENABLED=0
+ 
+ COPY --from=ubi / /
+ 
