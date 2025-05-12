@@ -311,22 +311,6 @@ DISTRO="$ID-$VERSION_ID"
 export SETUPTOOLS_USE_DISTUTILS=stdlib
 
 case "$DISTRO" in
-"ubuntu-20.04")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install wget git unzip zip openjdk-11-jdk pkg-config libhdf5-dev libssl-dev libblas-dev liblapack-dev gfortran curl patchelf gcc-10 g++-10 libopenblas-dev libatlas-base-dev libapr1-dev -y |& tee -a "${LOG_FILE}"
-    installClang |& tee -a "${LOG_FILE}"
-    buildBazel |& tee -a "${LOG_FILE}"
-    setupPython |& tee -a "${LOG_FILE}"
-    sudo ldconfig
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 60
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 60
-    sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
-    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION ml-dtypes==0.4.1 h5py==3.11.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
-    configureAndInstall |& tee -a "${LOG_FILE}"
-    ;;
-
 "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
