@@ -289,13 +289,13 @@ EOF
 
 function installAdditionalDependencies() {
   case "$DISTRO" in
-  "rhel-8.8" | "rhel-8.10")
+  "rhel-8.10")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python2 python38 cmake \
       libarchive clang
     ;;
 
-  "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+  "rhel-9.4" | "rhel-9.5")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python3 cmake libarchive clang
     ;;
@@ -312,13 +312,6 @@ function installAdditionalDependencies() {
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 40
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 40
     sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 40
-    ;;
-
-  "ubuntu-20.04")
-    printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
-    sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y unzip xz-utils uuid-dev curl wget git \
-    make python python3.8 gcc g++ cmake clang pkg-config libssl-dev libcurl4-openssl-dev zlib1g-dev
     ;;
 
   "ubuntu-22.04")
@@ -513,7 +506,7 @@ logDetails
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.10" | "rhel-9.4" | "rhel-9.5")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo yum install -y wget tar which curl diffutils --allowerasing |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
@@ -525,7 +518,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y wget tar curl diffutils |& tee -a "$LOG_FILE"
