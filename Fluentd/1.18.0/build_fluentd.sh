@@ -166,14 +166,14 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10")
+"rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y rpmdevtools zlib-devel zlib wget |& tee -a "$LOG_FILE"
@@ -187,7 +187,7 @@ case "$DISTRO" in
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
