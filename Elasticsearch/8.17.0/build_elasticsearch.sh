@@ -466,7 +466,7 @@ printf -- "Installing %s %s for %s and %s\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" 
 printf -- "Installing dependencies... it may take some time.\n"
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5" )
+"rhel-8.10" | "rhel-9.4" | "rhel-9.5" )
         sudo yum install -y curl git gzip tar wget patch make gcc gcc-c++ |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
@@ -476,7 +476,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"ubuntu-20.04" | "ubuntu-22.04" )
+"ubuntu-22.04" )
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl git gzip tar wget patch locales make gcc g++ |& tee -a "$LOG_FILE"
         sudo locale-gen en_US.UTF-8
