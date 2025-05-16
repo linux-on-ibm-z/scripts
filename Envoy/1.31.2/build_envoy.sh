@@ -1,5 +1,5 @@
 #!/bin/bash
-# Â© Copyright IBM Corporation 2024
+# © Copyright IBM Corporation 2024, 2025
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -360,7 +360,7 @@ msglog "Installing the dependencies for Envoy from repository"
 case "$DISTRO" in
 #----------------------------------------------------------
 
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4")
+"rhel-8.10" | "rhel-9.4")
   printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
   ALLOWERASING=""
   if [[ "$DISTRO" == rhel-9* ]]; then
@@ -376,7 +376,7 @@ case "$DISTRO" in
   ;;
 #----------------------------------------------------------
 
-"sles-15.5" | "sles-15.6")
+"sles-15.6")
   printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
   if [[ $DISTRO == "sles-15.6" ]]; then
     sudo zypper addrepo --priority 199 http://download.opensuse.org/distribution/leap/15.6/repo/oss/ oss
@@ -387,30 +387,6 @@ case "$DISTRO" in
 
   export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
   export PATH=$JAVA_HOME/bin:$PATH
-
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-#----------------------------------------------------------
-
-"ubuntu-20.04")
-  printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
-  sudo apt-get update
-  sudo apt-get install -y autoconf curl git libtool patch python3-pip virtualenv pkg-config gcc g++ locales build-essential openjdk-11-jdk-headless python2 python2-dev python-is-python3 python3 python3-dev zip unzip libssl-dev texinfo | tee -a "${LOG_FILE}"
-
-  export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x
-  export PATH=$JAVA_HOME/bin:$PATH
-
-  GCC_TOOLCHAIN_VERSION_OVERRIDE="12"
-  GCC_TOOLCHAIN_SOURCE="local"
-
-  # Install clang 14
-  cd "$SOURCE_ROOT"
-  sudo apt-get update
-  sudo apt-get install -y lsb-release wget software-properties-common gnupg | tee -a "${LOG_FILE}"
-  wget https://apt.llvm.org/llvm.sh
-  chmod +x llvm.sh
-  sudo ./llvm.sh 14
-  LLVM_HOME_DIR="/usr/lib/llvm-14"
 
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
