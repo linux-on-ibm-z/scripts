@@ -137,7 +137,7 @@ function configureAndInstall() {
     sed -i '54,54 s/boringssl.googlesource.com/github.com\/linux-on-ibm-z/g' boringssl-static/pom.xml
     sed -i '55,55 s/chromium-stable/patch-s390x-Jan2021/g' boringssl-static/pom.xml
     sed -i 's/verbose=\"on\"/verbose=\"on\" retries=\"5\"/g' libressl-static/pom.xml
-    sed -i '84,84 s/1.7.0/1.7.5/g' pom.xml
+    sed -i '84,84 s/1.7.0/1.7.6/g' pom.xml
 
     if [[ "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-24.04" || "${DISTRO}" == "ubuntu-24.10" || "${DISTRO}" == "rhel-9"* ]]; then
         curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff

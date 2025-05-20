@@ -112,7 +112,7 @@ function configureAndInstall() {
     # Apply patch
     sed -i '54,54 s/boringssl.googlesource.com/github.com\/linux-on-ibm-z/g' boringssl-static/pom.xml
     sed -i '55,55 s/chromium-stable/patch-s390x-Jan2021/g' boringssl-static/pom.xml
-    sed -i '84,84 s/1.7.0/1.7.5/g' pom.xml
+    sed -i '84,84 s/1.7.0/1.7.6/g' pom.xml
     sed -i '86,86 s/chromium-stable/patch-s390x-Jan2021/g' pom.xml
     sed -i '90,90 s/3a667d10e94186fd503966f5638e134fe9fb4080/d83fd4af80af244ac623b99d8152c2e53287b9ad/g' pom.xml
     sed -i 's/verbose=\"on\"/verbose=\"on\" retries=\"5\"/g' libressl-static/pom.xml
