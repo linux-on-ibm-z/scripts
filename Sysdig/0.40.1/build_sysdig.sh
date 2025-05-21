@@ -102,7 +102,14 @@ function runTest() {
     fi
     set -e
 }
-
+function bpftoolInstall() {
+    printf -- 'Installing bpftool\n' >"$LOG_FILE"
+    cd "${SOURCE_ROOT}"
+    git clone --recurse-submodules https://github.com/libbpf/bpftool.git
+    cd bpftool && cd src
+    make
+    sudo make install
+}
 function logDetails() {
     printf -- 'SYSTEM DETAILS\n' >"$LOG_FILE"
     if [ -f "/etc/os-release" ]; then
@@ -185,11 +192,18 @@ case "$DISTRO" in
     sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl wget tar patch git g++ gcc zlib1g clang llvm linux-headers-generic cmake libelf-dev pkg-config kmod |& tee -a "$LOG_FILE"
     sudo mkdir -p /lib/modules/$(uname -r)
     version=$(ls /usr/src/ | grep generic | tail -1)
-    sudo ln -s /usr/src/$version /lib/modules/$(uname -r)/build
-	  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y  g++-11
-	  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
-	  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
-	  gcc -v
+    # Check if the symbolic link already exists
+    if [ ! -e "/lib/modules/$(uname -r)/build" ]; then
+        # If the symbolic link does not exist, create it
+	sudo ln -s /usr/src/$version /lib/modules/$(uname -r)/build
+    else
+        echo "Symbolic link already exists."
+    fi
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y  g++-11
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
+    gcc -v
+    bpftoolInstall | tee -a "$LOG_FILE" 
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 *)
@@ -197,5 +211,5 @@ case "$DISTRO" in
     exit 1
     ;;
 esac
-printSummary | tee -a "$LOG_FILE"#!/bin/bash
+printSummary | tee -a "$LOG_FILE"
 
