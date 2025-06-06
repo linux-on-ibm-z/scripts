@@ -321,7 +321,7 @@ case "$DISTRO" in
     setupPython |& tee -a "${LOG_FILE}"
     sudo ldconfig
     sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
-    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION ml-dtypes==0.4.1 h5py==3.11.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
+    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION ml-dtypes==0.4.1 h5py==3.13.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 
