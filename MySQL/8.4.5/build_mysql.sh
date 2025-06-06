@@ -182,7 +182,7 @@ DISTRO="$ID-$VERSION_ID"
 rm -rf ${BUILD_ENV}
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10")
+"rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y curl wget bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar procps wget zlib-devel \
@@ -194,7 +194,7 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-9.4" | "rhel-9.5")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y --allowerasing curl
