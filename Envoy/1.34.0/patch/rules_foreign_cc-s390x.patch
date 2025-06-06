@@ -1,0 +1,73 @@
+diff --git a/foreign_cc/private/cc_toolchain_util.bzl b/foreign_cc/private/cc_toolchain_util.bzl
+index 21932a3..d6de824 100644
+--- a/foreign_cc/private/cc_toolchain_util.bzl
++++ b/foreign_cc/private/cc_toolchain_util.bzl
+@@ -189,6 +189,24 @@ def is_debug_mode(ctx):
+     # https://docs.bazel.build/versions/master/command-line-reference.html#flag--compilation_mode
+     return ctx.var.get("COMPILATION_MODE", "fastbuild") == "dbg"
+ 
++def pick_cpp_toolchain(cxx):
++    """Picks the right toolchain for the given cxx compiler
++
++    Args:
++        cxx: path to the cxx compiler
++
++    Returns:
++        correct path to the cxx compiler
++    """
++    cxx_splitted = cxx.split("/")
++    if (cxx_splitted[-1].startswith("gcc")):
++        cxx_splitted[-1] = cxx_splitted[-1].replace("gcc", "g++")
++        cxx = "/".join(cxx_splitted)
++    if (cxx_splitted[-1].startswith("clang")):
++        cxx_splitted[-1] = cxx_splitted[-1].replace("clang", "clang++")
++        cxx = "/".join(cxx_splitted)
++    return cxx
++
+ def get_tools_info(ctx):
+     """Takes information about tools paths from cc_toolchain, returns CxxToolsInfo
+ 
+@@ -206,10 +224,10 @@ def get_tools_info(ctx):
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.c_compile,
+         ),
+-        cxx = cc_common.get_tool_for_action(
++        cxx = pick_cpp_toolchain(cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_compile,
+-        ),
++        )),
+         cxx_linker_static = cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_link_static_library,
+diff --git a/toolchains/built_toolchains.bzl b/toolchains/built_toolchains.bzl
+index e2b5e5e..9613308 100644
+--- a/toolchains/built_toolchains.bzl
++++ b/toolchains/built_toolchains.bzl
+@@ -343,6 +343,9 @@ cc_import(
+ 
+                 # This patch fixes explicit integer conversion which causes errors in clang >= 15 and gcc >= 14
+                 Label("//toolchains/patches:pkgconfig-builtin-glib-int-conversion.patch"),
++
++                # This patch is required to overcome type mismatch error
++                Label("//toolchains/patches:pkgconfig-valgrind.patch"),
+             ],
+             urls = [
+                 "https://pkgconfig.freedesktop.org/releases/pkg-config-0.29.2.tar.gz",
+diff --git a/toolchains/patches/pkgconfig-valgrind.patch b/toolchains/patches/pkgconfig-valgrind.patch
+new file mode 100644
+index 0000000..d376dfb
+--- /dev/null
++++ b/toolchains/patches/pkgconfig-valgrind.patch
+@@ -0,0 +1,11 @@
++--- glib/glib/valgrind.h
+++++ glib/glib/valgrind.h.new
++@@ -643,7 +643,7 @@
++                     /* results = r3 */                           \
++                     "lgr %0, 3\n\t"                              \
++                     : "=d" (_zzq_result)                         \
++-                    : "a" (&_zzq_args[0]), "0" (_zzq_default)    \
+++                    : "a" (&_zzq_args[0]), "0" ((unsigned long long int)(_zzq_default))    \
++                     : "cc", "2", "3", "memory"                   \
++                    );                                            \
++    _zzq_result;                                                  \

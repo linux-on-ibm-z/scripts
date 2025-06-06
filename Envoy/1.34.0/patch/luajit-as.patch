@@ -1,0 +1,12 @@
+diff --git a/src/Makefile b/src/Makefile
+index 0a970099..2cddab3e 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -52,6 +52,7 @@ CCOPT_arm=
+ CCOPT_arm64=
+ CCOPT_ppc=
+ CCOPT_mips=
++CCOPT_s390x= -fno-integrated-as
+ #
+ CCDEBUG=
+ # Uncomment the next line to generate debug information:
