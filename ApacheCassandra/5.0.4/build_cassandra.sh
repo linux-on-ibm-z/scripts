@@ -153,7 +153,7 @@ function configureAndInstall() {
     if [[ "$DISTRO" == "ubuntu-24.04" || "$DISTRO" == "ubuntu-24.10" || "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-"* || "$DISTRO" == "sles-"* ]]; then
         printf -- "Install python\n" >>"$LOG_FILE"
         wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.11.0/build_python3.sh
-	sed -i 's/ubuntu-24.04/ubuntu-25.04/g' build_python3.sh
+	sed -i 's/ubuntu-20.04/ubuntu-25.04/g' build_python3.sh
         bash build_python3.sh -y
     fi
 	if [[ "$DISTRO" == "rhel-8."* ]]; then
