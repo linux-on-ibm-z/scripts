@@ -158,7 +158,7 @@ function configureAndInstall() {
     fi
 	if [[ "$DISTRO" == "rhel-8."* ]]; then
 		cd "$CURDIR"
-        wget https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz
+        wget https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz
         tar -zxf apache-maven-3.9.9-bin.tar.gz
         export PATH=$CURDIR/apache-maven-3.9.9/bin:$PATH
         export MAVEN_OPTS="-Xmx2048m -Xss8m"
@@ -370,6 +370,8 @@ case "$DISTRO" in
 
 "sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    sudo zypper addrepo --priority 199 http://download.opensuse.org/distribution/leap/15.6/repo/oss/ oss
+    sudo zypper --gpg-auto-import-keys refresh -r oss
     sudo zypper install -y gzip curl git which make wget tar zip unzip git gcc gcc-c++ gcc11-c++ gcc11 patch libtool automake autoconf ccache xorg-x11-proto-devel xorg-x11-devel alsa-devel cups-devel libstdc++6-locale glibc-locale libstdc++-devel libXt-devel libX11-devel texinfo python311-devel maven netty-tcnative cmake go |& tee -a "$LOG_FILE"
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 10
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 10
