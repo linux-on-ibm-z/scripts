@@ -154,6 +154,7 @@ function configureAndInstall() {
     git apply ../tfx-bsl.diff
 
     sudo touch /usr/local/include/immintrin.h
+    sed -i "175s/.*/      'protobuf==4.25.6;python_version>=\"3.11\"',/" setup.py
     sed -i "179s/.*/            default=\'>=2.16,<2.19\',/" setup.py
     export BAZEL_HTTP_TIMEOUT=300
     python3 setup.py bdist_wheel
@@ -168,6 +169,7 @@ function configureAndInstall() {
     cd "${CURDIR}"
     git clone -b v${PACKAGE_VERSION} --depth 1 https://github.com/tensorflow/transform.git
     cd transform
+    sed -i "49s/.*/      'protobuf==4.25.6;python_version>=\"3.11\"',/" setup.py
     sed -i "55s/.*/            default=\'>=2.16,<2.19\',/" setup.py
     python3 setup.py install --user
 
