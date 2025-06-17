@@ -12,7 +12,7 @@ PACKAGE_NAME="Envoy"
 PACKAGE_VERSION="v1.34.0"
 SOURCE_ROOT="$(pwd)"
 
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/${PACKAGE_VERSION}/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/1.34.0/patch"
 
 FORCE="false"
 LOG_FILE="$SOURCE_ROOT/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -337,6 +337,10 @@ case "$DISTRO" in
 
   #set gcc 12 as default
   source /opt/rh/gcc-toolset-12/enable
+
+  # set JAVA_HOME location
+  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+  export PATH=$JAVA_HOME/bin:$PATH
 
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
