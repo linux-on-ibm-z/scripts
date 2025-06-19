@@ -1,0 +1,44 @@
+diff --git a/images/Makefile.common.in b/images/Makefile.common.in
+index a5bee36e..f2e963fc 100644
+--- a/images/Makefile.common.in
++++ b/images/Makefile.common.in
+@@ -17,18 +17,18 @@
+ # get image name from directory we're building
+ IMAGE_NAME?=$(notdir $(CURDIR))
+ # docker image registry, default to upstream
+-REGISTRY?=gcr.io/k8s-staging-kind
++REGISTRY?=kindest
+ # for appending build-meta like "_containerd-v1.7.1"
+ TAG_SUFFIX?=
+ # tag based on date-sha
+-TAG?=$(shell echo "$$(date +v%Y%m%d)-$$(git describe --always --dirty)")
++TAG?=v20250521-31a79fd4
+ # the full image tag
+-IMAGE?=$(REGISTRY)/$(IMAGE_NAME):$(TAG)$(TAG_SUFFIX)
++IMAGE?=$(REGISTRY)/$(IMAGE_NAME):$(TAG)
+ # Go version to use, respected by images that build go binaries
+ GO_VERSION=$(shell cat $(CURDIR)/../../.go-version | head -n1)
+
+ # build with buildx
+-PLATFORMS?=linux/amd64,linux/arm64
++PLATFORMS?=linux/s390x
+ OUTPUT?=
+ PROGRESS=auto
+ EXTRA_BUILD_OPT?=
+diff --git a/images/base/Dockerfile b/images/base/Dockerfile
+index 63060aee..572ab4fe 100644
+--- a/images/base/Dockerfile
++++ b/images/base/Dockerfile
+@@ -108,10 +108,9 @@ COPY --chmod=0755 scripts/third_party/gimme/gimme /usr/local/bin/
+ COPY --chmod=0755 scripts/target-cc /usr/local/bin/
+ # tools needed at build-time only
+ # first ensure we can install packages for both architectures
+-RUN dpkg --add-architecture arm64 && dpkg --add-architecture amd64 \
++RUN dpkg --add-architecture s390x \
+     && clean-install bash ca-certificates curl git make pkg-config \
+-    crossbuild-essential-amd64 crossbuild-essential-arm64 \
+-    libseccomp-dev:amd64 libseccomp-dev:arm64
++    build-essential libseccomp-dev
+ # set by makefile to .go-version
+ ARG GO_VERSION
+ RUN eval "$(gimme "${GO_VERSION}")" \
