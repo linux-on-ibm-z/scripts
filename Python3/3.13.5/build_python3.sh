@@ -188,7 +188,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 	
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10" | "ubuntu-25.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gcc g++ libbz2-dev libdb-dev libffi-dev libgdbm-dev liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libssl-dev make tar tk-dev uuid-dev wget xz-utils zlib1g-dev patch
