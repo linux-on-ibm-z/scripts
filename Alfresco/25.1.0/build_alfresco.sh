@@ -317,6 +317,8 @@ function configureAndInstall() {
     if [[ "$DISTRO" == rhel* ]]; then
         sed -i '22i RUN rm -rf /var/cache/dnf/*' Dockerfile
     fi
+    sed -i "s#https://archive.yourkit.com/yjp/2019.8/#https://www.yourkit.com/download/docker/#g" Dockerfile
+    sed -i "s#YourKit-JavaProfiler-2019.8-b142-docker#YourKit-JavaProfiler-2024.9-docker#g" Dockerfile
     docker build -t alfresco/alfresco-search-services:${SEARCH_SERVICES_VERSION} .
     printf -- "alfresco-search-services image is built successfully\n"
 
