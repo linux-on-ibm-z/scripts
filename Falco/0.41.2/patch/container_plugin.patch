@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 59cf27a..ff4dd9d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -265,6 +265,7 @@ if(NOT WIN32
+    AND NOT APPLE
+    AND NOT EMSCRIPTEN
+    AND NOT MUSL_OPTIMIZED_BUILD
++   AND USE_BUNDLED_CONTAINER_PLUGIN  # Add this condition
+ )
+ 	include(falcoctl)
+ 	set(CONTAINER_VERSION "0.3.0")
+@@ -291,11 +292,13 @@ if(NOT WIN32
+ 	add_dependencies(falco container)
+ 
+ 	# Install the plugin
++	if(USE_BUNDLED_CONTAINER_PLUGIN)
+ 	install(
+ 		FILES "${CONTAINER_LIBRARY}"
+ 		DESTINATION "${FALCO_ABSOLUTE_SHARE_DIR}/plugins"
+ 		COMPONENT "${FALCO_COMPONENT_NAME}"
+ 	)
++	endif()
+ 	# Install additional config override file to enable the container plugin
+ 	install(
+ 		FILES "${PROJECT_SOURCE_DIR}/config/falco.container_plugin.yaml"
