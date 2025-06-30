@@ -257,7 +257,7 @@ case "$DISTRO" in
     ;;
 
     #----------------------------------------------------------
-"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-9.2" | "rhel-9.4" | "rhel-9.5" | "rhel-9.6" | "rhel-10.0")
 
     sudo yum install -y \
         autoconf libtool openssl-devel \
