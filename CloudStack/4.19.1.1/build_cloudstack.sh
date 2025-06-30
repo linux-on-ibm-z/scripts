@@ -348,7 +348,7 @@ case "$DISTRO" in
         done
         export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
         export PATH="${JAVA_HOME}/bin:${PATH}"
-        wget https://dlcdn.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+        wget https://archive.apache.org/dist/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
         tar -xvzf apache-maven-3.8.8-bin.tar.gz
         sudo mv apache-maven-3.8.8 /opt/maven
         echo -e "\nexport M2_HOME=/opt/maven\nexport MAVEN_HOME=/opt/maven\nexport PATH=\$PATH:\$M2_HOME/bin" | sudo tee -a /etc/environment > /dev/null
