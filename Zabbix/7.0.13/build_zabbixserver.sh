@@ -110,12 +110,12 @@ function configureAndInstall() {
     cd /etc/httpd/conf/
     sudo chmod 766 httpd.conf
     cat <<EOF >> httpd.conf
-    ServerName localhost
-    AddType application/x-httpd-php .php
-    <Directory />
-        DirectoryIndex index.php
-    </Directory>
-    EOF
+ServerName localhost
+AddType application/x-httpd-php .php
+<Directory />
+    DirectoryIndex index.php
+</Directory>
+EOF
     sudo chmod 644 httpd.conf
 
     sudo groupadd --system zabbix || echo "group already exists"
@@ -133,13 +133,13 @@ function configureAndInstall() {
     cd /etc/apache2/
     sudo chmod 766 httpd.conf
     cat <<EOF >> httpd.conf
-    ServerName localhost
-    AddType application/x-httpd-php .php
-    <Directory />
-        DirectoryIndex index.php
-    </Directory>
-    LoadModule php_module /usr/lib64/apache2/mod_php8.so
-    EOF
+ServerName localhost
+AddType application/x-httpd-php .php
+<Directory />
+    DirectoryIndex index.php
+</Directory>
+LoadModule php_module /usr/lib64/apache2/mod_php8.so
+EOF
     sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php8/apache2/php.ini
     sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php8/apache2/php.ini
     sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php8/apache2/php.ini
@@ -154,12 +154,12 @@ function configureAndInstall() {
     cd /etc/apache2/
     sudo chmod 766 apache2.conf
     cat <<EOF >> apache2.conf
-    ServerName localhost
-    AddType application/x-httpd-php .php
-    <Directory />
-        DirectoryIndex index.php
-    </Directory>
-    EOF
+ServerName localhost
+AddType application/x-httpd-php .php
+<Directory />
+    DirectoryIndex index.php
+</Directory>
+EOF
     sudo chmod 644 apache2.conf
 
     sudo addgroup --system --quiet zabbix || echo "group already exists"
