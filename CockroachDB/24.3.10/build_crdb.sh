@@ -278,8 +278,6 @@ function gettingStarted() {
 ###############################################################################################################
 logDetails
 DISTRO="$ID-$VERSION_ID"
-sudo groupadd test
-sudo chown -R test:test /home
 checkPrequisites #Check Prequisites
 case "$DISTRO" in
 "rhel-8.10")
