@@ -1765,7 +1765,7 @@ function buildCouchbase() {
     fi
     sudo ldconfig
     #To avoid openssl mismatch error
-    if [ $ID$VERSION_ID == ubuntu22.04 ] || [ $ID$VERSION_ID == rhel9.2 ] || [ $ID$VERSION_ID == sles15.6 ]; then
+    if [ $ID$VERSION_ID == ubuntu22.04 ] || [ $ID$VERSION_ID == sles15.6 ]; then
         buildSSH
     fi
     set +e
@@ -1835,11 +1835,11 @@ function main() {
     printf -- "Start Distro specific preperation for %s\n" "$ID$VERSION_ID"
     case $ID$VERSION_ID in
 
-    rhel8.8 | rhel8.10)
+    rhel8.10)
         prepareRHEL8
         ;;
 
-    rhel9.2 | rhel9.4 | rhel9.5)
+    rhel9.4 | rhel9.5)
         prepareRHEL9
         ;;
 
