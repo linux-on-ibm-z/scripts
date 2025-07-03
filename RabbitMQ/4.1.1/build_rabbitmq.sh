@@ -68,10 +68,13 @@ function configureAndInstall() {
 	# Install Erlang
 	printf -- "\nBuilding Erlang \n"
 	wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Erlang/$ERLANG_VERSION/build_erlang.sh
-        chmod +x build_erlang.sh
-
-	bash build_erlang.sh -y
-	export ERL_TOP=/usr/local/erlang
+  chmod +x build_erlang.sh
+  if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == rhel-10.* ]]; then
+      bash build_erlang.sh -y -j OpenJDK21
+  else
+      bash build_erlang.sh -y
+  fi
+  export ERL_TOP=/usr/local/erlang
 	export PATH=$PATH:$ERL_TOP/bin
 	printf -- 'Installed erlang successfully \n'
 	sudo localedef -c -f UTF-8 -i en_US en_US.UTF-8
