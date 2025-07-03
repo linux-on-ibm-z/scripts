@@ -79,6 +79,10 @@ function configureAndInstall() {
     echo "Java provided by user $JAVA_PROVIDED" >> "$LOG_FILE"
 
     if [[ "$JAVA_PROVIDED" == "IBM_Semeru_11" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04 and RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         # Install IBM_Semeru_11
         sudo mkdir -p /opt/java
 
@@ -90,6 +94,10 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_11 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_17" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04 and RHEL 10.0. Please use OpenJDK-21 instead..\n' >> "$LOG_FILE"
+            exit 1
+        fi
         # Install IBM_Semeru_17
         sudo mkdir -p /opt/java
 
@@ -100,8 +108,13 @@ function configureAndInstall() {
 
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_17 installed\n' >> "$LOG_FILE"
-	elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_8" ]]; then
+	
+    elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_8" ]]; then
         # Install IBM_Semeru_8
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "rhel-10.*" ]]; then
+            printf -- 'IBM_Semeru 8 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi	
         sudo mkdir -p /opt/java
 
         cd "$SOURCE_ROOT"
@@ -112,6 +125,10 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_8 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_21" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04"]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         # Install IBM_Semeru_21
         sudo mkdir -p /opt/java
 
@@ -123,6 +140,10 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_21 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_11" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "rhel-10.*" ]]; then
+            printf -- 'Eclipse_Adoptium_Temurin_11 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi    	
         # Install Eclipse_Adoptium_Temurin_11
         sudo mkdir -p /opt/java
 
@@ -135,6 +156,10 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_11 installed\n' >> "$LOG_FILE"
         
     elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_17" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
+            printf -- 'Eclipse_Adoptium_Temurin_17 is not supported on Ubuntu 25.04 and RHEL 10.0, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         # Install Eclipse_Adoptium_Temurin_17
         sudo mkdir -p /opt/java
         cd "$SOURCE_ROOT"
@@ -146,6 +171,10 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_17 installed\n' >> "$LOG_FILE"
 
      elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_21" ]]; then
+     	if [[ "$DISTRO" == "ubuntu-25.04"]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         # Install Eclipse_Adoptium_Temurin_21
         sudo mkdir -p /opt/java
         cd "$SOURCE_ROOT"
@@ -157,6 +186,10 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_21 installed\n' >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
+    	if [[ "$DISTRO" == "rhel-10.*" ]]; then
+            printf -- 'JDK11 is not supported on RHEL 10.0, Please use JDK-21 version instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         if [[ "$ID" == "rhel" ]]; then
             sudo yum install -y java-11-openjdk-devel   
             export JAVA_HOME=/usr/lib/jvm/java-11-openjdk     
@@ -171,6 +204,10 @@ function configureAndInstall() {
             printf -- 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-s390x\n'  >> "$BUILD_ENV"
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
+    	if [[ "$DISTRO" == "rhel-10.*" ]]; then
+            printf -- 'JDK is not supported on RHEL 10.0, Please use OpenJDK-21 for RHEL 10.0.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         if [[ "$ID" == "rhel" ]]; then
             sudo yum install -y java-17-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
@@ -199,6 +236,10 @@ function configureAndInstall() {
             printf -- 'export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x\n'  >> "$BUILD_ENV"
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK8" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "rhel-10.*" ]]; then
+            printf -- 'OpenJDK8 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+            exit 1
+        fi
         if [[ "$ID" == "rhel" ]]; then
             sudo yum install -y java-1.8.0-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
@@ -329,7 +370,7 @@ prepare # Check Prerequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5" | "rhel-9.6" | "rhel-10.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y autoconf flex gawk gcc gcc-c++ gzip libxml2-devel libxslt ncurses-devel openssl-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
@@ -341,7 +382,7 @@ case "$DISTRO" in
     sudo zypper install -y autoconf flex gawk gcc gcc-c++ gzip libopenssl-1_1-devel libxml2-devel libxslt-tools ncurses-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10" | "ubuntu-25.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
