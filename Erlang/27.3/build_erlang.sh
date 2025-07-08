@@ -111,7 +111,7 @@ function configureAndInstall() {
 	
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_8" ]]; then
         # Install IBM_Semeru_8
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "rhel-10.*" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
             printf -- 'IBM_Semeru 8 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi	
@@ -125,7 +125,7 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_8 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_21" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04"]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" ]]; then
             printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
@@ -140,7 +140,7 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_21 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_11" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "rhel-10.*" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
             printf -- 'Eclipse_Adoptium_Temurin_11 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi    	
@@ -171,7 +171,7 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_17 installed\n' >> "$LOG_FILE"
 
      elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_21" ]]; then
-     	if [[ "$DISTRO" == "ubuntu-25.04"]]; then
+     	if [[ "$DISTRO" == "ubuntu-25.04" ]]; then
             printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
@@ -236,7 +236,7 @@ function configureAndInstall() {
             printf -- 'export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x\n'  >> "$BUILD_ENV"
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK8" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "rhel-10.*" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
             printf -- 'OpenJDK8 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
