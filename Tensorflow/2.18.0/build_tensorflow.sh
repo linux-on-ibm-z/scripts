@@ -308,7 +308,6 @@ case "$PYTHON_V" in
 esac
 
 DISTRO="$ID-$VERSION_ID"
-export SETUPTOOLS_USE_DISTUTILS=stdlib
 
 case "$DISTRO" in
 "ubuntu-22.04" | "ubuntu-24.04")
@@ -321,7 +320,9 @@ case "$DISTRO" in
     setupPython |& tee -a "${LOG_FILE}"
     sudo ldconfig
     sudo update-alternatives --install /usr/local/bin/pip3 pip3 /usr/local/bin/pip${PYTHON_V} 50
-    pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==$NUMPY_VERSION ml-dtypes==0.4.1 h5py==3.13.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
+    pip3 install wheel==0.41.3 setuptools==70.0.0 |& tee -a "${LOG_FILE}"
+    pip3 install numpy==$NUMPY_VERSION h5py==3.13.0 scipy==1.13.1 |& tee -a "${LOG_FILE}"
+    SETUPTOOLS_USE_DISTUTILS=local pip3 install ml-dtypes==0.4.1 |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
 
