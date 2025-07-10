@@ -1,0 +1,1461 @@
+diff --git a/build/patches/com_github_cockroachdb_pebble.patch b/build/patches/com_github_cockroachdb_pebble.patch
+index 24435c27..2cae71d2 100644
+--- a/build/patches/com_github_cockroachdb_pebble.patch
++++ b/build/patches/com_github_cockroachdb_pebble.patch
+@@ -20,3 +20,1455 @@ diff -urN a/objstorage/objstorageprovider/objiotracing/BUILD.bazel b/objstorage/
+      ],
+      importpath = "github.com/cockroachdb/pebble/objstorage/objstorageprovider/objiotracing",
+      visibility = ["//visibility:public"],
++diff --git a/internal/cache/clockpro.go b/internal/cache/clockpro.go
++index 1100baa..b060744 100644
++--- a/internal/cache/clockpro.go
+++++ b/internal/cache/clockpro.go
++@@ -19,15 +19,19 @@ package cache // import "github.com/cockroachdb/pebble/internal/cache"
++ 
++ import (
++ 	"fmt"
+++	"math/bits"
++ 	"os"
++ 	"runtime"
++ 	"runtime/debug"
++ 	"strings"
++ 	"sync"
++ 	"sync/atomic"
+++	"time"
+++	"unsafe"
++ 
++ 	"github.com/cockroachdb/pebble/internal/base"
++ 	"github.com/cockroachdb/pebble/internal/invariants"
+++	"github.com/cockroachdb/pebble/internal/manual"
++ )
++ 
++ type fileKey struct {
++@@ -88,8 +92,8 @@ type shard struct {
++ 	reservedSize int64
++ 	maxSize      int64
++ 	coldTarget   int64
++-	blocks       blockMap // fileNum+offset -> block
++-	files        blockMap // fileNum -> list of blocks
+++	blocks       robinHoodMap // fileNum+offset -> block
+++	files        robinHoodMap // fileNum -> list of blocks
++ 
++ 	// The blocks and files maps store values in manually managed memory that is
++ 	// invisible to the Go GC. This is fine for Value and entry objects that are
++@@ -119,7 +123,7 @@ type shard struct {
++ func (c *shard) Get(id ID, fileNum base.DiskFileNum, offset uint64) Handle {
++ 	c.mu.RLock()
++ 	var value *Value
++-	if e, _ := c.blocks.Get(key{fileKey{id, fileNum}, offset}); e != nil {
+++	if e := c.blocks.Get(key{fileKey{id, fileNum}, offset}); e != nil {
++ 		value = e.acquireValue()
++ 		if value != nil {
++ 			e.referenced.Store(true)
++@@ -143,7 +147,7 @@ func (c *shard) Set(id ID, fileNum base.DiskFileNum, offset uint64, value *Value
++ 	defer c.mu.Unlock()
++ 
++ 	k := key{fileKey{id, fileNum}, offset}
++-	e, _ := c.blocks.Get(k)
+++	e := c.blocks.Get(k)
++ 
++ 	switch {
++ 	case e == nil:
++@@ -230,7 +234,7 @@ func (c *shard) Delete(id ID, fileNum base.DiskFileNum, offset uint64) {
++ 	// shared lock.
++ 	k := key{fileKey{id, fileNum}, offset}
++ 	c.mu.RLock()
++-	_, exists := c.blocks.Get(k)
+++	exists := c.blocks.Get(k) != nil
++ 	c.mu.RUnlock()
++ 	if !exists {
++ 		return
++@@ -241,7 +245,7 @@ func (c *shard) Delete(id ID, fileNum base.DiskFileNum, offset uint64) {
++ 		c.mu.Lock()
++ 		defer c.mu.Unlock()
++ 
++-		e, _ := c.blocks.Get(k)
+++		e := c.blocks.Get(k)
++ 		if e == nil {
++ 			return
++ 		}
++@@ -285,7 +289,7 @@ func (c *shard) evictFileRun(fkey key) (moreRemaining bool) {
++ 		}
++ 	}()
++ 
++-	blocks, _ := c.files.Get(fkey)
+++	blocks := c.files.Get(fkey)
++ 	if blocks == nil {
++ 		// No blocks for this file.
++ 		return false
++@@ -319,8 +323,8 @@ func (c *shard) Free() {
++ 		e.free()
++ 	}
++ 
++-	c.blocks.Close()
++-	c.files.Close()
+++	c.blocks.free()
+++	c.blocks.free()
++ }
++ 
++ func (c *shard) Reserve(n int) {
++@@ -390,7 +394,7 @@ func (c *shard) metaAdd(key key, e *entry) bool {
++ 	}
++ 
++ 	fkey := key.file()
++-	if fileBlocks, _ := c.files.Get(fkey); fileBlocks == nil {
+++	if fileBlocks := c.files.Get(fkey); fileBlocks == nil {
++ 		c.files.Put(fkey, e)
++ 	} else {
++ 		fileBlocks.linkFile(e)
++@@ -450,12 +454,12 @@ func (c *shard) metaCheck(e *entry) {
++ 				e, e.key, debug.Stack())
++ 			os.Exit(1)
++ 		}
++-		if c.blocks.findByValue(e) {
+++		if c.blocks.findByValue(e) != nil {
++ 			fmt.Fprintf(os.Stderr, "%p: %s unexpectedly found in blocks map\n%#v\n%s",
++ 				e, e.key, &c.blocks, debug.Stack())
++ 			os.Exit(1)
++ 		}
++-		if c.files.findByValue(e) {
+++		if c.files.findByValue(e) != nil {
++ 			fmt.Fprintf(os.Stderr, "%p: %s unexpectedly found in files map\n%#v\n%s",
++ 				e, e.key, &c.files, debug.Stack())
++ 			os.Exit(1)
++@@ -744,8 +748,8 @@ func newShards(size int64, shards int) *Cache {
++ 		if entriesGoAllocated {
++ 			c.shards[i].entries = make(map[*entry]struct{})
++ 		}
++-		c.shards[i].blocks.Init(16)
++-		c.shards[i].files.Init(16)
+++		c.shards[i].blocks.init(16)
+++		c.shards[i].files.init(16)
++ 	}
++ 
++ 	// Note: this is a no-op if invariants are disabled or race is enabled.
++@@ -908,7 +912,7 @@ func (c *Cache) Metrics() Metrics {
++ 	for i := range c.shards {
++ 		s := &c.shards[i]
++ 		s.mu.RLock()
++-		m.Count += int64(s.blocks.Len())
+++		m.Count += int64(s.blocks.Count())
++ 		m.Size += s.sizeHot + s.sizeCold
++ 		s.mu.RUnlock()
++ 		m.Hits += s.hits.Load()
++@@ -922,3 +926,305 @@ func (c *Cache) Metrics() Metrics {
++ func (c *Cache) NewID() ID {
++ 	return ID(c.idAlloc.Add(1))
++ }
+++
+++var hashSeed = uint64(time.Now().UnixNano())
+++
+++// Fibonacci hash: https://probablydance.com/2018/06/16/fibonacci-hashing-the-optimization-that-the-world-forgot-or-a-better-alternative-to-integer-modulo/
+++func robinHoodHash(k key, shift uint32) uint32 {
+++	const m = 11400714819323198485
+++	h := hashSeed
+++	h ^= uint64(k.id) * m
+++	h ^= uint64(k.fileNum) * m
+++	h ^= k.offset * m
+++	return uint32(h >> shift)
+++}
+++
+++type robinHoodEntry struct {
+++	key key
+++	// Note that value may point to a Go allocated object (if the "invariants"
+++	// build tag was specified), even though the memory for the entry itself is
+++	// manually managed. This is technically a volation of the Cgo pointer rules:
+++	//
+++	//   https://golang.org/cmd/cgo/#hdr-Passing_pointers
+++	//
+++	// Specifically, Go pointers should not be stored in C allocated memory. The
+++	// reason for this rule is that the Go GC will not look at C allocated memory
+++	// to find pointers to Go objects. If the only reference to a Go object is
+++	// stored in C allocated memory, the object will be reclaimed. What makes
+++	// this "safe" is that the Cache guarantees that there are other pointers to
+++	// the entry and shard which will keep them alive. In particular, every Go
+++	// allocated entry in the cache is referenced by the shard.entries map. And
+++	// every shard is referenced by the Cache.shards map.
+++	value *entry
+++	// The distance the entry is from its desired position.
+++	dist uint32
+++}
+++
+++type robinHoodEntries struct {
+++	ptr unsafe.Pointer
+++	len uint32
+++}
+++
+++func newRobinHoodEntries(n uint32) robinHoodEntries {
+++	size := uintptr(n) * unsafe.Sizeof(robinHoodEntry{})
+++	return robinHoodEntries{
+++		ptr: unsafe.Pointer(&(manual.New(manual.BlockCacheMap, int(size)))[0]),
+++		len: n,
+++	}
+++}
+++
+++func (e robinHoodEntries) at(i uint32) *robinHoodEntry {
+++	return (*robinHoodEntry)(unsafe.Pointer(uintptr(e.ptr) +
+++		uintptr(i)*unsafe.Sizeof(robinHoodEntry{})))
+++}
+++
+++func (e robinHoodEntries) free() {
+++	size := uintptr(e.len) * unsafe.Sizeof(robinHoodEntry{})
+++	buf := (*[manual.MaxArrayLen]byte)(e.ptr)[:size:size]
+++	manual.Free(manual.BlockCacheMap, buf)
+++}
+++
+++// robinHoodMap is an implementation of Robin Hood hashing. Robin Hood hashing
+++// is an open-address hash table using linear probing. The twist is that the
+++// linear probe distance is reduced by moving existing entries when inserting
+++// and deleting. This is accomplished by keeping track of how far an entry is
+++// from its "desired" slot (hash of key modulo number of slots). During
+++// insertion, if the new entry being inserted is farther from its desired slot
+++// than the target entry, we swap the target and new entry. This effectively
+++// steals from the "rich" target entry and gives to the "poor" new entry (thus
+++// the origin of the name).
+++//
+++// An extension over the base Robin Hood hashing idea comes from
+++// https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/. A cap
+++// is placed on the max distance an entry can be from its desired slot. When
+++// this threshold is reached during insertion, the size of the table is doubled
+++// and insertion is restarted. Additionally, the entries slice is given "max
+++// dist" extra entries on the end. The very last entry in the entries slice is
+++// never used and acts as a sentinel which terminates loops. The previous
+++// maxDist-1 entries act as the extra entries. For example, if the size of the
+++// table is 2, maxDist is computed as 4 and the actual size of the entry slice
+++// is 6.
+++//
+++//	+---+---+---+---+---+---+
+++//	| 0 | 1 | 2 | 3 | 4 | 5 |
+++//	+---+---+---+---+---+---+
+++//	        ^
+++//	       size
+++//
+++// In this scenario, the target entry for a key will always be in the range
+++// [0,1]. Valid entries may reside in the range [0,4] due to the linear probing
+++// of up to maxDist entries. The entry at index 5 will never contain a value,
+++// and instead acts as a sentinel (its distance is always 0). The max distance
+++// threshold is set to log2(num-entries). This ensures that retrieval is O(log
+++// N), though note that N is the number of total entries, not the count of
+++// valid entries.
+++//
+++// Deletion is implemented via the backward shift delete mechanism instead of
+++// tombstones. This preserves the performance of the table in the presence of
+++// deletions. See
+++// http://codecapsule.com/2013/11/17/robin-hood-hashing-backward-shift-deletion
+++// for details.
+++type robinHoodMap struct {
+++	entries robinHoodEntries
+++	size    uint32
+++	shift   uint32
+++	count   uint32
+++	maxDist uint32
+++}
+++
+++func maxDistForSize(size uint32) uint32 {
+++	desired := uint32(bits.Len32(size))
+++	if desired < 4 {
+++		desired = 4
+++	}
+++	return desired
+++}
+++
+++func newRobinHoodMap(initialCapacity int) *robinHoodMap {
+++	m := &robinHoodMap{}
+++	m.init(initialCapacity)
+++
+++	// Note: this is a no-op if invariants are disabled or race is enabled.
+++	invariants.SetFinalizer(m, func(obj interface{}) {
+++		m := obj.(*robinHoodMap)
+++		if m.entries.ptr != nil {
+++			fmt.Fprintf(os.Stderr, "%p: robin-hood map not freed\n", m)
+++			os.Exit(1)
+++		}
+++	})
+++	return m
+++}
+++
+++func (m *robinHoodMap) init(initialCapacity int) {
+++	if initialCapacity < 1 {
+++		initialCapacity = 1
+++	}
+++	targetSize := 1 << (uint(bits.Len(uint(2*initialCapacity-1))) - 1)
+++	m.rehash(uint32(targetSize))
+++}
+++
+++func (m *robinHoodMap) free() {
+++	if m.entries.ptr != nil {
+++		m.entries.free()
+++		m.entries.ptr = nil
+++	}
+++}
+++
+++func (m *robinHoodMap) rehash(size uint32) {
+++	oldEntries := m.entries
+++
+++	m.size = size
+++	m.shift = uint32(64 - bits.Len32(m.size-1))
+++	m.maxDist = maxDistForSize(size)
+++	m.entries = newRobinHoodEntries(size + m.maxDist)
+++	m.count = 0
+++
+++	for i := uint32(0); i < oldEntries.len; i++ {
+++		e := oldEntries.at(i)
+++		if e.value != nil {
+++			m.Put(e.key, e.value)
+++		}
+++	}
+++
+++	if oldEntries.ptr != nil {
+++		oldEntries.free()
+++	}
+++}
+++
+++// Find an entry containing the specified value. This is intended to be used
+++// from debug and test code.
+++func (m *robinHoodMap) findByValue(v *entry) *robinHoodEntry {
+++	for i := uint32(0); i < m.entries.len; i++ {
+++		e := m.entries.at(i)
+++		if e.value == v {
+++			return e
+++		}
+++	}
+++	return nil
+++}
+++
+++func (m *robinHoodMap) Count() int {
+++	return int(m.count)
+++}
+++
+++func (m *robinHoodMap) Put(k key, v *entry) {
+++	maybeExists := true
+++	n := robinHoodEntry{key: k, value: v, dist: 0}
+++	for i := robinHoodHash(k, m.shift); ; i++ {
+++		e := m.entries.at(i)
+++		if maybeExists && k == e.key {
+++			// Entry already exists: overwrite.
+++			e.value = n.value
+++			m.checkEntry(i)
+++			return
+++		}
+++
+++		if e.value == nil {
+++			// Found an empty entry: insert here.
+++			*e = n
+++			m.count++
+++			m.checkEntry(i)
+++			return
+++		}
+++
+++		if e.dist < n.dist {
+++			// Swap the new entry with the current entry because the current is
+++			// rich. We then continue to loop, looking for a new location for the
+++			// current entry. Note that this is also the not-found condition for
+++			// retrieval, which means that "k" is not present in the map. See Get().
+++			n, *e = *e, n
+++			m.checkEntry(i)
+++			maybeExists = false
+++		}
+++
+++		// The new entry gradually moves away from its ideal position.
+++		n.dist++
+++
+++		// If we've reached the max distance threshold, grow the table and restart
+++		// the insertion.
+++		if n.dist == m.maxDist {
+++			m.rehash(2 * m.size)
+++			i = robinHoodHash(n.key, m.shift) - 1
+++			n.dist = 0
+++			maybeExists = false
+++		}
+++	}
+++}
+++
+++func (m *robinHoodMap) Get(k key) *entry {
+++	var dist uint32
+++	for i := robinHoodHash(k, m.shift); ; i++ {
+++		e := m.entries.at(i)
+++		if k == e.key {
+++			// Found.
+++			return e.value
+++		}
+++		if e.dist < dist {
+++			// Not found.
+++			return nil
+++		}
+++		dist++
+++	}
+++}
+++
+++func (m *robinHoodMap) Delete(k key) {
+++	var dist uint32
+++	for i := robinHoodHash(k, m.shift); ; i++ {
+++		e := m.entries.at(i)
+++		if k == e.key {
+++			m.checkEntry(i)
+++			// We found the entry to delete. Shift the following entries backwards
+++			// until the next empty value or entry with a zero distance. Note that
+++			// empty values are guaranteed to have "dist == 0".
+++			m.count--
+++			for j := i + 1; ; j++ {
+++				t := m.entries.at(j)
+++				if t.dist == 0 {
+++					*e = robinHoodEntry{}
+++					return
+++				}
+++				e.key = t.key
+++				e.value = t.value
+++				e.dist = t.dist - 1
+++				e = t
+++				m.checkEntry(j)
+++			}
+++		}
+++		if dist > e.dist {
+++			// Not found.
+++			return
+++		}
+++		dist++
+++	}
+++}
+++
+++func (m *robinHoodMap) checkEntry(i uint32) {
+++	if invariants.Enabled {
+++		e := m.entries.at(i)
+++		if e.value != nil {
+++			pos := robinHoodHash(e.key, m.shift)
+++			if (uint32(i) - pos) != e.dist {
+++				fmt.Fprintf(os.Stderr, "%d: invalid dist=%d, expected %d: %s\n%s",
+++					i, e.dist, uint32(i)-pos, e.key, debug.Stack())
+++				os.Exit(1)
+++			}
+++			if e.dist > m.maxDist {
+++				fmt.Fprintf(os.Stderr, "%d: invalid dist=%d > maxDist=%d: %s\n%s",
+++					i, e.dist, m.maxDist, e.key, debug.Stack())
+++				os.Exit(1)
+++			}
+++		}
+++	}
+++}
+++
+++func (m *robinHoodMap) String() string {
+++	var buf strings.Builder
+++	fmt.Fprintf(&buf, "count: %d\n", m.count)
+++	for i := uint32(0); i < m.entries.len; i++ {
+++		e := m.entries.at(i)
+++		if e.value != nil {
+++			fmt.Fprintf(&buf, "%d: [%s,%p,%d]\n", i, e.key, e.value, e.dist)
+++		}
+++	}
+++	return buf.String()
+++}
++diff --git a/sstable/colblk/bitmap.go b/sstable/colblk/bitmap.go
++index 14f2838..9844a27 100644
++--- a/sstable/colblk/bitmap.go
+++++ b/sstable/colblk/bitmap.go
++@@ -30,10 +30,12 @@ import (
++ type Bitmap struct {
++ 	// data contains the bitmap data, according to defaultBitmapEncoding, or it
++ 	// is nil if the bitmap is all zeros.
++-	data     UnsafeRawSlice[uint64]
+++	data     unsafeUint64Decoder
++ 	bitCount int
++ }
++ 
+++const BigEndian = true
+++
++ // Assert that Bitmap implements Array[bool].
++ var _ Array[bool] = Bitmap{}
++ 
++@@ -54,11 +56,101 @@ func DecodeBitmap(b []byte, off uint32, bitCount int) (bitmap Bitmap, endOffset
++ 			bitCount, bitmapRequiredSize(bitCount), len(b[off:])))
++ 	}
++ 	return Bitmap{
++-		data:     makeUnsafeRawSlice[uint64](unsafe.Pointer(&b[off])),
+++		data:     makeUnsafeUint64Decoder(b[off:], sz>>align64Shift),
++ 		bitCount: bitCount,
++ 	}, off + uint32(sz)
++ }
++ 
+++type unsafeUint64Decoder struct {
+++	ptr unsafe.Pointer
+++}
+++
+++func makeUnsafeUint64Decoder(buf []byte, n int) unsafeUint64Decoder {
+++	if n == 0 {
+++		return unsafeUint64Decoder{}
+++	}
+++	ptr := unsafe.Pointer(unsafe.SliceData(buf))
+++	if align(uintptr(ptr), align64) != uintptr(ptr) {
+++		panic(errors.AssertionFailedf("slice pointer %p not %d-byte aligned", ptr, align64))
+++	}
+++	if len(buf) < n<<align64Shift {
+++		panic(errors.AssertionFailedf("data buffer is too small"))
+++	}
+++	return unsafeUint64Decoder{ptr: ptr}
+++}
+++
+++func (s unsafeUint64Decoder) At(idx int) uint64 {
+++	return bits.ReverseBytes64(*(*uint64)(unsafe.Add(s.ptr, uintptr(idx)<<align64Shift)))
+++}
+++
+++// At returns the `i`-th element.
+++func (s UnsafeUints) At(i int) uint64 {
+++	// One of the most common case is decoding timestamps, which require the full
+++	// 8 bytes (2^32 nanoseconds is only ~4 seconds).
+++	if s.width == 8 {
+++		// NB: The slice encodes 64-bit integers, there is no base (it doesn't save
+++		// any bits to compute a delta). We cast directly into a *uint64 pointer and
+++		// don't add the base.
+++		return bits.ReverseBytes64(*(*uint64)(unsafe.Add(s.ptr, uintptr(i)<<align64Shift)))
+++	}
+++	// Another common case is 0 width, when all keys have zero logical timestamps.
+++	if s.width == 0 {
+++		return s.base
+++	}
+++	if s.width == 4 {
+++		value := bits.ReverseBytes32(*(*uint32)(unsafe.Add(s.ptr, uintptr(i)<<align32Shift)))
+++		return s.base + uint64(value)
+++	}
+++	if s.width == 2 {
+++		value := bits.ReverseBytes16(*(*uint16)(unsafe.Add(s.ptr, uintptr(i)<<align16Shift)))
+++		return s.base + uint64(value)
+++	}
+++	return s.base + uint64(*(*uint8)(unsafe.Add(s.ptr, uintptr(i))))
+++}
+++
+++// At returns the `i`-th offset.
+++//
+++//gcassert:inline
+++func (s UnsafeOffsets) At(i int) uint32 {
+++	// We expect offsets to be encoded as 16-bit integers in most cases.
+++	if s.width == 2 {
+++		value := *(*uint16)(unsafe.Add(s.ptr, uintptr(i)<<align16Shift))
+++		return uint32(bits.ReverseBytes16(value))
+++	}
+++	if s.width <= 1 {
+++		if s.width == 0 {
+++			return 0
+++		}
+++		return uint32(*(*uint8)(unsafe.Add(s.ptr, i)))
+++	}
+++	value := *(*uint32)(unsafe.Add(s.ptr, uintptr(i)<<align32Shift))
+++	return bits.ReverseBytes32(value)
+++}
+++
+++// At2 returns the `i`-th and `i+1`-th offsets.
+++//
+++//gcassert:inline
+++func (s UnsafeOffsets) At2(i int) (uint32, uint32) {
+++	// We expect offsets to be encoded as 16-bit integers in most cases.
+++	if s.width == 2 {
+++		// l1 h1 l2 h2
+++		v := *(*uint32)(unsafe.Add(s.ptr, uintptr(i)<<align16Shift))
+++		v = bits.ReverseBytes32(v)
+++		return v & 0xFFFF, v >> 16
+++	}
+++	if s.width <= 1 {
+++		if s.width == 0 {
+++			return 0, 0
+++		}
+++		v := *(*uint16)(unsafe.Add(s.ptr, uintptr(i)))
+++		// No need to ReverseBytes16, we can just return in the correct order.
+++		return uint32(v >> 8), uint32(v & 0xFF)
+++	}
+++	v := *(*uint64)(unsafe.Add(s.ptr, uintptr(i)<<align32Shift))
+++	v = bits.ReverseBytes64(v)
+++	return uint32(v), uint32(v >> 32)
+++}
+++
++ // Assert that DecodeBitmap implements DecodeFunc.
++ var _ DecodeFunc[Bitmap] = DecodeBitmap
++ 
++@@ -70,10 +162,7 @@ func (b Bitmap) At(i int) bool {
++ 		// zero bitmap case.
++ 		return false
++ 	}
++-	// Inline b.data.At(i/64).
++-	// The offset of the correct word is i / 64 * 8 = (i >> 3) &^ 0b111
++-	const mask = ^uintptr(0b111)
++-	val := *(*uint64)(unsafe.Pointer(uintptr(b.data.ptr) + (uintptr(i)>>3)&mask))
+++	val := b.data.At(int(uint(i) >> 6)) // aka At(i/64)
++ 	return val&(1<<(uint(i)&63)) != 0
++ }
++ 
++@@ -373,7 +462,6 @@ func (b *BitmapBuilder) Finish(col, nRows int, offset uint32, buf []byte) uint32
++ 	buf[offset] = byte(defaultBitmapEncoding)
++ 	offset++
++ 	offset = alignWithZeroes(buf, offset, align64)
++-	dest := makeUnsafeRawSlice[uint64](unsafe.Pointer(&buf[offset]))
++ 
++ 	nBitmapWords := (nRows + 63) >> 6
++ 	// Truncate the bitmap to the number of words required to represent nRows.
++@@ -390,19 +478,21 @@ func (b *BitmapBuilder) Finish(col, nRows int, offset uint32, buf []byte) uint32
++ 		b.words[nBitmapWords-1] &= (1 << i) - 1
++ 	}
++ 
+++	nSummaryWords := (nBitmapWords + 63) >> 6
+++	dest := makeUintsEncoder[uint64](buf[offset:], nBitmapWords+nSummaryWords)
++ 	// Copy all the words of the bitmap into the destination buffer.
++-	offset += uint32(copy(dest.Slice(len(b.words)), b.words)) << align64Shift
+++	dest.CopyFrom(0, b.words)
+++	offset += uint32(len(b.words)) << align64Shift
++ 
++ 	// The caller may have written fewer than nRows rows if the tail is all
++ 	// zeroes, relying on these bits being implicitly zero. If the tail of b is
++ 	// sparse, fill in zeroes.
++ 	for i := len(b.words); i < nBitmapWords; i++ {
++-		dest.set(i, 0)
+++		dest.UnsafeSet(i, 0)
++ 		offset += align64
++ 	}
++ 
++ 	// Add the summary bitmap.
++-	nSummaryWords := (nBitmapWords + 63) >> 6
++ 	for i := 0; i < nSummaryWords; i++ {
++ 		wordsOff := (i << 6) // i*64
++ 		nWords := min(64, len(b.words)-wordsOff)
++@@ -412,8 +502,9 @@ func (b *BitmapBuilder) Finish(col, nRows int, offset uint32, buf []byte) uint32
++ 				summaryWord |= 1 << j
++ 			}
++ 		}
++-		dest.set(nBitmapWords+i, summaryWord)
+++		dest.UnsafeSet(nBitmapWords+i, summaryWord)
++ 	}
+++	dest.Finish()
++ 	return offset + uint32(nSummaryWords)<<align64Shift
++ }
++ 
++diff --git a/sstable/colblk/prefix_bytes.go b/sstable/colblk/prefix_bytes.go
++index ee9c749..d3d9ab2 100644
++--- a/sstable/colblk/prefix_bytes.go
+++++ b/sstable/colblk/prefix_bytes.go
++@@ -662,21 +662,19 @@ type PrefixBytesBuilder struct {
++ 	// may remain very small while the physical in-memory size of the
++ 	// in-progress data slice may grow very large. This may pose memory usage
++ 	// problems during block building.
++-	data       []byte // The raw, concatenated keys w/o any prefix compression
++-	nKeys      int    // The number of keys added to the builder
++-	bundleSize int    // The number of keys per bundle
+++	data               []byte // The raw, concatenated keys w/o any prefix compression
+++	nKeys              int    // The number of keys added to the builder
+++	bundleSize         int    // The number of keys per bundle
+++	completedBundleLen int    // The encoded size of completed bundles
++ 	// sizings maintains metadata about the size of the accumulated data at both
++ 	// nKeys and nKeys-1. Information for the state after the most recently
++ 	// added key is stored at (b.nKeys+1)%2.
++ 	sizings [2]prefixBytesSizing
++ 	offsets struct {
++ 		count int // The number of offsets in the builder
++-		// elemsSize is the size of the array (in count of uint32 elements; not
++-		// bytes)
++-		elemsSize int
++ 		// elems provides access to elements without bounds checking. elems is
++ 		// grown automatically in addOffset.
++-		elems UnsafeRawSlice[uint32]
+++		elems []uint32
++ 	}
++ 	maxShared uint16
++ }
++@@ -781,7 +779,7 @@ func (sz *prefixBytesSizing) String() string {
++ func (b *PrefixBytesBuilder) Put(key []byte, bytesSharedWithPrev int) {
++ 	currIdx := b.nKeys & 1 // %2
++ 	curr := &b.sizings[currIdx]
++-	prev := &b.sizings[1-currIdx]
+++	prev := &b.sizings[currIdx^1]
++ 
++ 	if invariants.Enabled {
++ 		if len(key) == 0 {
++@@ -801,38 +799,41 @@ func (b *PrefixBytesBuilder) Put(key []byte, bytesSharedWithPrev int) {
++ 		}
++ 	}
++ 
++-	switch {
++-	case b.nKeys == 0:
++-		// We're adding the first key to the block.
++-		// Set a placeholder offset for the block prefix length.
++-		b.addOffset(0)
++-		// Set a placeholder offset for the bundle prefix length.
++-		b.addOffset(0)
++-		b.nKeys++
++-		b.data = append(b.data, key...)
++-		b.addOffset(uint32(len(b.data)))
++-		*curr = prefixBytesSizing{
++-			lastKeyOff:                0,
++-			offsetCount:               b.offsets.count,
++-			blockPrefixLen:            min(len(key), int(b.maxShared)),
++-			currentBundleDistinctLen:  len(key),
++-			currentBundleDistinctKeys: 1,
++-			currentBundlePrefixLen:    min(len(key), int(b.maxShared)),
++-			currentBundlePrefixOffset: 1,
++-			completedBundleLen:        0,
++-			compressedDataLen:         len(key),
++-			offsetEncoding:            DetermineUintEncoding(0, uint64(len(key)), UintEncodingRowThreshold),
+++	// Check if this is the first key in a bundle.
+++	if b.nKeys&(b.bundleSize-1) == 0 {
+++		if b.nKeys == 0 {
+++			// We're adding the first key to the block.
+++			// Set a placeholder offset for the block prefix length.
+++			b.addOffset(0)
+++			// Set a placeholder offset for the bundle prefix length.
+++			b.addOffset(0)
+++			b.nKeys++
+++			b.data = append(b.data, key...)
+++			b.addOffset(uint32(len(b.data)))
+++			*curr = prefixBytesSizing{
+++				lastKeyOff:                0,
+++				offsetCount:               b.offsets.count,
+++				blockPrefixLen:            min(len(key), int(b.maxShared)),
+++				currentBundleDistinctLen:  len(key),
+++				currentBundleDistinctKeys: 1,
+++				currentBundlePrefixLen:    min(len(key), int(b.maxShared)),
+++				currentBundlePrefixOffset: 1,
+++				compressedDataLen:         len(key),
+++				offsetEncoding:            DetermineUintEncodingNoDelta(uint64(len(key))),
+++			}
+++			return
++ 		}
++-	case b.nKeys&(b.bundleSize-1) == 0:
++ 		// We're starting a new bundle.
++ 
++ 		// Set the bundle prefix length of the previous bundle.
++-		b.offsets.elems.set(prev.currentBundlePrefixOffset,
++-			b.offsets.elems.At(prev.currentBundlePrefixOffset-1)+uint32(prev.currentBundlePrefixLen))
+++		unsafeSetUint32(
+++			b.offsets.elems, prev.currentBundlePrefixOffset,
+++			unsafeGetUint32(b.offsets.elems, prev.currentBundlePrefixOffset-1)+uint32(prev.currentBundlePrefixLen),
+++		)
++ 
++ 		// Finalize the encoded size of the previous bundle.
++ 		bundleSizeJustCompleted := prev.currentBundleDistinctLen - (prev.currentBundleDistinctKeys-1)*prev.currentBundlePrefixLen
++-		completedBundleSize := prev.completedBundleLen + bundleSizeJustCompleted
+++		b.completedBundleLen += bundleSizeJustCompleted
++ 
++ 		// Update the block prefix length if necessary. The caller tells us how
++ 		// many bytes of prefix this key shares with the previous key. The block
++@@ -842,64 +843,66 @@ func (b *PrefixBytesBuilder) Put(key []byte, bytesSharedWithPrev int) {
++ 		blockPrefixLen := min(prev.blockPrefixLen, bytesSharedWithPrev)
++ 		b.nKeys++
++ 		*curr = prefixBytesSizing{
++-			lastKeyOff:         len(b.data),
++-			offsetCount:        b.offsets.count + 2,
++-			blockPrefixLen:     blockPrefixLen,
++-			completedBundleLen: completedBundleSize,
+++			lastKeyOff:     len(b.data),
+++			offsetCount:    b.offsets.count + 2,
+++			blockPrefixLen: blockPrefixLen,
++ 			// We're adding the first key to the current bundle. Initialize
++ 			// the current bundle prefix.
++ 			currentBundlePrefixOffset: b.offsets.count,
++ 			currentBundlePrefixLen:    min(len(key), int(b.maxShared)),
++ 			currentBundleDistinctLen:  len(key),
++ 			currentBundleDistinctKeys: 1,
++-			compressedDataLen:         completedBundleSize + len(key) - (b.bundleCount(b.nKeys)-1)*blockPrefixLen,
+++			compressedDataLen:         b.completedBundleLen + len(key) - (b.bundleCount(b.nKeys)-1)*blockPrefixLen,
++ 		}
++-		curr.offsetEncoding = DetermineUintEncoding(0, uint64(curr.compressedDataLen), UintEncodingRowThreshold)
+++		curr.offsetEncoding = DetermineUintEncodingNoDelta(uint64(curr.compressedDataLen))
++ 		b.data = append(b.data, key...)
++ 		b.addOffset(0) // Placeholder for bundle prefix.
++ 		b.addOffset(uint32(len(b.data)))
++-	default:
++-		// Adding a new key to an existing bundle.
++-		b.nKeys++
++-
++-		if bytesSharedWithPrev == len(key) {
++-			// Duplicate key; don't add it to the data slice and don't adjust
++-			// currentBundleDistinct{Len,Keys}.
++-			*curr = *prev
++-			curr.offsetCount++
++-			b.addOffset(b.offsets.elems.At(b.offsets.count - 1))
++-			return
++-		}
+++		return
+++	}
+++	// We're adding a new key to an existing bundle.
+++	b.nKeys++
+++
+++	if bytesSharedWithPrev == len(key) {
+++		// Duplicate key; don't add it to the data slice and don't adjust
+++		// currentBundleDistinct{Len,Keys}.
+++		*curr = *prev
+++		curr.offsetCount++
+++		b.addOffset(unsafeGetUint32(b.offsets.elems, b.offsets.count-1))
+++		return
+++	}
++ 
++-		// Update the bundle prefix length. Note that the shared prefix length
++-		// can only shrink as new values are added. During construction, the
++-		// bundle prefix value is stored contiguously in the data array so even
++-		// if the bundle prefix length changes no adjustment is needed to that
++-		// value or to the first key in the bundle.
++-		*curr = prefixBytesSizing{
++-			lastKeyOff:                len(b.data),
++-			offsetCount:               prev.offsetCount + 1,
++-			blockPrefixLen:            min(prev.blockPrefixLen, bytesSharedWithPrev),
++-			currentBundleDistinctLen:  prev.currentBundleDistinctLen + len(key),
++-			currentBundleDistinctKeys: prev.currentBundleDistinctKeys + 1,
++-			currentBundlePrefixLen:    min(prev.currentBundlePrefixLen, bytesSharedWithPrev),
++-			currentBundlePrefixOffset: prev.currentBundlePrefixOffset,
++-			completedBundleLen:        prev.completedBundleLen,
++-		}
++-		// Compute the correct compressedDataLen.
++-		curr.compressedDataLen = curr.completedBundleLen +
++-			curr.currentBundleDistinctLen -
++-			(curr.currentBundleDistinctKeys-1)*curr.currentBundlePrefixLen
++-		// Currently compressedDataLen is correct, except that it includes the block
++-		// prefix length for all bundle prefixes. Adjust the length to account for
++-		// the block prefix being stripped from every bundle except the first one.
++-		curr.compressedDataLen -= (b.bundleCount(b.nKeys) - 1) * curr.blockPrefixLen
++-		// The compressedDataLen is the largest offset we'll need to encode in the
++-		// offset table.
++-		curr.offsetEncoding = DetermineUintEncoding(0, uint64(curr.compressedDataLen), UintEncodingRowThreshold)
++-		b.data = append(b.data, key...)
++-		b.addOffset(uint32(len(b.data)))
+++	// Update the bundle prefix length. Note that the shared prefix length
+++	// can only shrink as new values are added. During construction, the
+++	// bundle prefix value is stored contiguously in the data array so even
+++	// if the bundle prefix length changes no adjustment is needed to that
+++	// value or to the first key in the bundle.
+++	*curr = prefixBytesSizing{
+++		lastKeyOff:                len(b.data),
+++		offsetCount:               prev.offsetCount + 1,
+++		blockPrefixLen:            min(prev.blockPrefixLen, bytesSharedWithPrev),
+++		currentBundleDistinctLen:  prev.currentBundleDistinctLen + len(key),
+++		currentBundleDistinctKeys: prev.currentBundleDistinctKeys + 1,
+++		currentBundlePrefixLen:    min(prev.currentBundlePrefixLen, bytesSharedWithPrev),
+++		currentBundlePrefixOffset: prev.currentBundlePrefixOffset,
++ 	}
+++	// Compute the correct compressedDataLen.
+++	curr.compressedDataLen = b.completedBundleLen +
+++		curr.currentBundleDistinctLen -
+++		(curr.currentBundleDistinctKeys-1)*curr.currentBundlePrefixLen
+++	// Currently compressedDataLen is correct, except that it includes the block
+++	// prefix length for all bundle prefixes. Adjust the length to account for
+++	// the block prefix being stripped from every bundle except the first one.
+++	curr.compressedDataLen -= (b.bundleCount(b.nKeys) - 1) * curr.blockPrefixLen
+++	// The compressedDataLen is the largest offset we'll need to encode in the
+++	// offset table.
+++	curr.offsetEncoding = DetermineUintEncodingNoDelta(uint64(curr.compressedDataLen))
+++	b.data = append(b.data, key...)
+++	b.addOffset(uint32(len(b.data)))
+++}
+++
+++func DetermineUintEncodingNoDelta(maxValue uint64) UintEncoding {
+++	return makeUintEncoding(byteWidth(maxValue), false /* isDelta */)
++ }
++ 
++ // UnsafeGet returns the zero-indexed i'th key added to the builder through Put.
++@@ -928,16 +931,15 @@ func (b *PrefixBytesBuilder) UnsafeGet(i int) []byte {
++ // addOffset adds an offset to the offsets table. If necessary, addOffset will
++ // grow the offset table to accommodate the new offset.
++ func (b *PrefixBytesBuilder) addOffset(offset uint32) {
++-	if b.offsets.count == b.offsets.elemsSize {
+++	if b.offsets.count == len(b.offsets.elems) {
++ 		// Double the size of the allocated array, or initialize it to at least
++ 		// 64 rows if this is the first allocation.
++-		n2 := max(b.offsets.elemsSize<<1, 64)
++-		newDataTyped := make([]uint32, n2)
++-		copy(newDataTyped, b.offsets.elems.Slice(b.offsets.elemsSize))
++-		b.offsets.elems = makeUnsafeRawSlice[uint32](unsafe.Pointer(&newDataTyped[0]))
++-		b.offsets.elemsSize = n2
+++		n2 := max(len(b.offsets.elems)<<1, 64)
+++		newSlice := make([]uint32, n2)
+++		copy(newSlice, b.offsets.elems)
+++		b.offsets.elems = newSlice
++ 	}
++-	b.offsets.elems.set(b.offsets.count, offset)
+++	unsafeSetUint32(b.offsets.elems, b.offsets.count, offset)
++ 	b.offsets.count++
++ }
++ 
++@@ -965,29 +967,29 @@ func (b *PrefixBytesBuilder) addOffset(offset uint32) {
++ //	| ...                                 |
++ //	+-------------------------------------+
++ func writePrefixCompressed[T Uint](
++-	b *PrefixBytesBuilder,
++-	rows int,
++-	sz *prefixBytesSizing,
++-	offsetDeltas UnsafeRawSlice[T],
++-	buf []byte,
+++	b *PrefixBytesBuilder, rows int, sz *prefixBytesSizing, offsetDeltas uintsEncoder[T], buf []byte,
++ ) {
++-	if rows == 0 {
++-		return
++-	} else if rows == 1 {
++-		// If there's just 1 row, no prefix compression is necessary and we can
++-		// just encode the first key as the entire block prefix and first bundle
++-		// prefix.
++-		e := b.offsets.elems.At(2)
++-		offsetDeltas.set(0, T(e))
++-		offsetDeltas.set(1, T(e))
++-		offsetDeltas.set(2, T(e))
++-		copy(buf, b.data[:e])
+++	if invariants.Enabled && offsetDeltas.Len() != sz.offsetCount {
+++		panic("incorrect offsetDeltas length")
+++	}
+++	if rows <= 1 {
+++		if rows == 1 {
+++			// If there's just 1 row, no prefix compression is necessary and we can
+++			// just encode the first key as the entire block prefix and first bundle
+++			// prefix.
+++			e := b.offsets.elems[2]
+++			offsetDeltas.UnsafeSet(0, T(e))
+++			offsetDeltas.UnsafeSet(1, T(e))
+++			offsetDeltas.UnsafeSet(2, T(e))
+++			copy(buf[:e], b.data[:e])
+++		}
++ 		return
++ 	}
++ 
++ 	// The offset at index 0 is the block prefix length.
++-	offsetDeltas.set(0, T(sz.blockPrefixLen))
++-	destOffset := T(copy(buf, b.data[:sz.blockPrefixLen]))
+++	copy(buf[:sz.blockPrefixLen], b.data[:sz.blockPrefixLen])
+++	destOffset := T(sz.blockPrefixLen)
+++	offsetDeltas.UnsafeSet(0, destOffset)
++ 	var lastRowOffset uint32
++ 	var shared int
++ 
++@@ -996,7 +998,7 @@ func writePrefixCompressed[T Uint](
++ 	// block prefix. Otherwise, carve off the suffix that excludes the block
++ 	// prefix + bundle prefix.
++ 	for i := 1; i < sz.offsetCount; i++ {
++-		off := b.offsets.elems.At(i)
+++		off := unsafeGetUint32(b.offsets.elems, i)
++ 		var suffix []byte
++ 		if (i-1)%(b.bundleSize+1) == 0 {
++ 			// This is a bundle prefix.
++@@ -1013,18 +1015,23 @@ func writePrefixCompressed[T Uint](
++ 			// previous key, then the key is a duplicate. All we need to do is
++ 			// set the same offset in the destination.
++ 			if off == lastRowOffset {
++-				offsetDeltas.set(i, offsetDeltas.At(i-1))
+++				offsetDeltas.UnsafeSet(i, destOffset)
++ 				continue
++ 			}
++ 			suffix = b.data[lastRowOffset+uint32(shared) : off]
++ 			// Update lastRowOffset for the next iteration of this loop.
++ 			lastRowOffset = off
++ 		}
++-		if invariants.Enabled && len(buf[destOffset:]) < len(suffix) {
+++		if invariants.Enabled && len(buf) < int(destOffset)+len(suffix) {
++ 			panic(errors.AssertionFailedf("buf is too small: %d < %d", len(buf[destOffset:]), len(suffix)))
++ 		}
++-		destOffset += T(copy(buf[destOffset:], suffix))
++-		offsetDeltas.set(i, destOffset)
+++		memmove(
+++			unsafe.Add(unsafe.Pointer(unsafe.SliceData(buf)), destOffset),
+++			unsafe.Pointer(unsafe.SliceData(suffix)),
+++			uintptr(len(suffix)),
+++		)
+++		destOffset += T(len(suffix))
+++		offsetDeltas.UnsafeSet(i, destOffset)
++ 	}
++ 	if destOffset != T(sz.compressedDataLen) {
++ 		panic(errors.AssertionFailedf("wrote %d, expected %d", destOffset, sz.compressedDataLen))
++@@ -1050,7 +1057,7 @@ func (b *PrefixBytesBuilder) Finish(
++ 	buf[offset] = byte(b.bundleShift)
++ 	offset++
++ 
++-	sz := &b.sizings[(rows+1)%2]
+++	sz := &b.sizings[rows&1^1]
++ 	stringDataOffset := uintColumnSize(uint32(sz.offsetCount), offset, sz.offsetEncoding)
++ 	if sz.offsetEncoding.IsDelta() {
++ 		panic(errors.AssertionFailedf("offsets never need delta encoding"))
++@@ -1062,14 +1069,17 @@ func (b *PrefixBytesBuilder) Finish(
++ 	offset = alignWithZeroes(buf, offset, width)
++ 	switch width {
++ 	case 1:
++-		offsetDest := makeUnsafeRawSlice[uint8](unsafe.Pointer(&buf[offset]))
+++		offsetDest := makeUintsEncoder[uint8](buf[offset:], sz.offsetCount)
++ 		writePrefixCompressed[uint8](b, rows, sz, offsetDest, buf[stringDataOffset:])
+++		offsetDest.Finish()
++ 	case align16:
++-		offsetDest := makeUnsafeRawSlice[uint16](unsafe.Pointer(&buf[offset]))
+++		offsetDest := makeUintsEncoder[uint16](buf[offset:], sz.offsetCount)
++ 		writePrefixCompressed[uint16](b, rows, sz, offsetDest, buf[stringDataOffset:])
+++		offsetDest.Finish()
++ 	case align32:
++-		offsetDest := makeUnsafeRawSlice[uint32](unsafe.Pointer(&buf[offset]))
+++		offsetDest := makeUintsEncoder[uint32](buf[offset:], sz.offsetCount)
++ 		writePrefixCompressed[uint32](b, rows, sz, offsetDest, buf[stringDataOffset:])
+++		offsetDest.Finish()
++ 	default:
++ 		panic("unreachable")
++ 	}
++diff --git a/sstable/colblk/prefix_bytes_test.go b/sstable/colblk/prefix_bytes_test.go
++index 10c721a..000df8a 100644
++--- a/sstable/colblk/prefix_bytes_test.go
+++++ b/sstable/colblk/prefix_bytes_test.go
++@@ -348,9 +348,9 @@ func (b *PrefixBytesBuilder) debugString(offset uint32) string {
++ 	fmt.Fprint(&sb, "\nOffsets:")
++ 	for i := 0; i < b.offsets.count; i++ {
++ 		if i%10 == 0 {
++-			fmt.Fprintf(&sb, "\n  %04d", b.offsets.elems.At(i))
+++			fmt.Fprintf(&sb, "\n  %04d", b.offsets.elems[i])
++ 		} else {
++-			fmt.Fprintf(&sb, "  %04d", b.offsets.elems.At(i))
+++			fmt.Fprintf(&sb, "  %04d", b.offsets.elems[i])
++ 		}
++ 	}
++ 	fmt.Fprintf(&sb, "\nData (len=%d):\n", len(b.data))
++diff --git a/sstable/colblk/raw_bytes.go b/sstable/colblk/raw_bytes.go
++index 2854d6c..1960203 100644
++--- a/sstable/colblk/raw_bytes.go
+++++ b/sstable/colblk/raw_bytes.go
++@@ -183,7 +183,9 @@ func (b *RawBytesBuilder) UnsafeGet(i int) []byte {
++ 	if b.rows == 0 {
++ 		return nil
++ 	}
++-	return b.data[b.offsets.array.elems.At(i):b.offsets.array.elems.At(i+1)]
+++	start := unsafeGetUint64(b.offsets.elems, i)
+++	end := unsafeGetUint64(b.offsets.elems, i+1)
+++	return b.data[start:end]
++ }
++ 
++ // Finish writes the serialized byte slices to buf starting at offset. The buf
++diff --git a/sstable/colblk/uints.go b/sstable/colblk/uints.go
++index bfafd87..d771301 100644
++--- a/sstable/colblk/uints.go
+++++ b/sstable/colblk/uints.go
++@@ -139,16 +139,8 @@ type UintBuilder struct {
++ 	// configuration fixed on Init; preserved across Reset
++ 	useDefault bool
++ 
++-	// array holds the underlying heap-allocated array in which values are
++-	// stored.
++-	array struct {
++-		// n is the size of the array (in count of T elements; not bytes). n is
++-		// NOT the number of elements that have been populated by the user.
++-		n int
++-		// elems provides access to elements without bounds checking. elems is
++-		// grown automatically in Set.
++-		elems UnsafeRawSlice[uint64]
++-	}
+++	elems []uint64
+++
++ 	// stats holds state for the purpose of tracking which UintEncoding would
++ 	// be used if the caller Finished the column including all elements Set so
++ 	// far. The stats state is used by Size (and Finish) to cheaply determine
++@@ -215,15 +207,15 @@ func (b *UintBuilder) Reset() {
++ 		// will include at least one default value.
++ 		b.stats.minimum = 0
++ 		b.stats.maximum = 0
++-		clear(b.array.elems.Slice(b.array.n))
+++		clear(b.elems)
++ 	} else {
++ 		b.stats.minimum = math.MaxUint64
++ 		b.stats.maximum = 0
++ 		// We could reset all values as a precaution, but it has a visible cost
++ 		// in benchmarks.
++-		if invariants.Sometimes(50) {
++-			for i := 0; i < b.array.n; i++ {
++-				b.array.elems.set(i, math.MaxUint64)
+++		if invariants.Enabled && invariants.Sometimes(50) {
+++			for i := range b.elems {
+++				b.elems[i] = math.MaxUint64
++ 			}
++ 		}
++ 	}
++@@ -236,32 +228,29 @@ func (b *UintBuilder) Reset() {
++ func (b *UintBuilder) Get(row int) uint64 {
++ 	// If the UintBuilder is configured to use a zero value for unset rows, it's
++ 	// possible that the array has not been grown to a size that includes [row].
++-	if b.array.n <= row {
+++	if len(b.elems) <= row {
++ 		if invariants.Enabled && !b.useDefault {
++-			panic(errors.AssertionFailedf("Get(%d) on UintBuilder with array of size %d", row, b.array.n))
+++			panic(errors.AssertionFailedf("Get(%d) on UintBuilder with array of size %d", row, len(b.elems)))
++ 		}
++ 		return 0
++ 	}
++-	return b.array.elems.At(row)
+++	return b.elems[row]
++ }
++ 
++ // Set sets the value of the provided row index to v.
++ func (b *UintBuilder) Set(row int, v uint64) {
++-	if b.array.n <= row {
+++	if len(b.elems) <= row {
++ 		// Double the size of the allocated array, or initialize it to at least 32
++ 		// values (256 bytes) if this is the first allocation. Then double until
++ 		// there's sufficient space.
++-		n2 := max(b.array.n<<1, 32)
+++		n2 := max(len(b.elems)<<1, 32)
++ 		for n2 <= row {
++-			n2 <<= 1 /* double the size */
+++			n2 <<= 1 // double the size
++ 		}
++ 		// NB: Go guarantees the allocated array will be 64-bit aligned.
++-		newDataTyped := make([]uint64, n2)
++-		copy(newDataTyped, b.array.elems.Slice(b.array.n))
++-		newElems := makeUnsafeRawSlice[uint64](unsafe.Pointer(&newDataTyped[0]))
++-		b.array.n = n2
++-		b.array.elems = newElems
++-
+++		newElems := make([]uint64, n2)
+++		copy(newElems, b.elems)
+++		b.elems = newElems
++ 	}
++ 	// Maintain the running minimum and maximum for the purpose of maintaining
++ 	// knowledge of the delta encoding that would be used.
++@@ -275,7 +264,7 @@ func (b *UintBuilder) Set(row int, v uint64) {
++ 			b.stats.encodingRow = row
++ 		}
++ 	}
++-	b.array.elems.set(row, v)
+++	b.elems[row] = v
++ }
++ 
++ // Size implements ColumnWriter and returns the size of the column if its first
++@@ -314,7 +303,7 @@ func (b *UintBuilder) determineEncoding(rows int) (_ UintEncoding, deltaBase uin
++ 
++ func (b *UintBuilder) recalculateEncoding(rows int) (_ UintEncoding, deltaBase uint64) {
++ 	// We have to recalculate the minimum and maximum.
++-	minimum, maximum := computeMinMax(b.array.elems.Slice(min(rows, b.array.n)))
+++	minimum, maximum := computeMinMax(b.elems[:min(rows, len(b.elems))])
++ 	if b.useDefault {
++ 		// Mirror the pessimism of the fast path so that the result is consistent.
++ 		// Otherwise, adding a row can result in a different encoding even when not
++@@ -353,17 +342,32 @@ func (b *UintBuilder) Finish(col, rows int, offset uint32, buf []byte) uint32 {
++ 
++ 	e, minimum := b.determineEncoding(rows)
++ 
++-	// NB: In some circumstances, it's possible for b.array.elems.ptr to be nil.
++-	// Specifically, if the builder is initialized using InitWithDefault and no
++-	// non-default values exist, no array will have been allocated (we lazily
++-	// allocate b.array.elems.ptr). It's illegal to try to construct an unsafe
++-	// slice from a nil ptr with non-zero rows. Only attempt to construct the
++-	// values slice if there's actually a non-nil ptr.
++-	var valuesSlice []uint64
++-	if b.array.elems.ptr != nil {
++-		valuesSlice = b.array.elems.Slice(min(rows, b.array.n))
++-	}
++-	return uintColumnFinish(rows, minimum, valuesSlice, e, offset, buf)
+++	values := b.elems[:min(rows, len(b.elems))]
+++	return uintColumnFinish(rows, minimum, values, e, offset, buf)
+++}
+++
+++type serializedUint interface {
+++	~uint8 | ~uint16 | ~uint32 | ~uint64
+++}
+++
+++type uintsEncoder[T serializedUint] struct {
+++	// The underlying slice contains the integers to be encoded. Integers are
+++	// stored in the native byte order and are converted to little-endian at the
+++	// end (if necessary).
+++	slice []T
+++}
+++
+++func makeUintsEncoder[T serializedUint](targetBuf []byte, n int) uintsEncoder[T] {
+++	ptr := unsafe.Pointer(unsafe.SliceData(targetBuf))
+++	if align(uintptr(ptr), unsafe.Sizeof(T(0))) != uintptr(ptr) {
+++		panic(errors.AssertionFailedf("slice pointer %p not %d-byte aligned", ptr, unsafe.Sizeof(T(0))))
+++	}
+++	if len(targetBuf) < n*int(unsafe.Sizeof(T(0))) {
+++		panic(errors.AssertionFailedf("target buffer is too small"))
+++	}
+++	return uintsEncoder[T]{
+++		slice: unsafe.Slice((*T)(ptr), n),
+++	}
++ }
++ 
++ // uintColumnFinish finishes the column of unsigned integers of type T, applying
++@@ -388,25 +392,40 @@ func uintColumnFinish(
++ 	// Align the offset appropriately.
++ 	offset = alignWithZeroes(buf, offset, width)
++ 
+++	if invariants.Enabled && len(buf) < int(offset)+rows*e.Width() {
+++		panic("buffer too small")
+++	}
++ 	switch e.Width() {
++ 	case 1:
++-		dest := makeUnsafeRawSlice[uint8](unsafe.Pointer(&buf[offset])).Slice(rows)
+++		dest := buf[offset : offset+uint32(rows)]
++ 		reduceUints(deltaBase, values, dest)
++ 
++ 	case 2:
++-		dest := makeUnsafeRawSlice[uint16](unsafe.Pointer(&buf[offset])).Slice(rows)
+++		dest := unsafe.Slice((*uint16)(unsafe.Pointer(&buf[offset])), rows)
++ 		reduceUints(deltaBase, values, dest)
+++		if BigEndian {
+++			ReverseBytes16(dest)
+++		}
++ 
++ 	case 4:
++-		dest := makeUnsafeRawSlice[uint32](unsafe.Pointer(&buf[offset])).Slice(rows)
+++		dest := unsafe.Slice((*uint32)(unsafe.Pointer(&buf[offset])), rows)
++ 		reduceUints(deltaBase, values, dest)
+++		if BigEndian {
+++			ReverseBytes32(dest)
+++		}
++ 
++ 	case 8:
++ 		if deltaBase != 0 {
++ 			panic("unreachable")
++ 		}
++-		dest := makeUnsafeRawSlice[uint64](unsafe.Pointer(&buf[offset])).Slice(rows)
+++		dest := unsafe.Slice((*uint64)(unsafe.Pointer(&buf[offset])), rows)
++ 		copy(dest, values)
+++		for i := len(values); i < len(dest); i++ {
+++			dest[i] = 0
+++		}
+++		if BigEndian {
+++			ReverseBytes64(dest)
+++		}
++ 
++ 	default:
++ 		panic("unreachable")
++@@ -503,3 +522,58 @@ func uintsToBinFormatter(
++ 	}
++ 	f.ToTreePrinter(tp)
++ }
+++func ReverseBytes16(s []uint16) {
+++	if len(s) >= 4 {
+++		// We convert the slice (up to the tail) to a slice of [4]uint16. This helps
+++		// the compiler elide bound checks.
+++		quads := unsafe.Slice((*[4]uint16)(unsafe.Pointer(unsafe.SliceData(s))), len(s)>>2)
+++		for i := range quads {
+++			quads[i][0] = bits.ReverseBytes16(quads[i][0]) //gcassert:bce
+++			quads[i][1] = bits.ReverseBytes16(quads[i][1]) //gcassert:bce
+++			quads[i][2] = bits.ReverseBytes16(quads[i][2]) //gcassert:bce
+++			quads[i][3] = bits.ReverseBytes16(quads[i][3]) //gcassert:bce
+++		}
+++	}
+++	tail := s[len(s)&^3:]
+++	for i := range tail {
+++		tail[i] = bits.ReverseBytes16(tail[i]) //gcassert:bce
+++	}
+++}
+++
+++// ReverseBytes32 calls bits.ReverseBytes32 on each element of the input slice.
+++func ReverseBytes32(s []uint32) {
+++	if len(s) >= 4 {
+++		// We convert the slice (up to the tail) to a slice of [4]uint32. This helps
+++		// the compiler elide bound checks.
+++		quads := unsafe.Slice((*[4]uint32)(unsafe.Pointer(unsafe.SliceData(s))), len(s)>>2)
+++		for i := range quads {
+++			quads[i][0] = bits.ReverseBytes32(quads[i][0]) //gcassert:bce
+++			quads[i][1] = bits.ReverseBytes32(quads[i][1]) //gcassert:bce
+++			quads[i][2] = bits.ReverseBytes32(quads[i][2]) //gcassert:bce
+++			quads[i][3] = bits.ReverseBytes32(quads[i][3]) //gcassert:bce
+++		}
+++	}
+++	tail := s[len(s)&^3:]
+++	for i := range tail {
+++		tail[i] = bits.ReverseBytes32(tail[i]) //gcassert:bce
+++	}
+++}
+++
+++// ReverseBytes64 calls bits.ReverseBytes64 on each element of the input slice.
+++func ReverseBytes64(s []uint64) {
+++	if len(s) >= 4 {
+++		// We convert the slice (up to the tail) to a slice of [4]uint64. This helps
+++		// the compiler elide bound checks.
+++		quads := unsafe.Slice((*[4]uint64)(unsafe.Pointer(unsafe.SliceData(s))), len(s)>>2)
+++		for i := range quads {
+++			quads[i][0] = bits.ReverseBytes64(quads[i][0]) //gcassert:bce
+++			quads[i][1] = bits.ReverseBytes64(quads[i][1]) //gcassert:bce
+++			quads[i][2] = bits.ReverseBytes64(quads[i][2]) //gcassert:bce
+++			quads[i][3] = bits.ReverseBytes64(quads[i][3]) //gcassert:bce
+++		}
+++	}
+++	tail := s[len(s)&^3:]
+++	for i := range tail {
+++		tail[i] = bits.ReverseBytes64(tail[i]) //gcassert:bce
+++	}
+++}
++diff --git a/sstable/colblk/unsafe_slice.go b/sstable/colblk/unsafe_slice.go
++index 46b71af..c874f80 100644
++--- a/sstable/colblk/unsafe_slice.go
+++++ b/sstable/colblk/unsafe_slice.go
++@@ -9,38 +9,9 @@ import (
++ 	"unsafe"
++ 
++ 	"github.com/cockroachdb/errors"
++-	"golang.org/x/exp/constraints"
+++	"github.com/cockroachdb/pebble/internal/invariants"
++ )
++ 
++-// UnsafeRawSlice maintains a pointer to a slice of elements of type T.
++-// UnsafeRawSlice provides no bounds checking.
++-type UnsafeRawSlice[T constraints.Integer] struct {
++-	ptr unsafe.Pointer
++-}
++-
++-func makeUnsafeRawSlice[T constraints.Integer](ptr unsafe.Pointer) UnsafeRawSlice[T] {
++-	if align(uintptr(ptr), unsafe.Sizeof(T(0))) != uintptr(ptr) {
++-		panic(errors.AssertionFailedf("slice pointer %p not %d-byte aligned", ptr, unsafe.Sizeof(T(0))))
++-	}
++-	return UnsafeRawSlice[T]{ptr: ptr}
++-}
++-
++-// At returns the `i`-th element of the slice.
++-func (s UnsafeRawSlice[T]) At(i int) T {
++-	return *(*T)(unsafe.Pointer(uintptr(s.ptr) + unsafe.Sizeof(T(0))*uintptr(i)))
++-}
++-
++-// Slice returns a go []T slice containing the first `len` elements of the
++-// unsafe slice.
++-func (s UnsafeRawSlice[T]) Slice(len int) []T {
++-	return unsafe.Slice((*T)(s.ptr), len)
++-}
++-
++-// set mutates the slice, setting the `i`-th value to `v`.
++-func (s UnsafeRawSlice[T]) set(i int, v T) {
++-	*(*T)(unsafe.Pointer(uintptr(s.ptr) + unsafe.Sizeof(T(0))*uintptr(i))) = v
++-}
++-
++ // UnsafeUints exposes a read-only view of integers from a column, transparently
++ // decoding data based on the UintEncoding.
++ //
++@@ -98,31 +69,6 @@ func makeUnsafeUints(base uint64, ptr unsafe.Pointer, width int) UnsafeUints {
++ 	}
++ }
++ 
++-// At returns the `i`-th element.
++-func (s UnsafeUints) At(i int) uint64 {
++-	// TODO(radu): this implementation assumes little-endian architecture.
++-
++-	// One of the most common case is decoding timestamps, which require the full
++-	// 8 bytes (2^32 nanoseconds is only ~4 seconds).
++-	if s.width == 8 {
++-		// NB: The slice encodes 64-bit integers, there is no base (it doesn't save
++-		// any bits to compute a delta). We cast directly into a *uint64 pointer and
++-		// don't add the base.
++-		return *(*uint64)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align64Shift))
++-	}
++-	// Another common case is 0 width, when all keys have zero logical timestamps.
++-	if s.width == 0 {
++-		return s.base
++-	}
++-	if s.width == 4 {
++-		return s.base + uint64(*(*uint32)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align32Shift)))
++-	}
++-	if s.width == 2 {
++-		return s.base + uint64(*(*uint16)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align16Shift)))
++-	}
++-	return s.base + uint64(*(*uint8)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i))))
++-}
++-
++ // UnsafeOffsets is a specialization of UnsafeInts (providing the same
++ // functionality) which is optimized when the integers are offsets inside a
++ // column block. It can only be used with 0, 1, 2, or 4 byte encoding without
++@@ -132,58 +78,76 @@ type UnsafeOffsets struct {
++ 	width uint8
++ }
++ 
++-// DecodeUnsafeOffsets decodes the structure of a slice of offsets from a byte
++-// slice.
++-func DecodeUnsafeOffsets(b []byte, off uint32, rows int) (_ UnsafeOffsets, endOffset uint32) {
++-	ints, endOffset := DecodeUnsafeUints(b, off, rows)
++-	if ints.base != 0 || ints.width == 8 {
++-		panic(errors.AssertionFailedf("unexpected offsets encoding (base=%d, width=%d)", ints.base, ints.width))
+++func unsafeSetUint32(slice []uint32, idx int, value uint32) {
+++	if invariants.Enabled {
+++		_ = slice[idx]
++ 	}
++-	return UnsafeOffsets{
++-		ptr:   ints.ptr,
++-		width: ints.width,
++-	}, endOffset
+++	*(*uint32)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(slice)), uintptr(idx)<<align32Shift)) = value
++ }
++ 
++-// At returns the `i`-th offset.
++-//
++-//gcassert:inline
++-func (s UnsafeOffsets) At(i int) uint32 {
++-	// TODO(radu): this implementation assumes little-endian architecture.
+++func unsafeGetUint32(slice []uint32, idx int) uint32 {
+++	if invariants.Enabled {
+++		_ = slice[idx]
+++	}
+++	return *(*uint32)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(slice)), uintptr(idx)<<align32Shift))
+++}
+++
+++// Len returns the number of elements that the encoder holds.
+++func (s uintsEncoder[T]) Len() int {
+++	return len(s.slice)
+++}
+++
+++// UnsafeSet sets the value at an index. It's unsafe in that we don't do bounds
+++// checking (except in invariant builds).
+++func (s uintsEncoder[T]) UnsafeSet(i int, v T) {
+++	if invariants.Enabled {
+++		_ = s.slice[i]
+++	}
+++	*(*T)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(s.slice)), unsafe.Sizeof(T(0))*uintptr(i))) = v
+++}
+++
+++// CopyFrom sets the values from the given slice, starting at the given index.
+++func (s uintsEncoder[T]) CopyFrom(i int, in []T) {
+++	copy(s.slice[i:i+len(in)], in)
+++}
++ 
++-	// We expect offsets to be encoded as 16-bit integers in most cases.
++-	if s.width == 2 {
++-		return uint32(*(*uint16)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align16Shift)))
+++// Finish finalizes the encoding, rearranging the bytes if the arch is big
+++// endian.
+++func (s uintsEncoder[T]) Finish() {
+++	if !BigEndian {
+++		return
++ 	}
++-	if s.width <= 1 {
++-		if s.width == 0 {
++-			return 0
++-		}
++-		return uint32(*(*uint8)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i))))
+++	switch unsafe.Sizeof(T(0)) {
+++	case 2:
+++		ReverseBytes16(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(s.slice))), len(s.slice)))
+++	case 4:
+++		ReverseBytes32(unsafe.Slice((*uint32)(unsafe.Pointer(unsafe.SliceData(s.slice))), len(s.slice)))
+++	case 8:
+++		ReverseBytes64(unsafe.Slice((*uint64)(unsafe.Pointer(unsafe.SliceData(s.slice))), len(s.slice)))
++ 	}
++-	return *(*uint32)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align32Shift))
++ }
++ 
++-// At2 returns the `i`-th and `i+1`-th offsets.
+++// unsafeGetUint64 is just like slice[idx] but without bounds checking.
++ //
++ //gcassert:inline
++-func (s UnsafeOffsets) At2(i int) (uint32, uint32) {
++-	// TODO(radu): this implementation assumes little-endian architecture.
++-
++-	// We expect offsets to be encoded as 16-bit integers in most cases.
++-	if s.width == 2 {
++-		v := *(*uint32)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align16Shift))
++-		return v & 0xFFFF, v >> 16
+++func unsafeGetUint64(slice []uint64, idx int) uint64 {
+++	if invariants.Enabled {
+++		_ = slice[idx]
++ 	}
++-	if s.width <= 1 {
++-		if s.width == 0 {
++-			return 0, 0
++-		}
++-		v := *(*uint16)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)))
++-		return uint32(v & 0xFF), uint32(v >> 8)
+++	return *(*uint64)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(slice)), uintptr(idx)<<align64Shift))
+++}
+++
+++// DecodeUnsafeOffsets decodes the structure of a slice of offsets from a byte
+++// slice.
+++func DecodeUnsafeOffsets(b []byte, off uint32, rows int) (_ UnsafeOffsets, endOffset uint32) {
+++	ints, endOffset := DecodeUnsafeUints(b, off, rows)
+++	if ints.base != 0 || ints.width == 8 {
+++		panic(errors.AssertionFailedf("unexpected offsets encoding (base=%d, width=%d)", ints.base, ints.width))
++ 	}
++-	v := *(*uint64)(unsafe.Pointer(uintptr(s.ptr) + uintptr(i)<<align32Shift))
++-	return uint32(v), uint32(v >> 32)
+++	return UnsafeOffsets{
+++		ptr:   ints.ptr,
+++		width: ints.width,
+++	}, endOffset
++ }
++ 
++ // UnsafeBuf provides a buffer without bounds checking. Every buf has a len and
++
+

@@ -1,0 +1,150 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 76fb590d..aed82057 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -162,31 +162,16 @@ load(
+     "go_rules_dependencies",
+ )
+ 
+-# To point to a mirrored artifact, use:
+-#
+-go_download_sdk(
+-    name = "go_sdk",
+-    sdks = {
+-        "darwin_amd64": ("go1.22.8.darwin-amd64.tar.gz", "5d1013d773f76c3cdc974b9afc20033595a2a334774e453be725e7c058e370be"),
+-        "darwin_arm64": ("go1.22.8.darwin-arm64.tar.gz", "304a9d6bfcc5999d47b06f44f79c650173e078251a7adcdb46ba908b22bc4209"),
+-        "linux_amd64": ("go1.22.8.linux-amd64.tar.gz", "ccc2e994241e6677a07e36aea2b1b3ca942fda2aafeedea6ada47e0e9f566f7b"),
+-        "linux_arm64": ("go1.22.8.linux-arm64.tar.gz", "0c49cab48ff13355d346bc8aee5960491c5489120eb7bcd424dab5d341fb12c6"),
+-        "windows_amd64": ("go1.22.8.windows-amd64.tar.gz", "a09ee8a15eae361f673e88bf645c4af8e119ddf9d48d4d9104802bece3818216"),
+-    },
+-    urls = ["https://storage.googleapis.com/public-bazel-artifacts/go/20241105-184020/{}"],
+-    version = "1.22.8",
+-)
+-
+ # To point to a local SDK path, use the following instead. We'll call the
+ # directory into which you cloned the Go repository $GODIR[1]. You'll have to
+ # first run ./make.bash from $GODIR/src to pick up any custom changes.
+ #
+ # [1]: https://go.dev/doc/contribute#testing
+ #
+-#   go_local_sdk(
+-#       name = "go_sdk",
+-#       path = "<path to $GODIR>",
+-#   )
++go_local_sdk(
++   name = "go_sdk",
++   path = "SOURCE_ROOT_PATH/goroot",
++)
+ 
+ # To use your whatever your local SDK is, use the following instead:
+ #
+@@ -228,6 +213,8 @@ http_archive(
+     sha256 = "d0529773764ac61184eb3ad3c687fb835df5bee01afedf07f0cf1a45515c96bc",
+     strip_prefix = "bazel-lib-1.42.3",
+     url = "https://storage.googleapis.com/public-bazel-artifacts/bazel/bazel-lib-v1.42.3.tar.gz",
++    patches = ["//patch:bazel-lib.patch"],
++    patch_args = ["-p1"],
+ )
+ 
+ # Load custom toolchains.
+@@ -586,16 +573,19 @@ register_toolchains(
+     "@copy_directory_toolchains//:linux_amd64_toolchain",
+     "@copy_directory_toolchains//:linux_arm64_toolchain",
+     "@copy_directory_toolchains//:windows_amd64_toolchain",
++    "@copy_directory_toolchains//:linux_s390x_toolchain",
+     "@copy_to_directory_toolchains//:darwin_amd64_toolchain",
+     "@copy_to_directory_toolchains//:darwin_arm64_toolchain",
+     "@copy_to_directory_toolchains//:linux_amd64_toolchain",
+     "@copy_to_directory_toolchains//:linux_arm64_toolchain",
+     "@copy_to_directory_toolchains//:windows_amd64_toolchain",
++    "@copy_to_directory_toolchains//:linux_s390x_toolchain",
+     "@nodejs_toolchains//:darwin_amd64_toolchain",
+     "@nodejs_toolchains//:darwin_arm64_toolchain",
+     "@nodejs_toolchains//:linux_amd64_toolchain",
+     "@nodejs_toolchains//:linux_arm64_toolchain",
+     "@nodejs_toolchains//:windows_amd64_toolchain",
++    "@nodejs_toolchains//:linux_s390x_toolchain",
+ )
+ 
+ http_archive(
+diff --git a/build/nodejs.bzl b/build/nodejs.bzl
+index 09657a5a..fd22d73d 100644
+--- a/build/nodejs.bzl
++++ b/build/nodejs.bzl
+@@ -11,6 +11,7 @@ _VERSIONS = {
+     "linux_amd64": ("node-v16.14.2-linux-x64.tar.xz", "node-v16.14.2-linux-x64", "e40c6f81bfd078976d85296b5e657be19e06862497741ad82902d0704b34bb1b"),
+     "linux_arm64": ("node-v16.14.2-linux-arm64.tar.xz", "node-v16.14.2-linux-arm64", "f7c5a573c06a520d6c2318f6ae204141b8420386553a692fc359f8ae3d88df96"),
+     "windows_amd64": ("node-v16.14.2-win-x64.zip", "node-v16.14.2-win-x64", "4731da4fbb2015d414e871fa9118cabb643bdb6dbdc8a69a3ed563266ac93229"),
++    "linux_s390x": ("node-v16.14.2-linux-s390x.tar.xz", "node-v16.14.2-linux-s390x", "3197925919ca357e17a31132dc6ef4e5afae819fa09905cfe9f7ff7924a00bf5"),
+ }
+ 
+ # Versions of copy_directory and copy_to_directory from bazel-lib (github.com/aspect-build/bazel-lib)
+@@ -22,6 +23,7 @@ _COPY_DIRECTORY_VERSIONS = {
+     "linux_amd64": "406148a22bdcd33f766daae4c3f24be0b6e0815f3d9e609fb119032bb7f3e206",
+     "linux_arm64": "9525248829a141a4b13cd0da5bc372f9c8a95b57dcbcda205f9131df3375efce",
+     "windows_amd64": "8a8014c5c48984c446eed8216510c7fd68c04d41148d5c8d3750acd81028cc9b",
++    "linux_s390x": "771111fd33591b1db3f15b3c14a97325c0eb64becd856305b4f9829f0a82362b",
+ }
+ 
+ _COPY_TO_DIRECTORY_URL_PREFIX = "https://storage.googleapis.com/public-bazel-artifacts/js/aspect-bazel-lib-utils-2024-04-29/copy_to_directory-"
+@@ -32,6 +34,7 @@ _COPY_TO_DIRECTORY_VERSIONS = {
+     "linux_amd64": "ccd984ed134c4d126aad4db0d380b7b7003734aabb1ef1545a29b61c1c09e0a8",
+     "linux_arm64": "5611bf54c941c07c3ebccbfc805251d45758b945dbf3937f0844e611e75f1fb6",
+     "windows_amd64": "f8270fb9f4f49c3e1729b6542072b847e28a885cc2d448ebffc4a39e8dda1d1a",
++    "linux_s390x": "5128626947eafba174620209787f58d516842eecc5e3f8c9c9267b1892091f7d",
+ }
+ 
+ # NOTE: This code is adapted from upstream at
+@@ -40,7 +43,7 @@ _COPY_TO_DIRECTORY_VERSIONS = {
+ def _copy_directory_platform_repo_impl(rctx):
+     plat = rctx.attr.platform
+     is_windows = "windows" in rctx.attr.platform
+-    url = _COPY_DIRECTORY_URL_PREFIX + plat + (".exe" if is_windows else "")
++    url = "file://SOURCE_ROOT_PATH/bazel-lib/bazel-bin/tools/copy_directory/copy_directory_/copy_directory"
+     rctx.download(
+         url = url,
+         output = "copy_directory.exe" if is_windows else "copy_directory",
+@@ -66,7 +69,7 @@ copy_directory_platform_repo = repository_rule(
+ def _copy_to_directory_platform_repo_impl(rctx):
+     plat = rctx.attr.platform
+     is_windows = "windows" in rctx.attr.platform
+-    url = _COPY_TO_DIRECTORY_URL_PREFIX + plat + (".exe" if is_windows else "")
++    url = "file://SOURCE_ROOT_PATH/bazel-lib/bazel-bin/tools/copy_to_directory/copy_to_directory_/copy_to_directory"
+     rctx.download(
+         url = url,
+         output = "copy_to_directory.exe" if is_windows else "copy_to_directory",
+@@ -103,7 +106,7 @@ def declare_nodejs_repos():
+                 _NODE_VERSION + "-" + name: _VERSIONS[name]
+             },
+             node_urls = [
+-                "https://storage.googleapis.com/public-bazel-artifacts/js/node/v{version}/{filename}",
++                "https://nodejs.org/download/release/v{version}/{filename}",
+             ],
+             node_version = _NODE_VERSION,
+             platform = name,
+diff --git a/c-deps/BUILD.bazel b/c-deps/BUILD.bazel
+index 7cef0324..3a1939be 100644
+--- a/c-deps/BUILD.bazel
++++ b/c-deps/BUILD.bazel
+@@ -142,6 +142,7 @@ cmake(
+             "CMAKE_BUILD_TYPE": "Release",
+             "CMAKE_C_FLAGS": "-fPIC",
+             "CMAKE_CXX_FLAGS": "-fPIC",
++            "CMAKE_INSTALL_LIBDIR": "lib",
+             "BUILD_GEOSOP": "OFF",
+             "BUILD_TESTING": "OFF",
+             "GEOS_BUILD_DEVELOPER": "OFF",
+diff --git a/pkg/ccl/gssapiccl/BUILD.bazel b/pkg/ccl/gssapiccl/BUILD.bazel
+index 0c07ca8a..e57e0383 100644
+--- a/pkg/ccl/gssapiccl/BUILD.bazel
++++ b/pkg/ccl/gssapiccl/BUILD.bazel
+@@ -18,7 +18,7 @@ go_library(
+     clinkopts = select({
+         # NB: On Ubuntu, res_nsearch is found in the resolv_wrapper library,
+         # found in the libresolv-wrapper package.
+-        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper"],
++        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper -lkeyutils"],
+         "@io_bazel_rules_go//go/platform:linux": ["-ldl -lresolv"],
+         "//conditions:default": [],
+     }),
+
