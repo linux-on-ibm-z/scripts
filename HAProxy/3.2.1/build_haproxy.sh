@@ -267,10 +267,17 @@ case "$DISTRO" in
 	      buildAndInstallLua |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-    "rhel-9.4"  | "rhel-9.5" | "rhel-9.6" | "rhel-10.0")
+    "rhel-9.4"  | "rhel-9.5" | "rhel-9.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y gcc gcc-c++ gzip make tar wget xz zlib-devel lua-devel pcre2 pcre2-devel systemd-devel compat-openssl11 openssl-devel diffutils perl |& tee -a "$LOG_FILE"
+        buildAndInstallOpenSSL |& tee -a "$LOG_FILE"
+        configureAndInstall |& tee -a "$LOG_FILE"
+        ;;
+    "rhel-10.0")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+        printf -- "Installing dependencies... it may take some time.\n"
+        sudo yum install -y gcc gcc-c++ gzip make tar wget xz zlib-devel lua-devel pcre2 pcre2-devel systemd-devel openssl-devel diffutils perl |& tee -a "$LOG_FILE"
         buildAndInstallOpenSSL |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
