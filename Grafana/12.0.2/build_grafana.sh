@@ -246,7 +246,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10" | "ubuntu-25.04")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.04")
 	sudo apt-get update
 	sudo apt-get install -y gcc g++ tar wget git make xz-utils patch curl python3 |& tee -a "$LOG_FILE"
 	if [[ "$DISTRO" != ubuntu-22.04 ]]; then
