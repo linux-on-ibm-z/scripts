@@ -67,7 +67,7 @@ function installBazaar() {
 }
 
 function configureAndInstall() {
-	printf -- 'Configuration and Installation started \n'
+    printf -- 'Configuration and Installation started \n'
 
     # Install yarn
     printf -- 'Installing yarn...\n'
@@ -82,15 +82,13 @@ function configureAndInstall() {
     source $HOME/.cargo/env
 
     # Install Go
-    printf -- 'Configuration and Installation started \n'
+    printf -- 'Downloading go binaries \n'
     if [[ "${OVERRIDE}" == "true" ]]
     then
       printf -- 'Go exists on the system. Override flag is set to true hence updating the same\n ' |& tee -a "$LOG_FILE"
     fi
 
-    # Install Go
-    printf -- 'Downloading go binaries \n'
-		cd $GOPATH
+    cd $GOPATH
     wget -q https://storage.googleapis.com/golang/go"${GO_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
     chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
     sudo rm -rf /usr/local/go /usr/bin/go
@@ -212,7 +210,7 @@ DISTRO="$ID-$VERSION_ID"
 checkPrequisites #Check Prequisites
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10")
+"rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo yum install -y clang git gcc gcc-c++ wget protobuf protobuf-devel tar curl patch pkg-config make nodejs python3 gawk |& tee -a "$LOG_FILE"
@@ -221,7 +219,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-9.4" | "rhel-9.5")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo yum install -y --allowerasing clang git gcc gcc-c++ wget protobuf protobuf-devel tar curl patch pkg-config make nodejs python3 gawk |& tee -a "$LOG_FILE"
@@ -238,7 +236,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null
