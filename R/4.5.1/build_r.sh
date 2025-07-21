@@ -176,7 +176,7 @@ function gettingStarted()
           R installed successfully.
           More information can be found here:
           https://www.r-project.org/
-  eof
+eof
 }
 
 logDetails
