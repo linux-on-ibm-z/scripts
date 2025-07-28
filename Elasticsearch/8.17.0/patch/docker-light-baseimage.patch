@@ -4,7 +4,7 @@ index be4b87b..30cc694 100644
 +++ b/image/Dockerfile
 @@ -1,4 +1,4 @@
 -FROM debian:buster-slim
-+FROM debian:bullseye-20240904-slim
++FROM debian:bookworm-slim
  
  COPY . /container
  RUN /container/build.sh
