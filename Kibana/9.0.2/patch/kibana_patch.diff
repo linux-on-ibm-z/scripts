@@ -1,0 +1,250 @@
+diff --git a/WORKSPACE.bazel b/WORKSPACE.bazel
+index 4c347d053..4f0facef7 100644
+--- a/WORKSPACE.bazel
++++ b/WORKSPACE.bazel
+@@ -27,10 +27,11 @@ node_repositories(
+     "20.18.2-linux_arm64": ("node-v20.18.2-linux-arm64.tar.xz", "node-v20.18.2-linux-arm64", "1b4b1745ef7b6d342ddf998352438cfc61dbfcdf0895c9db7e9f1d8a427815d2"),
+     "20.18.2-linux_amd64": ("node-v20.18.2-linux-x64.tar.xz", "node-v20.18.2-linux-x64", "1a6e1fbd768437e130eac1a54c5535736d6992df700c09a6ce58f22040d6a34c"),
+     "20.18.2-windows_amd64": ("node-v20.18.2-win-x64.zip", "node-v20.18.2-win-x64", "ed790b94570518a7dce67b62485e16bc4bffecee4ec3b6df35ed220ae91117a5"),
++    "20.18.2-linux_s390x": ("node-v20.18.2-linux-s390x.tar.xz", "node-v20.18.2-linux-s390x", "bcf3680e111f1d24e403db3d5600315266ae1f8d9d1f69f39c61dbf8d8c9036e"),
+   },
+   node_version = "20.18.2",
+   node_urls = [
+-    "https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/dist/v{version}/{filename}",
++    "https://nodejs.org/dist/v{version}/{filename}",
+   ],
+   yarn_repositories = {
+     "1.22.21": ("yarn-v1.22.21.tar.gz", "yarn-v1.22.21", "a55bb4e85405f5dfd6e7154a444e7e33ad305d7ca858bad8546e932a6688df08"),
+diff --git a/package.json b/package.json
+index 9871fb419..e0af791e6 100644
+--- a/package.json
++++ b/package.json
+@@ -91,7 +91,7 @@
+     "**/isomorphic-fetch/node-fetch": "^2.6.7",
+     "**/langchain": "^0.3.15",
+     "**/remark-parse/trim": "1.0.1",
+-    "**/sharp": "0.32.6",
++    "**/sharp": "0.33.5",
+     "**/typescript": "5.1.6",
+     "**/util": "^0.12.5",
+     "@aws-sdk/client-bedrock-agent-runtime": "^3.744.0",
+@@ -1834,10 +1834,10 @@
+     "regenerate": "^1.4.0",
+     "resolve": "^1.22.0",
+     "rxjs-marbles": "^7.0.1",
+-    "sass-embedded": "^1.78.0",
++    "sass": "^1.78.0",
+     "sass-loader": "^10.5.2",
+     "selenium-webdriver": "^4.32.0",
+-    "sharp": "0.32.6",
++    "sharp": "0.33.5",
+     "simple-git": "^3.16.0",
+     "sinon": "^7.4.2",
+     "sort-package-json": "^1.53.1",
+diff --git a/packages/kbn-optimizer/src/worker/webpack.config.ts b/packages/kbn-optimizer/src/worker/webpack.config.ts
+index 3d56d7437..a8ab30830 100644
+--- a/packages/kbn-optimizer/src/worker/webpack.config.ts
++++ b/packages/kbn-optimizer/src/worker/webpack.config.ts
+@@ -218,7 +218,7 @@ export function getWebpackConfig(
+                       );
+                       return `@import ${req};\n${content}`;
+                     },
+-                    implementation: require('sass-embedded'),
++                    implementation: require('sass'),
+                     sassOptions: {
+                       outputStyle: worker.dist ? 'compressed' : 'expanded',
+                       includePaths: [Path.resolve(worker.repoRoot, 'node_modules')],
+diff --git a/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts b/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts
+index 5133297f9..6647a26de 100644
+--- a/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts
++++ b/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts
+@@ -48,6 +48,8 @@ it('builds a generated plugin into a viable archive', async () => {
+     return logs
+       ?.split('\n')
+       .filter((l) => !l.includes('failed to reach ci-stats service'))
++      // Skip warnings from @kbn/optimizer stderr
++      .filter((l) => !l.startsWith(' │ERROR'))
+       .join('\n');
+   };
+ 
+diff --git a/packages/kbn-plugin-helpers/src/tasks/optimize.ts b/packages/kbn-plugin-helpers/src/tasks/optimize.ts
+index cdb622438..58448d59f 100644
+--- a/packages/kbn-plugin-helpers/src/tasks/optimize.ts
++++ b/packages/kbn-plugin-helpers/src/tasks/optimize.ts
+@@ -83,7 +83,9 @@ export async function optimize({
+     const simpleOrWatchObservable = watch
+       ? eventObservable
+       : eventObservable.pipe(
+-          Rx.take(1),
++          // on s390x, webpack generates warnings on stderr so only
++	  // complete when we get a message event.
++	  Rx.takeWhile(e => e.type !== 'message', true), 
+           Rx.tap({
+             complete() {
+               proc.kill('SIGKILL');
+diff --git a/renovate.json b/renovate.json
+index ad365af59..3fcd89116 100644
+--- a/renovate.json
++++ b/renovate.json
+@@ -3272,7 +3272,7 @@
+     {
+       "groupName": "scss",
+       "matchDepNames": [
+-        "sass-embedded"
++        "sass"
+       ],
+       "reviewers": [
+         "team:kibana-operations"
+@@ -4355,4 +4355,4 @@
+       "datasourceTemplate": "docker"
+     }
+   ]
+-}
+\ No newline at end of file
++}
+diff --git a/src/dev/build/lib/platform.ts b/src/dev/build/lib/platform.ts
+index f1506eedd..c5d4c390a 100644
+--- a/src/dev/build/lib/platform.ts
++++ b/src/dev/build/lib/platform.ts
+@@ -8,7 +8,7 @@
+  */
+ 
+ export type PlatformName = 'win32' | 'darwin' | 'linux';
+-export type PlatformArchitecture = 'x64' | 'arm64';
++export type PlatformArchitecture = 'x64' | 'arm64' | 's390x';
+ export type Variant = 'serverless' | null;
+ 
+ export class Platform {
+@@ -59,6 +59,7 @@ export class Platform {
+ export const DOWNLOAD_PLATFORMS = [
+   new Platform('linux', 'x64', 'linux-x86_64', null),
+   new Platform('linux', 'arm64', 'linux-aarch64', null),
++  new Platform('linux', 's390x', 'linux-s390x', null),
+   new Platform('darwin', 'x64', 'darwin-x86_64', null),
+   new Platform('darwin', 'arm64', 'darwin-aarch64', null),
+   new Platform('win32', 'x64', 'windows-x86_64', null),
+diff --git a/src/dev/build/tasks/nodejs/node_download_info.ts b/src/dev/build/tasks/nodejs/node_download_info.ts
+index 95ea818e3..6cb13d39a 100644
+--- a/src/dev/build/tasks/nodejs/node_download_info.ts
++++ b/src/dev/build/tasks/nodejs/node_download_info.ts
+@@ -33,7 +33,10 @@ export function getNodeDownloadInfo(config: Config, platform: Platform) {
+ 
+     let variantPath = '';
+     if (variant === 'pointer-compression') variantPath = 'node-pointer-compression/';
+-    const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/${variantPath}dist/v${version}/${downloadName}`;
++    let url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/${variantPath}dist/v${version}/${downloadName}`;
++    if (arch == 'linux-s390x') {
++      url = `https://nodejs.org/dist/v${version}/${downloadName}`;
++    }		    
+     const downloadPath = config.resolveFromRepo(
+       '.node_binaries',
+       version,
+diff --git a/src/platform/packages/shared/kbn-babel-register/cache/lmdb_cache.js b/src/platform/packages/shared/kbn-babel-register/cache/lmdb_cache.js
+index e7e5e045e..931d04a72 100644
+--- a/src/platform/packages/shared/kbn-babel-register/cache/lmdb_cache.js
++++ b/src/platform/packages/shared/kbn-babel-register/cache/lmdb_cache.js
+@@ -9,6 +9,7 @@
+ 
+ const Path = require('path');
+ const Crypto = require('crypto');
++const Os = require('os');
+ 
+ const chalk = require('chalk');
+ const LmdbStore = require('lmdb');
+@@ -29,6 +30,29 @@ const dbName = (db) =>
+   // @ts-expect-error db.name is not a documented/typed property
+   db.name;
+ 
++const textEncoder = new TextEncoder();
++const textDecoder = new TextDecoder();
++
++/**
++ * @param {string} key
++ * @param {Uint8Array} target
++ * @param {number} start
++ * @returns {number}
++ */
++const writeKey = (key, target, start) => {
++  return start + textEncoder.encodeInto(key, target.subarray(start)).written;
++}
++
++/**
++ * @param {Uint8Array} target
++ * @param {number} start
++ * @param {number} end
++ * @returns {string}
++ */
++const readKey = (target, start, end) => {
++  return textDecoder.decode(target.subarray(start, end));
++}		
++
+ /**
+  * @implements {CacheInterface}
+  */
+@@ -49,12 +73,17 @@ class LmdbCache {
+     this.#db = LmdbStore.open(Path.resolve(config.dir, 'v5'), {
+       name: 'db',
+       encoding: 'json',
++      ...(Os.arch() === 's390x' ? { keyEncoder: { writeKey, readKey } } : {}),
+     });
+ 
+     const lastClean = this.#db.get('@last clean');
+     if (!lastClean || lastClean[0] < GLOBAL_ATIME - 7 * DAY) {
+       try {
+-        this.#pruneOldKeys();
++       if (Os.arch() === 's390x') {
++	 this.#db.clearSync()
++       } else {
++	 this.#pruneOldKeys();
++       }       
+       } catch (error) {
+         process.stderr.write(`
+ Failed to cleanup @kbn/babel-register cache:
+diff --git a/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts b/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts
+index e1a3f995f..18f4dc718 100644
+--- a/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts
++++ b/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts
+@@ -88,7 +88,7 @@ export const defaultConfig: StorybookConfig = {
+                     );
+                     return `@import ${req};\n${content}`;
+                   },
+-                  implementation: require('sass-embedded'),
++                  implementation: require('sass'),
+                   sassOptions: {
+                     includePaths: [resolve(REPO_ROOT, 'node_modules')],
+                     quietDeps: true,
+diff --git a/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js b/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js
+index d092fd5ad..ea1d92d9b 100644
+--- a/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js
++++ b/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js
+@@ -139,7 +139,7 @@ module.exports = {
+           {
+             loader: 'sass-loader',
+             options: {
+-              implementation: require('sass-embedded'),
++              implementation: require('sass'),
+               sourceMap: !isProd,
+             },
+           },
+@@ -182,7 +182,7 @@ module.exports = {
+                 );
+                 return `@import ${req};\n${content}`;
+               },
+-              implementation: require('sass-embedded'),
++              implementation: require('sass'),
+               sassOptions: {
+                 outputStyle: 'expanded',
+                 includePaths: [path.resolve(KIBANA_ROOT, 'node_modules')],
+diff --git a/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts b/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts
+index b1a9a28b0..7e8cd7435 100644
+--- a/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts
++++ b/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts
+@@ -40,7 +40,7 @@ export const canvasWebpack: Configuration = {
+           {
+             loader: 'sass-loader',
+             options: {
+-              implementation: require('sass-embedded'),
++              implementation: require('sass'),
+               sassOptions: {
+                 quietDeps: true,
+               },
