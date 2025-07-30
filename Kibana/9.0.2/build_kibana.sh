@@ -211,12 +211,6 @@ function runTest() {
         curl -sSL "${PATCH_URL}/integrationtest.sh" > integrationtest.sh
         bash integrationtest.sh
 
-        # In this version of kibana all functional tests require an elasticsearch
-        # tar.gz distribution that is not available for s390x so skip running these
-        # tests.
-        # curl -sSL "${PATCH_URL}/functionaltest.sh" > functionaltest.sh
-        # bash functionaltest.sh
-
         printf -- '**********************************************************************************************************\n'
         printf -- '\nCompleted test execution !! Test case failures can be ignored as they are seen on x86 also \n'
         printf -- '\nSome test case failures will pass when rerun the tests \n'
@@ -299,7 +293,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-8.10" | "rhel-9.5" | "rhel-9.6")
+"rhel-8.10" | "rhel-9.4" | "rhel-9.6")
         printf -- "\nInstalling %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo dnf install -y --allowerasing curl git gcc-c++ gzip make python3 java-11-openjdk-devel unzip zip tar wget patch xz pkg-config expat-devel glib2-devel meson ninja-build brotli \
             coreutils ed expect file gnupg2 iproute iputils less openssl-devel python3-devel python3-pip python3-requests python3-setuptools python3-six python3-wheel python3-pyyaml zlib-devel |& tee -a "${LOG_FILE}"
