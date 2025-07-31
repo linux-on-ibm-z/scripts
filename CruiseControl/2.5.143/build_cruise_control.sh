@@ -20,6 +20,7 @@ if [ ! -d "$CURDIR/logs/" ]; then
     mkdir -p "$CURDIR/logs/"
 fi
 source "/etc/os-release"
+DISTRO="$ID-$VERSION_ID"
 function prepare() {
     if command -v "sudo" >/dev/null; then
         printf -- 'Sudo : Yes\n' >>"$LOG_FILE"
@@ -30,6 +31,14 @@ function prepare() {
     fi
     if [[ "$JAVA_PROVIDED" != "Semeru11" && "$JAVA_PROVIDED" != "Temurin11" && "$JAVA_PROVIDED" != "OpenJDK11" ]]; then
         printf "$JAVA_PROVIDED is not supported, Please use valid java from {Semeru11, Temurin11, OpenJDK11} only\n"
+        exit 1
+    fi
+    if [[ "$JAVA_PROVIDED" == "OpenJDK11" && "$DISTRO" == "rhel-10.0" ]]; then
+        printf "OpenJDK11 is not supported on $DISTRO\n"
+        exit 1
+    fi
+    if [[ "$JAVA_PROVIDED" == "Semeru11" && "$DISTRO" == "ubuntu-25.04" ]]; then
+        printf "IBM Semeru Runtime (Semeru11) is not supported on $DISTRO\n"
         exit 1
     fi
     if [[ "$FORCE" == "true" ]]; then
@@ -57,7 +66,7 @@ function cleanup() {
 }
 function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
-    if [[ "$JAVA_PROVIDED" == "Semeru11" ]]; then
+    if [[ "$JAVA_PROVIDED" == "Semeru11" ]]; then   
         # Installing IBM Semeru Runtime (previously known as AdoptOpenJDK openj9)
         cd "$CURDIR"
         sudo rm -rf /opt/adopt/java
@@ -80,10 +89,10 @@ function configureAndInstall() {
         printf -- "export JAVA_HOME=/opt/adopt/java\n" >> "$BUILD_ENV"
         printf -- "Installation of Eclipse Adoptium Temurin Runtime (previously known as AdoptOpenJDK hotspot) is successful\n" >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
-        if [[ "${ID}" == "rhel" ]]; then
+        if [[ "${ID}" == "rhel" ]]; then  
             sudo yum install -y java-11-openjdk java-11-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
-            printf -- "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk\n" >> "$BUILD_ENV"
+            printf -- "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk\n" >> "$BUILD_ENV"  
         elif [[ "${ID}" == "sles" ]]; then
             sudo zypper install -y java-11-openjdk java-11-openjdk-devel
             export JAVA_HOME=/usr/lib64/jvm/java-11-openjdk
@@ -140,6 +149,9 @@ function logDetails() {
 function printHelp() {
     echo " bash build_cruise_control.sh [-d debug][-y install-without-confirmation][-t run-test][-j Java to use from {Semeru11, Temurin11, OpenJDK11}] "
     echo "  default: IBM Semeru Runtime (previously known as AdoptOpenJDK openj9) will be installed"
+    echo "Note on supported Java runtimes and distros:"
+    echo "  - OpenJDK11 is NOT supported on RHEL 10.0"
+    echo "  - Semeru11 is NOT supported on Ubuntu 25.04"
 }
 while getopts "h?dytj:" opt; do
     case "$opt" in
@@ -166,12 +178,12 @@ function gettingStarted() {
     printf -- "\n* Getting Started * \n"
     printf -- "\n Note: Environment Variables(JAVA_HOME) needed have been added to $HOME/setenv.sh\n"
     printf -- "\n Note: To set the Environment Variables needed for Cruise Control, please run: source $HOME/setenv.sh \n"
-    printf -- "\n To start Cruise Control server refer: https://github.com/linkedin/cruise-control/tree/2.5.142#quick-start  \n\n"
+    printf -- "\n To start Cruise Control server refer: https://github.com/linkedin/cruise-control/tree/2.5.143#quick-start  \n\n"
     printf -- '**********************************************************************************************************\n'
 }
 logDetails
 prepare # Check Prerequisites
-DISTRO="$ID-$VERSION_ID"
+# DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 "rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
@@ -179,7 +191,7 @@ case "$DISTRO" in
     sudo yum install -y wget tar git curl gzip procps-ng
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.4" | "rhel-9.6")
+"rhel-9.4" | "rhel-9.6" | "rhel-10.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     # Use --allowerasing to allow 'curl' to be installed in case of conflicts with the package 'curl-minimal'
