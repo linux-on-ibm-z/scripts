@@ -294,7 +294,7 @@ logDetails
 prepare #Check Prequisites
 
 case "$DISTRO" in
-    "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+    "ubuntu-22.04" | "ubuntu-24.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
@@ -310,7 +310,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
         
-    "rhel-9.4" | "rhel-9.5" | "rhel-9.5")
+    "rhel-9.4" | "rhel-9.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum groupinstall -y 'Development Tools'  |& tee -a "${LOG_FILE}"
