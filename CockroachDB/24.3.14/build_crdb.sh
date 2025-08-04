@@ -210,7 +210,7 @@ EOF
     ./dev doctor
     ./dev build
 	if [[ "$DISTRO" == "rhel-10.0" ]]; then
-	    sed -i '/#include/ a #include <cstdint>' /home/test/cockroach/c-deps/geos/include/geos/shape/fractal/HilbertEncoder.h
+	    sed -i '/#include/ a #include <cstdint>' $CURDIR/cockroach/c-deps/geos/include/geos/shape/fractal/HilbertEncoder.h
     fi
     bazel build c-deps:libgeos --config force_build_cdeps
     sudo cp cockroach /usr/local/bin
