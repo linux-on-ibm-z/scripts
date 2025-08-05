@@ -174,10 +174,16 @@ case "$DISTRO" in
 	sudo alternatives --set python /usr/bin/python3
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"rhel-9.4" | "rhel-9.5" | "rhel-9.6" | "rhel-10.0")
+"rhel-9.4" | "rhel-9.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y --allowerasing sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates xz xz-devel git wget tar make curl java-1.8.0-openjdk java-1.8.0-openjdk-devel perl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel glibc-locale-source glibc-langpack-en python3 rsync hostname diffutils p7zip p7zip-plugins |& tee -a "${LOG_FILE}"
+	configureAndInstall |& tee -a "${LOG_FILE}"
+	;;
+"rhel-10.0")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
+	sudo yum install -y --allowerasing sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates xz xz-devel git wget tar make curl java-21-openjdk java-21-openjdk-devel perl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel glibc-locale-source glibc-langpack-en python3 rsync hostname diffutils p7zip p7zip-plugins |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 "sles-15.6")
