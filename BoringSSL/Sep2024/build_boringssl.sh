@@ -157,7 +157,7 @@ DISTRO="$ID-$VERSION_ID"
 rm -f "$ENV_VARS"
 
 case "$DISTRO" in
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10" | "ubuntu-25.04")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
@@ -172,7 +172,7 @@ case "$DISTRO" in
     echo "source /opt/rh/gcc-toolset-12/enable" >>$ENV_VARS
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-"rhel-9.4" | "rhel-9.5" | "rhel-9.6")
+"rhel-9.4" | "rhel-9.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$BORINGSSL_BRANCH" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y wget tar make gcc gcc-c++ bzip2 zlib zlib-devel git xz diffutils cmake ninja-build libarchive-devel.s390x |& tee -a "$LOG_FILE"
