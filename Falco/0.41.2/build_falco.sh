@@ -254,7 +254,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-9.4" | "rhel-9.5" | "rhel-9.6")
+"rhel-9.4" | "rhel-9.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 
