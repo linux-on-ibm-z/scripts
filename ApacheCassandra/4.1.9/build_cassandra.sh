@@ -204,8 +204,7 @@ function configureAndInstall() {
     cd cassandra
 
     # Apply patch
-    #curl -sSL ${PATCH_URL}/cassandra.patch | git apply
-    git apply $CURDIR/cassandra.patch
+    curl -sSL ${PATCH_URL}/cassandra.patch | git apply
     # Use JVM default for stack size
     sed -i "/Xss/d" build.xml
     sed -i "/Xss/d" conf/jvm-server.options
