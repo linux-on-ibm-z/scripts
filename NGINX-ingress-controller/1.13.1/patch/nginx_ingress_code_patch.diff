@@ -1,0 +1,90 @@
+diff --git a/images/nginx/Makefile b/images/nginx/Makefile
+index 803f8ae80..e2fd7039b 100644
+--- a/images/nginx/Makefile
++++ b/images/nginx/Makefile
+@@ -20,7 +20,7 @@ TAG ?= $(shell cat TAG)
+ 
+ .PHONY: builder
+ builder:
+-	docker buildx create --name $(BUILDER) --bootstrap || :
++	docker buildx create --name $(BUILDER) --buildkitd-config $(I_N_BUILDER_CONFIG) --driver-opt "network=host" --bootstrap || :
+ 	docker buildx inspect $(BUILDER)
+ 
+ .PHONY: build
+diff --git a/images/nginx/rootfs/Dockerfile b/images/nginx/rootfs/Dockerfile
+index c2b9af412..8264961e0 100644
+--- a/images/nginx/rootfs/Dockerfile
++++ b/images/nginx/rootfs/Dockerfile
+@@ -53,6 +53,7 @@ RUN apk update \
+   libprotobuf \
+   abseil-cpp-crc-cpu-detect \
+   abseil-cpp-vlog-config-internal \
++  abseil-cpp-demangle-internal \
+   && ln -s /usr/local/nginx/sbin/nginx /sbin/nginx \
+   && adduser -S -D -H -u 101 -h /usr/local/nginx \
+   -s /sbin/nologin -G www-data -g www-data www-data \
+diff --git a/images/test-runner/Makefile b/images/test-runner/Makefile
+index d861cd7cd..255181349 100644
+--- a/images/test-runner/Makefile
++++ b/images/test-runner/Makefile
+@@ -24,7 +24,7 @@ GOLANG_VERSION ?= $(shell cat $(DIR)/../../GOLANG_VERSION)
+ 
+ .PHONY: builder
+ builder:
+-	docker buildx create --name $(BUILDER) --bootstrap || :
++	docker buildx create --name $(BUILDER) --buildkitd-config $(I_N_BUILDER_CONFIG) --driver-opt "network=host" --bootstrap || :
+ 	docker buildx inspect $(BUILDER)
+ 
+ .PHONY: build
+diff --git a/images/test-runner/rootfs/Dockerfile b/images/test-runner/rootfs/Dockerfile
+index dc8ff5593..80074fff5 100644
+--- a/images/test-runner/rootfs/Dockerfile
++++ b/images/test-runner/rootfs/Dockerfile
+@@ -48,6 +48,7 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+ 
+ COPY --from=etcd /usr/local/bin/etcd /usr/local/bin/etcd
+ 
++ENV ETCD_UNSUPPORTED_ARCH=s390x
+ RUN echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+ 
+ RUN apk update && apk upgrade && apk add --no-cache \
+@@ -67,8 +68,9 @@ RUN apk update && apk upgrade && apk add --no-cache \
+   cfssl@testing \
+   tzdata \
+   libc6-compat \
+-  sqlite-dev
+-
++  sqlite-dev \
++  lua5.1 \
++  lua5.1-dev
+ RUN go install -v github.com/onsi/ginkgo/v2/ginkgo@v${GINKGO_VERSION} \
+     && go install golang.org/x/lint/golint@${GOLINT_VERSION}
+ 
+@@ -88,8 +90,8 @@ RUN wget -qO /tmp/luarocks.tgz \
+   && ./configure \
+   && make install
+ 
+-RUN  luarocks install busted \
+-  && luarocks install luacheck
++RUN  luarocks install busted --lua-version=5.1 --tree=/usr/local \
++  && luarocks install luacheck --lua-version=5.1 --tree=/usr/local
+ 
+ RUN wget -qO /usr/local/bin/kubectl \
+   https://dl.k8s.io/release/${K8S_RELEASE}/bin/linux/${TARGETARCH}/kubectl \
+@@ -99,16 +101,6 @@ RUN wget -qO /usr/local/bin/kube-apiserver \
+   https://dl.k8s.io/release/${K8S_RELEASE}/bin/linux/${TARGETARCH}/kube-apiserver \
+   && chmod +x /usr/local/bin/kube-apiserver
+ 
+-RUN wget -qO /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz \
+-  https://github.com/helm/chart-testing/releases/download/v${CHART_TESTING_VERSION}/chart-testing_${CHART_TESTING_VERSION}_linux_${TARGETARCH}.tar.gz \
+-  && mkdir -p /tmp/ct-download \
+-  && tar xzvf /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz -C /tmp/ct-download \
+-  && rm /tmp/ct-${CHART_TESTING_VERSION}-linux-${TARGETARCH}.tar.gz \
+-  && cp /tmp/ct-download/ct /usr/local/bin \
+-  && mkdir -p /etc/ct \
+-  && cp -R /tmp/ct-download/etc/* /etc/ct \
+-  && rm -rf /tmp/*
+-
+ RUN wget -qO /usr/local/bin/lj-releng \
+   https://raw.githubusercontent.com/openresty/openresty-devel-utils/master/lj-releng \
+   && chmod +x /usr/local/bin/lj-releng
