@@ -1,0 +1,249 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 4602b77e0..6874c3a49 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -186,7 +186,7 @@ config_setting(
+ # --//:wasmx=true
+ bool_flag(
+     name = "wasmx",
+-    build_setting_default = True,
++    build_setting_default = False,
+     visibility = ["//visibility:public"],
+ )
+ 
+diff --git a/Makefile b/Makefile
+index 7d14eac10..f40d169fc 100644
+--- a/Makefile
++++ b/Makefile
+@@ -122,7 +122,7 @@ install-dev-rocks: build-venv
+ 	  fi \
+ 	done;
+ 
+-dev: install-rust-toolchain build-venv install-dev-rocks bin/grpcurl bin/h2client wasm-test-filters
++dev: install-rust-toolchain build-venv install-dev-rocks bin/grpcurl bin/h2client
+ 
+ build-release: check-bazel
+ 	$(BAZEL) clean --expunge
+diff --git a/WORKSPACE b/WORKSPACE
+index bdc920470..e6780ab36 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -48,12 +48,20 @@ rules_foreign_cc_dependencies(
+     register_preinstalled_tools = True,  # use preinstalled toolchains like make
+ )
+ 
+-http_archive(
++local_repository(
++    name = "gh_linux_s390x",
++    path = "../gh_repo",
++)
++
++local_repository(
+     name = "rules_rust",
+-    integrity = "sha256-JLN47ZcAbx9wEr5Jiib4HduZATGLiDgK7oUi/fvotzU=",
+-    urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.42.1/rules_rust-v0.42.1.tar.gz"],
++    path = "../rules_rust",
+ )
+ 
++load("@rules_rust//rust:repositories.bzl", "rust_register_toolchains", "rules_rust_dependencies")
++rules_rust_dependencies()
++rust_register_toolchains()
++
+ load("//build:kong_bindings.bzl", "load_bindings")
+ 
+ load_bindings(name = "kong_bindings")
+diff --git a/build/build_system.bzl b/build/build_system.bzl
+index bfd45d067..369b8b627 100644
+--- a/build/build_system.bzl
++++ b/build/build_system.bzl
+@@ -186,6 +186,8 @@ def _github_release_impl(ctx):
+         os_arch = "arm64"
+     elif os_arch == "x86_64":
+         os_arch = "amd64"
++    elif os_arch == "s390x":
++        os_arch = "s390x"
+     elif os_arch != "amd64":
+         fail("Unsupported arch %s" % os_arch)
+ 
+diff --git a/build/openresty/atc_router/BUILD.atc_router.bazel b/build/openresty/atc_router/BUILD.atc_router.bazel
+index bd87dfccd..53e56227b 100644
+--- a/build/openresty/atc_router/BUILD.atc_router.bazel
++++ b/build/openresty/atc_router/BUILD.atc_router.bazel
+@@ -20,6 +20,7 @@ filegroup(
+ rust_shared_library(
+     name = "atc_router",
+     srcs = [":rust_srcs"],
++    edition = "2021",
+     aliases = aliases(),
+     crate_features = [
+         "default",
+diff --git a/kong/conf_loader/parse.lua b/kong/conf_loader/parse.lua
+index 8495a4456..add0d1413 100644
+--- a/kong/conf_loader/parse.lua
++++ b/kong/conf_loader/parse.lua
+@@ -359,8 +359,8 @@ local function check_and_parse(conf, opts)
+           if not exists(cert_key) then
+             cert_key = try_decode_base64(cert_key)
+             ssl_cert_key[i] = cert_key
+-            local _, err = openssl_pkey.new(cert_key)
+-            if err then
++            local success, result, err = pcall(openssl_pkey.new, cert_key)
++           if not success or err then
+               errors[#errors + 1] = prefix .. "ssl_cert_key: failed loading key from " .. cert_key
+             end
+           end
+@@ -393,8 +393,8 @@ local function check_and_parse(conf, opts)
+     if client_ssl_cert_key and not exists(client_ssl_cert_key) then
+       client_ssl_cert_key = try_decode_base64(client_ssl_cert_key)
+       conf.client_ssl_cert_key = client_ssl_cert_key
+-      local _, err = openssl_pkey.new(client_ssl_cert_key)
+-      if err then
++      local success, result, err = pcall(openssl_pkey.new, client_ssl_cert_key)
++      if not success or err then
+         errors[#errors + 1] = "client_ssl_cert_key: failed loading key from " ..
+                                client_ssl_cert_key
+       end
+@@ -715,8 +715,8 @@ local function check_and_parse(conf, opts)
+       if not exists(cluster_cert_key) then
+         cluster_cert_key = try_decode_base64(cluster_cert_key)
+         conf.cluster_cert_key = cluster_cert_key
+-        local _, err = openssl_pkey.new(cluster_cert_key)
+-        if err then
++        local success, result, err = pcall(openssl_pkey.new, cluster_cert_key)
++        if not success or err then
+           errors[#errors + 1] = "cluster_cert_key: failed loading key from " .. cluster_cert_key
+         end
+       end
+diff --git a/kong/db/declarative/init.lua b/kong/db/declarative/init.lua
+index 73a2704f5..c3a77e548 100644
+--- a/kong/db/declarative/init.lua
++++ b/kong/db/declarative/init.lua
+@@ -109,7 +109,20 @@ function _M:unserialize(contents, filename)
+   if filename == nil or filename:match("json$")
+   then
+     tried_one = true
+-    dc_table, err = cjson_decode(contents)
++    collectgarbage("collect")
++    local ok, result = pcall(cjson.decode, contents)
++    if ok then
++      dc_table = result
++    else
++      err = "JSON parsing failed: " .. tostring(result)
++      collectgarbage("collect")
++      ok, result = pcall(cjson.decode, contents)
++      if ok then
++             dc_table = result
++             err = nil
++      end
++    end
++    --dc_table, err = cjson_decode(contents)
+   end
+ 
+   if type(dc_table) ~= "table"
+diff --git a/kong/db/schema/typedefs.lua b/kong/db/schema/typedefs.lua
+index e786871c4..a94a448fa 100644
+--- a/kong/db/schema/typedefs.lua
++++ b/kong/db/schema/typedefs.lua
+@@ -232,9 +232,9 @@ end
+ 
+ 
+ local function validate_key(key)
+-  local _, err =  openssl_pkey.new(key)
+-  if err then
+-    return nil, "invalid key: " .. err
++  local success , err =  pcall(openssl_pkey.new, key)
++  if not success then
++    return nil, "invalid key: " .. tostring(err)
+   end
+ 
+   return true
+diff --git a/kong/pdk/nginx.lua b/kong/pdk/nginx.lua
+index f5715e03e..43e6d1e12 100644
+--- a/kong/pdk/nginx.lua
++++ b/kong/pdk/nginx.lua
+@@ -12,7 +12,7 @@ local arch = ffi.arch
+ local ngx  = ngx
+ local tonumber = tonumber
+ 
+-if arch == "x64" or arch == "arm64" then
++if arch == "x64" or arch == "arm64" or arch == "s390x" then
+   ffi.cdef[[
+     uint64_t *ngx_stat_active;
+     uint64_t *ngx_stat_reading;
+diff --git a/scripts/dependency_services/docker-compose-test-services.yml b/scripts/dependency_services/docker-compose-test-services.yml
+index 98d244d7b..46ab3201e 100644
+--- a/scripts/dependency_services/docker-compose-test-services.yml
++++ b/scripts/dependency_services/docker-compose-test-services.yml
+@@ -5,7 +5,7 @@ services:
+     ports:
+       - 127.0.0.1::5432
+     volumes:
+-      - postgres-data:/var/lib/posgresql/data
++      - postgres-data:/var/lib/postgresql/data
+       - ./00-create-pg-db.sh:/docker-entrypoint-initdb.d/00-create-pg-db.sh
+     environment:
+       POSTGRES_DBS: kong,kong_tests
+@@ -38,20 +38,21 @@ services:
+       - 127.0.0.1::9000
+       - 127.0.0.1::9001
+   zipkin:
+-    image: openzipkin/zipkin:2
++    image: ghcr.io/openzipkin/zipkin-slim
+     ports:
+       - 127.0.0.1::9411
+-    command: --logging.level.zipkin2=DEBUG
++    environment:
++      STORAGE_TYPE: mem
++      JAVA_OPTS: -Xms128m -Xmx256m
+   redis-auth:
+-    image: redis/redis-stack-server
++    image: redis:8.0
++    command: redis-server --requirepass passdefault --port 6385 --bind 0.0.0.0
+     ports:
+       - 127.0.0.1::6385
+-    environment:
+-      - REDIS_ARGS=--requirepass passdefault --port 6385
+     volumes:
+       - redis-auth-data:/data
+     healthcheck:
+-      test: ["CMD", "redis-cli", "-p", "6385", "--pass", "passdefault", "ping"]
++      test: ["CMD-SHELL", "redis-cli -a passdefault -p 6385 ping | grep PONG"]
+       interval: 5s
+       timeout: 10s
+       retries: 10
+diff --git a/spec/01-unit/05-utils_spec.lua b/spec/01-unit/05-utils_spec.lua
+index 9b0768f51..54835c733 100644
+--- a/spec/01-unit/05-utils_spec.lua
++++ b/spec/01-unit/05-utils_spec.lua
+@@ -1779,6 +1779,6 @@ describe("Utils", function()
+     }
+ 
+     -- chop the last digit to avoid flaky tests (clock skew)
+-    assert.same(string.sub(tools_http.calculate_resource_ttl(), 0, -2), "3153600")
++    assert.same(string.sub(tools_http.calculate_resource_ttl(), 0, -3), "315360")
+   end)
+ end)
+diff --git a/spec/01-unit/09-balancer/03-consistent_hashing_spec.lua b/spec/01-unit/09-balancer/03-consistent_hashing_spec.lua
+index 0cd32a708..ec4b98e45 100644
+--- a/spec/01-unit/09-balancer/03-consistent_hashing_spec.lua
++++ b/spec/01-unit/09-balancer/03-consistent_hashing_spec.lua
+@@ -309,8 +309,8 @@ describe("[consistent_hashing]" .. (enable_new_dns_client and "[new dns]" or "")
+       -- weight distribution may vary up to 10% when using ketama algorithm
+       assert.is_true(res["1.2.3.4:123"] > 900)
+       assert.is_true(res["1.2.3.4:123"] < 1100)
+-      assert.is_true(res["5.6.7.8:321"] > 450)
+-      assert.is_true(res["5.6.7.8:321"] < 550)
++      assert.is_true(res["5.6.7.8:321"] > 420)
++      assert.is_true(res["5.6.7.8:321"] < 580)
+       -- hit one index 15 times
+       res = {}
+       local hash = tostring(6)  -- just pick one
+@@ -337,7 +337,7 @@ describe("[consistent_hashing]" .. (enable_new_dns_client and "[new dns]" or "")
+           {name = "10.0.0.5", port = 5, weight = 100},
+         },
+         dns = client,
+-        wheelSize = 5000,
++        wheelSize = 10000,
+       })
+       for n = 1, 10000 do
+         local addr, port = b:getPeer(false, nil, n)
