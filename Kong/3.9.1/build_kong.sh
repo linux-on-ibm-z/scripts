@@ -16,7 +16,7 @@ CURDIR="$(pwd)"
 LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 NON_ROOT_USER="$(whoami)"
 GO_VERSION=1.24.0
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kong/scripts/${PACKAGE_VERSION}patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kong/${PACKAGE_VERSION}/patch"
 
 trap cleanup 1 2 ERR
 
