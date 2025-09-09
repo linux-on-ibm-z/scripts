@@ -117,7 +117,7 @@ function configureAndInstall() {
     sed -i '90,90 s/3a667d10e94186fd503966f5638e134fe9fb4080/d83fd4af80af244ac623b99d8152c2e53287b9ad/g' pom.xml
     sed -i 's/verbose=\"on\"/verbose=\"on\" retries=\"5\"/g' libressl-static/pom.xml
 
-    if [[ "${DISTRO}" == "rhel-9"* || "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-24.04" || "${DISTRO}" == "ubuntu-24.10" ]]; then
+    if [[ "${DISTRO}" == "rhel-9"* || "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-24"* || "${DISTRO}" == "ubuntu-25"* ]]; then
         curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff
         cp gcc_patch.diff /tmp/gcc_patch.diff
 
