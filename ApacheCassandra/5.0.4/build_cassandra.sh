@@ -150,7 +150,7 @@ function configureAndInstall() {
     printf -- "Configuration and Installation started \n"
     #DISTRO="$ID-$VERSION_ID"
 
-    if [[ "$DISTRO" == "ubuntu-24.04" || "$DISTRO" == "ubuntu-24.10" || "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-"* || "$DISTRO" == "sles-"* ]]; then
+    if [[ "$DISTRO" == "ubuntu-24.04" || "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-"* || "$DISTRO" == "sles-"* ]]; then
         printf -- "Install python\n" >>"$LOG_FILE"
         wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.11.0/build_python3.sh
 	sed -i 's/ubuntu-20.04/ubuntu-25.04/g' build_python3.sh
@@ -214,11 +214,11 @@ function configureAndInstall() {
         mvn install -DskipTests -Dmaven.javadoc.skip=true -Dos.detected.classifier=linux-s390_64-fedora
     elif [[ "$DISTRO" == "sles"* ]]; then
         mvn install -DskipTests -Dmaven.javadoc.skip=true -Dos.detected.classifier=linux-s390_64-suse
-    elif [[ "$DISTRO" == "ubuntu"* ]]; then
+    elif [[ "$DISTRO" == "ubuntu-22.04" || "$DISTRO" == "ubuntu-24.04" ]]; then
         mvn install -DskipTests -Dmaven.javadoc.skip=true
+    elif [[ "$DISTRO" == "ubuntu-25"* ]]; then
+        mvn install -Pfast -DskipTests -Dmaven.javadoc.skip=true -Dmaven.resolver.transport=native
     fi
-
-    # Install Ant
     if [[ "$DISTRO" == "rhel-8"* || "$ID" == "sles" ]]; then
         printf -- "Installing ant\n" >>"$LOG_FILE"
         cd "$CURDIR"
@@ -362,7 +362,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"rhel-9.4" | "rhel-9.5")
+"rhel-9.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo yum install -y curl ant junit ant-junit git which gcc-c++ make automake autoconf libtool libstdc++ tar wget patch words libXt-devel libX11-devel texinfo unzip maven procps gawk |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
@@ -389,7 +389,7 @@ case "$DISTRO" in
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ant ant-optional junit git tar g++ make automake autoconf libtool wget patch libx11-dev libxt-dev pkg-config texinfo locales-all unzip python3-dev maven |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-24.04" | "ubuntu-24.10" | "ubuntu-25.04")
+"ubuntu-24.04" | "ubuntu-25.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ant ant-optional junit git tar g++ make automake autoconf libtool wget patch libx11-dev libxt-dev pkg-config texinfo locales-all unzip maven |& tee -a "$LOG_FILE"
