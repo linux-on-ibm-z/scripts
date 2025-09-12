@@ -1,8 +1,22 @@
 diff --git a/Dockerfile b/Dockerfile
-index 94e0bd4..7906241 100644
+index 612bd8a..9491ed2 100644
 --- a/Dockerfile
 +++ b/Dockerfile
-@@ -50,6 +50,8 @@ RUN dnf upgrade -y && dnf install -y \
+@@ -6,11 +6,11 @@ FROM registry.access.redhat.com/ubi8/ubi:latest AS ubi
+ 
+ ARG TARGETARCH
+ 
+-ARG GOLANG_VERSION=1.23.12
++ARG GOLANG_VERSION=1.24.2
+ ARG GOLANG_SHA256_AMD64=d3847fef834e9db11bf64e3fb34db9c04db14e068eeb064f49af747010454f90
+ ARG GOLANG_SHA256_ARM64=52ce172f96e21da53b1ae9079808560d49b02ac86cecfa457217597f9bc28ab3
+ ARG GOLANG_SHA256_PPC64LE=1a7cc5f7baeaf39125dce5d660a39438e7f0e04d13d3498590d240aae976b565
+-ARG GOLANG_SHA256_S390X=2f43708aa0922d692da0a1fc775475c343907610bec77002de1bbe37601ea338
++ARG GOLANG_SHA256_S390X=1cb3448166d6abb515a85a3ee5afbdf932081fb58ad7143a8fb666fbc06146d9
+ 
+ ARG CLANG_VERSION=18.1.8
+ ARG CONTAINERREGISTRY_VERSION=v0.20.2
+@@ -44,6 +44,8 @@ RUN dnf upgrade -y && dnf install -y \
      xz \
      zip
  
@@ -11,7 +25,7 @@ index 94e0bd4..7906241 100644
  # Install system dependencies that are not in UBI repos
  COPY almalinux/RPM-GPG-KEY-AlmaLinux /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux
  COPY almalinux/almalinux*.repo /etc/yum.repos.d/
-@@ -213,6 +215,7 @@ FROM scratch
+@@ -218,6 +220,7 @@ FROM scratch
  ENV GOPATH=/go
  ENV GOTOOLCHAIN=local
  ENV PATH=$GOPATH/bin:/usr/local/go/bin:$PATH

@@ -23,7 +23,7 @@ set -o pipefail
 PACKAGE_NAME="calico"
 PACKAGE_VERSION="v3.29.3"
 ETCD_VERSION="v3.5.6"
-GOLANG_VERSION="go1.23.5.linux-s390x.tar.gz"
+GOLANG_VERSION="go1.24.2.linux-s390x.tar.gz"
 GOBUILD_VERSION="v0.94"
 K8S_VERSION="1.30.7"
 FORCE="false"
@@ -451,7 +451,7 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.10" | "rhel-9.4")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo yum remove -y podman buildah
@@ -470,7 +470,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
     
- "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+ "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
