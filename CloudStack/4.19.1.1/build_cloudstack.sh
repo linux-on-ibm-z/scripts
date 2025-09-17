@@ -328,7 +328,7 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum groupinstall -y "Development Tools" |& tee -a "$LOG_FILE"
-        sudo yum install -y git python3 python3-pip java-11-openjdk java-11-openjdk-devel maven genisoimage mysql mysql-server createrepo \
+        sudo yum install -y --nobest git python3 python3-pip java-11-openjdk java-11-openjdk-devel maven genisoimage mysql mysql-server createrepo \
         nfs-utils qemu-img ipmitool python3-devel python3-libvirt libvirt perl qemu-kvm rng-tools dhcp-server httpd \
         syslinux-tftpboot tftp-server libffi-devel ant curl chkconfig |& tee -a "$LOG_FILE"
         export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
