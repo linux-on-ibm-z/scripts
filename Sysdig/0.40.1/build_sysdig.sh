@@ -56,15 +56,23 @@ function configureAndInstall() {
     mkdir build && cd build
     printf -- '\nStarting Sysdig build. \n'
 
-    if [[ "$DISTRO" == "rhel-8.8" ]] || [[ "$DISTRO" == "rhel-8.10" ]]; then
+    if [[ "$DISTRO" == "rhel-8.10" ]]; then
     	cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DBUILD_SYSDIG_MODERN_BPF=OFF -DSYSDIG_VERSION=$PACKAGE_VERSION ..
      	sed -i '92s/-DCARES_SHARED=/-DCARES_SHARED= -DCMAKE_INSTALL_LIBDIR=lib/' CMakeFiles/c-ares.dir/build.make
       
-    elif [[ "$DISTRO" == "rhel-9.2" ]] || [[ "$DISTRO" == "rhel-9.4" ]] || [[ "$DISTRO" == "rhel-9.5" ]]; then
-  	cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
+    elif [[ "$DISTRO" == "rhel-9.4" ]] || [[ "$DISTRO" == "rhel-9.6" ]]; then
+        if [[ "$DISTRO" == "rhel-9.6" ]]; then
+    	   sed -i 's,8.0.0+driver,8.1.0+driver,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
+    	   sed -i 's,f35990d6a1087a908fe94e1390027b9580d4636032c0f2b80bf945219474fd6b,182e6787bf86249a846a3baeb4dcd31578b76d4a13efa16ce3f44d66b18a77a6,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
+        fi
+   	cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
      	sed -i '92s/-DCARES_SHARED=/-DCARES_SHARED= -DCMAKE_INSTALL_LIBDIR=lib/' CMakeFiles/c-ares.dir/build.make 
       
-    elif [[ "$DISTRO" == "ubuntu-22.04" ]] || [[ "$DISTRO" == "ubuntu-24.04" ]] || [[ "$DISTRO" == "ubuntu-24.10" ]]; then
+    elif [[ "$DISTRO" == "ubuntu-22.04" ]] || [[ "$DISTRO" == "ubuntu-24.04" ]] || [[ "$DISTRO" == "ubuntu-25.04" ]]; then
+    	if [[ "$DISTRO" == "ubuntu-25.04" ]]; then
+    	   sed -i 's,8.0.0+driver,8.1.0+driver,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
+    	   sed -i 's,f35990d6a1087a908fe94e1390027b9580d4636032c0f2b80bf945219474fd6b,182e6787bf86249a846a3baeb4dcd31578b76d4a13efa16ce3f44d66b18a77a6,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
+        fi
   	cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
    
     else
@@ -167,7 +175,7 @@ logDetails
 prepare
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.10" | "rhel-9.4" | "rhel-9.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo mkdir -p /lib/modules/$(uname -r)
@@ -184,7 +192,7 @@ case "$DISTRO" in
     sudo yum install -y wget tar patch gcc gcc-c++ git bpftool clang cmake pkg-config elfutils-libelf-devel kernel-devel kmod llvm perl |& tee -a "$LOG_FILE"
     configureAndInstall | tee -a "$LOG_FILE"
     ;;    
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo apt-get update >/dev/null
