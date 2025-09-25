@@ -160,15 +160,6 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.4" | "rhel-9.6")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y --allowerasing curl
-    sudo yum install -y wget bison bzip2-devel git xz-devel hostname ncurses-devel procps openssl-devel pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive tk-devel gdb gdbm-devel sqlite-devel readline-devel libdb-devel libffi-devel libuuid-devel libnsl2-devel net-tools gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils |& tee -a "$LOG_FILE"
-    source /opt/rh/gcc-toolset-12/enable
-
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 "sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
