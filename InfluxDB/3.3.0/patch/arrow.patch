@@ -1,0 +1,822 @@
+diff --git a/arrow-buffer/src/buffer/mutable.rs b/arrow-buffer/src/buffer/mutable.rs
+index 7fcbd89dd..8577fff58 100644
+--- a/arrow-buffer/src/buffer/mutable.rs
++++ b/arrow-buffer/src/buffer/mutable.rs
+@@ -464,7 +464,7 @@ impl MutableBuffer {
+             }
+ 
+             // SAFETY: Already allocated sufficient capacity
+-            unsafe { buffer.push_unchecked(packed) }
++            unsafe { buffer.push_unchecked(packed.to_le()) }
+         }
+ 
+         if remainder != 0 {
+@@ -475,7 +475,7 @@ impl MutableBuffer {
+             }
+ 
+             // SAFETY: Already allocated sufficient capacity
+-            unsafe { buffer.push_unchecked(packed) }
++            unsafe { buffer.push_unchecked(packed.to_le()) }
+         }
+ 
+         buffer.truncate(bit_util::ceil(len, 8));
+diff --git a/arrow-ord/src/cmp.rs b/arrow-ord/src/cmp.rs
+index f571e26c4..3c01e78da 100644
+--- a/arrow-ord/src/cmp.rs
++++ b/arrow-ord/src/cmp.rs
+@@ -407,7 +407,7 @@ fn collect_bool(len: usize, neg: bool, f: impl Fn(usize) -> bool) -> BooleanBuff
+         }
+ 
+         // SAFETY: Already allocated sufficient capacity
+-        unsafe { buffer.push_unchecked(packed) }
++        unsafe { buffer.push_unchecked(packed.to_le()) }
+     }
+ 
+     if remainder != 0 {
+@@ -421,7 +421,7 @@ fn collect_bool(len: usize, neg: bool, f: impl Fn(usize) -> bool) -> BooleanBuff
+         }
+ 
+         // SAFETY: Already allocated sufficient capacity
+-        unsafe { buffer.push_unchecked(packed) }
++        unsafe { buffer.push_unchecked(packed.to_le()) }
+     }
+     BooleanBuffer::new(buffer.into(), 0, len)
+ }
+diff --git a/parquet/src/arrow/array_reader/byte_array.rs b/parquet/src/arrow/array_reader/byte_array.rs
+index 925831556..514daa88f 100644
+--- a/parquet/src/arrow/array_reader/byte_array.rs
++++ b/parquet/src/arrow/array_reader/byte_array.rs
+@@ -389,7 +389,7 @@ impl ByteArrayDecoderPlain {
+                 return Err(ParquetError::EOF("eof decoding byte array".into()));
+             }
+             let len_bytes: [u8; 4] = buf[self.offset..self.offset + 4].try_into().unwrap();
+-            let len = u32::from_le_bytes(len_bytes);
++            let len = u32::from_ne_bytes(len_bytes);
+ 
+             let start_offset = self.offset + 4;
+             let end_offset = start_offset + len as usize;
+diff --git a/parquet/src/encodings/rle.rs b/parquet/src/encodings/rle.rs
+index 0c708c126..68fe138b8 100644
+--- a/parquet/src/encodings/rle.rs
++++ b/parquet/src/encodings/rle.rs
+@@ -224,7 +224,7 @@ impl RleEncoder {
+         let indicator_value = self.repeat_count << 1;
+         self.bit_writer.put_vlq_int(indicator_value as u64);
+         self.bit_writer.put_aligned(
+-            self.current_value,
++            self.current_value.to_le(),
+             bit_util::ceil(self.bit_width as usize, 8),
+         );
+         self.num_buffered_values = 0;
+diff --git a/parquet/src/util/bit_util.rs b/parquet/src/util/bit_util.rs
+index b4c929ce0..0a262008f 100644
+--- a/parquet/src/util/bit_util.rs
++++ b/parquet/src/util/bit_util.rs
+@@ -439,7 +439,7 @@ impl BitReader {
+         }
+ 
+         // TODO: better to avoid copying here
+-        T::try_from_le_slice(v.as_bytes()).ok()
++        T::try_from_le_slice(v.to_le().as_bytes()).ok()
+     }
+ 
+     /// Read multiple values from their packed representation where each element is represented
+diff --git a/arrow-buffer/src/util/bit_mask.rs b/arrow-buffer/src/util/bit_mask.rs
+index 97be7e006..b7edf6fbe 100644
+--- a/arrow-buffer/src/util/bit_mask.rs
++++ b/arrow-buffer/src/util/bit_mask.rs
+@@ -86,23 +86,23 @@ unsafe fn set_upto_64bits(
+             } else {
+                 // only write shifting necessary
+                 let len = 64 - write_shift;
+-                let chunk = chunk << write_shift;
++                let chunk = chunk.to_le() << write_shift;
+                 let null_count = len - chunk.count_ones() as usize;
+-                unsafe { or_write_u64_bytes(write_data, write_byte, chunk) };
++                unsafe { or_write_u64_bytes(write_data, write_byte, chunk.to_le()) };
+                 (null_count, len)
+             }
+         } else if write_shift == 0 {
+             // only read shifting necessary
+             let len = 64 - 8; // 56 bits so the next set_upto_64bits call will see write_shift == 0
+-            let chunk = (chunk >> read_shift) & 0x00FFFFFFFFFFFFFF; // 56 bits mask
++            let chunk = (chunk.to_le() >> read_shift) & 0x00FFFFFFFFFFFFFF; // 56 bits mask
+             let null_count = len - chunk.count_ones() as usize;
+-            unsafe { write_u64_bytes(write_data, write_byte, chunk) };
++            unsafe { write_u64_bytes(write_data, write_byte, chunk.to_le()) };
+             (null_count, len)
+         } else {
+             let len = 64 - std::cmp::max(read_shift, write_shift);
+-            let chunk = (chunk >> read_shift) << write_shift;
++            let chunk = (chunk.to_le() >> read_shift) << write_shift;
+             let null_count = len - chunk.count_ones() as usize;
+-            unsafe { or_write_u64_bytes(write_data, write_byte, chunk) };
++            unsafe { or_write_u64_bytes(write_data, write_byte, chunk.to_le()) };
+             (null_count, len)
+         }
+     } else if len == 1 {
+@@ -113,7 +113,7 @@ unsafe fn set_upto_64bits(
+         let len = std::cmp::min(len, 64 - std::cmp::max(read_shift, write_shift));
+         let bytes = ceil(len + read_shift, 8);
+         // SAFETY: the args of `read_bytes_to_u64` are valid as read_byte + bytes <= data.len()
+-        let chunk = unsafe { read_bytes_to_u64(data, read_byte, bytes) };
++        let chunk = unsafe { read_bytes_to_u64(data, read_byte, bytes) }.to_le();
+         let mask = u64::MAX >> (64 - len);
+         let chunk = (chunk >> read_shift) & mask; // masking to read `len` bits only
+         let chunk = chunk << write_shift; // shifting back to align with `write_data`
+@@ -155,7 +155,7 @@ unsafe fn write_u64_bytes(data: &mut [u8], offset: usize, chunk: u64) {
+ #[inline]
+ unsafe fn or_write_u64_bytes(data: &mut [u8], offset: usize, chunk: u64) {
+     let ptr = data.as_mut_ptr().add(offset);
+-    let chunk = chunk | (*ptr) as u64;
++    let chunk = chunk | ((*ptr) as u64).to_le();
+     (ptr as *mut u64).write_unaligned(chunk);
+ }
+ 
+diff --git a/arrow-array/src/array/binary_array.rs b/arrow-array/src/array/binary_array.rs
+index 8f8a39b20..a479842b2 100644
+--- a/arrow-array/src/array/binary_array.rs
++++ b/arrow-array/src/array/binary_array.rs
+@@ -420,7 +420,8 @@ mod tests {
+             .unwrap();
+ 
+         let offsets = [0, 5, 8, 15].map(|n| O::from_usize(n).unwrap());
+-        let null_buffer = Buffer::from_slice_ref([0b101]);
++        // null_bit_buffer needs a little-endian format buffer
++        let null_buffer = Buffer::from_slice_ref(0b101_u32.to_le_bytes());
+         let data_type = GenericListArray::<O>::DATA_TYPE_CONSTRUCTOR(Arc::new(Field::new(
+             "item",
+             DataType::UInt8,
+diff --git a/arrow-array/src/array/byte_view_array.rs b/arrow-array/src/array/byte_view_array.rs
+index 81bb6a385..88f259dd5 100644
+--- a/arrow-array/src/array/byte_view_array.rs
++++ b/arrow-array/src/array/byte_view_array.rs
+@@ -22,7 +22,7 @@ use crate::types::bytes::ByteArrayNativeType;
+ use crate::types::{BinaryViewType, ByteViewType, StringViewType};
+ use crate::{Array, ArrayAccessor, ArrayRef, GenericByteArray, OffsetSizeTrait, Scalar};
+ use arrow_buffer::{ArrowNativeType, Buffer, NullBuffer, ScalarBuffer};
+-use arrow_data::{ArrayData, ArrayDataBuilder, ByteView};
++use arrow_data::{to_view_length, ArrayData, ArrayDataBuilder, ByteView};
+ use arrow_schema::{ArrowError, DataType};
+ use core::str;
+ use num::ToPrimitive;
+@@ -93,7 +93,7 @@ use super::ByteArrayType;
+ /// ```rust
+ /// # use arrow_array::StringViewArray;
+ /// # use arrow_array::Array;
+-/// use arrow_data::ByteView;
++/// use arrow_data::{ByteView, to_view_length, to_prefix_bytes};
+ /// let array = StringViewArray::from(vec![
+ ///   "hello",
+ ///   "this string is longer than 12 bytes",
+@@ -104,7 +104,7 @@ use super::ByteArrayType;
+ /// assert!(array.is_valid(0)); // Check for nulls
+ /// let short_view: u128 = array.views()[0]; // "hello"
+ /// // get length of the string
+-/// let len = short_view as u32;
++/// let len = to_view_length(short_view);
+ /// assert_eq!(len, 5); // strings less than 12 bytes are stored in the view
+ /// // SAFETY: `view` is a valid view
+ /// let value = unsafe {
+@@ -115,14 +115,14 @@ use super::ByteArrayType;
+ /// // ** Examine the third view (long string) **
+ /// assert!(array.is_valid(12)); // Check for nulls
+ /// let long_view: u128 = array.views()[2]; // "this string is also longer than 12 bytes"
+-/// let len = long_view as u32;
++/// let len = to_view_length(long_view);
+ /// assert_eq!(len, 40); // strings longer than 12 bytes are stored in the buffer
+ /// let view = ByteView::from(long_view); // use ByteView to access the fields
+ /// assert_eq!(view.length, 40);
+ /// assert_eq!(view.buffer_index, 0);
+ /// assert_eq!(view.offset, 35); // data starts after the first long string
+ /// // Views for long strings store a 4 byte prefix
+-/// let prefix = view.prefix.to_le_bytes();
++/// let prefix = to_prefix_bytes(view.prefix);
+ /// assert_eq!(&prefix, b"this");
+ /// let value = array.value(2); // get the string value (see `value` implementation for how to access the bytes directly)
+ /// assert_eq!(value, "this string is also longer than 12 bytes");
+@@ -311,7 +311,7 @@ impl<T: ByteViewType + ?Sized> GenericByteViewArray<T> {
+     /// of the array
+     pub unsafe fn value_unchecked(&self, idx: usize) -> &T::Native {
+         let v = self.views.get_unchecked(idx);
+-        let len = *v as u32;
++        let len = to_view_length(*v);
+         let b = if len <= 12 {
+             Self::inline_value(v, len as usize)
+         } else {
+@@ -342,7 +342,7 @@ impl<T: ByteViewType + ?Sized> GenericByteViewArray<T> {
+     /// Returns an iterator over the bytes of this array, including null values
+     pub fn bytes_iter(&self) -> impl Iterator<Item = &[u8]> {
+         self.views.iter().map(move |v| {
+-            let len = *v as u32;
++            let len = to_view_length(*v);
+             if len <= 12 {
+                 unsafe { Self::inline_value(v, len as usize) }
+             } else {
+@@ -361,7 +361,7 @@ impl<T: ByteViewType + ?Sized> GenericByteViewArray<T> {
+     /// return an empty slice (`&[]`).
+     pub fn prefix_bytes_iter(&self, prefix_len: usize) -> impl Iterator<Item = &[u8]> {
+         self.views().into_iter().map(move |v| {
+-            let len = (*v as u32) as usize;
++            let len = to_view_length(*v) as usize;
+ 
+             if len < prefix_len {
+                 return &[] as &[u8];
+@@ -391,7 +391,7 @@ impl<T: ByteViewType + ?Sized> GenericByteViewArray<T> {
+     /// return an empty slice (`&[]`).
+     pub fn suffix_bytes_iter(&self, suffix_len: usize) -> impl Iterator<Item = &[u8]> {
+         self.views().into_iter().map(move |v| {
+-            let len = (*v as u32) as usize;
++            let len = to_view_length(*v) as usize;
+ 
+             if len < suffix_len {
+                 return &[] as &[u8];
+@@ -509,10 +509,10 @@ impl<T: ByteViewType + ?Sized> GenericByteViewArray<T> {
+         right_idx: usize,
+     ) -> std::cmp::Ordering {
+         let l_view = left.views().get_unchecked(left_idx);
+-        let l_len = *l_view as u32;
++        let l_len = to_view_length(*l_view);
+ 
+         let r_view = right.views().get_unchecked(right_idx);
+-        let r_len = *r_view as u32;
++        let r_len = to_view_length(*r_view);
+ 
+         if l_len <= 12 && r_len <= 12 {
+             let l_data = unsafe { GenericByteViewArray::<T>::inline_value(l_view, l_len as usize) };
+@@ -961,10 +961,10 @@ mod tests {
+         data[11] = 1; // no zero padding
+ 
+         let mut view_buffer = [0; 16];
+-        view_buffer[0..4].copy_from_slice(&1u32.to_le_bytes());
++        view_buffer[0..4].copy_from_slice(&1u32.to_ne_bytes());
+         view_buffer[4..].copy_from_slice(&data);
+ 
+-        let view = ByteView::from(u128::from_le_bytes(view_buffer));
++        let view = ByteView::from(u128::from_ne_bytes(view_buffer));
+         let views = ScalarBuffer::from(vec![view.into()]);
+         let buffers = vec![];
+         StringViewArray::new(views, buffers, None);
+@@ -979,11 +979,11 @@ mod tests {
+         assert!(input_str_1.len() > 12);
+ 
+         let mut view_buffer = [0; 16];
+-        view_buffer[0..4].copy_from_slice(&length.to_le_bytes());
++        view_buffer[0..4].copy_from_slice(&length.to_ne_bytes());
+         view_buffer[4..8].copy_from_slice(&input_str_1.as_bytes()[0..4]);
+-        view_buffer[8..12].copy_from_slice(&0u32.to_le_bytes());
+-        view_buffer[12..].copy_from_slice(&0u32.to_le_bytes());
+-        let view = ByteView::from(u128::from_le_bytes(view_buffer));
++        view_buffer[8..12].copy_from_slice(&0u32.to_ne_bytes());
++        view_buffer[12..].copy_from_slice(&0u32.to_ne_bytes());
++        let view = ByteView::from(u128::from_ne_bytes(view_buffer));
+         let views = ScalarBuffer::from(vec![view.into()]);
+         let buffers = vec![Buffer::from_slice_ref(input_str_2.as_bytes())];
+ 
+diff --git a/arrow-array/src/array/fixed_size_binary_array.rs b/arrow-array/src/array/fixed_size_binary_array.rs
+index 8f1489ee4..7b9227435 100644
+--- a/arrow-array/src/array/fixed_size_binary_array.rs
++++ b/arrow-array/src/array/fixed_size_binary_array.rs
+@@ -727,7 +727,7 @@ mod tests {
+             .len(2)
+             .offset(1)
+             .add_child_data(values_data)
+-            .null_bit_buffer(Some(Buffer::from_slice_ref([0b101])))
++            .null_bit_buffer(Some(Buffer::from(0b101_u8.to_le_bytes())))
+             .build_unchecked()
+         };
+         let list_array = FixedSizeListArray::from(array_data);
+@@ -775,7 +775,7 @@ mod tests {
+         let values_data = ArrayData::builder(DataType::UInt8)
+             .len(12)
+             .add_buffer(Buffer::from_slice_ref(values))
+-            .null_bit_buffer(Some(Buffer::from_slice_ref([0b101010101010])))
++            .null_bit_buffer(Some(Buffer::from(0b101010101010_u16.to_le_bytes())))
+             .build()
+             .unwrap();
+ 
+diff --git a/arrow-array/src/array/primitive_array.rs b/arrow-array/src/array/primitive_array.rs
+index 7b0d6c5ca..cd8965ba7 100644
+--- a/arrow-array/src/array/primitive_array.rs
++++ b/arrow-array/src/array/primitive_array.rs
+@@ -2290,10 +2290,9 @@ mod tests {
+     fn test_decimal_array() {
+         // let val_8887: [u8; 16] = [192, 219, 180, 17, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+         // let val_neg_8887: [u8; 16] = [64, 36, 75, 238, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255];
+-        let values: [u8; 32] = [
+-            192, 219, 180, 17, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 36, 75, 238, 253, 255, 255,
+-            255, 255, 255, 255, 255, 255, 255, 255, 255,
+-        ];
++        let mut values: [u8; 32] = [0; 32];
++        values[0..16].copy_from_slice(&8_887_000_000_i128.to_ne_bytes());
++        values[16..32].copy_from_slice(&(-8_887_000_000_i128).to_ne_bytes());
+         let array_data = ArrayData::builder(DataType::Decimal128(38, 6))
+             .len(2)
+             .add_buffer(Buffer::from(&values[..]))
+diff --git a/arrow-array/src/array/string_array.rs b/arrow-array/src/array/string_array.rs
+index 25581cfaa..f04dd4e6d 100644
+--- a/arrow-array/src/array/string_array.rs
++++ b/arrow-array/src/array/string_array.rs
+@@ -387,7 +387,7 @@ mod tests {
+             .unwrap();
+ 
+         let offsets = [0, 5, 8, 15].map(|n| O::from_usize(n).unwrap());
+-        let null_buffer = Buffer::from_slice_ref([0b101]);
++        let null_buffer = Buffer::from_slice_ref(0b101_u8.to_le_bytes());
+         let data_type = GenericListArray::<O>::DATA_TYPE_CONSTRUCTOR(Arc::new(Field::new(
+             "item",
+             DataType::UInt8,
+diff --git a/arrow-array/src/builder/generic_bytes_view_builder.rs b/arrow-array/src/builder/generic_bytes_view_builder.rs
+index d12c2b7db..a69144064 100644
+--- a/arrow-array/src/builder/generic_bytes_view_builder.rs
++++ b/arrow-array/src/builder/generic_bytes_view_builder.rs
+@@ -20,7 +20,7 @@ use std::marker::PhantomData;
+ use std::sync::Arc;
+ 
+ use arrow_buffer::{Buffer, BufferBuilder, NullBufferBuilder, ScalarBuffer};
+-use arrow_data::ByteView;
++use arrow_data::{make_prefix, to_view_length, ByteView};
+ use arrow_schema::ArrowError;
+ use hashbrown::hash_table::Entry;
+ use hashbrown::HashTable;
+@@ -256,7 +256,7 @@ impl<T: ByteViewType + ?Sized> GenericByteViewBuilder<T> {
+     /// The index has to be smaller than `self.len()`, otherwise it will panic
+     pub fn get_value(&self, index: usize) -> &[u8] {
+         let view = self.views_builder.as_slice().get(index).unwrap();
+-        let len = *view as u32;
++        let len = to_view_length(*view);
+         if len <= 12 {
+             // # Safety
+             // The view is valid from the builder
+@@ -285,9 +285,9 @@ impl<T: ByteViewType + ?Sized> GenericByteViewBuilder<T> {
+         let length: u32 = v.len().try_into().unwrap();
+         if length <= 12 {
+             let mut view_buffer = [0; 16];
+-            view_buffer[0..4].copy_from_slice(&length.to_le_bytes());
++            view_buffer[0..4].copy_from_slice(&length.to_ne_bytes());
+             view_buffer[4..4 + v.len()].copy_from_slice(v);
+-            self.views_builder.append(u128::from_le_bytes(view_buffer));
++            self.views_builder.append(u128::from_ne_bytes(view_buffer));
+             self.null_buffer_builder.append_non_null();
+             return;
+         }
+@@ -337,7 +337,7 @@ impl<T: ByteViewType + ?Sized> GenericByteViewBuilder<T> {
+ 
+         let view = ByteView {
+             length,
+-            prefix: u32::from_le_bytes(v[0..4].try_into().unwrap()),
++            prefix: make_prefix(v[0..4].try_into().unwrap()),
+             buffer_index: self.completed.len() as u32,
+             offset,
+         };
+@@ -510,9 +510,9 @@ pub type BinaryViewBuilder = GenericByteViewBuilder<BinaryViewType>;
+ /// specialized code for this)
+ fn make_inlined_view<const LEN: usize>(data: &[u8]) -> u128 {
+     let mut view_buffer = [0; 16];
+-    view_buffer[0..4].copy_from_slice(&(LEN as u32).to_le_bytes());
++    view_buffer[0..4].copy_from_slice(&(LEN as u32).to_ne_bytes());
+     view_buffer[4..4 + LEN].copy_from_slice(&data[..LEN]);
+-    u128::from_le_bytes(view_buffer)
++    u128::from_ne_bytes(view_buffer)
+ }
+ 
+ /// Create a view based on the given data, block id and offset.
+@@ -544,7 +544,7 @@ pub fn make_view(data: &[u8], block_id: u32, offset: u32) -> u128 {
+         _ => {
+             let view = ByteView {
+                 length: len as u32,
+-                prefix: u32::from_le_bytes(data[0..4].try_into().unwrap()),
++                prefix: make_prefix(data[0..4].try_into().unwrap()),
+                 buffer_index: block_id,
+                 offset,
+             };
+diff --git a/arrow-array/src/trusted_len.rs b/arrow-array/src/trusted_len.rs
+index 781cad38f..ae4535b17 100644
+--- a/arrow-array/src/trusted_len.rs
++++ b/arrow-array/src/trusted_len.rs
+@@ -66,7 +66,10 @@ mod tests {
+         let vec = [Some(1u32), None];
+         let (null, buffer) = unsafe { trusted_len_unzip(vec.iter()) };
+         assert_eq!(null.as_slice(), &[0b00000001]);
++        #[cfg(target_endian = "little")]
+         assert_eq!(buffer.as_slice(), &[1u8, 0, 0, 0, 0, 0, 0, 0]);
++        #[cfg(not(target_endian = "little"))]
++        assert_eq!(buffer.as_slice(), &[0u8, 0, 0, 1, 0, 0, 0, 0]);
+     }
+ 
+     #[test]
+diff --git a/arrow-buffer/src/buffer/ops.rs b/arrow-buffer/src/buffer/ops.rs
+index c69e5c6de..d376bc2fc 100644
+--- a/arrow-buffer/src/buffer/ops.rs
++++ b/arrow-buffer/src/buffer/ops.rs
+@@ -39,7 +39,7 @@ where
+         .zip(second_chunks.iter())
+         .zip(third_chunks.iter())
+         .zip(fourth_chunks.iter())
+-        .map(|(((first, second), third), fourth)| op(first, second, third, fourth));
++        .map(|(((first, second), third), fourth)| op(first.to_le(), second.to_le(), third.to_le(), fourth.to_le()));
+     // Soundness: `BitChunks` is a `BitChunks` iterator which
+     // correctly reports its upper bound
+     let mut buffer = unsafe { MutableBuffer::from_trusted_len_iter(chunks) };
+@@ -77,7 +77,7 @@ where
+     let chunks = left_chunks
+         .iter()
+         .zip(right_chunks.iter())
+-        .map(|(left, right)| op(left, right));
++        .map(|(left, right)| op(left.to_le(), right.to_le()));
+     // Soundness: `BitChunks` is a `BitChunks` iterator which
+     // correctly reports its upper bound
+     let mut buffer = unsafe { MutableBuffer::from_trusted_len_iter(chunks) };
+@@ -113,7 +113,7 @@ where
+     result_chunks
+         .zip(left_chunks.iter())
+         .for_each(|(res, left)| {
+-            *res = op(left);
++            *res = op(left.to_le());
+         });
+ 
+     let remainder_bytes = ceil(left_chunks.remainder_len(), 8);
+diff --git a/arrow-data/src/byte_view.rs b/arrow-data/src/byte_view.rs
+index 3b3ec6246..ad6b1dcb1 100644
+--- a/arrow-data/src/byte_view.rs
++++ b/arrow-data/src/byte_view.rs
+@@ -40,18 +40,31 @@ use arrow_schema::ArrowError;
+ ///
+ /// // create the final u128
+ /// let v = view.as_u128();
+-/// assert_eq!(v, 0x2a000000037473755200000014);
++/// if cfg!(target_endian = "little") {
++///   assert_eq!(v, 0x2a000000037473755200000014);
++/// } else {
++///   assert_eq!(v, 0x1452757374000000030000002a);
++/// }
+ /// ```
+ ///
+ /// # Example: decode a `u128` into its constituent fields
+ /// ```rust
+ /// # use arrow_data::ByteView;
++/// use arrow_data::to_prefix_bytes;
+ /// // Convert a u128 to a ByteView
+ /// // See validate_{string,binary}_view functions to validate
+-/// let v = ByteView::from(0x2a000000037473755200000014);
++/// let mut v = ByteView::from(0x2a000000037473755200000014);
++/// if cfg!(not(target_endian = "little")) {
++///   v = ByteView::from(0x1452757374000000030000002a);
++/// }
+ ///
+ /// assert_eq!(v.length, 20);
+-/// assert_eq!(v.prefix, 0x74737552);
++/// if cfg!(target_endian = "little") {
++///   assert_eq!(v.prefix, 0x74737552);
++/// } else {
++///   assert_eq!(v.prefix, 0x52757374);
++/// }
++/// assert_eq!(to_prefix_bytes(v.prefix), "Rust".as_bytes());
+ /// assert_eq!(v.buffer_index, 3);
+ /// assert_eq!(v.offset, 42);
+ /// ```
+@@ -87,7 +100,7 @@ impl ByteView {
+         debug_assert!(length > 12);
+         Self {
+             length,
+-            prefix: u32::from_le_bytes(prefix.try_into().unwrap()),
++            prefix: make_prefix(prefix.try_into().unwrap()),
+             buffer_index: 0,
+             offset: 0,
+         }
+@@ -107,6 +120,7 @@ impl ByteView {
+         self
+     }
+ 
++    #[cfg(target_endian = "little")]
+     #[inline(always)]
+     /// Convert `ByteView` to `u128` by concatenating the fields
+     pub fn as_u128(self) -> u128 {
+@@ -115,9 +129,20 @@ impl ByteView {
+             | ((self.buffer_index as u128) << 64)
+             | ((self.offset as u128) << 96)
+     }
++
++    #[cfg(not(target_endian = "little"))]
++    #[inline(always)]
++    /// Convert `ByteView` to `u128` by concatenating the fields
++    pub fn as_u128(self) -> u128 {
++        ((self.length as u128) << 96)
++            | ((self.prefix as u128) << 64)
++            | ((self.buffer_index as u128) << 32)
++            | (self.offset as u128)
++    }
+ }
+ 
+ impl From<u128> for ByteView {
++    #[cfg(target_endian = "little")]
+     #[inline]
+     fn from(value: u128) -> Self {
+         Self {
+@@ -127,6 +152,17 @@ impl From<u128> for ByteView {
+             offset: (value >> 96) as u32,
+         }
+     }
++
++    #[cfg(not(target_endian = "little"))]
++    #[inline]
++    fn from(value: u128) -> Self {
++        Self {
++            length: (value >> 96) as u32,
++            prefix: (value >> 64) as u32,
++            buffer_index: (value >> 32) as u32,
++            offset: value as u32,
++        }
++    }
+ }
+ 
+ impl From<ByteView> for u128 {
+@@ -136,6 +172,34 @@ impl From<ByteView> for u128 {
+     }
+ }
+ 
++/// Turns a u128 encoded byte view or inline byte view into the length of the byte view
++#[cfg(target_endian = "little")]
++#[inline]
++pub fn to_view_length(view: u128) -> u32 {
++    view as u32
++}
++
++/// Turns a u128 encoded byte view or inline byte view into the length of the byte view
++#[cfg(not(target_endian = "little"))]
++#[inline]
++pub fn to_view_length(view: u128) -> u32 {
++    (view >> 96) as u32
++}
++
++/// Turns a u128 encoded byte view or inline byte view into the length of the byte view
++#[cfg(target_endian = "little")]
++#[inline]
++pub fn to_prefix_bytes(prefix: u32) -> [u8; 4] {
++    prefix.to_le_bytes()
++}
++
++/// Turns a u128 encoded byte view or inline byte view into the length of the byte view
++#[cfg(not(target_endian = "little"))]
++#[inline]
++pub fn to_prefix_bytes(prefix: u32) -> [u8; 4] {
++    prefix.to_be_bytes()
++}
++
+ /// Validates the combination of `views` and `buffers` is a valid BinaryView
+ pub fn validate_binary_view(views: &[u128], buffers: &[Buffer]) -> Result<(), ArrowError> {
+     validate_view_impl(views, buffers, |_, _| Ok(()))
+@@ -153,19 +217,45 @@ pub fn validate_string_view(views: &[u128], buffers: &[Buffer]) -> Result<(), Ar
+     })
+ }
+ 
++/// Create a byte view prefix value from an array of bytes
++#[cfg(target_endian = "little")]
++#[inline]
++pub fn make_prefix(p: [u8; 4]) -> u32 {
++    u32::from_le_bytes(p)
++}
++
++/// Create a byte view prefix value from an array of bytes
++#[cfg(not(target_endian = "little"))]
++#[inline]
++pub fn make_prefix(p: [u8; 4]) -> u32 {
++    u32::from_be_bytes(p)
++}
++
++#[cfg(target_endian = "little")]
++#[inline]
++fn valid_padding(v: &u128, len: u32) -> bool {
++    (v >> (32 + len * 8)) != 0
++}
++
++#[cfg(not(target_endian = "little"))]
++#[inline]
++fn valid_padding(v: &u128, len: u32) -> bool {
++    (v << (32 + len * 8)) != 0
++}
++
+ fn validate_view_impl<F>(views: &[u128], buffers: &[Buffer], f: F) -> Result<(), ArrowError>
+ where
+     F: Fn(usize, &[u8]) -> Result<(), ArrowError>,
+ {
+     for (idx, v) in views.iter().enumerate() {
+-        let len = *v as u32;
++        let len = to_view_length(*v);
+         if len <= 12 {
+-            if len < 12 && (v >> (32 + len * 8)) != 0 {
++            if len < 12 && valid_padding(v, len) {
+                 return Err(ArrowError::InvalidArgumentError(format!(
+                     "View at index {idx} contained non-zero padding for string of length {len}",
+                 )));
+             }
+-            f(idx, &v.to_le_bytes()[4..4 + len as usize])?;
++            f(idx, &v.to_ne_bytes()[4..4 + len as usize])?;
+         } else {
+             let view = ByteView::from(*v);
+             let data = buffers.get(view.buffer_index as usize).ok_or_else(|| {
+@@ -186,7 +276,7 @@ where
+                 ))
+             })?;
+ 
+-            if !b.starts_with(&view.prefix.to_le_bytes()) {
++            if !b.starts_with(&view.prefix.to_ne_bytes()) {
+                 return Err(ArrowError::InvalidArgumentError(
+                     "Mismatch between embedded prefix and data".to_string(),
+                 ));
+diff --git a/arrow-data/src/equal/byte_view.rs b/arrow-data/src/equal/byte_view.rs
+index def395125..6c22f0ec5 100644
+--- a/arrow-data/src/equal/byte_view.rs
++++ b/arrow-data/src/equal/byte_view.rs
+@@ -15,7 +15,7 @@
+ // specific language governing permissions and limitations
+ // under the License.
+ 
+-use crate::{ArrayData, ByteView};
++use crate::{to_view_length, ArrayData, ByteView};
+ 
+ pub(super) fn byte_view_equal(
+     lhs: &ArrayData,
+@@ -36,14 +36,14 @@ pub(super) fn byte_view_equal(
+             continue;
+         }
+ 
+-        let l_len_prefix = *l as u64;
+-        let r_len_prefix = *r as u64;
++        let l_len_prefix = to_view_length_and_prefix(*l);
++        let r_len_prefix = to_view_length_and_prefix(*r);
+         // short-circuit, check length and prefix
+         if l_len_prefix != r_len_prefix {
+             return false;
+         }
+ 
+-        let len = l_len_prefix as u32;
++        let len = to_view_length(*l);
+         // for inline storage, only need check view
+         if len <= 12 {
+             if l != r {
+@@ -70,5 +70,17 @@ pub(super) fn byte_view_equal(
+     true
+ }
+ 
++#[cfg(target_endian = "little")]
++#[inline]
++fn to_view_length_and_prefix(view: u128) -> u64 {
++    view as u64
++}
++
++#[cfg(target_endian = "big")]
++#[inline]
++fn to_view_length_and_prefix(view: u128) -> u64 {
++    (view >> 64) as u64
++}
++
+ #[cfg(test)]
+ mod tests {}
+diff --git a/arrow-data/src/transform/mod.rs b/arrow-data/src/transform/mod.rs
+index 93b79e6a5..3dde9ccb1 100644
+--- a/arrow-data/src/transform/mod.rs
++++ b/arrow-data/src/transform/mod.rs
+@@ -22,6 +22,7 @@
+ 
+ use super::{data::new_buffers, ArrayData, ArrayDataBuilder, ByteView};
+ use crate::bit_mask::set_bits;
++use crate::to_view_length;
+ use arrow_buffer::buffer::{BooleanBuffer, NullBuffer};
+ use arrow_buffer::{bit_util, i256, ArrowNativeType, Buffer, MutableBuffer};
+ use arrow_schema::{ArrowError, DataType, IntervalUnit, UnionMode};
+@@ -221,7 +222,7 @@ fn build_extend_view(array: &ArrayData, buffer_offset: u32) -> Extend {
+             mutable
+                 .buffer1
+                 .extend(views[start..start + len].iter().map(|v| {
+-                    let len = *v as u32;
++                    let len = to_view_length(*v);
+                     if len <= 12 {
+                         return *v; // Stored inline
+                     }
+diff --git a/arrow-ord/src/cmp.rs b/arrow-ord/src/cmp.rs
+index f571e26c4..2413922f2 100644
+--- a/arrow-ord/src/cmp.rs
++++ b/arrow-ord/src/cmp.rs
+@@ -31,6 +31,7 @@ use arrow_array::{
+ };
+ use arrow_buffer::bit_util::ceil;
+ use arrow_buffer::{BooleanBuffer, MutableBuffer, NullBuffer};
++use arrow_data::to_view_length;
+ use arrow_schema::ArrowError;
+ use arrow_select::take::take;
+ use std::ops::Not;
+@@ -272,7 +273,7 @@ fn compare_op(op: Op, lhs: &dyn Datum, rhs: &dyn Datum) -> Result<BooleanArray,
+                     let r = r.inner().bit_chunks().iter_padded();
+                     let ne = values.bit_chunks().iter_padded();
+ 
+-                    let c = |((l, r), n)| ((l ^ r) | (l & r & n));
++                    let c = |((l, r), n): ((u64, u64), u64)| ((l ^ r) | (l & r & n)).to_le();
+                     let buffer = l.zip(r).zip(ne).map(c).collect();
+                     BooleanBuffer::new(buffer, 0, len).into()
+                 }
+@@ -282,7 +283,7 @@ fn compare_op(op: Op, lhs: &dyn Datum, rhs: &dyn Datum) -> Result<BooleanArray,
+                     let r = r.inner().bit_chunks().iter_padded();
+                     let e = values.bit_chunks().iter_padded();
+ 
+-                    let c = |((l, r), e)| u64::not(l | r) | (l & r & e);
++                    let c = |((l, r), e): ((u64, u64), u64)| (u64::not(l | r) | (l & r & e)).to_le();
+                     let buffer = l.zip(r).zip(e).map(c).collect();
+                     BooleanBuffer::new(buffer, 0, len).into()
+                 }
+@@ -311,7 +312,7 @@ fn compare_op(op: Op, lhs: &dyn Datum, rhs: &dyn Datum) -> Result<BooleanArray,
+                         let values = values();
+                         let l = nulls.inner().bit_chunks().iter_padded();
+                         let ne = values.bit_chunks().iter_padded();
+-                        let c = |(l, n)| u64::not(l) | n;
++                        let c = |(l, n): (u64, u64)| (u64::not(l) | n).to_le();
+                         let buffer = l.zip(ne).map(c).collect();
+                         BooleanBuffer::new(buffer, 0, len).into()
+                     }
+@@ -569,10 +572,10 @@ impl<'a, T: ByteViewType> ArrayOrd for &'a GenericByteViewArray<T> {
+         // # Safety
+         // The index is within bounds as it is checked in value()
+         let l_view = unsafe { l.0.views().get_unchecked(l.1) };
+-        let l_len = *l_view as u32;
++        let l_len = to_view_length(*l_view);
+ 
+         let r_view = unsafe { r.0.views().get_unchecked(r.1) };
+-        let r_len = *r_view as u32;
++        let r_len = to_view_length(*r_view);
+         // This is a fast path for equality check.
+         // We don't need to look at the actual bytes to determine if they are equal.
+         if l_len != r_len {
+@@ -664,10 +667,10 @@ pub unsafe fn compare_byte_view_unchecked<T: ByteViewType>(
+     right_idx: usize,
+ ) -> std::cmp::Ordering {
+     let l_view = left.views().get_unchecked(left_idx);
+-    let l_len = *l_view as u32;
++    let l_len = to_view_length(*l_view);
+ 
+     let r_view = right.views().get_unchecked(right_idx);
+-    let r_len = *r_view as u32;
++    let r_len = to_view_length(*r_view);
+ 
+     if l_len <= 12 && r_len <= 12 {
+         let l_data = unsafe { GenericByteViewArray::<T>::inline_value(l_view, l_len as usize) };
+diff --git a/arrow-string/src/length.rs b/arrow-string/src/length.rs
+index 6a28d44ea..84d80cc59 100644
+--- a/arrow-string/src/length.rs
++++ b/arrow-string/src/length.rs
+@@ -20,6 +20,7 @@
+ use arrow_array::*;
+ use arrow_array::{cast::AsArray, types::*};
+ use arrow_buffer::{ArrowNativeType, NullBuffer, OffsetBuffer};
++use arrow_data::to_view_length;
+ use arrow_schema::{ArrowError, DataType};
+ use std::sync::Arc;
+ 
+@@ -77,7 +78,7 @@ pub fn length(array: &dyn Array) -> Result<ArrayRef, ArrowError> {
+         }
+         DataType::Utf8View => {
+             let list = array.as_string_view();
+-            let v = list.views().iter().map(|v| *v as i32).collect::<Vec<_>>();
++            let v = list.views().iter().map(|v| to_view_length(*v) as i32).collect::<Vec<_>>();
+             Ok(Arc::new(PrimitiveArray::<Int32Type>::new(
+                 v.into(),
+                 list.nulls().cloned(),
+@@ -96,7 +97,7 @@ pub fn length(array: &dyn Array) -> Result<ArrayRef, ArrowError> {
+         )),
+         DataType::BinaryView => {
+             let list = array.as_binary_view();
+-            let v = list.views().iter().map(|v| *v as i32).collect::<Vec<_>>();
++            let v = list.views().iter().map(|v| to_view_length(*v) as i32).collect::<Vec<_>>();
+             Ok(Arc::new(PrimitiveArray::<Int32Type>::new(
+                 v.into(),
+                 list.nulls().cloned(),
+@@ -142,7 +143,7 @@ pub fn bit_length(array: &dyn Array) -> Result<ArrayRef, ArrowError> {
+             let values = list
+                 .views()
+                 .iter()
+-                .map(|view| (*view as i32).wrapping_mul(8))
++                .map(|view| (to_view_length(*view) as i32).wrapping_mul(8))
+                 .collect();
+             Ok(Arc::new(Int32Array::new(values, array.nulls().cloned())))
+         }
+diff --git a/parquet/src/arrow/array_reader/byte_view_array.rs b/parquet/src/arrow/array_reader/byte_view_array.rs
+index 5845e2c08..20c11695f 100644
+--- a/parquet/src/arrow/array_reader/byte_view_array.rs
++++ b/parquet/src/arrow/array_reader/byte_view_array.rs
+@@ -29,7 +29,7 @@ use crate::errors::{ParquetError, Result};
+ use crate::schema::types::ColumnDescPtr;
+ use arrow_array::{builder::make_view, ArrayRef};
+ use arrow_buffer::Buffer;
+-use arrow_data::ByteView;
++use arrow_data::{to_view_length, ByteView};
+ use arrow_schema::DataType as ArrowType;
+ use bytes::Bytes;
+ use std::any::Any;
+@@ -469,7 +469,7 @@ impl ByteViewArrayDecoderDictionary {
+                     .views
+                     .get(*k as usize)
+                     .ok_or_else(|| general_err!("invalid key={} for dictionary", *k))?;
+-                let len = *view as u32;
++                let len = to_view_length(*view);
+                 if len <= 12 {
+                     // directly append the view if it is inlined
+                     // Safety: the view is from the dictionary, so it is valid
