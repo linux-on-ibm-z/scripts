@@ -1,0 +1,167 @@
+diff --git a/boringssl-static/pom.xml b/boringssl-static/pom.xml
+index f238afa..11ee61e 100644
+--- a/boringssl-static/pom.xml
++++ b/boringssl-static/pom.xml
+@@ -84,15 +84,15 @@
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+     <boringsslHome>${boringsslSourceDir}/build</boringsslHome>
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+-    <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
++    <boringsslRepository>https://github.com/linux-on-ibm-z/boringssl</boringsslRepository>
+     <linkStatic>true</linkStatic>
+     <compileLibrary>true</compileLibrary>
+     <msvcSslIncludeDirs>${boringsslSourceDir}/include</msvcSslIncludeDirs>
+-    <msvcSslLibDirs>${boringsslHome}</msvcSslLibDirs>
++    <msvcSslLibDirs>${boringsslHome}/ssl;${boringsslHome}/crypto</msvcSslLibDirs>
+     <msvcSslLibs>ssl.lib;crypto.lib</msvcSslLibs>
+     <cflags>-Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3</cflags>
+     <cppflags>-DHAVE_OPENSSL -I${boringsslSourceDir}/include</cppflags>
+-    <ldflags>-L${boringsslHome} -lssl -lcrypto</ldflags>
++    <ldflags>-L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto</ldflags>
+     <skipJapicmp>true</skipJapicmp>
+     <!-- We need to use the same module name for all our "native" impls as only one should be loaded -->
+     <javaModuleName>${javaDefaultModuleName}</javaModuleName>
+@@ -121,8 +121,8 @@
+         <boringsslBranch>853ca1ea1168dff08011e5d42d94609cc0ca2e27</boringsslBranch>
+         <linkStatic>true</linkStatic>
+         <msvcSslIncludeDirs>${boringsslCheckoutDir}/include</msvcSslIncludeDirs>
+-        <msvcSslLibDirs>${boringsslBuildDir}</msvcSslLibDirs>
+-        <msvcSslLibs>ssl.lib;crypto.lib</msvcSslLibs>
++        <msvcSslLibDirs>${boringsslBuildDir}/ssl;${boringsslBuildDir}/crypto;${boringsslBuildDir}/decrepit</msvcSslLibDirs>
++        <msvcSslLibs>ssl.lib;crypto.lib;decrepit.lib</msvcSslLibs>
+         <jniArch>${os.detected.arch}</jniArch>
+       </properties>
+ 
+@@ -376,7 +376,7 @@
+                     <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+                     <configureArg>CFLAGS=-O3 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value</configureArg>
+                     <configureArg>CPPFLAGS=-DHAVE_OPENSSL -I${boringsslCheckoutDir}/include</configureArg>
+-                    <configureArg>LDFLAGS=-L${boringsslBuildDir} -lssl -lcrypto</configureArg>
++                    <configureArg>LDFLAGS=-L${boringsslBuildDir}/ssl -L${boringsslBuildDir}/crypto -L${boringsslBuildDir}/decrepit -ldecrepit -lssl -lcrypto</configureArg>
+                   </configureArgs>
+                 </configuration>
+               </execution>
+@@ -579,7 +579,7 @@
+                     <if>
+                       <equals arg1="${os.detected.name}" arg2="linux" />
+                       <then>
+-                        <property name="hawtjniLdflags" value="-L${boringsslHome} -lssl -lcrypto -static-libstdc++ -l:libstdc++.a" />
++                        <property name="hawtjniLdflags" value="-L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto -static-libstdc++ -l:libstdc++.a" />
+                       </then>
+                       <else>
+                         <property name="hawtjniLdflags" value="${ldflags}" />
+@@ -702,7 +702,7 @@
+         <boringsslHome>${boringsslSourceDir}/build</boringsslHome>
+         <linkStatic>true</linkStatic>
+         <msvcSslIncludeDirs>${boringsslSourceDir}/include</msvcSslIncludeDirs>
+-        <msvcSslLibDirs>${boringsslHome}</msvcSslLibDirs>
++        <msvcSslLibDirs>${boringsslHome}/ssl;${boringsslHome}/crypto</msvcSslLibDirs>
+         <msvcSslLibs>ssl.lib;crypto.lib</msvcSslLibs>
+         <!-- use aarch_64 as this is also what os.detected.arch will use on an aarch64 system -->
+         <nativeJarFile>${project.build.directory}/${project.build.finalName}-${os.detected.name}-aarch_64.jar</nativeJarFile>
+@@ -1014,7 +1014,7 @@
+                     <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+                     <configureArg>CFLAGS=-O3 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value</configureArg>
+                     <configureArg>CPPFLAGS=-DHAVE_OPENSSL -I${boringsslSourceDir}/include</configureArg>
+-                    <configureArg>LDFLAGS=-L${boringsslHome} -lssl -lcrypto -static-libstdc++ -l:libstdc++.a</configureArg>
++                    <configureArg>LDFLAGS=-L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto -static-libstdc++ -l:libstdc++.a</configureArg>
+                     <configureArg>--host=aarch64-linux-gnu</configureArg>
+                     <configureArg>CC=aarch64-none-linux-gnu-gcc</configureArg>
+                   </configureArgs>
+@@ -1464,7 +1464,7 @@
+         <cmakeCxxFlags>-O3 -fno-omit-frame-pointer -target ${target} -Wno-error=range-loop-analysis</cmakeCxxFlags>
+         <cflags>-target ${target} -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3</cflags>
+         <cppflags>-target ${target} -DHAVE_OPENSSL -I${boringsslSourceDir}/include</cppflags>
+-        <ldflags>-arch x86_64 -L${boringsslHome} -lssl -lcrypto</ldflags>
++        <ldflags>-arch x86_64 -L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto</ldflags>
+         <!-- use aarch_64 as this is also what os.detected.arch will use on an aarch64 system -->
+         <nativeJarFile>${project.build.directory}/${project.build.finalName}-${os.detected.name}-x86_64.jar</nativeJarFile>
+         <nativeLibOsParts>${os.detected.name}_x86_64</nativeLibOsParts>
+diff --git a/openssl-dynamic/src/main/c/boringssl_compat.h b/openssl-dynamic/src/main/c/boringssl_compat.h
+new file mode 100644
+index 0000000..8079be7
+--- /dev/null
++++ b/openssl-dynamic/src/main/c/boringssl_compat.h
+@@ -0,0 +1,39 @@
++#ifndef NETTY_TCNATIVE_BORINGSSL_COMPAT_H
++#define NETTY_TCNATIVE_BORINGSSL_COMPAT_H
++
++#include <openssl/ssl.h>
++#include <openssl/x509.h>
++
++// ---------------------------------------------------------------------
++// Compatibility shims for older BoringSSL versions (no SSL_CREDENTIAL)
++// ---------------------------------------------------------------------
++
++#ifndef SSL_CREDENTIAL
++typedef struct ssl_credential_st {
++    int unused;
++} SSL_CREDENTIAL;
++#endif
++
++// Accept CRYPTO_BUFFER* (or any pointer) to silence incompatible type errors
++#ifndef SSL_CREDENTIAL_set1_certificate_properties
++static inline int SSL_CREDENTIAL_set1_certificate_properties(SSL_CREDENTIAL *c, void *props) {
++    (void)c; (void)props;
++    return 1; // no-op
++}
++#endif
++
++#ifndef SSL_CREDENTIAL_set_must_match_issuer
++static inline void SSL_CREDENTIAL_set_must_match_issuer(SSL_CREDENTIAL *c, int must_match) {
++    (void)c; (void)must_match;
++}
++#endif
++
++#ifndef SSL_CREDENTIAL_set1_trust_anchor_id
++static inline int SSL_CREDENTIAL_set1_trust_anchor_id(SSL_CREDENTIAL *c, const uint8_t *id, size_t len) {
++    (void)c; (void)id; (void)len;
++    return 1; // no-op
++}
++#endif
++
++#endif // NETTY_TCNATIVE_BORINGSSL_COMPAT_H
++
+diff --git a/openssl-dynamic/src/main/c/sslcontext.c b/openssl-dynamic/src/main/c/sslcontext.c
+index e81d6d5..9b9be54 100644
+--- a/openssl-dynamic/src/main/c/sslcontext.c
++++ b/openssl-dynamic/src/main/c/sslcontext.c
+@@ -30,6 +30,7 @@
+  */
+ 
+ #include "tcn.h"
++#include "boringssl_compat.h"
+ 
+ #include "apr_thread_rwlock.h"
+ #include "apr_atomic.h"
+diff --git a/openssl-dynamic/src/main/c/sslcredential.c b/openssl-dynamic/src/main/c/sslcredential.c
+index 18181bd..af1af47 100644
+--- a/openssl-dynamic/src/main/c/sslcredential.c
++++ b/openssl-dynamic/src/main/c/sslcredential.c
+@@ -22,7 +22,7 @@
+ #include <openssl/x509.h>
+ #include <openssl/err.h>
+ 
+-
++#include "boringssl_compat.h"
+ #include "tcn.h"
+ #include "ssl_private.h"
+ #include "sslcredential.h"
+diff --git a/pom.xml b/pom.xml
+index 7b908ee..4bcb939 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -93,11 +93,11 @@
+     <nativeLibOsParts>${os.detected.name}_${os.detected.arch}</nativeLibOsParts>
+     <aprVersion>1.7.5</aprVersion>
+     <aprSha256>3375fa365d67bcf945e52b52cba07abea57ef530f40b281ffbe977a9251361db</aprSha256>
+-    <boringsslBranch>main</boringsslBranch>
++    <boringsslBranch>patch-s390x-Sep2024</boringsslBranch>
+     <!--
+       See https://boringssl.googlesource.com/boringssl/+/refs/heads/main for the latest commit
+     -->
+-    <boringsslCommitSha>cccf8525db8a57153d3cb3e22efed2db4b71a8ab</boringsslCommitSha>
++    <boringsslCommitSha>d40d43c5e00d8adfbaa88d5cf521d52f0549464c</boringsslCommitSha>
+     <libresslVersion>3.4.3</libresslVersion>
+     <!--
+       See https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/SHA256 for the SHA256 signature
