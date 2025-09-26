@@ -111,9 +111,9 @@ function runTest() {
         cd $SOURCE_ROOT/pgvector
         if [[ "$DISTRO" == ubuntu-* ]]; then
 		    sudo service postgresql start
-                    sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'postgres';"
-                    sudo -u postgres psql -c "ALTER USER postgres WITH SUPERUSER;"
-                    sudo -u postgres psql -c " CREATE DATABASE postgres OWNER postgres;"
+                    sudo -u postgres psql -c "CREATE USER test WITH PASSWORD 'test';"
+                    sudo -u postgres psql -c "ALTER USER test WITH SUPERUSER;"
+                    sudo -u postgres psql -c " CREATE DATABASE test OWNER test;"
                     sudo service postgresql restart
                     sudo service postgresql status
 		    make installcheck
@@ -122,9 +122,9 @@ function runTest() {
 		    mkdir -p ~/pgdata
                     initdb -D ~/pgdata
                     pg_ctl -D ~/pgdata -l logfile -o "-k /tmp" start
-                    psql -h /tmp -d postgres -c "CREATE USER postgres WITH PASSWORD 'postgres';"
-                    psql -h /tmp -U postgres -d postgres -c "ALTER USER postgres WITH SUPERUSER;"
-                    psql -h /tmp -U postgres -d postgres -c "CREATE DATABASE postgres OWNER postgres;"
+                    psql -h /tmp -d postgres -c "CREATE USER test WITH PASSWORD 'test';"
+                    psql -h /tmp -U postgres -d postgres -c "ALTER USER test WITH SUPERUSER;"
+                    psql -h /tmp -U postgres -d postgres -c "CREATE DATABASE test OWNER test;"
                     pg_ctl -D ~/pgdata restart
                     pg_ctl -D ~/pgdata status 
 		    export PGHOST=/tmp  
