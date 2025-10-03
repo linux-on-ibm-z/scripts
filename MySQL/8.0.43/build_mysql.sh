@@ -152,14 +152,6 @@ DISTRO="$ID-$VERSION_ID"
 rm -rf ${BUILD_ENV}
 
 case "$DISTRO" in
-"rhel-8.10")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y curl wget bison bzip2 git hostname ncurses-devel openssl-devel pkgconfig tar procps zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils net-tools |& tee -a "$LOG_FILE"
-    source /opt/rh/gcc-toolset-12/enable
-
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
 "sles-15.6")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
