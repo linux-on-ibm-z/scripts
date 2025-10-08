@@ -202,7 +202,7 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
         sudo yum install -y curl wget bison bzip2 gcc gcc-c++ git hostname ncurses-devel openssl openssl-devel pkgconfig tar procps wget zlib-devel \
         doxygen cmake diffutils rpcgen make libtirpc-devel libarchive net-tools \
-        gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils gcc-toolset-14-annobin-plugin-gcc \
+        gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils gcc-toolset-13-annobin-plugin-gcc \
         cpan perl-JSON perl-Memoize psmisc zip mecab-ipadic |& tee -a "$LOG_FILE"
     sudo PERL_MM_USE_DEFAULT=1 cpan Expect |& tee -a "$LOG_FILE"
     sudo yum install -y xz python2 python2-pyyaml |& tee -a "$LOG_FILE" # for Duktape
