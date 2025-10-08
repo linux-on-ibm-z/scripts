@@ -150,7 +150,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.04")
+"ubuntu-22.04" | "ubuntu-24.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
 	sudo apt-get update >/dev/null

@@ -460,19 +460,6 @@ EOF
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
-"ubuntu-25.04")
-  printf -- "Installing %s %s for %s (MySQL backend) \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  printf -- 'Installing the dependencies for Zabbix server with MySQL backend from repository \n' |& tee -a "$LOG_FILE"
-  sudo apt-get update >/dev/null
-  sudo DEBIAN_FRONTEND=noninteractive apt-get -y install wget curl vim gcc make pkg-config snmp snmptrapd ceph locales \
-      default-libmysqlclient-dev libxml2-dev libsnmp-dev libcurl4 libcurl4-openssl-dev git apache2 php php-mysql \
-      libapache2-mod-php mysql-server php8.4-xml php8.4-gd php-bcmath php-mbstring php8.4-ldap libevent-dev libpcre3-dev \
-      libpcre2-dev automake pkg-config libcmocka-dev unixodbc-dev libyaml-dev libyaml-libyaml-perl libpath-tiny-perl \
-      libipc-run3-perl build-essential |& tee -a "$LOG_FILE"
-
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-
 *)
   printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
   exit 1
