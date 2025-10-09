@@ -204,12 +204,12 @@ fi
         # Build netty-tcnative
         cd $SOURCE_ROOT
         git clone -b netty-tcnative-parent-${PACKAGE_VERSION}.Final https://github.com/netty/netty-tcnative.git
-        cd netty-tcnative
         cd $SOURCE_ROOT/netty-tcnative
-        printf -- "\nApplying  patch . . . \n"
+        
+	printf -- "\nApplying  patch . . . \n"
         # Apply patch
 	wget -O boringssl-compat.patch https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/netty-tcnative/2.0.73/patch/boringssl-compat.patch
-        patch -p1 < $SOURCE_ROOT/boringssl-compat.patch       
+	patch -p1 < $SOURCE_ROOT/netty-tcnative/boringssl-compat.patch       
         ./mvnw clean install
 #Cleanup
 printf -- "\n Installation of netty was successfull \n\n"
