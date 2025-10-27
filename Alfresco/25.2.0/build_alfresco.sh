@@ -360,6 +360,8 @@ function configureAndInstall() {
     cd "$SOURCE_ROOT"
     git clone --depth 1 -b "${CONTENT_APP_VERSION}" https://github.com/Alfresco/alfresco-content-app.git
     cd alfresco-content-app/
+    sed -i "s/node:18.16-alpine3.17/node:22.14.0-alpine/g" Dockerfile
+    sed -i "/RUN mkdir -p/ i RUN yarn config set network-timeout 600000 && yarn config set registry https:\/\/registry.npmjs.org\/" Dockerfile
     docker run --rm -it --platform=linux/amd64 \
         --mount type=bind,source="${SOURCE_ROOT}",target=/src \
         amd64/node:20 \
