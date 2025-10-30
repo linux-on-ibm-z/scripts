@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2024.
+# © Copyright IBM Corporation 2024, 2025.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -82,7 +82,7 @@ function configureAndInstall() {
 	cd "${SOURCE_ROOT}"
 	
 	# Install gcc11 for rhel-8.x
-	if [[ "${DISTRO}" == "rhel-8.8" ]] || [[ "${DISTRO}" == "rhel-8.10" ]]; then
+	if [[ "${DISTRO}" == "rhel-8.10" ]]; then
 		yum install -y gcc-toolset-11-gcc-c++
 		source /opt/rh/gcc-toolset-11/enable
 	fi
@@ -101,7 +101,7 @@ function configureAndInstall() {
   
         # Apply patches
 	cd "${SOURCE_ROOT}/glusterfs"
-	if [[ "${DISTRO}" == "rhel-9.2" ]] || [[ "${DISTRO}" == "rhel-9.4" ]] || [[ "${DISTRO}" == "rhel-9.5" ]]; then
+	if [[ "${DISTRO}" == "rhel-9.4" ]] || [[ "${DISTRO}" == "rhel-9.6" ]]; then
 		curl -sSL $PATCH_URL/GFS_RH9.patch | git apply
 		printf -- '\n---Patches are applied-----\n'
 	fi
@@ -159,7 +159,7 @@ function runTest() {
 			echo "Running Tests: "
 
 			case "$DISTRO" in			
-			"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+			"rhel-8.10" | "rhel-9.4" | "rhel-9.6")
 				yum install -y dbench perl-Test-Harness yajl net-tools psmisc nfs-utils xfsprogs attr procps-ng gdb python3
 				pip3 install prettytable
 				;;
@@ -212,7 +212,6 @@ function runTest() {
 			fi
 			
 			if [[ "${DISTRO}" == "rhel-9."* ]]; then
-				curl -sSL $PATCH_URL/test_RH9.patch | git apply
 				ln -s /usr/local/lib/libgfchangelog.so.0 /lib64/libgfchangelog.so
 				ldconfig /usr/local/lib
 				ldconfig /usr/local/lib64
@@ -289,14 +288,14 @@ export LD_RUN_PATH
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10")
+"rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	yum install -y autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces  readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-9.4" | "rhel-9.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	yum install -y curl autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces  readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel iproute

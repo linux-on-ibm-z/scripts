@@ -11,3 +11,44 @@ index 9c1bd86a5c..686ea84d9a 100644
 
  ##Creating secret pem pub file
  TEST gluster-georep-sshkey generate
+diff --git a/configure.ac b/configure.ac
+index 7c4894cf2d..049d5a93fe 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1315,8 +1315,8 @@ if test "x$ac_cv_file__etc_os_release" = "xyes"; then
+    AC_CANONICAL_HOST
+ 
+    if test "x${host_cpu}" = "xs390x" || test "x${host_cpu}" = "xs390" ; then
+-      if grep "Red Hat Enterprise Linux 8\|SUSE Linux Enterprise Server 15" /etc/os-release ; then
+-         AC_DEFINE(REDHAT8_OR_SLES15_ON_S390X, 1, [Red Hat 8 or SLES 15 on s390x])
++      if grep "Red Hat Enterprise Linux 8\|Red Hat Enterprise Linux 9\|SUSE Linux Enterprise Server 15" /etc/os-release ; then
++         AC_DEFINE(REDHAT8_OR_REDHAT9_OR_SLES15_ON_S390X, 1, [Red Hat 8,9 or SLES 15 on s390x])
+       fi
+    fi
+ fi
+diff --git a/xlators/nfs/server/src/nfs.c b/xlators/nfs/server/src/nfs.c
+index 3033d4b5b8..82c34cdd6d 100644
+--- a/xlators/nfs/server/src/nfs.c
++++ b/xlators/nfs/server/src/nfs.c
+@@ -1679,7 +1679,7 @@ nfs_start_rpc_poller(struct nfs_state *state)
+  *     all registered services, from any thread.
+  */
+ #ifdef HAVE_LIBTIRPC
+-#ifdef REDHAT8_OR_SLES15_ON_S390X
++#ifdef REDHAT8_OR_REDHAT9_OR_SLES15_ON_S390X
+     if (uatomic_xchg(&state->svc_running, 1)) {
+         return;
+     }
+diff --git a/xlators/nfs/server/src/nfs.h b/xlators/nfs/server/src/nfs.h
+index 53c9f2f6ec..e2c92ad352 100644
+--- a/xlators/nfs/server/src/nfs.h
++++ b/xlators/nfs/server/src/nfs.h
+@@ -103,7 +103,7 @@ struct nfs_state {
+     gf_boolean_t rdirplus;
+ 
+ #ifdef HAVE_LIBTIRPC
+-#ifdef REDHAT8_OR_SLES15_ON_S390X
++#ifdef REDHAT8_OR_REDHAT9_OR_SLES15_ON_S390X
+     int svc_running;
+ #else
+     bool svc_running;
