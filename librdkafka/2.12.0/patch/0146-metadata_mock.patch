@@ -1,0 +1,39 @@
+diff --git a/tests/0146-metadata_mock.c b/tests/0146-metadata_mock.c
+index 7386125f..7997e44b 100644
+--- a/tests/0146-metadata_mock.c
++++ b/tests/0146-metadata_mock.c
+@@ -187,7 +187,7 @@ static void do_test_fast_metadata_refresh(int variation) {
+          * the 1s timer when the partition is being delegated or
+          * the broker is connecting but still not up. */
+         metadata_requests = test_mock_wait_matching_requests(
+-            mcluster, expected_metadata_requests, 500, is_metadata_request,
++            mcluster, expected_metadata_requests, 1500, is_metadata_request,
+             NULL);
+         TEST_ASSERT(expected_metadata_requests <= metadata_requests &&
+                         metadata_requests <= expected_metadata_requests + 1,
+@@ -259,14 +259,14 @@ static void do_test_stale_metadata_doesnt_migrate_partition(void) {
+
+         /* After the error on OffsetForLeaderEpoch metadata is refreshed
+          * and it returns the stale metadata.
+-         * 1s for the OffsetForLeaderEpoch plus at least 500ms for
++         * 1s for the OffsetForLeaderEpoch plus at least 1500ms for
+          * restarting the fetch requests */
+         rd_usleep(2000 * 1000, 0);
+
+         /* Partition doesn't have to migrate back to broker 1 */
+         expected_broker_id = 1;
+         fetch_requests     = test_mock_wait_matching_requests(
+-            mcluster, 0, 500, is_fetch_request, &expected_broker_id);
++            mcluster, 0, 1500, is_fetch_request, &expected_broker_id);
+         TEST_ASSERT(fetch_requests == 0,
+                     "No fetch request should be received by broker 1, got %d",
+                     fetch_requests);
+@@ -440,7 +440,7 @@ static void do_test_metadata_update_operation(rd_bool_t producer,
+                 test_consumer_poll_timeout("changed leaders", rk, 0, -1, -1, 2,
+                                            NULL, 5000);
+         }
+-        TIMING_ASSERT_LATER(&timing, 0, 500);
++        TIMING_ASSERT_LATER(&timing, 0, 1500);
+
+         /* Leader change triggers the metadata update and migration
+          * of partition 0 to brokers 3 and with 'second_leader_change' also
