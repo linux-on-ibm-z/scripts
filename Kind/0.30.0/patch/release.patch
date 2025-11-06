@@ -1,0 +1,28 @@
+diff --git a/images/build/cross/Makefile b/images/build/cross/Makefile
+index f6124678..31662937 100644
+--- a/images/build/cross/Makefile
++++ b/images/build/cross/Makefile
+@@ -27,10 +27,10 @@ IMGNAME = kube-cross
+ # Example:
+ # - v1.100.0-go1.17-bullseye.0 satisfies SemVer regex, while:
+ # - v1.100-go1.17-bullseye.0 does not
+-KUBERNETES_VERSION ?= v1.32.0
+-GO_VERSION ?= 1.23.6
+-GO_MAJOR_VERSION ?= 1.23
+-OS_CODENAME ?= bullseye
++KUBERNETES_VERSION ?= v1.33.1
++GO_VERSION ?= 1.24.2
++GO_MAJOR_VERSION ?= 1.24
++OS_CODENAME ?= bookworm
+ REVISION ?= 0
+ TYPE ?= default
+
+@@ -53,7 +53,7 @@ export DOCKER_CLI_EXPERIMENTAL=enabled
+ # TODO: Support multi-arch kube-cross images for linux/arm
+ #       Currently some of the components references in the Dockerfile are
+ #       not supported in specific architectures
+-PLATFORMS ?= linux/amd64 linux/arm64 #linux/arm
++PLATFORMS ?= linux/s390x
+
+ # for legacy images only build linux/amd64
+ ifeq ($(TYPE), legacy)
