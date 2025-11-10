@@ -17,7 +17,7 @@ index e20f65b81..c5a949569 100644
  
 +.PHONY: image-s390x
 +image-s390x: build
-+       $(DOCKER) build \
++	$(DOCKER) build \
 +               -t $(DOCKER_IMAGE):$(VERSION) \
 +               --build-arg BASE=gcr.io/distroless/cc \
 +               --platform linux/s390x \
@@ -25,8 +25,8 @@ index e20f65b81..c5a949569 100644
 +
 +.PHONY: image-s390x-static
 +image-s390x-static:
-+       @$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0 BIN=opa_linux_s390x_static
-+       $(DOCKER) build \
++	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0 BIN=opa_linux_s390x_static
++	$(DOCKER) build \
 +               -t $(DOCKER_IMAGE):$(VERSION) \
 +               --build-arg BASE=gcr.io/distroless/cc \
 +               --build-arg BIN_SUFFIX=_static \
