@@ -1,0 +1,428 @@
+diff --git a/kbn_pm/src/commands/bootstrap/yarn.mjs b/kbn_pm/src/commands/bootstrap/yarn.mjs
+index bd468b613f9..e5452e7432d 100644
+--- a/kbn_pm/src/commands/bootstrap/yarn.mjs
++++ b/kbn_pm/src/commands/bootstrap/yarn.mjs
+@@ -48,14 +48,16 @@ export async function yarnInstallDeps(log, { offline, quiet }) {
+   await run('yarn', args, { cwd: process.cwd(), pipe: !quiet });
+   log.success('yarn dependencies installed');
+ 
+-  await run('yarn', ['playwright', 'install'], {
+-    cwd: process.cwd(),
+-    pipe: false,
+-    env: {
+-      PLAYWRIGHT_SKIP_BROWSER_GC: '1',
+-    },
+-  });
+-  log.success('Playwright browsers installed');
++  if (!process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD) {
++    await run('yarn', ['playwright', 'install'], {
++      cwd: process.cwd(),
++      pipe: false,
++      env: {
++        PLAYWRIGHT_SKIP_BROWSER_GC: '1',
++      },
++    });
++    log.success('Playwright browsers installed');
++  }
+ }
+ 
+ /**
+diff --git a/package.json b/package.json
+index 171215810ad..b12972f87de 100644
+--- a/package.json
++++ b/package.json
+@@ -89,10 +89,11 @@
+     "**/isomorphic-fetch/node-fetch": "^2.6.7",
+     "**/langchain": "^0.3.15",
+     "**/remark-parse/trim": "1.0.1",
+-    "**/sharp": "0.32.6",
++    "**/sharp": "0.33.5",
+     "**/typescript": "5.4.5",
+     "**/util": "^0.12.5",
+     "**/yauzl": "^3.2.0",
++    "**/ordered-binary": "1.6.0",
+     "@aws-sdk/client-bedrock-agent-runtime": "^3.744.0",
+     "@aws-sdk/client-bedrock-runtime": "^3.744.0",
+     "@aws-sdk/client-kendra": "3.744.0",
+@@ -1861,7 +1862,7 @@
+     "license-checker": "^25.0.1",
+     "lighthouse": "^12.6.1",
+     "listr2": "^8.2.5",
+-    "lmdb": "^3.4.0",
++    "lmdb": "^3.4.2",
+     "marge": "^1.0.1",
+     "micromatch": "^4.0.8",
+     "mini-css-extract-plugin": "2.9.1",
+@@ -1901,10 +1902,10 @@
+     "regenerate": "^1.4.0",
+     "resolve": "^1.22.0",
+     "rxjs-marbles": "^7.0.1",
+-    "sass-embedded": "^1.79.6",
++    "sass": "^1.79.6",
+     "sass-loader": "^10.5.2",
+     "selenium-webdriver": "^4.35.0",
+-    "sharp": "0.32.6",
++    "sharp": "0.33.5",
+     "simple-git": "^3.27.0",
+     "sinon": "^19.0.2",
+     "sort-package-json": "^3.2.1",
+diff --git a/packages/kbn-optimizer/src/worker/webpack.config.ts b/packages/kbn-optimizer/src/worker/webpack.config.ts
+index bb1fd7831cd..9485d6e20bf 100644
+--- a/packages/kbn-optimizer/src/worker/webpack.config.ts
++++ b/packages/kbn-optimizer/src/worker/webpack.config.ts
+@@ -218,7 +218,7 @@ export function getWebpackConfig(
+                       );
+                       return `@import ${req};\n${content}`;
+                     },
+-                    implementation: require('sass-embedded'),
++                    implementation: require('sass'),
+                     sassOptions: {
+                       outputStyle: worker.dist ? 'compressed' : 'expanded',
+                       includePaths: [Path.resolve(worker.repoRoot, 'node_modules')],
+diff --git a/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts b/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts
+index 1105d39fdcb..0b6dee501a5 100644
+--- a/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts
++++ b/packages/kbn-plugin-helpers/src/integration_tests/build.test.ts
+@@ -48,6 +48,8 @@ it('builds a generated plugin into a viable archive', async () => {
+     return logs
+       ?.split('\n')
+       .filter((l) => !l.includes('failed to reach ci-stats service'))
++      // Skip warnings from @kbn/optimizer stderr
++      .filter((l) => !l.startsWith(' │ERROR'))
+       .join('\n');
+   };
+ 
+diff --git a/packages/kbn-plugin-helpers/src/tasks/optimize.ts b/packages/kbn-plugin-helpers/src/tasks/optimize.ts
+index cdb622438be..bc56c693638 100644
+--- a/packages/kbn-plugin-helpers/src/tasks/optimize.ts
++++ b/packages/kbn-plugin-helpers/src/tasks/optimize.ts
+@@ -83,7 +83,9 @@ export async function optimize({
+     const simpleOrWatchObservable = watch
+       ? eventObservable
+       : eventObservable.pipe(
+-          Rx.take(1),
++          // on s390x, webpack generates warnings on stderr so only
++          // complete when we get a message event.
++          Rx.takeWhile(e => e.type !== 'message', true),
+           Rx.tap({
+             complete() {
+               proc.kill('SIGKILL');
+diff --git a/renovate.json b/renovate.json
+index 520b0e25325..8dfe39bb426 100644
+--- a/renovate.json
++++ b/renovate.json
+@@ -3557,7 +3557,7 @@
+     {
+       "groupName": "scss",
+       "matchDepNames": [
+-        "sass-embedded"
++        "sass"
+       ],
+       "reviewers": [
+         "team:kibana-operations"
+diff --git a/src/dev/build/lib/platform.ts b/src/dev/build/lib/platform.ts
+index f1506eedd28..c5d4c390a4c 100644
+--- a/src/dev/build/lib/platform.ts
++++ b/src/dev/build/lib/platform.ts
+@@ -8,7 +8,7 @@
+  */
+ 
+ export type PlatformName = 'win32' | 'darwin' | 'linux';
+-export type PlatformArchitecture = 'x64' | 'arm64';
++export type PlatformArchitecture = 'x64' | 'arm64' | 's390x';
+ export type Variant = 'serverless' | null;
+ 
+ export class Platform {
+@@ -59,6 +59,7 @@ export class Platform {
+ export const DOWNLOAD_PLATFORMS = [
+   new Platform('linux', 'x64', 'linux-x86_64', null),
+   new Platform('linux', 'arm64', 'linux-aarch64', null),
++  new Platform('linux', 's390x', 'linux-s390x', null),
+   new Platform('darwin', 'x64', 'darwin-x86_64', null),
+   new Platform('darwin', 'arm64', 'darwin-aarch64', null),
+   new Platform('win32', 'x64', 'windows-x86_64', null),
+diff --git a/src/dev/build/tasks/nodejs/node_download_info.ts b/src/dev/build/tasks/nodejs/node_download_info.ts
+index d97b7e6d428..9c2a3feb62e 100644
+--- a/src/dev/build/tasks/nodejs/node_download_info.ts
++++ b/src/dev/build/tasks/nodejs/node_download_info.ts
+@@ -34,7 +34,10 @@ export function getNodeDownloadInfo(config: Config, platform: Platform) {
+     let variantPath = '';
+     if (variant === 'pointer-compression') variantPath = 'node-pointer-compression/';
+     if (variant === 'glibc-217') variantPath = 'node-glibc-217/';
+-    const url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/${variantPath}dist/v${version}/${downloadName}`;
++    let url = `https://us-central1-elastic-kibana-184716.cloudfunctions.net/kibana-ci-proxy-cache/${variantPath}dist/v${version}/${downloadName}`;
++    if (arch == 'linux-s390x') {
++      url = `https://nodejs.org/dist/v${version}/${downloadName}`;
++    }
+     const downloadPath = config.resolveFromRepo(
+       '.node_binaries',
+       version,
+diff --git a/src/platform/packages/shared/kbn-scout/src/config/config.test.ts b/src/platform/packages/shared/kbn-scout/src/config/config.test.ts
+index f4401e8af2d..ed7bea8b4ac 100644
+--- a/src/platform/packages/shared/kbn-scout/src/config/config.test.ts
++++ b/src/platform/packages/shared/kbn-scout/src/config/config.test.ts
+@@ -30,7 +30,7 @@ describe('Config.getScoutTestConfig', () => {
+       },
+       dockerServers: {},
+       esTestCluster: {
+-        from: 'snapshot',
++        from: process.env.TEST_ES_FROM || 'snapshot',
+         files: [],
+         serverArgs: [],
+         ssl: false,
+diff --git a/src/platform/packages/shared/kbn-scout/src/config/schema/schema.ts b/src/platform/packages/shared/kbn-scout/src/config/schema/schema.ts
+index 77f3c352e55..ad9ab3b93cf 100644
+--- a/src/platform/packages/shared/kbn-scout/src/config/schema/schema.ts
++++ b/src/platform/packages/shared/kbn-scout/src/config/schema/schema.ts
+@@ -76,7 +76,7 @@ export const schema = Joi.object()
+     esTestCluster: Joi.object()
+       .keys({
+         license: Joi.valid('basic', 'trial', 'gold').default('trial'),
+-        from: Joi.string().default('snapshot'),
++        from: Joi.string().default(process.env.TEST_ES_FROM || 'snapshot'),
+         serverArgs: Joi.array().items(Joi.string()).default([]),
+         esJavaOpts: Joi.string(),
+         dataArchive: Joi.string(),
+diff --git a/src/platform/packages/shared/kbn-scout/src/config/stateful/base.config.ts b/src/platform/packages/shared/kbn-scout/src/config/stateful/base.config.ts
+index ac51e5844db..e1c2fb99f28 100644
+--- a/src/platform/packages/shared/kbn-scout/src/config/stateful/base.config.ts
++++ b/src/platform/packages/shared/kbn-scout/src/config/stateful/base.config.ts
+@@ -71,7 +71,7 @@ export const defaultConfig: ScoutServerConfig = {
+     },
+   }),
+   esTestCluster: {
+-    from: 'snapshot',
++    from: process.env.TEST_ES_FROM || 'snapshot',
+     license: 'trial',
+     files: [
+       // Passing the roles that are equivalent to the ones we have in serverless
+diff --git a/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts b/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts
+index 261e89e4f45..c56cef48038 100644
+--- a/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts
++++ b/src/platform/packages/shared/kbn-storybook/src/lib/default_config.ts
+@@ -88,7 +88,7 @@ export const defaultConfig: StorybookConfig = {
+                     );
+                     return `@import ${req};\n${content}`;
+                   },
+-                  implementation: require('sass-embedded'),
++                  implementation: require('sass'),
+                   sassOptions: {
+                     includePaths: [resolve(REPO_ROOT, 'node_modules')],
+                     quietDeps: true,
+diff --git a/src/platform/packages/shared/kbn-test/src/es/test_es_cluster.ts b/src/platform/packages/shared/kbn-test/src/es/test_es_cluster.ts
+index a66284f6693..a6087d07b89 100644
+--- a/src/platform/packages/shared/kbn-test/src/es/test_es_cluster.ts
++++ b/src/platform/packages/shared/kbn-test/src/es/test_es_cluster.ts
+@@ -271,6 +271,8 @@ export function createTestEsCluster<
+           waitForReady: true,
+         });
+         return;
++      } else if (Path.isAbsolute(esFrom) && esFrom.endsWith(".tar.gz")) {
++        ({ installPath, disableEsTmpDir } = await firstNode.installArchive(esFrom, config));
+       } else if (Path.isAbsolute(esFrom)) {
+         installPath = esFrom;
+       } else {
+diff --git a/src/platform/packages/shared/kbn-test/src/functional_test_runner/lib/config/schema.ts b/src/platform/packages/shared/kbn-test/src/functional_test_runner/lib/config/schema.ts
+index 3dd6cae4a9f..2e9d3b24b2e 100644
+--- a/src/platform/packages/shared/kbn-test/src/functional_test_runner/lib/config/schema.ts
++++ b/src/platform/packages/shared/kbn-test/src/functional_test_runner/lib/config/schema.ts
+@@ -218,7 +218,7 @@ export const schema = Joi.object()
+     esTestCluster: Joi.object()
+       .keys({
+         license: Joi.valid('basic', 'trial', 'gold').default('basic'),
+-        from: Joi.string().default('snapshot'),
++        from: Joi.string().default(process.env.TEST_ES_FROM || 'snapshot'),
+         serverArgs: Joi.array().items(Joi.string()).default([]),
+         esJavaOpts: Joi.string(),
+         dataArchive: Joi.string(),
+diff --git a/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js b/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js
+index 659fc7cd8bf..2b345d7d1ce 100644
+--- a/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js
++++ b/x-pack/platform/plugins/private/canvas/shareable_runtime/webpack.config.js
+@@ -138,7 +138,7 @@ module.exports = {
+           {
+             loader: 'sass-loader',
+             options: {
+-              implementation: require('sass-embedded'),
++              implementation: require('sass'),
+               sourceMap: !isProd,
+             },
+           },
+@@ -181,7 +181,7 @@ module.exports = {
+                 );
+                 return `@import ${req};\n${content}`;
+               },
+-              implementation: require('sass-embedded'),
++              implementation: require('sass'),
+               sassOptions: {
+                 outputStyle: 'expanded',
+                 includePaths: [path.resolve(KIBANA_ROOT, 'node_modules')],
+diff --git a/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts b/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts
+index b1a9a28b090..7e8cd7435f5 100644
+--- a/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts
++++ b/x-pack/platform/plugins/private/canvas/storybook/canvas_webpack.ts
+@@ -40,7 +40,7 @@ export const canvasWebpack: Configuration = {
+           {
+             loader: 'sass-loader',
+             options: {
+-              implementation: require('sass-embedded'),
++              implementation: require('sass'),
+               sassOptions: {
+                 quietDeps: true,
+               },
+diff --git a/x-pack/platform/test/cloud_integration/config.ts b/x-pack/platform/test/cloud_integration/config.ts
+index 44e34534919..7c9a511d134 100644
+--- a/x-pack/platform/test/cloud_integration/config.ts
++++ b/x-pack/platform/test/cloud_integration/config.ts
+@@ -38,7 +38,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.saml.saml1.order=0',
+diff --git a/x-pack/platform/test/functional/config.base.ts b/x-pack/platform/test/functional/config.base.ts
+index 97e33028ec0..f12d4327e9d 100644
+--- a/x-pack/platform/test/functional/config.base.ts
++++ b/x-pack/platform/test/functional/config.base.ts
+@@ -31,7 +31,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: ['path.repo=/tmp/', 'xpack.security.authc.api_key.enabled=true'],
+     },
+ 
+diff --git a/x-pack/platform/test/functional/config_security_basic.ts b/x-pack/platform/test/functional/config_security_basic.ts
+index 5e80ad16143..cdf9f5624a7 100644
+--- a/x-pack/platform/test/functional/config_security_basic.ts
++++ b/x-pack/platform/test/functional/config_security_basic.ts
+@@ -36,7 +36,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'basic',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [],
+     },
+ 
+diff --git a/x-pack/platform/test/functional_cloud/saml.config.ts b/x-pack/platform/test/functional_cloud/saml.config.ts
+index 67fe34a5b81..7412bd2370e 100644
+--- a/x-pack/platform/test/functional_cloud/saml.config.ts
++++ b/x-pack/platform/test/functional_cloud/saml.config.ts
+@@ -43,7 +43,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.saml.saml1.order=0',
+diff --git a/x-pack/platform/test/saved_objects_field_count/config.ts b/x-pack/platform/test/saved_objects_field_count/config.ts
+index 185c0cc03a4..ccaca3cadbf 100644
+--- a/x-pack/platform/test/saved_objects_field_count/config.ts
++++ b/x-pack/platform/test/saved_objects_field_count/config.ts
+@@ -26,7 +26,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: ['path.repo=/tmp/'],
+     },
+ 
+diff --git a/x-pack/platform/test/security_functional/insecure_cluster_warning.config.ts b/x-pack/platform/test/security_functional/insecure_cluster_warning.config.ts
+index ec281c7509a..ea010dd72dc 100644
+--- a/x-pack/platform/test/security_functional/insecure_cluster_warning.config.ts
++++ b/x-pack/platform/test/security_functional/insecure_cluster_warning.config.ts
+@@ -38,7 +38,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: ['xpack.security.enabled=false'],
+     },
+ 
+diff --git a/x-pack/platform/test/security_functional/login_selector.config.ts b/x-pack/platform/test/security_functional/login_selector.config.ts
+index 28f9e381840..a09b2bae9b5 100644
+--- a/x-pack/platform/test/security_functional/login_selector.config.ts
++++ b/x-pack/platform/test/security_functional/login_selector.config.ts
+@@ -46,7 +46,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.native.native1.order=0',
+diff --git a/x-pack/platform/test/security_functional/oidc.config.ts b/x-pack/platform/test/security_functional/oidc.config.ts
+index c7e109c9eb4..3f09fd6bf3f 100644
+--- a/x-pack/platform/test/security_functional/oidc.config.ts
++++ b/x-pack/platform/test/security_functional/oidc.config.ts
+@@ -40,7 +40,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.oidc.oidc1.order=0',
+diff --git a/x-pack/platform/test/security_functional/oidc.http2.config.ts b/x-pack/platform/test/security_functional/oidc.http2.config.ts
+index fbba56727f2..8815fbbdbfe 100644
+--- a/x-pack/platform/test/security_functional/oidc.http2.config.ts
++++ b/x-pack/platform/test/security_functional/oidc.http2.config.ts
+@@ -21,7 +21,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+     ...functionalConfig.getAll(),
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.oidc.oidc1.order=0',
+diff --git a/x-pack/platform/test/security_functional/saml.config.ts b/x-pack/platform/test/security_functional/saml.config.ts
+index 6eb417b142b..13cde25a12f 100644
+--- a/x-pack/platform/test/security_functional/saml.config.ts
++++ b/x-pack/platform/test/security_functional/saml.config.ts
+@@ -43,7 +43,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.saml.saml1.order=0',
+diff --git a/x-pack/platform/test/security_functional/saml.http2.config.ts b/x-pack/platform/test/security_functional/saml.http2.config.ts
+index 34131c82e00..b33479c5291 100644
+--- a/x-pack/platform/test/security_functional/saml.http2.config.ts
++++ b/x-pack/platform/test/security_functional/saml.http2.config.ts
+@@ -35,7 +35,7 @@ export default async function ({ readConfigFile }: FtrConfigProviderContext) {
+     ...functionalConfig.getAll(),
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: [
+         'xpack.security.authc.token.enabled=true',
+         'xpack.security.authc.realms.saml.saml1.order=0',
+diff --git a/x-pack/test/functional/config.base.js b/x-pack/test/functional/config.base.js
+index ebbb51c0e55..c037bd5535b 100644
+--- a/x-pack/test/functional/config.base.js
++++ b/x-pack/test/functional/config.base.js
+@@ -30,7 +30,7 @@ export default async function ({ readConfigFile }) {
+ 
+     esTestCluster: {
+       license: 'trial',
+-      from: 'snapshot',
++      from: process.env.TEST_ES_FROM || 'snapshot',
+       serverArgs: ['path.repo=/tmp/', 'xpack.security.authc.api_key.enabled=true'],
+     },
+ 
