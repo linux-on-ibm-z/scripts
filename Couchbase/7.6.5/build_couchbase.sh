@@ -1839,7 +1839,7 @@ function main() {
         prepareRHEL8
         ;;
 
-    rhel9.4 | rhel9.5)
+    rhel9.4)
         prepareRHEL9
         ;;
 
