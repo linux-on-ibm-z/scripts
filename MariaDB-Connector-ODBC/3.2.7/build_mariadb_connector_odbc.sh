@@ -214,6 +214,7 @@ case "$DISTRO" in
 "rhel-10.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
+    sudo dnf update openssl-libs openssl openssl-fips-provider openssl-fips-provider-so
     sudo yum groupinstall -y 'Development Tools'
     sudo yum install -y mariadb mariadb-server mysql8.4-devel.s390x git cmake gcc gcc-c++ libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make glibc-langpack-en autoconf automake libtool libtool-ltdl-devel libiodbc-devel |& tee -a "$LOG_FILE"
     installUnixODBC |& tee -a "$LOG_FILE"
