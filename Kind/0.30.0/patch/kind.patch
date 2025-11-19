@@ -12,7 +12,7 @@ index a5bee36e..f2e963fc 100644
  TAG_SUFFIX?=
  # tag based on date-sha
 -TAG?=$(shell echo "$$(date +v%Y%m%d)-$$(git describe --always --dirty)")
-+TAG?=v20250521-31a79fd4
++TAG?=v20250710-v0.29.0-alpha-25-g9ac770cf
  # the full image tag
 -IMAGE?=$(REGISTRY)/$(IMAGE_NAME):$(TAG)$(TAG_SUFFIX)
 +IMAGE?=$(REGISTRY)/$(IMAGE_NAME):$(TAG)
