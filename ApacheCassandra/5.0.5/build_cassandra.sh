@@ -9,7 +9,7 @@
 set -e -o pipefail
 
 PACKAGE_NAME="cassandra"
-PACKAGE_VERSION="5.0.4"
+PACKAGE_VERSION="5.0.5"
 CURDIR="$(pwd)"
 USER="$(whoami)"
 FORCE="false"
