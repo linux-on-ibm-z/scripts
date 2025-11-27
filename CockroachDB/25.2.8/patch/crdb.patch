@@ -1,0 +1,58 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index a81a1adb..26302ab1 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -235,6 +235,8 @@ http_archive(
+     sha256 = "d0529773764ac61184eb3ad3c687fb835df5bee01afedf07f0cf1a45515c96bc",
+     strip_prefix = "bazel-lib-1.42.3",
+     url = "https://storage.googleapis.com/public-bazel-artifacts/bazel/bazel-lib-v1.42.3.tar.gz",
++    patches = ["//patch:bazel-lib.patch"],
++    patch_args = ["-p1"],
+ )
+ 
+ # Load custom toolchains.
+@@ -590,16 +592,19 @@ register_toolchains(
+     "@copy_directory_toolchains//:darwin_arm64_toolchain",
+     "@copy_directory_toolchains//:linux_amd64_toolchain",
+     "@copy_directory_toolchains//:linux_arm64_toolchain",
++    "@copy_directory_toolchains//:linux_s390x_toolchain",
+     "@copy_directory_toolchains//:windows_amd64_toolchain",
+     "@copy_to_directory_toolchains//:darwin_amd64_toolchain",
+     "@copy_to_directory_toolchains//:darwin_arm64_toolchain",
+     "@copy_to_directory_toolchains//:linux_amd64_toolchain",
+     "@copy_to_directory_toolchains//:linux_arm64_toolchain",
++    "@copy_to_directory_toolchains//:linux_s390x_toolchain",
+     "@copy_to_directory_toolchains//:windows_amd64_toolchain",
+     "@nodejs_toolchains//:darwin_amd64_toolchain",
+     "@nodejs_toolchains//:darwin_arm64_toolchain",
+     "@nodejs_toolchains//:linux_amd64_toolchain",
+     "@nodejs_toolchains//:linux_arm64_toolchain",
++    "@nodejs_toolchains//:linux_s390x_toolchain",
+     "@nodejs_toolchains//:windows_amd64_toolchain",
+ )
+ 
+diff --git a/c-deps/BUILD.bazel b/c-deps/BUILD.bazel
+index 7cef0324..3a1939be 100644
+--- a/c-deps/BUILD.bazel
++++ b/c-deps/BUILD.bazel
+@@ -142,6 +142,7 @@ cmake(
+             "CMAKE_BUILD_TYPE": "Release",
+             "CMAKE_C_FLAGS": "-fPIC",
+             "CMAKE_CXX_FLAGS": "-fPIC",
++            "CMAKE_INSTALL_LIBDIR": "lib",
+             "BUILD_GEOSOP": "OFF",
+             "BUILD_TESTING": "OFF",
+             "GEOS_BUILD_DEVELOPER": "OFF",
+diff --git a/pkg/ccl/gssapiccl/BUILD.bazel b/pkg/ccl/gssapiccl/BUILD.bazel
+index 0c07ca8a..e57e0383 100644
+--- a/pkg/ccl/gssapiccl/BUILD.bazel
++++ b/pkg/ccl/gssapiccl/BUILD.bazel
+@@ -18,7 +18,7 @@ go_library(
+     clinkopts = select({
+         # NB: On Ubuntu, res_nsearch is found in the resolv_wrapper library,
+         # found in the libresolv-wrapper package.
+-        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper"],
++        "//build/toolchains:is_dev_linux": ["-ldl -lresolv -lresolv_wrapper -lkeyutils"],
+         "@io_bazel_rules_go//go/platform:linux": ["-ldl -lresolv"],
+         "//conditions:default": [],
+     }),
