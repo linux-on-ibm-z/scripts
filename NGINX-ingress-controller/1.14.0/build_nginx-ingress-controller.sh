@@ -5,7 +5,7 @@
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/NGINX-ingress-controller/1.14.0/build_nginx-ingress-controller.sh
 # Execute build script: bash build_nginx-ingress-controller.sh    (provide -h for help)
-
+USER_IN_GROUP_DOCKER=$(id -nGz "$USER" | tr '\0' '\n' | grep -c '^docker$')
 set -e -o pipefail
 
 PACKAGE_NAME="nginx-ingress-controller"
@@ -20,7 +20,6 @@ FORCE="false"
 LOG_FILE="$SOURCE_ROOT/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/NGINX-ingress-controller/1.14.0/patch"
 BUILD_ENV="$HOME/setenv.sh"
-USER_IN_GROUP_DOCKER=$(id -nGz "$USER" | tr '\0' '\n' | grep -c '^docker$')
 
 trap cleanup 0 1 2 ERR
 
