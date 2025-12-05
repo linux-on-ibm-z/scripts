@@ -72,7 +72,7 @@ function configureAndInstall() {
 
     # Install Go
     cd "${CURDIR}"
-    wget -q https://storage.googleapis.com/golang/go"${GO_VERSION}".linux-s390x.tar.gz
+    wget -q https://go.dev/dl/go"${GO_VERSION}".linux-s390x.tar.gz
     chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
     sudo tar -C /usr/local -xzf go"${GO_VERSION}".linux-s390x.tar.gz
     export PATH=$PATH:/usr/local/go/bin
