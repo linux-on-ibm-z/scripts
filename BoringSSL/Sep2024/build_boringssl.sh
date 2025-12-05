@@ -66,7 +66,7 @@ function configureAndInstall() {
 
     # Download and Install Go
     cd $CURDIR
-    wget https://storage.googleapis.com/golang/go${GO_VERSION}.linux-s390x.tar.gz
+    wget https://go.dev/dl/go${GO_VERSION}.linux-s390x.tar.gz
     tar -xzf go${GO_VERSION}.linux-s390x.tar.gz
     export PATH=$CURDIR/go/bin:$PATH
     export GOROOT=$CURDIR/go
