@@ -78,7 +78,7 @@ function cleanup() {
 function installgo() {
   # Install Go
   printf -- 'Downloading go binaries \n'
-  wget -q https://storage.googleapis.com/golang/go"${GO_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
+  wget -q https://go.dev/dl/go"${GO_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
   chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
 
 
