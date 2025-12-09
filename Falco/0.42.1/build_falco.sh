@@ -86,7 +86,7 @@ function configureAndInstall() {
     
     printf -- 'Installing Go\n'
     cd $SOURCE_ROOT
-    wget -q https://storage.googleapis.com/golang/go"$GO_VERSION".linux-s390x.tar.gz
+    wget -q https://go.dev/dl/go"${GO_VERSION}".linux-s390x.tar.gz
     chmod ugo+r go"$GO_VERSION".linux-s390x.tar.gz
     sudo tar -C /usr/local -xzf go"$GO_VERSION".linux-s390x.tar.gz
     sudo ln -sf /usr/local/go/bin/go /usr/bin/
