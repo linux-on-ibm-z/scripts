@@ -59,7 +59,7 @@ function configureAndInstall() {
     export GOPATH=$SOURCE_ROOT
     cd $GOPATH
     GO_VERSION=1.24.2
-    wget -q https://storage.googleapis.com/golang/go"${GO_VERSION}".linux-s390x.tar.gz
+    wget -q https://go.dev/dl/go"${GO_VERSION}".linux-s390x.tar.gz
     chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
     sudo rm -rf /usr/local/go /usr/bin/go
     sudo tar -C /usr/local -xzf go"${GO_VERSION}".linux-s390x.tar.gz
