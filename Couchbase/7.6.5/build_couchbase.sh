@@ -1789,6 +1789,8 @@ function buildCouchbase() {
     cd $SOURCE_ROOT/couchbase/tlm
     wget "${PATCH_URL}"/tlm.diff
     git apply tlm.diff
+    cd $SOURCE_ROOT/couchbase
+    sed -i '431s|https://storage.googleapis.com/golang|https://go.dev/dl|' tlm/cmake/Modules/CBDownloadDeps.cmake
 
     cd $SOURCE_ROOT/couchbase/kv_engine
     wget "${PATCH_URL}"/kv_engine.diff
