@@ -458,10 +458,11 @@ buildValgrind() {
 
 #==============================================================================
 function installRust() {
+  local ver=1.0.188
   cd "$SOURCE_ROOT"
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh /dev/stdin -y
   export PATH="$HOME/.cargo/bin:$PATH"
-  cargo install cxxbridge-cmd
+  cargo install cxxbridge-cmd --version $ver  
   cargo install wasm-opt |& tee -a "$LOG_FILE"
   rustup target add wasm32-wasip1 |& tee -a "$LOG_FILE"
 }
