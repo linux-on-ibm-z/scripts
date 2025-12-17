@@ -21,12 +21,12 @@ set -e
 set -o pipefail
 PACKAGE_NAME="prow"
 PACKAGE_VERSION="master"
-GOLANG_VERSION="go1.19.5.linux-s390x.tar.gz"
+GOLANG_VERSION="go1.22.7.linux-s390x.tar.gz"
 FORCE="false"
 TESTS="false"
 CURDIR="$(pwd)"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Prow/patch"
-GO_INSTALL_URL="https://golang.org/dl/${GOLANG_VERSION}"
+GO_INSTALL_URL="https://go.dev/dl/${GOLANG_VERSION}"
 GO_DEFAULT="$CURDIR/go"
 GO_FLAG="DEFAULT"
 LOGDIR="$CURDIR/logs"
@@ -86,7 +86,7 @@ function prepare() {
 }
 
 function cleanup() {
-	sudo rm -rf go go1.19.5.linux-s390x.tar.gz jq
+	sudo rm -rf go go1.22.7.linux-s390x.tar.gz jq
     printf -- '\nCleaned up the artifacts.\n' >>"$LOG_FILE"
 }
 
@@ -98,6 +98,13 @@ function configureAndInstall() {
     printf -- "\nInstalling Go ... \n" | tee -a "$LOG_FILE"
     wget $GO_INSTALL_URL
     sudo tar -C /usr/local -xzf ${GOLANG_VERSION}
+    sudo ln -sf /usr/local/go/bin/go /usr/bin/
+    sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
+
+    if [[ "${ID}" != "ubuntu" ]]; then
+        sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+        printf -- 'Symlink done for gcc \n'
+    fi
 
     # Set GOPATH if not already set
     if [[ -z "${GOPATH}" ]]; then
