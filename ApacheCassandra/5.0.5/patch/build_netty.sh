@@ -281,7 +281,8 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update -y
-        sudo apt-get install -y ninja-build cmake perl golang libssl-dev libapr1-dev autoconf automake libtool make tar git wget curl libtool-bin xz-utils gzip python3 |& tee -a "${LOG_FILE}"
+	sudo apt install -y golang-1.23; sudo update-alternatives --install /usr/bin/go go /usr/lib/go-1.23/bin/go 100; go version
+        sudo apt-get install -y ninja-build cmake perl libssl-dev libapr1-dev autoconf automake libtool make tar git wget curl libtool-bin xz-utils gzip python3 |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 *)
