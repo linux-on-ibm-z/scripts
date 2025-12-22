@@ -9,6 +9,7 @@
 set -e  -o pipefail
 PACKAGE_NAME="netty-tcnative"
 PACKAGE_VERSION="2.0.70"
+GO_VERSION="1.23.3"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/BoringSSL/Jan2021/patch"
 SOURCE_ROOT="$(pwd)"
 USER="$(whoami)"
@@ -70,6 +71,22 @@ function cleanup() {
 
 function configureAndInstall() {
         printf -- 'Configuration and Installation started \n'
+
+	if [[ "${ID}" == "ubuntu" ]]; then
+		printf -- 'Installing Go\n'
+		cd $SOURCE_ROOT
+		wget -q https://go.dev/dl/go"${GO_VERSION}".linux-s390x.tar.gz
+		chmod ugo+r go"$GO_VERSION".linux-s390x.tar.gz
+		sudo tar -C /usr/local -xzf go"$GO_VERSION".linux-s390x.tar.gz
+		sudo ln -sf /usr/local/go/bin/go /usr/bin/
+		sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
+		export GOPATH=$SOURCE_ROOT
+		export PATH=$GOPATH/bin:$PATH
+		export CC=$(which gcc)
+		export CXX=$(which g++)
+		go version
+		printf -- 'Go installed successfully\n'
+	fi
 # Install JDK 8/11/17 and set environment variables
         echo "Java provided by user: $JAVA_PROVIDED" >> "$LOG_FILE"
 if [[ "$JAVA_PROVIDED" == "Semeru11" ]]; then
@@ -281,7 +298,6 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update -y
-	sudo apt install -y golang-1.23; sudo update-alternatives --install /usr/bin/go go /usr/lib/go-1.23/bin/go 100; go version
         sudo apt-get install -y ninja-build cmake perl libssl-dev libapr1-dev autoconf automake libtool make tar git wget curl libtool-bin xz-utils gzip python3 |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
