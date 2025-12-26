@@ -1,0 +1,42 @@
+diff --git a/tools/docker/Dockerfile b/tools/docker/Dockerfile
+index 6c68bf3e61..0d032413c0 100644
+--- a/tools/docker/Dockerfile
++++ b/tools/docker/Dockerfile
+@@ -40,6 +40,9 @@ RUN apt-get -y update && apt-get install -y \
+     python3-setuptools \
+     python3-pip \
+     python3-mysql.connector \
++    python3-bcrypt \
++    python3-cryptography \
++    python3-cffi \
+     supervisor
+
+ RUN apt-get install -qqy mysql-server && \
+@@ -62,13 +65,22 @@ RUN find /var/lib/mysql -type f -exec touch {} \; && \
+     mvn -Pdeveloper -pl developer -Ddeploydb; \
+     mvn -Pdeveloper -pl developer -Ddeploydb-simulator; \
+     MARVIN_FILE=`find /root/tools/marvin/dist/ -name "Marvin*.tar.gz"`; \
+-    rm -rf /usr/bin/x86_64-linux-gnu-gcc && \
+-    ln -s /usr/bin/gcc-10 /usr/bin/x86_64-linux-gnu-gcc; \
++    rm -rf /usr/bin/s390x-linux-gnu-gcc && \
++    ln -s /usr/bin/gcc-10 /usr/bin/s390x-linux-gnu-gcc; \
+     pip3 install $MARVIN_FILE
+
+-RUN curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -; \
+-    apt-get install -y nodejs; \
+-    cd ui && npm rebuild node-sass && npm install
++RUN apt-get install -y nodejs npm build-essential python3 g++ make && \
++    bash 
++
++RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash && \
++    . /root/.nvm/nvm.sh && \
++    nvm install 10 && \
++    nvm use 10 && \
++    NVM_BIN="$(dirname "$(nvm which node)")" && \
++    ln -sf "$NVM_BIN/node" /usr/local/bin/node && \
++    ln -sf "$NVM_BIN/npm" /usr/local/bin/npm && \
++    cd ui && npm install && npm rebuild node-sass
++
+
+ VOLUME /var/lib/mysql
+

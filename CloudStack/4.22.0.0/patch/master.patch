@@ -1,0 +1,329 @@
+diff --git a/api/src/main/java/com/cloud/cpu/CPU.java b/api/src/main/java/com/cloud/cpu/CPU.java
+index 3016e542db..11b38b73da 100644
+--- a/api/src/main/java/com/cloud/cpu/CPU.java
++++ b/api/src/main/java/com/cloud/cpu/CPU.java
+@@ -22,7 +22,8 @@ public class CPU {
+     public enum CPUArch {
+         x86("i686", 32),
+         amd64("x86_64", 64),
+-        arm64("aarch64", 64);
++        arm64("aarch64", 64),
++        s390x("s390x", 64);
+ 
+         private final String type;
+         private final int bits;
+diff --git a/api/src/test/java/com/cloud/cpu/CPUTest.java b/api/src/test/java/com/cloud/cpu/CPUTest.java
+index dfedf21864..0a059cf9a9 100644
+--- a/api/src/test/java/com/cloud/cpu/CPUTest.java
++++ b/api/src/test/java/com/cloud/cpu/CPUTest.java
+@@ -28,6 +28,7 @@ public class CPUTest {
+         assertEquals("i686", CPU.CPUArch.x86.getType());
+         assertEquals("x86_64", CPU.CPUArch.amd64.getType());
+         assertEquals("aarch64", CPU.CPUArch.arm64.getType());
++        assertEquals("s390x", CPU.CPUArch.s390x.getType());
+     }
+ 
+     @Test
+@@ -35,6 +36,7 @@ public class CPUTest {
+         assertEquals(32, CPU.CPUArch.x86.getBits());
+         assertEquals(64, CPU.CPUArch.amd64.getBits());
+         assertEquals(64, CPU.CPUArch.arm64.getBits());
++        assertEquals(64, CPU.CPUArch.s390x.getBits());
+     }
+ 
+     @Test
+@@ -42,6 +44,7 @@ public class CPUTest {
+         assertEquals(CPU.CPUArch.x86, CPU.CPUArch.fromType("i686"));
+         assertEquals(CPU.CPUArch.amd64, CPU.CPUArch.fromType("x86_64"));
+         assertEquals(CPU.CPUArch.arm64, CPU.CPUArch.fromType("aarch64"));
++        assertEquals(CPU.CPUArch.s390x, CPU.CPUArch.fromType("s390x"));
+     }
+ 
+     @Test
+@@ -61,7 +64,7 @@ public class CPUTest {
+ 
+     @Test
+     public void testCPUArchGetTypesAsCSV() {
+-        String expectedCSV = "i686,x86_64,aarch64";
++        String expectedCSV = "i686,x86_64,aarch64,s390x";
+         assertEquals(expectedCSV, CPU.CPUArch.getTypesAsCSV());
+     }
+ }
+diff --git a/packaging/el8/cloud.spec b/packaging/el8/cloud.spec
+index 7e97957473..6372b8fd74 100644
+--- a/packaging/el8/cloud.spec
++++ b/packaging/el8/cloud.spec
+@@ -47,7 +47,7 @@ BuildRequires: glibc-devel
+ BuildRequires: /usr/bin/mkisofs
+ BuildRequires: python3-setuptools
+ BuildRequires: wget
+-BuildRequires: nodejs
++#BuildRequires: nodejs
+ 
+ %description
+ CloudStack is a highly-scalable elastic, open source,
+@@ -131,10 +131,8 @@ The CloudStack agent for KVM hypervisors
+ %package baremetal-agent
+ Summary: CloudStack baremetal agent
+ Requires: tftp-server
+-Requires: xinetd
+-Requires: syslinux
+ Requires: chkconfig
+-Requires: dhcp
++Requires: dhcp-server
+ Requires: httpd
+ Group:     System Environment/Libraries
+ %description baremetal-agent
+diff --git a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
+index bf002b37f3..0cb357e13b 100644
+--- a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
++++ b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
+@@ -249,7 +249,9 @@ public class LibvirtVMDef {
+                         guestDef.append("<boot dev='" + bo + "'/>\n");
+                     }
+                 }
+-                guestDef.append("<smbios mode='sysinfo'/>\n");
++                if (!(_arch != null && _arch.equals("s390x"))) {
++                    guestDef.append("<smbios mode='sysinfo'/>\n");
++                }
+                 guestDef.append("</os>\n");
+                 if (iothreads) {
+                     guestDef.append(String.format("<iothreads>%s</iothreads>", NUMBER_OF_IOTHREADS));
+diff --git a/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java b/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
+index f721c723ea..e32386ae8b 100644
+--- a/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
++++ b/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
+@@ -865,7 +865,9 @@ public class LibvirtComputingResourceTest {
+     private void verifyFeatures(Document domainDoc) {
+         assertNodeExists(domainDoc, "/domain/features/pae");
+         assertNodeExists(domainDoc, "/domain/features/apic");
+-        assertNodeExists(domainDoc, "/domain/features/acpi");
++        if (!"s390x".equals(System.getProperty("os.arch"))) {
++            assertNodeExists(domainDoc, "/domain/features/acpi");
++        }
+     }
+ 
+     private void verifyHeader(Document domainDoc, String hvsType, String name, String uuid, String os) {
+diff --git a/tools/appliance/systemvmtemplate/scripts/configure_grub.sh b/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
+index f9103925b3..c8a7d06555 100755
+--- a/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
++++ b/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
+@@ -42,8 +42,8 @@ GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=
+ 
+ EOF
+ 
+-  grub-mkconfig -o /boot/grub/grub.cfg
+-  update-grub
++  #grub-mkconfig -o /boot/grub/grub.cfg
++  #update-grub
+ }
+ 
+ return 2>/dev/null || configure_grub
+diff --git a/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh b/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
+index 8bc71d29c1..93e72f06db 100755
+--- a/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
++++ b/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
+@@ -106,7 +106,7 @@ function configure_services() {
+   # Disable services that slow down boot and are not used anyway
+   systemctl disable apache2
+   systemctl disable conntrackd
+-  systemctl disable console-setup
++  #systemctl disable console-setup
+   systemctl disable dnsmasq
+   systemctl disable haproxy
+   systemctl disable keepalived
+@@ -115,22 +115,22 @@ function configure_services() {
+   systemctl disable strongswan-starter
+   systemctl disable x11-common
+   systemctl disable xl2tpd
+-  systemctl disable vgauth
++  #systemctl disable vgauth
+   systemctl disable sshd
+   systemctl disable nfs-common
+   systemctl disable nfs-server
+   systemctl disable portmap
+ 
+   # Disable guest services which will selectively be started based on hypervisor
+-  systemctl disable open-vm-tools
+-  systemctl disable xe-daemon
+-  systemctl disable hyperv-daemons.hv-fcopy-daemon.service
+-  systemctl disable hyperv-daemons.hv-kvp-daemon.service
+-  systemctl disable hyperv-daemons.hv-vss-daemon.service
++  #systemctl disable open-vm-tools
++  #systemctl disable xe-daemon
++  #systemctl disable hyperv-daemons.hv-fcopy-daemon.service
++  #systemctl disable hyperv-daemons.hv-kvp-daemon.service
++  #systemctl disable hyperv-daemons.hv-vss-daemon.service
+   systemctl disable qemu-guest-agent
+ 
+   # Disable container services
+-  systemctl disable containerd
++  #systemctl disable containerd
+ 
+   # Disable cloud init by default
+   cat <<EOF > /etc/cloud/cloud.cfg.d/cloudstack.cfg
+diff --git a/tools/appliance/systemvmtemplate/scripts/finalize.sh b/tools/appliance/systemvmtemplate/scripts/finalize.sh
+index 507d4a4133..69d26cd0bf 100755
+--- a/tools/appliance/systemvmtemplate/scripts/finalize.sh
++++ b/tools/appliance/systemvmtemplate/scripts/finalize.sh
+@@ -67,7 +67,61 @@ function zero_disk() {
+   done
+ }
+ 
++# Adding step to rename nic on network change from default enc[n] to eth[n-1]:
++function setup_nic_rename() {
++  touch /etc/boot_marker
++  cat << 'EOF' | sudo tee /usr/local/bin/rename_nics.sh > /dev/null
++#!/bin/bash
++
++current_interfaces=$(ip -o link show | awk -F': ' '{print $2}')
++
++for iface in $(echo "$current_interfaces" | grep -E '^enc[0-9]+$' | sort -V); do
++    if [[ $iface =~ ^enc([0-9]+)$ ]]; then
++        new_iface_name="eth$((${BASH_REMATCH[1]} - 1))"
++
++        if ! ip link show | grep -q "$new_iface_name"; then
++            ip link set $iface down
++            ip link set $iface name $new_iface_name
++            ip link set $new_iface_name up
++        else
++            echo "Skipping $iface: $new_iface_name already exists"
++        fi
++    fi
++done
++fi
++EOF
++
++  chmod +x /usr/local/bin/rename_nics.sh
++  echo 'ACTION=="add|change", SUBSYSTEM=="net", RUN+="/usr/local/bin/rename_nics.sh"' | sudo tee /etc/udev/rules.d/99-rename-nics.rules > /dev/null
++  udevadm control --reload-rules
++
++  cat << 'EOF' | sudo tee /usr/local/bin/chk_reboot.sh > /dev/null
++#!/bin/bash
++if [ -f '/etc/boot_marker' ]; then
++  sleep 10
++  rm -f '/etc/boot_marker'
++  /sbin/reboot
++fi
++EOF
++
++  chmod +x /usr/local/bin/chk_reboot.sh
++  cat << 'EOF' | sudo tee /etc/systemd/system/chk_reboot.service > /dev/null
++[Unit]
++Description=Check for marker file and reboot if found
++[Service]
++Type=oneshot
++ExecStart=/usr/local/bin/chk_reboot.sh
++RemainAfterExit=yes
++[Install]
++WantedBy=multi-user.target
++EOF
++
++  systemctl daemon-reload
++  systemctl enable chk_reboot.service
++}
++
+ function finalize() {
++  setup_nic_rename
+   depmod -a
+   configure_misc
+   configure_rundisk_size
+diff --git a/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh b/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
+index d391b5c4e1..c111c257e9 100755
+--- a/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
++++ b/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
+@@ -50,7 +50,7 @@ function install_packages() {
+ 
+   local apt_get="apt-get --no-install-recommends -q -y"
+ 
+-  ${apt_get} install grub-legacy \
++  ${apt_get} install \
+     rsyslog logrotate cron net-tools ifupdown tmux vim-tiny htop netbase iptables nftables \
+     openssh-server e2fsprogs tcpdump iftop socat wget coreutils systemd \
+     python-is-python3 python3 python3-flask python3-netaddr ieee-data \
+@@ -63,7 +63,6 @@ function install_packages() {
+     nfs-common nfs-server xfsprogs \
+     samba-common cifs-utils \
+     xl2tpd bcrelay ppp tdb-tools \
+-    xenstore-utils libxenstore4 \
+     ipvsadm conntrackd libnetfilter-conntrack3 \
+     keepalived irqbalance \
+     openjdk-17-jre-headless \
+@@ -76,7 +75,7 @@ function install_packages() {
+     frr \
+     sharutils genisoimage \
+     strongswan libcharon-extra-plugins libstrongswan-extra-plugins strongswan-charon strongswan-starter \
+-    virt-what open-vm-tools qemu-guest-agent hyperv-daemons cloud-guest-utils \
++    virt-what qemu-guest-agent cloud-guest-utils \
+     conntrack apt-transport-https ca-certificates curl gnupg  gnupg-agent software-properties-common
+ 
+   apt-get install -y python3-json-pointer python3-jsonschema cloud-init
+@@ -102,8 +101,8 @@ function install_packages() {
+   else
+     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+   fi
+-  apt-get update
+-  ${apt_get} install containerd.io
++  #apt-get update
++  #${apt_get} install containerd.io
+ 
+   apt_clean
+ 
+diff --git a/ui/src/components/view/DeployVMFromBackup.vue b/ui/src/components/view/DeployVMFromBackup.vue
+index c1f0ffc6d1..7c3e6c724d 100644
+--- a/ui/src/components/view/DeployVMFromBackup.vue
++++ b/ui/src/components/view/DeployVMFromBackup.vue
+@@ -975,6 +975,9 @@ export default {
+           }, {
+             id: 'aarch64',
+             description: 'ARM 64 bits (aarch64)'
++          }, {
++            id: 's390x',
++            description: 'S390X 64 bits (s390x)'
+           }
+         ]
+       }
+diff --git a/ui/src/utils/plugins.js b/ui/src/utils/plugins.js
+index 648bc3ae08..37165e7e60 100644
+--- a/ui/src/utils/plugins.js
++++ b/ui/src/utils/plugins.js
+@@ -557,7 +557,8 @@ export const cpuArchitectureUtilPlugin = {
+     app.config.globalProperties.$fetchCpuArchitectureTypes = function () {
+       const architectures = [
+         { id: 'x86_64', name: 'Intel/AMD 64 bits (x86_64)' },
+-        { id: 'aarch64', name: 'ARM 64 bits (aarch64)' }
++        { id: 'aarch64', name: 'ARM 64 bits (aarch64)' },
++        { id: 's390x', name: 'IBM Z/Architecture 64 bits (s390x)' }
+       ]
+       return architectures.map(item => ({ ...item, description: item.name }))
+     }
+diff --git a/ui/src/views/infra/ClusterUpdate.vue b/ui/src/views/infra/ClusterUpdate.vue
+index 1af7f420e6..29b8e57fa6 100644
+--- a/ui/src/views/infra/ClusterUpdate.vue
++++ b/ui/src/views/infra/ClusterUpdate.vue
+@@ -168,6 +168,10 @@ export default {
+         id: 'aarch64',
+         description: 'ARM 64 bits (aarch64)'
+       })
++      typesList.push({
++        id: 's390x',
++        description: 'S390X 64 bits (s390x)'
++      })
+       this.architectureTypes.opts = typesList
+     },
+     fetchExtensionResourceMapDetails () {
+diff --git a/ui/src/views/infra/zone/ZoneWizardAddResources.vue b/ui/src/views/infra/zone/ZoneWizardAddResources.vue
+index b2a273f4c8..c05dc2f8f8 100644
+--- a/ui/src/views/infra/zone/ZoneWizardAddResources.vue
++++ b/ui/src/views/infra/zone/ZoneWizardAddResources.vue
+@@ -865,6 +865,9 @@ export default {
+       }, {
+         id: 'aarch64',
+         description: 'ARM 64 bits (aarch64)'
++      }, {
++        id: 's390x',
++        description: 'S390X 64 bits (s390x)'
+       }],
+       storageProviders: [],
+       currentStep: null,
+ 
