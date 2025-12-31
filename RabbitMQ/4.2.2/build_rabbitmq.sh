@@ -186,7 +186,7 @@ case "$DISTRO" in
 	sudo yum install -y --allowerasing sed glibc-common gcc gcc-c++ gzip findutils zip unzip libxslt xmlto patch subversion ca-certificates xz xz-devel git wget tar make curl java-21-openjdk java-21-openjdk-devel perl openssl-devel ncurses-devel ncurses unixODBC unixODBC-devel glibc-locale-source glibc-langpack-en python3 rsync hostname diffutils p7zip p7zip-plugins |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
-"sles-15.6" | "sles-15.7")
+"sles-15.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
 	printf -- 'Installing the dependencies for rabbitmq from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y rsync make tar wget gcc gcc-c++ glibc-locale glibc-i18ndata sed curl zip unzip libxslt xsltproc patch subversion procps git-core python3-devel python3-xml java-1_8_0-openjdk  java-1_8_0-openjdk-devel perl ncurses-devel unixODBC unixODBC-devel xz gzip gawk libnghttp2-devel net-tools p7zip-full |& tee -a "${LOG_FILE}"
