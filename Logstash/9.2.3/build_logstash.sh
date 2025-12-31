@@ -223,7 +223,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"sles-15.6")
+"sles-15.7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo zypper install -y gawk gcc gzip make tar wget |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
