@@ -247,7 +247,7 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-24.04" | "ubuntu-25.04" | "ubuntu-25.10")
+"ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
