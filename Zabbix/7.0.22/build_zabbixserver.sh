@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2025.
+# © Copyright IBM Corporation 2025, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -105,29 +105,6 @@ function runTest() {
 function configureAndInstall() {
   printf -- 'Configuration and Installation started \n'
   printf -- 'Configuing httpd to enable PHP... \n'
-  # Configure httpd to enable PHP
-  if [[ "$ID" == "rhel" ]]; then
-    cd /etc/httpd/conf/
-    sudo chmod 766 httpd.conf
-    cat <<EOF >> httpd.conf
-ServerName localhost
-AddType application/x-httpd-php .php
-<Directory />
-    DirectoryIndex index.php
-</Directory>
-EOF
-    sudo chmod 644 httpd.conf
-
-    sudo groupadd --system zabbix || echo "group already exists"
-    sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix Monitoring System" zabbix || echo "user already exists"
-    if [[ "$VERSION_ID" == "9."* || "$VERSION_ID" == "10."* ]]; then
-      sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php.ini
-      sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php.ini
-      sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /etc/php.ini
-      sudo service php-fpm restart
-    fi
-
-  fi
 
   if [[ "$ID" == "sles" ]]; then
     cd /etc/apache2/
@@ -212,15 +189,6 @@ EOF
     sudo service mysql start
   fi
 
-  if [[ "$ID" == "rhel" ]]; then
-    cd /"$BUILD_DIR"/${URL_NAME}/ui/
-    sudo mkdir -p /var/www/html/${URL_NAME}
-    sudo cp -rf * /var/www/html/${URL_NAME}/
-    sudo chown -R apache:apache /var/www/html/zabbix/conf
-    sudo service mariadb start
-    sudo /usr/sbin/service httpd start
-  fi
-
   if [[ "$ID" == "sles" ]]; then
     cd /"$BUILD_DIR"/${URL_NAME}/ui/
     sudo mkdir -p /srv/www/htdocs/${URL_NAME}
@@ -275,48 +243,6 @@ buildCmocka()
 }
 
 #==============================================================================
-buildPHP()
-{
-  local ver=${PHP_VERSION}
-  echo "Building PHP $ver"
-  
-  cd "$CURDIR"
-  wget -qO- $PHP_URL | tar xzf -
-  cd "$CURDIR/php-${PHP_VERSION}" 
-
-  ./configure --prefix=${PREFIX} --enable-zts \
-    --without-pcre-jit --without-pear \
-    --with-pdo-mysql=mysqlnd --with-mysqli=mysqlnd \
-    --with-readline --with-gettext \
-    --with-apxs2=/usr/bin/apxs \
-    --enable-gd --with-jpeg \
-    --with-freetype --with-xpm --with-openssl \
-    --with-xsl --with-gmp --with-zip \
-    --with-mhash --enable-intl \
-    --enable-fpm --enable-exif --enable-xmlreader \
-    --enable-sockets --enable-ctype --enable-sysvsem \
-    --enable-sysvshm --enable-sysvmsg \
-    --enable-shmop --enable-pcntl --enable-mbstring \
-    --enable-soap --enable-bcmath --enable-calendar \
-    --enable-ftp --enable-zend-test=shared \
-    --with-curl=/usr --with-zlib --with-zlib-dir=/usr/local |& tee -a "$LOG_FILE"
-
-  make -j$(nproc) |& tee -a "$LOG_FILE"
-  sudo make install |& tee -a "$LOG_FILE"
-
-  sudo install -m644 php.ini-production ${PREFIX}/lib/php.ini
-  sudo sed -i "s@php/includes\"@&\ninclude_path = \".:/usr/local/lib/php\"@" /usr/local/lib/php.ini
-  sudo sed -i "s/;mysqli.allow_local_infile = On/mysqli.allow_local_infile = On/" /usr/local/lib/php.ini
-  sudo sed -i "s/;opcache.enable=1/opcache.enable=1/" /usr/local/lib/php.ini
-  sudo sed -i "s/;opcache.enable_cli=0/opcache.enable_cli=1/" /usr/local/lib/php.ini
-  sudo sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /usr/local/lib/php.ini
-  sudo sed -i 's/max_input_time = 60/max_input_time = 300/g' /usr/local/lib/php.ini
-  sudo sed -i 's/post_max_size = 8M/post_max_size = 16M/g' /usr/local/lib/php.ini
-  sudo sed -i 's/;date.timezone =/date.timezone = Asia\/Kolkata/g' /usr/local/lib/php.ini
-}
-
-
-
 function logDetails() {
   printf -- '**************************** SYSTEM DETAILS *************************************************************\n' >"$LOG_FILE"
 
@@ -377,64 +303,6 @@ logDetails
 checkPrequisites #Check Prequisites
 
 case "$DISTRO" in
-
-"rhel-8.10")
-  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo subscription-manager repos --enable=codeready-builder-for-rhel-8-s390x-rpms |& tee -a "$LOG_FILE"
-  export LC_CTYPE="en_US.UTF-8"
-  cat > MariaDB.repo <<'EOF'
-# MariaDB 10.11 RedHatEnterpriseLinux repository list - created 2023-07-14 14:59 UTC
-# https://mariadb.org/download/
-[mariadb]
-name = MariaDB
-# rpm.mariadb.org is a dynamic mirror if your preferred mirror goes offline. See https://mariadb.org/mirrorbits/ for details.
-# baseurl = https://rpm.mariadb.org/10.11/rhel/$releasever/$basearch
-baseurl = https://mirror.its.dal.ca/mariadb/yum/10.11/rhel/$releasever/$basearch
-module_hotfixes = 1
-# gpgkey = https://rpm.mariadb.org/RPM-GPG-KEY-MariaDB
-gpgkey = https://mirror.its.dal.ca/mariadb/yum/RPM-GPG-KEY-MariaDB
-gpgcheck = 1
-EOF
-  sudo mv MariaDB.repo /etc/yum.repos.d/
-  sudo yum install -y autoconf libtool cmake openssl-devel libcurl libcurl-devel libxml2 libxml2-devel readline readline-devel \
-  libzip-devel libzip nginx openssl pkgconf zlib-devel bzip2 sqlite-libs sqlite-devel oniguruma oniguruma-devel libpq-devel \
-  git curl tar  gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ binutils wget  \
-  initscripts httpd vim pcre pcre-devel pcre2-devel make net-snmp net-snmp-devel httpd-devel \
-  git libxml2-devel libjpeg-devel libpng-devel freetype freetype-devel openldap openldap-devel \
-  libevent-devel libyaml-devel perl-IPC-Run3 bzip2-devel curl-devel \
-  enchant-devel gmp-devel krb5-devel postgresql-devel aspell-devel cyrus-sasl-devel libXpm-devel libxslt-devel \
-  recode-devel  gdbm-devel libdb-devel automake patch pkgconfig perl-YAML-LibYAML perl-Path-Tiny \
-  ncurses-devel boost-devel check-devel php-fpm perl-Test-Simple perl-Time-HiRes  pam-devel hostname unixODBC-devel \
-  bison aspell MariaDB-server MariaDB-client mysql-devel |& tee -a "$LOG_FILE"
-  sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
-  buildCmocka |& tee -a "$LOG_FILE"
-  buildPHP |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-
-"rhel-9.4" | "rhel-9.6" | "rhel-9.7")
-  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo dnf install -y initscripts httpd tar wget curl vim gcc make net-snmp net-snmp-devel php-mysqlnd mysql-libs git \
-        php libcurl-devel libxml2-devel php-xml php-gd php-bcmath php-mbstring php-ldap php-json libevent-devel unixODBC-devel \
-        pcre-devel pcre2-devel policycoreutils-python-utils automake pkgconfig libcmocka-devel libyaml-devel perl-YAML-LibYAML \
-        libpath_utils-devel perl-IPC-Run3 perl-Path-Tiny mariadb mariadb-server mysql-devel perl-Time-HiRes |& tee -a "$LOG_FILE"
-  sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-
-"rhel-10.0")
-  printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-  printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
-  sudo dnf install -y initscripts httpd tar wget curl vim gcc make net-snmp net-snmp-devel php-mysqlnd git \
-        php libcurl-devel libxml2-devel php-xml php-gd php-bcmath php-mbstring php-ldap php-json libevent-devel unixODBC-devel \
-         pcre2-devel policycoreutils-python-utils automake pkgconfig libcmocka-devel libyaml-devel perl-YAML-LibYAML \
-        libpath_utils-devel perl-IPC-Run3 perl-Path-Tiny mariadb mariadb-server mysql8.4-devel mysql8.4-libs perl-Time-HiRes |& tee -a "$LOG_FILE"
-  sudo yum groupinstall -y 'Development Tools' |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-
 "sles-15.7")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   printf -- 'Installing the dependencies for Zabbix server from repository \n' |& tee -a "$LOG_FILE"
