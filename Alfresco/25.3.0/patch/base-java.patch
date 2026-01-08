@@ -1,0 +1,30 @@
+diff --git a/Dockerfile b/Dockerfile
+index 28a1522..7bb2354 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -13,19 +13,15 @@ ENV JAVA_HOME=/etc/alternatives/jre \
+ 
+ SHELL ["/bin/sh", "-euo", "pipefail", "-c"]
+ 
+-RUN <<EOC
+-  echo "Installing common distribution packages"
+-  dnf update --security -y
+-  dnf install -y langpacks-en ca-certificates
++RUN echo "Installing common distribution packages" && \
++  dnf update --security -y && \
++  dnf install -y langpacks-en ca-certificates && \
+   dnf clean all
+-EOC
+ 
+-RUN <<EOC
+-  echo "Installing distribution packages for Java ${JAVA_MAJOR}"
+-  dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${DISTRIB_MAJOR}.noarch.rpm
+-  dnf install -y java-${JAVA_MAJOR}-openjdk-headless
++RUN echo "Installing distribution packages for Java ${JAVA_MAJOR}" && \
++  dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${DISTRIB_MAJOR}.noarch.rpm && \
++  dnf install -y java-${JAVA_MAJOR}-openjdk-headless && \
+   dnf clean all
+-EOC
+ 
+ ARG CREATED
+ ARG REVISION

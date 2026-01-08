@@ -1,0 +1,120 @@
+diff --git a/Dockerfile b/Dockerfile
+index 73fe0e6..8fdeac0 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -4,7 +4,7 @@
+ ARG JAVA_MAJOR
+ ARG DISTRIB_NAME=rockylinux
+ ARG DISTRIB_MAJOR
+-ARG IMAGE_JAVA_REPO=quay.io/alfresco
++ARG IMAGE_JAVA_REPO=alfresco
+ ARG IMAGE_JAVA_NAME=alfresco-base-java
+ ARG IMAGE_JAVA_TAG=jre${JAVA_MAJOR}-${DISTRIB_NAME}${DISTRIB_MAJOR}
+ 
+@@ -108,45 +108,35 @@ COPY --from=tomcat_dist /build/apr $BUILD_DIR/apr
+ 
+ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+ 
+-RUN <<EOT
+-  dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${DISTRIB_MAJOR}.noarch.rpm
+-  dnf install -y gcc make expat-devel java-${JAVA_MAJOR}-openjdk-devel redhat-rpm-config
++RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${DISTRIB_MAJOR}.noarch.rpm && \
++  dnf install -y gcc make expat-devel java-${JAVA_MAJOR}-openjdk-devel redhat-rpm-config && \
+   dnf clean all
+-EOT
+ 
+ WORKDIR ${BUILD_DIR}/apr
+-RUN <<EOT
+-  ./configure --prefix=${INSTALL_DIR}/apr
+-  make -j "$(nproc)"
++RUN ./configure --prefix=${INSTALL_DIR}/apr && \
++  make -j "$(nproc)" && \
+   make install
+-EOT
+ 
+ WORKDIR ${BUILD_DIR}/tcnative/native
+-RUN <<EOT
+-  if [ $DISTRIB_MAJOR -eq 8 ]; then
++RUN if [ "$DISTRIB_MAJOR" -eq 8 ]; then \
+     # OPSEXP-3749 workaround for bugged openssl3 packages
+     # dnf install -y dnf-plugins-core
+     # dnf config-manager -y --set-enabled powertools
+     # dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+     # dnf install -y openssl3-devel
+-    ARCH=$(uname -m)
+-    dnf install -y \
+-      https://archives.fedoraproject.org/pub/archive/epel/8.9/Everything/$ARCH/Packages/o/openssl3-devel-3.2.1-1.2.el8.$ARCH.rpm \
+-      https://archives.fedoraproject.org/pub/archive/epel/8.9/Everything/$ARCH/Packages/o/openssl3-libs-3.2.1-1.2.el8.$ARCH.rpm
+-    ln -s /usr/include/openssl3/openssl /usr/include/openssl
+-    export LIBS="-L/usr/lib64/openssl3 -Wl,-rpath,/usr/lib64/openssl3 -lssl -lcrypto"
+-    export CFLAGS="-I/usr/include/openssl3"
+-  else dnf install -y openssl-devel
+-  fi
+-  dnf clean all
+-  ./configure \
+-    --libdir=${INSTALL_DIR}/tcnative \
+-    --with-apr=${INSTALL_DIR}/apr/bin/apr-1-config \
+-    --with-java-home="$JAVA_HOME" \
+-    --disable-openssl-version-check
+-  make -j "$(nproc)"
++    ARCH=$(uname -m) && \
++    dnf install -y https://archives.fedoraproject.org/pub/archive/epel/8.9/Everything/$ARCH/Packages/o/openssl3-devel-3.2.1-1.2.el8.$ARCH.rpm && \
++    dnf install -y https://archives.fedoraproject.org/pub/archive/epel/8.9/Everything/$ARCH/Packages/o/openssl3-libs-3.2.1-1.2.el8.$ARCH.rpm && \
++    ln -s /usr/include/openssl3/openssl /usr/include/openssl && \
++    export LIBS="-L/usr/lib64/openssl3 -Wl,-rpath,/usr/lib64/openssl3 -lssl -lcrypto" && \
++    export CFLAGS="-I/usr/include/openssl3"; \
++  else \
++    dnf install -y openssl-devel; \
++  fi && \
++  dnf clean all && \
++  ./configure --libdir=${INSTALL_DIR}/tcnative --with-apr=${INSTALL_DIR}/apr/bin/apr-1-config --with-java-home="$JAVA_HOME" --disable-openssl-version-check && \
++  make -j "$(nproc)" && \
+   make install
+-EOT
+ 
+ # hadolint ignore=DL3006
+ FROM tcnative_build-${DISTRIB_NAME} AS tcnative_build
+@@ -192,31 +182,27 @@ WORKDIR $CATALINA_HOME
+ RUN groupadd --system tomcat && \
+   useradd -M -s /bin/false --home $CATALINA_HOME --system --gid tomcat tomcat
+ 
+-COPY --chown=:tomcat --chmod=640 --from=tomcat_dist /build/tomcat $CATALINA_HOME
+-COPY --chown=:tomcat --chmod=640 --from=tcnative_build /usr/local/tcnative $TOMCAT_NATIVE_LIBDIR
+-COPY --chown=:tomcat --chmod=640 --from=tcnative_build /usr/local/apr/lib/libapr-1.so* $APR_LIBDIR/
++COPY --from=tomcat_dist /build/tomcat $CATALINA_HOME
++COPY --from=tcnative_build /usr/local/tcnative $TOMCAT_NATIVE_LIBDIR
++COPY --from=tcnative_build /usr/local/apr/lib/libapr-1.so* $APR_LIBDIR/
+ 
+ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+ 
+-RUN <<EOT
+-  if [ $DISTRIB_MAJOR -eq 8 ]; then
++RUN if [ $DISTRIB_MAJOR -eq 8 ]; then \
+     # OPSEXP-3749 workaround for bugged openssl3 packages
+     # dnf install -y dnf-plugins-core
+     # dnf config-manager -y --set-enabled powertools
+     # dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+     # dnf install -y openssl3-libs
+-    ARCH=$(uname -m)
+-    dnf install -y \
+-      https://archives.fedoraproject.org/pub/archive/epel/8.9/Everything/$ARCH/Packages/o/openssl3-libs-3.2.1-1.2.el8.$ARCH.rpm
+-    dnf clean all
+-  fi
+-  mkdir -m 770 logs temp work && chgrp tomcat . logs temp work
+-  chmod ug+x bin/*.sh
+-  find . -type d -exec chmod 770 {} +
+-  # verify Tomcat Native is working properly
+-  nativeLines="$(catalina.sh configtest 2>&1 | grep -c 'Loaded Apache Tomcat Native library')"
++    ARCH=$(uname -m) && \
++    dnf install -y  https://archives.fedoraproject.org/pub/archive/epel/8.9/Everything/$ARCH/Packages/o/openssl3-libs-3.2.1-1.2.el8.$ARCH.rpm && \
++    dnf clean all; \
++  fi && \
++  mkdir -m 770 logs temp work && chgrp tomcat . logs temp work && \
++  chmod ug+x bin/*.sh && \
++  find . -type d -exec chmod 770 {} + && \
++  nativeLines="$(catalina.sh configtest 2>&1 | grep -c 'Loaded Apache Tomcat Native library')" && \
+   test $nativeLines -ge 1 || { echo "Tomcat Native library not found or not working properly"; exit 1; }
+-EOT
+ 
+ USER tomcat
+ EXPOSE 8080
