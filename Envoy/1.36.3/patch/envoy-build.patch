@@ -1,0 +1,116 @@
+diff --git a/bazel/envoy_binary.bzl b/bazel/envoy_binary.bzl
+index cd33407040..953b9333e1 100644
+--- a/bazel/envoy_binary.bzl
++++ b/bazel/envoy_binary.bzl
+@@ -84,6 +84,7 @@ def _envoy_linkopts():
+         ],
+         "//conditions:default": [
+             "-pthread",
++            "-latomic",
+             "-lrt",
+             "-ldl",
+             "-Wl,-z,relro,-z,now",
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index 465f8f55a0..ca49c77fff 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -112,7 +112,7 @@ def _go_deps(skip_targets):
+ def _rust_deps():
+     external_http_archive(
+         "rules_rust",
+-        patches = ["@envoy//bazel:rules_rust.patch", "@envoy//bazel:rules_rust_ppc64le.patch"],
++        patches = ["@envoy//bazel:rules_rust.patch"],
+     )
+ 
+ def envoy_dependencies(skip_targets = []):
+@@ -258,7 +258,13 @@ def envoy_dependencies(skip_targets = []):
+     )
+ 
+ def _boringssl():
+-    external_http_archive(name = "boringssl")
++    external_http_archive(
++        name = "boringssl",
++        patch_args = ["-p1"],
++        patches = [
++            "@envoy//bazel:boringssl-s390x.patch",
++        ],
++    )
+ 
+ def _boringssl_fips():
+     external_http_archive(
+@@ -769,6 +775,7 @@ def _highway():
+         name = "highway",
+         patches = [
+             "@envoy//bazel:highway-ppc64le.patch",
++            "@envoy//bazel:highway-s390x.patch",
+         ],
+         patch_args = ["-p1"],
+     )
+@@ -802,6 +809,8 @@ def _com_github_google_quiche():
+         name = "com_github_google_quiche",
+         patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
+         build_file = "@envoy//bazel/external:quiche.BUILD",
++        patches = ["@envoy//bazel/external:quiche-s390x.patch"],
++        patch_args = ["-p1"],
+     )
+ 
+ def _com_googlesource_googleurl():
+@@ -821,7 +830,10 @@ def _com_github_grpc_grpc():
+     external_http_archive(
+         name = "com_github_grpc_grpc",
+         patch_args = ["-p1"],
+-        patches = ["@envoy//bazel:grpc.patch"],
++        patches = [
++            "@envoy//bazel:grpc.patch",
++            "@envoy//bazel:grpc-s390x.patch",
++        ],
+         repo_mapping = {"@openssl": "@boringssl"},
+     )
+     external_http_archive(
+@@ -901,6 +913,7 @@ def _proxy_wasm_cpp_host():
+         patch_args = ["-p1"],
+         patches = [
+             "@envoy//bazel:proxy_wasm_cpp_host.patch",
++            "@envoy//bazel:proxy_wasm_cpp_host-s390x.patch",
+         ],
+     )
+ 
+@@ -918,7 +931,11 @@ def _com_github_luajit_luajit():
+     external_http_archive(
+         name = "com_github_luajit_luajit",
+         build_file_content = BUILD_ALL_CONTENT,
+-        patches = ["@envoy//bazel/foreign_cc:luajit.patch"],
++        patches = [
++            "@envoy//bazel/foreign_cc:luajit-s390x.patch",
++            "@envoy//bazel/foreign_cc:luajit.patch",
++            "@envoy//bazel/foreign_cc:luajit-as.patch",
++        ],
+         patch_args = ["-p1"],
+         patch_cmds = ["chmod u+x build.py"],
+     )
+@@ -1035,7 +1052,10 @@ def _rules_ruby():
+ def _foreign_cc_dependencies():
+     external_http_archive(
+         name = "rules_foreign_cc",
+-        patches = ["@envoy//bazel:rules_foreign_cc.patch"],
++        patches = [
++            "@envoy//bazel:rules_foreign_cc.patch",
++            "@envoy//bazel:rules_foreign_cc-s390x.patch",
++        ],
+         patch_args = ["-p1"],
+     )
+ 
+diff --git a/tools/base/requirements.txt b/tools/base/requirements.txt
+index ee61adbf2e..22f3536ec4 100644
+--- a/tools/base/requirements.txt
++++ b/tools/base/requirements.txt
+@@ -503,7 +503,8 @@ cryptography==46.0.1 \
+     --hash=sha256:1cd6d50c1a8b79af1a6f703709d8973845f677c8e97b1268f5ff323d38ce8475 \
+     --hash=sha256:757af4f6341ce7a1e47c326ca2a81f41d236070217e5fbbad61bbfe299d55d28 \
+     --hash=sha256:e22801b61613ebdebf7deb18b507919e107547a1d39a3b57f5f855032dd7cfb8 \
+-    --hash=sha256:f7a24ea78de345cfa7f6a8d3bde8b242c7fac27f2bd78fa23474ca38dfaeeab9
++    --hash=sha256:f7a24ea78de345cfa7f6a8d3bde8b242c7fac27f2bd78fa23474ca38dfaeeab9 \
++    --hash=sha256:ed570874e88f213437f5cf758f9ef26cbfc3f336d889b1e592ee11283bb8d1c7
+     # via
+     #   -r requirements.in
+     #   aioquic

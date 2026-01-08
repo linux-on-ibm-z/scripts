@@ -1,0 +1,102 @@
+commit 87e7c56637ea4075ade150cb939139a51cdf6110
+Author: Jonathan Albrecht <jonathan.albrecht@ibm.com>
+Date:   Tue Dec 16 21:09:01 2025 -0500
+
+    Backport envoy commit 0694ac1f6e1fd61951958b344dc56c05e27a3418
+
+diff --git a/.bazelrc b/.bazelrc
+index 3c6437c528..23a759128c 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -82,7 +82,7 @@ build:linux --action_env=BAZEL_LINKOPTS=-lm:-fuse-ld=gold
+ build --define absl=1
+ 
+ # Disable ICU linking for googleurl.
+-build --@com_googlesource_googleurl//build_config:system_icu=0
++build --@googleurl//build_config:system_icu=0
+ 
+ # Common flags for sanitizers
+ build:sanitizer --define tcmalloc=disabled
+diff --git a/bazel/external/quiche.BUILD b/bazel/external/quiche.BUILD
+index 4dd4cfbd6b..64a548e03a 100644
+--- a/bazel/external/quiche.BUILD
++++ b/bazel/external/quiche.BUILD
+@@ -4731,7 +4731,7 @@ envoy_quiche_platform_impl_cc_library(
+         "quiche/common/platform/default/quiche_platform_impl/quiche_googleurl_impl.h",
+     ],
+     deps = [
+-        "@com_googlesource_googleurl//url",
++        "@googleurl//url",
+     ],
+ )
+ 
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index ca49c77fff..edb3c304df 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -194,7 +194,7 @@ def envoy_dependencies(skip_targets = []):
+     _simdutf()
+     _intel_ittapi()
+     _com_github_google_quiche()
+-    _com_googlesource_googleurl()
++    _googleurl()
+     _io_hyperscan()
+     _io_vectorscan()
+     _io_opentelemetry_api_cpp()
+@@ -813,9 +813,9 @@ def _com_github_google_quiche():
+         patch_args = ["-p1"],
+     )
+ 
+-def _com_googlesource_googleurl():
++def _googleurl():
+     external_http_archive(
+-        name = "com_googlesource_googleurl",
++        name = "googleurl",
+         patches = ["@envoy//bazel/external:googleurl.patch"],
+         patch_args = ["-p1"],
+     )
+diff --git a/bazel/repository_locations.bzl b/bazel/repository_locations.bzl
+index d7fa4fa884..4b03fc60a6 100644
+--- a/bazel/repository_locations.bzl
++++ b/bazel/repository_locations.bzl
+@@ -1287,20 +1287,20 @@ REPOSITORY_LOCATIONS_SPEC = dict(
+         license = "BSD-3-Clause",
+         license_url = "https://github.com/google/quiche/blob/{version}/LICENSE",
+     ),
+-    com_googlesource_googleurl = dict(
++    googleurl = dict(
+         project_name = "Chrome URL parsing library",
+         project_desc = "Chrome URL parsing library",
+-        project_url = "https://quiche.googlesource.com/googleurl",
++        project_url = "https://github.com/google/gurl",
+         version = "dd4080fec0b443296c0ed0036e1e776df8813aa7",
+-        sha256 = "fc694942e8a7491dcc1dde1bddf48a31370a1f46fef862bc17acf07c34dc6325",
+-        # Static snapshot of https://quiche.googlesource.com/googleurl/+archive/dd4080fec0b443296c0ed0036e1e776df8813aa7.tar.gz
+-        urls = ["https://storage.googleapis.com/quiche-envoy-integration/{version}.tar.gz"],
++        sha256 = "4ffa45a827646692e7b26e2a8c0dcbc1b1763a26def2fbbd82362970962a2fcf",
++        urls = ["https://github.com/google/gurl/archive/{version}.tar.gz"],
++        strip_prefix = "gurl-{version}",
+         use_category = ["controlplane", "dataplane_core"],
+         extensions = [],
+         release_date = "2022-11-03",
+         cpe = "N/A",
+-        license = "googleurl",
+-        license_url = "https://quiche.googlesource.com/googleurl/+/{version}/LICENSE",
++        license = "BSD-3-Clause",
++        license_url = "https://github.com/google/gurl/blob/{version}/LICENSE",
+     ),
+     com_google_cel_spec = dict(
+         project_name = "Common Expression Language (CEL) spec",
+diff --git a/source/common/http/BUILD b/source/common/http/BUILD
+index df39adb143..387b6ccded 100644
+--- a/source/common/http/BUILD
++++ b/source/common/http/BUILD
+@@ -599,7 +599,7 @@ envoy_cc_library(
+         "//source/common/common:logger_lib",
+         "//source/common/runtime:runtime_features_lib",
+         "@com_google_absl//absl/types:optional",
+-        "@com_googlesource_googleurl//url",
++        "@googleurl//url",
+     ],
+ )
+ 

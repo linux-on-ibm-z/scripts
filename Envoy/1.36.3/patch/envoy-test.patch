@@ -1,0 +1,288 @@
+diff --git a/source/extensions/common/wasm/context.cc b/source/extensions/common/wasm/context.cc
+index d49fe25ed9..5f8f675260 100644
+--- a/source/extensions/common/wasm/context.cc
++++ b/source/extensions/common/wasm/context.cc
+@@ -352,9 +352,49 @@ void Context::onStatsUpdate(Envoy::Stats::MetricSnapshot& snapshot) {
+   wasm()->on_stats_update_(this, id_, counter_block_size + gauge_block_size);
+ }
+ 
++static void assignNumeric(const char* value, size_t length, std::string* result,
++                          [[maybe_unused]] bool uses_wasm_byte_order) {
++#ifdef ABSL_IS_LITTLE_ENDIAN
++  result->assign(value, length);
++#else
++  if (!uses_wasm_byte_order) {
++    result->assign(value, length);
++    return;
++  }
++
++  switch (length) {
++  case 8: {
++    uint64_t value_uint64_le;
++    safeMemcpyUnsafeSrc(&value_uint64_le, value);
++    value_uint64_le = le64toh(value_uint64_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint64_le), length);
++    break;
++  }
++  case 4: {
++    uint32_t value_uint32_le;
++    safeMemcpyUnsafeSrc(&value_uint32_le, value);
++    value_uint32_le = le32toh(value_uint32_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint32_le), length);
++    break;
++  }
++  case 2: {
++    uint16_t value_uint16_le;
++    safeMemcpyUnsafeSrc(&value_uint16_le, value);
++    value_uint16_le = le16toh(value_uint16_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint16_le), length);
++    break;
++  }
++  default:
++    result->assign(value, length);
++    break;
++  }
++#endif
++}
++
+ // Native serializer carrying over bit representation from CEL value to the extension.
+ // This implementation assumes that the value type is static and known to the consumer.
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result) {
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order) {
+   using Filters::Common::Expr::CelValue;
+   int64_t out_int64;
+   uint64_t out_uint64;
+@@ -370,15 +410,18 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     return WasmResult::Ok;
+   case CelValue::Type::kInt64:
+     out_int64 = value.Int64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kUint64:
+     out_uint64 = value.Uint64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kDouble:
+     out_double = value.DoubleOrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_double), sizeof(double));
++    assignNumeric(reinterpret_cast<const char*>(&out_double), sizeof(double), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kBool:
+     out_bool = value.BoolOrDie();
+@@ -387,12 +430,14 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+   case CelValue::Type::kDuration:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToInt64Nanoseconds(value.DurationOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kTimestamp:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToUnixNanos(value.TimestampOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kMessage:
+     out_message = value.MessageOrDie();
+@@ -410,10 +455,11 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& keys = *keys_list.value();
+     std::vector<std::pair<std::string, std::string>> pairs(map.size(), std::make_pair("", ""));
+     for (auto i = 0; i < map.size(); i++) {
+-      if (serializeValue(keys[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(keys[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+-      if (serializeValue(map[keys[i]].value(), &pairs[i].second) != WasmResult::Ok) {
++      if (serializeValue(map[keys[i]].value(), &pairs[i].second, uses_wasm_byte_order) !=
++          WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -430,7 +476,7 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& list = *value.ListOrDie();
+     std::vector<std::pair<std::string, std::string>> pairs(list.size(), std::make_pair("", ""));
+     for (auto i = 0; i < list.size(); i++) {
+-      if (serializeValue(list[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(list[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -614,7 +660,7 @@ WasmResult Context::getProperty(std::string_view path, std::string* result) {
+     }
+   }
+ 
+-  return serializeValue(value, result);
++  return serializeValue(value, result, wasmVm()->usesWasmByteOrder());
+ }
+ 
+ // Header/Trailer/Metadata Maps.
+diff --git a/source/extensions/common/wasm/context.h b/source/extensions/common/wasm/context.h
+index 1b34189c98..4d1d712569 100644
+--- a/source/extensions/common/wasm/context.h
++++ b/source/extensions/common/wasm/context.h
+@@ -466,7 +466,8 @@ protected:
+ };
+ using ContextSharedPtr = std::shared_ptr<Context>;
+ 
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result);
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order);
+ 
+ } // namespace Wasm
+ } // namespace Common
+diff --git a/source/extensions/common/wasm/foreign.cc b/source/extensions/common/wasm/foreign.cc
+index 208a2fb96a..4edb1011b4 100644
+--- a/source/extensions/common/wasm/foreign.cc
++++ b/source/extensions/common/wasm/foreign.cc
+@@ -258,7 +258,7 @@ public:
+         return WasmResult::InternalFailure;
+       }
+       std::string result;
+-      auto serialize_status = serializeValue(value, &result);
++      auto serialize_status = serializeValue(value, &result, false);
+       if (serialize_status != WasmResult::Ok) {
+         return serialize_status;
+       }
+diff --git a/source/extensions/filters/http/oauth2/filter.cc b/source/extensions/filters/http/oauth2/filter.cc
+index 45affb1a59..f3fe0f31a5 100644
+--- a/source/extensions/filters/http/oauth2/filter.cc
++++ b/source/extensions/filters/http/oauth2/filter.cc
+@@ -245,7 +245,7 @@ std::string generateCodeVerifier(Random::RandomGenerator& random) {
+   // create 4 random uint64_t values to fill the buffer because RFC 7636 recommends 32 octets of
+   // randomness.
+   for (size_t i = 0; i < 4; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+ 
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+@@ -288,7 +288,7 @@ std::string encrypt(const std::string& plaintext, const std::string& secret,
+   MemBlockBuilder<uint64_t> mem_block(4);
+   // create 2 random uint64_t values to fill the buffer because AES-256-CBC requires 16 bytes IV
+   for (size_t i = 0; i < 2; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+ 
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+diff --git a/test/common/stream_info/stream_info_impl_test.cc b/test/common/stream_info/stream_info_impl_test.cc
+index 2bd3816b5f..b6042c8cdd 100644
+--- a/test/common/stream_info/stream_info_impl_test.cc
++++ b/test/common/stream_info/stream_info_impl_test.cc
+@@ -388,7 +388,7 @@ TEST_F(StreamInfoImplTest, SetFromForRecreateStream) {
+   s1.addPacketsRetransmitted(1);
+ 
+ #ifdef __clang__
+-#if defined(__linux__)
++#if defined(__linux__) && !defined(__s390x__)
+ #if defined(__has_feature) && !(__has_feature(thread_sanitizer))
+   assertStreamInfoSize(s1);
+ #endif
+@@ -449,7 +449,7 @@ TEST_F(StreamInfoImplTest, SetFrom) {
+   s1.addCustomFlag("test_flag2");
+ 
+ #ifdef __clang__
+-#if defined(__linux__)
++#if defined(__linux__) && !defined(__s390x__)
+ #if defined(__has_feature) && !(__has_feature(thread_sanitizer))
+   assertStreamInfoSize(s1);
+ #endif
+diff --git a/test/extensions/common/wasm/context_test.cc b/test/extensions/common/wasm/context_test.cc
+index 5304384362..6e5ea8d99c 100644
+--- a/test/extensions/common/wasm/context_test.cc
++++ b/test/extensions/common/wasm/context_test.cc
+@@ -203,13 +203,13 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   CelValue value = CelValue::CreateMap(&mock_cel_map_);
+   EXPECT_CALL(mock_cel_map_, ListKeys())
+       .WillOnce(testing::Return(absl::UnimplementedError("CelMap::ListKeys is not implemented")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_map_, size()).WillRepeatedly(testing::Return(1));
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -217,7 +217,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -225,7 +225,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+ 
+ TEST_F(ContextTest, SerializeValueListTest) {
+@@ -235,12 +235,12 @@ TEST_F(ContextTest, SerializeValueListTest) {
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_list_, size()).WillRepeatedly(testing::Return(1));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(1)
+       .WillRepeatedly(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+ 
+ TEST_F(ContextTest, FindValueTest) {
+diff --git a/test/extensions/filters/http/wasm/test_data/test_cpp.cc b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+index a419c589a0..4e142d6b3a 100644
+--- a/test/extensions/filters/http/wasm/test_data/test_cpp.cc
++++ b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+@@ -583,10 +583,11 @@ void TestContext::onLog() {
+     }
+     {
+       // Some properties are defined in the stream context.
++      const uint64_t expected_connection_id = 4;
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"connection_id"}, std::string("\x4\0\0\0\0\0\0\0\0", 8)},
++          {{"connection_id"}, std::string(reinterpret_cast<const char*>(&expected_connection_id), 8)},
+           {{"connection", "requested_server_name"}, "w3.org"},
+           {{"source", "address"}, "127.0.0.1:0"},
+           {{"destination", "address"}, "127.0.0.2:0"},
+diff --git a/test/extensions/tracers/opentelemetry/samplers/trace_id_ratio_based/trace_id_ratio_based_sampler_test.cc b/test/extensions/tracers/opentelemetry/samplers/trace_id_ratio_based/trace_id_ratio_based_sampler_test.cc
+index 21be5bac10..25864b84c7 100644
+--- a/test/extensions/tracers/opentelemetry/samplers/trace_id_ratio_based/trace_id_ratio_based_sampler_test.cc
++++ b/test/extensions/tracers/opentelemetry/samplers/trace_id_ratio_based/trace_id_ratio_based_sampler_test.cc
+@@ -4,6 +4,7 @@
+ #include "envoy/extensions/tracers/opentelemetry/samplers/v3/trace_id_ratio_based_sampler.pb.h"
+ #include "envoy/type/v3/percent.pb.h"
+ 
++#include "source/common/common/byte_order.h"
+ #include "source/common/common/random_generator.h"
+ #include "source/extensions/tracers/opentelemetry/samplers/trace_id_ratio_based/trace_id_ratio_based_sampler.h"
+ #include "source/extensions/tracers/opentelemetry/span_context.h"
+@@ -38,7 +39,7 @@ TEST(TraceIdRatioBasedSamplerTest, TestTraceIdToUint64) {
+   std::string short_trace_id = "5b8aa5a";
+   EXPECT_EQ(sampler->traceIdToUint64(short_trace_id), 0);
+ 
+-  uint64_t first_8_bytes = 16749670771141741147ULL;
++  uint64_t first_8_bytes = fromEndianness<ByteOrder::BigEndian>(0x5b8aa5a2d2c872e8ULL);
+ 
+   // Test with a string of exactly 16 characters.
+   std::string trace_id_16 = "5b8aa5a2d2c872e8";
