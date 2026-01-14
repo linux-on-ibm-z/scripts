@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2025.
+# © Copyright IBM Corporation 2025, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -152,23 +152,21 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhe-9.7" | "rhel-10.0" | "rhel-10.1")
+"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
         sudo yum install -y --allowerasing git wget gcc gcc-c++ tar make readline-devel zlib-devel bison flex glibc-langpack-en procps-ng diffutils patch curl libicu-devel |& tee -a "$LOG_FILE"
 
-        if [[ "$VERSION_ID" == "9.4" ||  "$VERSION_ID" == "9.6" || "$VERSION_ID" == "10.0" ]]; then
-            sudo yum install -y perl-FindBin perl-File-Compare |& tee -a "$LOG_FILE"
+        if [[ "$VERSION_ID" != "8.10" ]]; then
+        sudo yum install -y perl-FindBin perl-File-Compare |& tee -a "$LOG_FILE"
         fi
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"sles-16.0")
+"sles-15.7" | "sles-16.0")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo zypper --non-interactive refresh >/dev/null
         sudo zypper --non-interactive install -y gawk glibc-locale libicu diffutils coreutils util-linux bison flex wget gcc gcc-c++ make git tar zlib-devel readline-devel patch curl |& tee -a "$LOG_FILE"
-        sudo ln -sf /usr/sbin/useradd /usr/bin/useradd
-        echo 'postgres ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
