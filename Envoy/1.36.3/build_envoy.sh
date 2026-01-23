@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2026
+# © Copyright IBM Corporation 2025, 2026
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -11,8 +11,8 @@ set -e -o pipefail
 PACKAGE_NAME="Envoy"
 PACKAGE_VERSION="v1.36.3"
 SOURCE_ROOT="$(pwd)"
-
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/${PACKAGE_VERSION}/patch"
+PATCH_VERSION="${PACKAGE_VERSION#v}"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/${PATCH_VERSION}/patch"
 
 FORCE="false"
 LOG_FILE="$SOURCE_ROOT/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
