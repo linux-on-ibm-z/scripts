@@ -1,0 +1,99 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index ea2003e221..69f3e1bd86 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -254,3 +254,17 @@ opt-level = 3
+ #       version. Should you ever encounter a `datafusion-*` crate that is duplicated (i.e. `Cargo.lock` lists both the
+ #       crates.io release and our fork), just add it to this list here.
+ datafusion = { git = "https://github.com/influxdata/arrow-datafusion.git", rev = "ee81b1cc652bde6c131973d091b178836692112d" }
++arrow = { path = "SOURCE_ROOT/arrow-rs/arrow" }
++arrow-array = { path = "SOURCE_ROOT/arrow-rs/arrow-array" }
++arrow-buffer = { path = "SOURCE_ROOT/arrow-rs/arrow-buffer" }
++arrow-cast = { path = "SOURCE_ROOT/arrow-rs/arrow-cast" }
++arrow-csv = { path = "SOURCE_ROOT/arrow-rs/arrow-csv" }
++arrow-data = { path = "SOURCE_ROOT/arrow-rs/arrow-data" }
++arrow-ipc = { path = "SOURCE_ROOT/arrow-rs/arrow-ipc" }
++arrow-json = { path = "SOURCE_ROOT/arrow-rs/arrow-json" }
++arrow-schema = { path = "SOURCE_ROOT/arrow-rs/arrow-schema" }
++arrow-select = { path = "SOURCE_ROOT/arrow-rs/arrow-select" }
++arrow-string = { path = "SOURCE_ROOT/arrow-rs/arrow-string" }
++arrow-ord = { path = "SOURCE_ROOT/arrow-rs/arrow-ord" }
++arrow-flight = { path = "SOURCE_ROOT/arrow-rs/arrow-flight" }
++parquet = { path = "SOURCE_ROOT/arrow-rs/parquet" }
+diff --git a/influxdb3_query_executor/src/lib.rs b/influxdb3_query_executor/src/lib.rs
+index ba7896f67e..3d9a91b564 100644
+--- a/influxdb3_query_executor/src/lib.rs
++++ b/influxdb3_query_executor/src/lib.rs
+@@ -1032,6 +1032,9 @@ mod tests {
+                     "+------------+------------+-----------+----------+----------+",
+                     "| table_name | size_bytes | row_count | min_time | max_time |",
+                     "+------------+------------+-----------+----------+----------+",
++                    #[cfg(target_endian = "big")]
++                    "| cpu        | 2178       | 3         | 0        | 20       |",
++                    #[cfg(target_endian = "little")]
+                     "| cpu        | 2181       | 3         | 0        | 20       |",
+                     "| cpu        | 2181       | 3         | 30       | 50       |",
+                     "| cpu        | 2181       | 3         | 60       | 80       |",
+@@ -1047,6 +1050,9 @@ mod tests {
+                     "+------------+------------+-----------+----------+----------+",
+                     "| table_name | size_bytes | row_count | min_time | max_time |",
+                     "+------------+------------+-----------+----------+----------+",
++                    #[cfg(target_endian = "big")]
++                    "| mem        | 2178       | 3         | 0        | 20       |",
++                    #[cfg(target_endian = "little")]
+                     "| mem        | 2181       | 3         | 0        | 20       |",
+                     "| mem        | 2181       | 3         | 30       | 50       |",
+                     "| mem        | 2181       | 3         | 60       | 80       |",
+@@ -1061,9 +1067,15 @@ mod tests {
+                     "+------------+------------+-----------+----------+----------+",
+                     "| table_name | size_bytes | row_count | min_time | max_time |",
+                     "+------------+------------+-----------+----------+----------+",
++                    #[cfg(target_endian = "big")]
++                    "| cpu        | 2178       | 3         | 0        | 20       |",
++                    #[cfg(target_endian = "little")]
+                     "| cpu        | 2181       | 3         | 0        | 20       |",
+                     "| cpu        | 2181       | 3         | 30       | 50       |",
+                     "| cpu        | 2181       | 3         | 60       | 80       |",
++                    #[cfg(target_endian = "big")]
++                    "| mem        | 2178       | 3         | 0        | 20       |",
++                    #[cfg(target_endian = "little")]
+                     "| mem        | 2181       | 3         | 0        | 20       |",
+                     "| mem        | 2181       | 3         | 30       | 50       |",
+                     "| mem        | 2181       | 3         | 60       | 80       |",
+@@ -1079,6 +1091,9 @@ mod tests {
+                     "+------------+------------+-----------+----------+----------+",
+                     "| table_name | size_bytes | row_count | min_time | max_time |",
+                     "+------------+------------+-----------+----------+----------+",
++                    #[cfg(target_endian = "big")]
++                    "| cpu        | 2178       | 3         | 0        | 20       |",
++                    #[cfg(target_endian = "little")]
+                     "| cpu        | 2181       | 3         | 0        | 20       |",
+                     "| cpu        | 2181       | 3         | 30       | 50       |",
+                     "| cpu        | 2181       | 3         | 60       | 80       |",
+diff --git a/influxdb3_server/src/lib.rs b/influxdb3_server/src/lib.rs
+index ecfae7b3e0..602a946547 100644
+--- a/influxdb3_server/src/lib.rs
++++ b/influxdb3_server/src/lib.rs
+@@ -730,11 +730,20 @@ mod tests {
+ 
+         assert_eq!(
+             batches[0]["time"].to_data().buffers(),
+-            &[Buffer::from([123, 0, 0, 0, 0, 0, 0, 0])]
++            &[Buffer::from({
++                #[cfg(target_endian = "little")]
++                 {
++                     [123, 0, 0, 0, 0, 0, 0, 0]
++                 }
++                 #[cfg(target_endian = "big")]
++                 {
++                     [0, 0, 0, 0, 0, 0, 0, 123]
++                 }
++            })]
+         );
+         assert_eq!(
+             batches[0]["val"].to_data().buffers(),
+-            &[Buffer::from(1_u64.to_le_bytes())]
++            &[Buffer::from(1_u64.to_ne_bytes())]
+         );
+ 
+         shutdown.cancel();
