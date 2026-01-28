@@ -69,14 +69,14 @@ function configureAndInstall() {
     git clone https://github.com/apache/arrow-rs.git
     cd arrow-rs
     git checkout 55.2.0
-    git apply ${PATCH_URL}/arrow.patch || error "arrow.patch"
+    curl -sSL ${PATCH_URL}/arrow.patch | patch -p1 || error "arrow.patch"
 
     # Download and configure InfluxDB
     printf -- 'Downloading InfluxDB. Please wait.\n'
     cd $CURDIR
     git clone --depth 1 -b v${PACKAGE_VERSION} https://github.com/influxdata/influxdb.git
     cd influxdb
-    git apply ${PATCH_URL}/influxdb.patch || error "influxdb.patch"
+    curl -sSL ${PATCH_URL}/influxdb.patch | patch -p1 || error "influxdb.patch"
     sed -i "s|SOURCE_ROOT|$CURDIR|g" Cargo.toml
 
     #Build InfluxDB
