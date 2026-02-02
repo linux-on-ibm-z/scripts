@@ -29,7 +29,7 @@ K8S_VERSION="v1.33.3"
 FORCE="false"
 TESTS="false"
 export SOURCE_ROOT=$(pwd)
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Calico/3.31.0/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Calico/3.31.3/patch"
 GO_INSTALL_URL="https://go.dev/dl/${GOLANG_VERSION}"
 GO_DEFAULT="$SOURCE_ROOT/go"
 GO_FLAG="DEFAULT"
@@ -485,7 +485,6 @@ case "$DISTRO" in
     sudo apt-get update
     sudo apt-get install -y patch git curl tar gcc wget make docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin clang 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
     ;;
 *)
     printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
