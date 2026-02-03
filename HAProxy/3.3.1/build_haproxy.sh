@@ -142,7 +142,7 @@ function runRegressionTests() {
   cd "haproxy-${PACKAGE_VERSION}"
 
   # Apply patch
-  curl -sSL ${PATCH_URL}/aes_gcm.patch
+  curl -sSL ${PATCH_URL}/aes_gcm.patch -o aes_gcm.patch
   patch -p0 < aes_gcm.patch
   
   scripts/build-vtest.sh
