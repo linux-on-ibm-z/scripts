@@ -186,6 +186,9 @@ case "$DISTRO" in
 	printf -- "Installing %s %s for %s\n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n" |& tee -a "$LOG_FILE"
 	sudo zypper install -y binutils gcc gcc-c++ make git libz1 zlib-devel openssl-devel coreutils diffutils findutils util-linux |& tee -a "$LOG_FILE"
+	if [ ! -e /bin/install ]; then
+    		sudo ln -s /usr/bin/install /bin/install
+	fi
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
