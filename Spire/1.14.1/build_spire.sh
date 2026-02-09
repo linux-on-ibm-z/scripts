@@ -156,7 +156,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
     sudo apt-get update >/dev/null
-    sudo apt-get install -y curl wget git make gcc libssl-dev |& tee -a "$LOG_FILE"
+    sudo apt-get install -y curl wget git make gcc libssl-dev libc6-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
