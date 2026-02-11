@@ -11,7 +11,7 @@ set -e -o pipefail
 PACKAGE_NAME="postgresql"
 PACKAGE_VERSION="18.1"
 CURDIR="$(pwd)"
-TESTS="true"
+TESTS="false"
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 
@@ -71,16 +71,6 @@ function runTest() {
 
 function configureAndInstall() {
         printf -- 'Configuration and Installation started \n'
-
-        #check if postgres user exists
-        if id "postgres" >/dev/null 2>&1; then
-                        printf -- 'Detected Postgres user in the system. Using the same\n'
-        else
-                        printf -- 'Creating postgres user. \n'
-                        sudo useradd postgres -m -U
-                        sudo passwd postgres
-        fi
-
         cd "${CURDIR}"
         wget "https://ftp.postgresql.org/pub/source/v${PACKAGE_VERSION}/postgresql-${PACKAGE_VERSION}.tar.gz"
         tar xf "postgresql-${PACKAGE_VERSION}.tar.gz"
