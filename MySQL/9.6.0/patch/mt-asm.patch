@@ -1,0 +1,18 @@
+diff --git a/storage/ndb/include/portlib/mt-asm.h b/storage/ndb/include/portlib/mt-asm.h
+index f03f2bd3616..d21a2f0df70 100644
+--- a/storage/ndb/include/portlib/mt-asm.h
++++ b/storage/ndb/include/portlib/mt-asm.h
+@@ -121,6 +121,13 @@ static inline int xcng(volatile unsigned *addr, int val) {
+
+   return prev;
+ }
++#elif defined(__s390x__)
++#define NDB_HAVE_MB
++#define NDB_HAVE_RMB
++#define NDB_HAVE_WMB
++#define mb()   { asm volatile("" : : : "memory"); }
++#define rmb()  mb()
++#define wmb()  mb()
+
+ #elif defined(__aarch64__)
+ /**
