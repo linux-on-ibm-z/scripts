@@ -217,7 +217,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl gcc git make wget unzip tar |& tee -a "$LOG_FILE"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl gcc git make wget unzip tar libc6-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
