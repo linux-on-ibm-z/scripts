@@ -142,9 +142,11 @@ function runRegressionTests() {
   cd "haproxy-${PACKAGE_VERSION}"
 
   # Apply patch
+  printf -- "%s Applying Patch\n"
   curl -sSL ${PATCH_URL}/aes_gcm.patch -o aes_gcm.patch
   patch -p0 < aes_gcm.patch
   
+  sed -i "s,main,refs/tags/last,g" scripts/build-vtest.sh
   scripts/build-vtest.sh
 
   make -C addons/wurfl/dummy
