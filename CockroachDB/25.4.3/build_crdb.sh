@@ -84,7 +84,7 @@ function configureAndInstall() {
         sed -i '368,$d' bazel.patch
         sed -i "s#RULES_JAVA_ROOT_PATH#$SOURCE_ROOT#g" bazel.patch
         patch -p1 < bazel.patch || error "Patch bazel"
-		if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-9.7" || "$DISTRO" == "rhel-9.6" || "$DISTRO" == "rhel-9.4" || "$DISTRO" == "rhel-8.10"]]; then
+		if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-9.7" || "$DISTRO" == "rhel-9.6" || "$DISTRO" == "rhel-9.4" || "$DISTRO" == "rhel-8.10" ]]; then
 	        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk && export PATH=$JAVA_HOME/bin:$PATH
             printf -- "export JAVA_HOME=$JAVA_HOME\n" >> "$BUILD_ENV"
         fi
