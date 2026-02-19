@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2025
+# © Copyright IBM Corporation 2025, 2026
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -86,9 +86,13 @@ function configureAndInstall()
 	export PATH=/usr/local/bin/python3.10:$PATH
 	python3 -V 	
 
-    	if [[ "$ID" == "rhel" ]]; then
-		pip3 install M2Crypto		
-		fi	
+	if [[ "$ID" == "rhel" ]]; then
+		if [[ "$VERSION_ID" == "8.10" ]]; then
+			pip3 install M2Crypto==0.42.0
+		else
+			pip3 install M2Crypto
+		fi
+	fi	
 
 	printf -- 'Building Rust \n'
 	cd "${CURDIR}"
