@@ -200,7 +200,7 @@ case "$DISTRO" in
 "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gcc git make python3 python3-pip tar wget |& tee -a "$LOG_FILE"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git python3 python3-pip tar wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
