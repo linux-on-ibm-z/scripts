@@ -1,5 +1,5 @@
 diff --git a/WORKSPACE b/WORKSPACE
-index b6ffd6f..3e5d9d7 100644
+index b6ffd6f..0954fa5 100644
 --- a/WORKSPACE
 +++ b/WORKSPACE
 @@ -94,7 +94,7 @@ http_archive(
@@ -7,14 +7,18 @@ index b6ffd6f..3e5d9d7 100644
      strip_prefix = "tensorflow-%s" % TENSORFLOW_COMMIT,
      urls = [
 -        "https://mirror.bazel.build/github.com/tensorflow/tensorflow/archive/%s.tar.gz" % TENSORFLOW_COMMIT,
-+       # "https://mirror.bazel.build/github.com/tensorflow/tensorflow/archive/%s.tar.gz" % TENSORFLOW_COMMIT,
++        # "https://mirror.bazel.build/github.com/tensorflow/tensorflow/archive/%s.tar.gz" % TENSORFLOW_COMMIT,
          "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % TENSORFLOW_COMMIT,
      ],
      patches = [
-@@ -130,6 +130,12 @@ http_archive(
+@@ -128,8 +128,14 @@ ZETASQL_COMMIT = "ac37cf5c0d80b5605176fc0f29e87b12f00be693"  # 08/10/2022
+ http_archive(
+     name = "com_google_zetasql",
      urls = ["https://github.com/google/zetasql/archive/%s.zip" % ZETASQL_COMMIT],
-     strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
-     sha256 = "651a768cd51627f58aa6de7039aba9ddab22f4b0450521169800555269447840",
+-    strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
+-    sha256 = "651a768cd51627f58aa6de7039aba9ddab22f4b0450521169800555269447840",
++    strip_prefix = "googlesql-%s" % ZETASQL_COMMIT,
++    sha256 = "86f81591ab5ec20457a5394eb2c5c981e6f6c89f4c49c211d096c3acffec1eb1",
 +    patches = [
 +        "//third_party:zetasql_deps.patch",
 +    ],

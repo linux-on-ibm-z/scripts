@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2025.
+# © Copyright IBM Corporation 2025, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -131,7 +131,8 @@ function configureAndInstall() {
     printf -- 'Installing Apache Beam... \n'
 
     cd "${CURDIR}"
-    GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True pip3 install 'apache-beam[gcp]'==2.61.0
+    echo "setuptools==80.10.1" > constraints.txt
+    GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True PIP_CONSTRAINT=constraints.txt pip3 install 'apache-beam[gcp]'==2.61.0
 
     printf -- 'Apache Beam installed successfully \n'
 
@@ -145,8 +146,8 @@ function configureAndInstall() {
         rm -rf $CURDIR/tfx-bsl
     fi
     if [[ "${DISTRO}" == "ubuntu-24.04" ]]; then
-	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60
-	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 60
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 60
     fi
     curl -o tfx-bsl.diff $PATCH_URL/tfx-bsl.diff
     git clone -b v1.16.1 --depth 1 https://github.com/tensorflow/tfx-bsl.git
@@ -158,13 +159,14 @@ function configureAndInstall() {
     sed -i "179s/.*/            default=\'>=2.16,<2.19\',/" setup.py
     export BAZEL_HTTP_TIMEOUT=300
     python3 setup.py bdist_wheel
-    pip3 install dist/*.whl
+    echo "setuptools==59.2.0" > constraints.txt
+    PIP_CONSTRAINT=constraints.txt PIP_BUILD_CONSTRAINT=constraints.txt pip3 install dist/*.whl
 
     printf -- 'tfx-bsl installed successfully \n'
 
     printf -- 'Installing tf-keras \n'
     pip3 install tf-keras
-    
+
     printf -- 'Installing TensorFlow Transform... \n'
     cd "${CURDIR}"
     git clone -b v${PACKAGE_VERSION} --depth 1 https://github.com/tensorflow/transform.git
@@ -217,24 +219,24 @@ function printHelp() {
 }
 
 while getopts "h?dytp:" opt; do
-	case "$opt" in
-	h | \?)
-		printHelp
-		exit 0
-		;;
-	d)
-		set -x
-		;;
-	p)
-		PYTHON_VERSION=$OPTARG
-		;;
-	y)
-		FORCE="true"
-		;;
-	t)
-		TESTS="true"
-		;;
-	esac
+        case "$opt" in
+        h | \?)
+                printHelp
+                exit 0
+                ;;
+        d)
+                set -x
+                ;;
+        p)
+                PYTHON_VERSION=$OPTARG
+                ;;
+        y)
+                FORCE="true"
+                ;;
+        t)
+                TESTS="true"
+                ;;
+        esac
 done
 
 function gettingStarted() {
