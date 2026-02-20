@@ -162,7 +162,8 @@ function configureAndInstall() {
     cd $GOPATH/src/github.com/elastic
     sudo rm -rf beats
     git clone -b v$PACKAGE_VERSION https://github.com/elastic/beats.git
-    cd $GOPATH/src/github.com/elastic
+    cd beats
+    curl -sSL ${PATCH_URL}/beats.patch | git apply - || error "beats patch"
 
     #Making directory to add .yml files
     if [ ! -d "/etc/beats/" ]; then

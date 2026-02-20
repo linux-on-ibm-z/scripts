@@ -1,0 +1,26 @@
+diff --git a/dev-tools/mage/pytest.go b/dev-tools/mage/pytest.go
+index 2506bc205c..f223fa30c8 100644
+--- a/dev-tools/mage/pytest.go
++++ b/dev-tools/mage/pytest.go
+@@ -258,7 +258,7 @@ func PythonVirtualenv(forceCreate bool) (string, error) {
+ 	vePython := virtualenvPath(ve, pythonExe)
+ 	// Ensure we are using the latest pip version.
+ 	// use method described at https://pip.pypa.io/en/stable/installation/#upgrading-pip
+-	if err = sh.RunWith(env, vePython, "-m", "pip", "install", "--upgrade", "pip"); err != nil {
++	if err = sh.RunWith(env, vePython, "-m", "pip", "install", "--upgrade", "pip<24", "setuptools<82"); err != nil {
+ 		fmt.Printf("warn: failed to upgrade pip (ignoring): %v", err)
+ 	}
+ 
+diff --git a/libbeat/scripts/Makefile b/libbeat/scripts/Makefile
+index 37a687fc5b..ea479414d4 100755
+--- a/libbeat/scripts/Makefile
++++ b/libbeat/scripts/Makefile
+@@ -268,7 +268,7 @@ load-tests: ## @testing Runs load tests
+ python-env: export CRYPTOGRAPHY_DONT_BUILD_RUST=1
+ python-env: ${ES_BEATS}/libbeat/tests/system/requirements.txt
+ 	@test -e ${PYTHON_ENV}/bin/activate || ${PYTHON_EXE} -m venv ${VENV_PARAMS} ${PYTHON_ENV}
+-	@. ${PYTHON_ENV}/bin/activate && pip install ${PIP_INSTALL_PARAMS} -q --upgrade pip ; \
++	@. ${PYTHON_ENV}/bin/activate && pip install ${PIP_INSTALL_PARAMS} -q --upgrade "pip<24" "setuptools<82" "wheel" ; \
+ 	if [ -a ./tests/system/requirements.txt ] && [ ! ${ES_BEATS}/libbeat/tests/system/requirements.txt -ef ./tests/system/requirements.txt ] ; then \
+ 		. ${PYTHON_ENV}/bin/activate && pip install ${PIP_INSTALL_PARAMS} -qUr ${ES_BEATS}/libbeat/tests/system/requirements.txt -Ur ./tests/system/requirements.txt ; \
+ 	else \
