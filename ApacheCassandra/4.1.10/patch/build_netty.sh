@@ -117,7 +117,7 @@ function configureAndInstall() {
     sed -i '90,90 s/3a667d10e94186fd503966f5638e134fe9fb4080/d83fd4af80af244ac623b99d8152c2e53287b9ad/g' pom.xml
     sed -i 's/verbose=\"on\"/verbose=\"on\" retries=\"5\"/g' libressl-static/pom.xml
 
-    if [[ "${DISTRO}" == "rhel-9"* || "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-24"* || "${DISTRO}" == "ubuntu-25"* ]]; then
+    if [[ "${DISTRO}" == "rhel-9"* || "${DISTRO}" == "ubuntu-22.04" || "${DISTRO}" == "ubuntu-24"* || "${DISTRO}" == "ubuntu-25"* || "${DISTRO}" == "debian-12" ]]; then
         curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff
         cp gcc_patch.diff /tmp/gcc_patch.diff
 
@@ -203,7 +203,7 @@ case "$DISTRO" in
     sudo zypper install -y awk ninja cmake perl libopenssl-devel apr-devel autoconf automake libtool make tar git wget gcc gcc-c++ gzip maven go |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10" | "debian-12")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update -y
