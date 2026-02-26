@@ -1,0 +1,12 @@
+diff --git a/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt b/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt
+index f73a36d..150d2cf 100644
+--- a/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt
++++ b/cmake/modules/falcosecurity-libs-repo/CMakeLists.txt
+@@ -24,6 +24,7 @@ ExternalProject_Add(
+ 	falcosecurity-libs
+ 	URL "https://github.com/${FALCOSECURITY_LIBS_REPO}/archive/${FALCOSECURITY_LIBS_VERSION}.tar.gz"
+ 	URL_HASH "${FALCOSECURITY_LIBS_CHECKSUM}"
++	PATCH_COMMAND patch -p1 < "${CMAKE_CURRENT_SOURCE_DIR}/libs_container_plugin_cmake.patch"
+ 	CONFIGURE_COMMAND ""
+ 	BUILD_COMMAND ""
+ 	INSTALL_COMMAND ""
