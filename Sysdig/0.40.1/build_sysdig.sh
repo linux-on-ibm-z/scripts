@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2025.
+# © Copyright IBM Corporation 2025, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -61,10 +61,8 @@ function configureAndInstall() {
      	sed -i '92s/-DCARES_SHARED=/-DCARES_SHARED= -DCMAKE_INSTALL_LIBDIR=lib/' CMakeFiles/c-ares.dir/build.make
       
     elif [[ "$DISTRO" == "rhel-9.4" ]] || [[ "$DISTRO" == "rhel-9.6" ]]; then
-        if [[ "$DISTRO" == "rhel-9.6" ]]; then
-    	   sed -i 's,8.0.0+driver,8.1.0+driver,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
-    	   sed -i 's,f35990d6a1087a908fe94e1390027b9580d4636032c0f2b80bf945219474fd6b,182e6787bf86249a846a3baeb4dcd31578b76d4a13efa16ce3f44d66b18a77a6,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
-        fi
+    	sed -i 's,8.0.0+driver,8.1.0+driver,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
+    	sed -i 's,f35990d6a1087a908fe94e1390027b9580d4636032c0f2b80bf945219474fd6b,182e6787bf86249a846a3baeb4dcd31578b76d4a13efa16ce3f44d66b18a77a6,g' $SOURCE_ROOT/sysdig/cmake/modules/driver.cmake
    	cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
      	sed -i '92s/-DCARES_SHARED=/-DCARES_SHARED= -DCMAKE_INSTALL_LIBDIR=lib/' CMakeFiles/c-ares.dir/build.make 
       
