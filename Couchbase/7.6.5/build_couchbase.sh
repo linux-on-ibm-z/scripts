@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2025.
+# © Copyright IBM Corporation 2025, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -1751,11 +1751,6 @@ function buildSSH() {
 }
 
 function buildCouchbase() {
-    echo "export PATH=$SOURCE_ROOT/openssl-3.1.4/_build/bin:$PATH" >> $PRESERVE_ENVARS
-    echo "export LD_LIBRARY_PATH=$SOURCE_ROOT/openssl-3.1.4/_build/lib:$LD_LIBRARY_PATH" >> $PRESERVE_ENVARS
-    echo "export OPENSSL_ROOT_DIR=$SOURCE_ROOT/openssl-3.1.4/_build" >> $PRESERVE_ENVARS
-    echo "export OPENSSL_CONF=$SOURCE_ROOT/openssl-3.1.4/_build/etc/openssl" >> $PRESERVE_ENVARS
-    source $PRESERVE_ENVARS
     if [[ $DISTRO == ubuntu* ]]; then
         export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
     elif [[ $DISTRO == rhel* ]]; then
@@ -1763,7 +1758,7 @@ function buildCouchbase() {
     else
         export SSL_CERT_FILE=/etc/ssl/ca-bundle.pem
     fi
-    sudo ldconfig
+    unset LD_LIBRARY_PATH
     #To avoid openssl mismatch error
     if [ $ID$VERSION_ID == ubuntu22.04 ] || [ $ID$VERSION_ID == sles15.6 ]; then
         buildSSH
@@ -1785,7 +1780,12 @@ function buildCouchbase() {
     repo sync
 
     sudo git config --system --add safe.directory '*'
-
+    echo "export PATH=$SOURCE_ROOT/openssl-3.1.4/_build/bin:$PATH" >> $PRESERVE_ENVARS
+    echo "export LD_LIBRARY_PATH=$SOURCE_ROOT/openssl-3.1.4/_build/lib:$LD_LIBRARY_PATH" >> $PRESERVE_ENVARS
+    echo "export OPENSSL_ROOT_DIR=$SOURCE_ROOT/openssl-3.1.4/_build" >> $PRESERVE_ENVARS
+    echo "export OPENSSL_CONF=$SOURCE_ROOT/openssl-3.1.4/_build/etc/openssl" >> $PRESERVE_ENVARS
+    source $PRESERVE_ENVARS
+    sudo ldconfig
     cd $SOURCE_ROOT/couchbase/tlm
     wget "${PATCH_URL}"/tlm.diff
     git apply tlm.diff
