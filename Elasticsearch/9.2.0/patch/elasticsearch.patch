@@ -389,7 +389,7 @@ index 4d94ad6e..bee14842 100644
 -          artifact()
 -        }
 +      flatDir {
-+        dirs '/home/test/zstd-native-dep'
++        dirs '%S390X_ZSTD_DEP_DIR%'
        }
      }
      filter {
