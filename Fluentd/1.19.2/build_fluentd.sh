@@ -12,7 +12,7 @@ PACKAGE_NAME="fluentd"
 PACKAGE_VERSION="1.19.2"
 CURDIR="$(pwd)"
 
-RUBY_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Ruby/3.4.5/build_ruby.sh"
+RUBY_INSTALL_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Ruby/4.0.1/build_ruby.sh"
 
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
@@ -173,21 +173,21 @@ case "$DISTRO" in
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-9.4" | "rhel-9.6" | "rhel-10.0")
+"rhel-9.4" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y rpmdevtools zlib-devel zlib wget |& tee -a "$LOG_FILE"
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.7")
+"sles-15.7" | "sles-16.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y gzip awk zlib-devel wget |& tee -a "$LOG_FILE"
     install_ruby
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-22.04" | "ubuntu-24.04")
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
