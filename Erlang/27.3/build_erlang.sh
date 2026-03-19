@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2025.
+# © Copyright IBM Corporation 2025, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -11,12 +11,10 @@ set -e -o pipefail
 PACKAGE_NAME="erlang"
 PACKAGE_VERSION="27.3"
 CURDIR="$(pwd)"
-
-
 TESTS="false"
 FORCE="false"
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
-JAVA_PROVIDED="OpenJDK11"
+JAVA_PROVIDED="OpenJDK21"
 BUILD_ENV="$HOME/setenv.sh"
 
 trap cleanup 0 1 2 ERR
@@ -79,8 +77,8 @@ function configureAndInstall() {
     echo "Java provided by user $JAVA_PROVIDED" >> "$LOG_FILE"
 
     if [[ "$JAVA_PROVIDED" == "IBM_Semeru_11" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04 and RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "rhel-10.*" || "$DISTRO" == "sles-16.0" ]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.10, RHEL 10.0, 10.1 and SLES 16 Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
         # Install IBM_Semeru_11
@@ -94,8 +92,8 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_11 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_17" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04 and RHEL 10.0. Please use OpenJDK-21 instead..\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "rhel-10.*" || "$DISTRO" == "sles-16.0" ]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.10 and RHEL 10.0, 10.1 and SLES 16 Please use OpenJDK-21 instead..\n' >> "$LOG_FILE"
             exit 1
         fi
         # Install IBM_Semeru_17
@@ -111,8 +109,8 @@ function configureAndInstall() {
 	
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_8" ]]; then
         # Install IBM_Semeru_8
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'IBM_Semeru 8 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "rhel-10.*" || "$DISTRO" == "sles-16.0" ]]; then
+            printf -- 'IBM_Semeru 8 runtime is not supported on Ubuntu 25.10, RHEL 10.0, 10.1 and SLES 16 Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi	
         sudo mkdir -p /opt/java
@@ -125,8 +123,8 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_8 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "IBM_Semeru_21" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" ]]; then
-            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" ]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.10, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
         # Install IBM_Semeru_21
@@ -140,8 +138,8 @@ function configureAndInstall() {
         printf -- 'export JAVA_HOME=/opt/java\n'  >> "$BUILD_ENV"
         printf -- 'IBM_Semeru_21 installed\n' >> "$LOG_FILE"
     elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_11" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'Eclipse_Adoptium_Temurin_11 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "rhel-10.*" || "$DISTRO" == "sles-16.0" ]]; then
+            printf -- 'Eclipse_Adoptium_Temurin_11 runtime is not supported on Ubuntu 25.10, RHEL 10.0, 10.1. and SLES 16 Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi    	
         # Install Eclipse_Adoptium_Temurin_11
@@ -156,8 +154,8 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_11 installed\n' >> "$LOG_FILE"
         
     elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_17" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'Eclipse_Adoptium_Temurin_17 is not supported on Ubuntu 25.04 and RHEL 10.0, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "rhel-10.*" || "$DISTRO" == "sles-16.0" ]]; then
+            printf -- 'Eclipse_Adoptium_Temurin_17 is not supported on Ubuntu 25.10 and RHEL 10.0, 10.1 and SLES 16 Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
         # Install Eclipse_Adoptium_Temurin_17
@@ -171,8 +169,8 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_17 installed\n' >> "$LOG_FILE"
 
      elif [[ "$JAVA_PROVIDED" == "Eclipse_Adoptium_Temurin_21" ]]; then
-     	if [[ "$DISTRO" == "ubuntu-25.04" ]]; then
-            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.04, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+     	if [[ "$DISTRO" == "ubuntu-25.10" ]]; then
+            printf -- 'IBM Semeru runtime is not supported on Ubuntu 25.10, Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
         # Install Eclipse_Adoptium_Temurin_21
@@ -186,8 +184,8 @@ function configureAndInstall() {
         printf -- 'Eclipse_Adoptium_Temurin_21 installed\n' >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
-    	if [[ "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'JDK11 is not supported on RHEL 10.0, Please use JDK-21 version instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "rhel-10.*" || "$DISTRO" == "sles-16.0" ]]; then
+            printf -- 'JDK11 is not supported on RHEL 10.0 & SLES 16, Please use JDK-21 version instead.\n' |& tee -a "$LOG_FILE"
             exit 1
         fi
         if [[ "$ID" == "rhel" ]]; then
@@ -205,7 +203,7 @@ function configureAndInstall() {
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
     	if [[ "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'JDK is not supported on RHEL 10.0, Please use OpenJDK-21 for RHEL 10.0.\n' >> "$LOG_FILE"
+            printf -- 'JDK is not supported on RHEL 10.X, Please use OpenJDK-21 for RHEL 10.X.\n' >> "$LOG_FILE"
             exit 1
         fi
         if [[ "$ID" == "rhel" ]]; then
@@ -236,8 +234,8 @@ function configureAndInstall() {
             printf -- 'export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x\n'  >> "$BUILD_ENV"
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK8" ]]; then
-    	if [[ "$DISTRO" == "ubuntu-25.04" || "$DISTRO" == "rhel-10.*" ]]; then
-            printf -- 'OpenJDK8 runtime is not supported on Ubuntu 25.04,RHEL 10.0. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
+    	if [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "rhel-10.*" ]]; then
+            printf -- 'OpenJDK8 runtime is not supported on Ubuntu 25.10, RHEL 10.0, 10.1. Please use OpenJDK-21 instead.\n' >> "$LOG_FILE"
             exit 1
         fi
         if [[ "$ID" == "rhel" ]]; then
@@ -370,19 +368,25 @@ prepare # Check Prerequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5" | "rhel-9.6" | "rhel-10.0")
+"rhel-8.8" | "rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y autoconf flex gawk gcc gcc-c++ gzip libxml2-devel libxslt ncurses-devel openssl-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"sles-15.6" | "sles-15.7")
+"sles-15.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo zypper install -y autoconf flex gawk gcc gcc-c++ gzip libopenssl-1_1-devel libxml2-devel libxslt-tools ncurses-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10" | "ubuntu-25.04")
+"sles-16.0")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo zypper install -y autoconf flex gawk gcc gcc-c++ gzip libopenssl-devel libxml2-devel libxslt-tools ncurses-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
