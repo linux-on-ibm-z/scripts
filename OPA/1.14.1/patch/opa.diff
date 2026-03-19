@@ -1,0 +1,50 @@
+diff --git a/Makefile b/Makefile
+index 5b088bfd9..f11f449fb 100644
+--- a/Makefile
++++ b/Makefile
+@@ -219,7 +219,7 @@ wasm-test: wasm-lib-test wasm-rego-test
+ .PHONY: wasm-lib-build
+ wasm-lib-build:
+ ifeq ($(DOCKER_RUNNING), 1)
+-	@$(MAKE) -C wasm ensure-builder build
++	@$(MAKE) -C wasm builder build
+ 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+ 	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
+ else
+@@ -341,6 +341,23 @@ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-bui
+ .PHONY: image-quick
+ image-quick: image-quick-$(GOARCH)
+ 
++.PHONY: image-s390x
++image-s390x: build
++	$(DOCKER) build \
++		-t $(DOCKER_IMAGE):$(VERSION) \
++		--build-arg BASE=gcr.io/distroless/cc \
++		--platform linux/s390x \
++		.
++.PHONY: image-s390x-static
++image-s390x-static:
++	@$(MAKE) build GOOS=linux WASM_ENABLED=0 CGO_ENABLED=0 BIN=opa_linux_s390x_static
++	$(DOCKER) build \
++		-t $(DOCKER_IMAGE):$(VERSION) \
++		--build-arg BASE=gcr.io/distroless/cc \
++		--build-arg BIN_SUFFIX=_static \
++		--platform linux/s390x \
++		.
++
+ # % = arch
+ .PHONY: image-quick-%
+ image-quick-%: ensure-executable-bin
+diff --git a/build/run-wasm-rego-tests.sh b/build/run-wasm-rego-tests.sh
+index 51bbdaf3f..e9b07ce85 100755
+--- a/build/run-wasm-rego-tests.sh
++++ b/build/run-wasm-rego-tests.sh
+@@ -75,7 +75,7 @@ function run_testcases {
+         --volumes-from $TESTGEN_CONTAINER_NAME:z \
+         -e VERBOSE=$VERBOSE \
+         -w /scratch \
+-        node:14 \
++        node:14-bullseye \
+         sh -c 'tar xzf \
+             /src/.go/cache/testcases.tar.gz \
+             && node test.js opa.wasm' &
