@@ -101,7 +101,11 @@ function configureAndInstall() {
 	if [[ "$ID" != "ubuntu" ]]; then
            sudo env PATH=$PATH make install
 	else
-           sudo make install
+	   if [[ "$DISTRO" == "ubuntu-25.10" ]]; then
+	      sudo make install USE_SYMLINKS_IN_ESCRIPTS_DIR=1
+           else
+              sudo make install
+           fi
 	fi
 
 	printf -- 'Installed rabbitmq successfully \n'
