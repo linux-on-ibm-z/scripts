@@ -16,59 +16,58 @@ LOG_FILE="${CURDIR}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log
 trap cleanup 1 2 ERR
 TESTS="false"
 FORCE="false"
-BUILD_ENV="${CURDIR}/setenv.sh"
 #Check if directory exists
 if [ ! -d "logs" ]; then
    mkdir -p "logs"
 fi
 if [ -f "/etc/os-release" ]; then
-	source "/etc/os-release"
+        source "/etc/os-release"
 fi
 
 function checkPrequisites()
 {
   if command -v "sudo" > /dev/null ;
   then
-	printf -- 'Sudo : Yes\n' >> "$LOG_FILE"
+        printf -- 'Sudo : Yes\n' >> "$LOG_FILE"
   else
-	printf -- 'Sudo : No \n' >> "$LOG_FILE"
-	printf -- 'Install sudo from repository using apt, yum or zypper based on your distro. \n';
-	exit 1;
+        printf -- 'Sudo : No \n' >> "$LOG_FILE"
+        printf -- 'Install sudo from repository using apt, yum or zypper based on your distro. \n';
+        exit 1;
   fi;
 
 if [[ "$FORCE" == "true" ]]; then
-		printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
-	else
-		# Ask user for prerequisite installation
-		printf -- "\nAs part of the installation , dependencies would be installed/upgraded.\n"
-		while true; do
-			read -r -p "Do you want to continue (y/n) ? :  " yn
-			case $yn in
-			[Yy]*)
-				printf -- 'User responded with Yes. \n' >>"$LOG_FILE"
-				break
-				;;
-			[Nn]*) exit ;;
-			*) echo "Please provide confirmation to proceed." ;;
-			esac
-		done
-	fi
+                printf -- 'Force attribute provided hence continuing with install without confirmation message\n' |& tee -a "$LOG_FILE"
+        else
+                # Ask user for prerequisite installation
+                printf -- "\nAs part of the installation , dependencies would be installed/upgraded.\n"
+                while true; do
+                        read -r -p "Do you want to continue (y/n) ? :  " yn
+                        case $yn in
+                        [Yy]*)
+                                printf -- 'User responded with Yes. \n' >>"$LOG_FILE"
+                                break
+                                ;;
+                        [Nn]*) exit ;;
+                        *) echo "Please provide confirmation to proceed." ;;
+                        esac
+                done
+        fi
 }
 
 function cleanup()
 {
-	rm -rf ${CURDIR}/Python-${PYTHON_VERSION}.tgz ${CURDIR}/v1.7.1.tar.gz
-	printf -- 'Cleaned up the artifacts\n'  >> "$LOG_FILE"
+        rm -rf ${CURDIR}/Python-${PYTHON_VERSION}.tgz ${CURDIR}/v1.7.1.tar.gz
+        printf -- 'Cleaned up the artifacts\n'  >> "$LOG_FILE"
 }
 
-function run_tests() {
+function runTest() {
     if [[ "$TESTS" != "true" ]]; then
         return 0
     fi
-    printf -- 'Running tests \n\n'		
-	cd "${CURDIR}/${PACKAGE_NAME}"
-    pip3 install nox      
-    if python3 -m nox -e "test-3(coverage=False)" -- --core-tests --slow-tests -o "asyncio_mode=auto" --prev-version=3007.10; then
+    printf -- 'Running tests \n\n'
+        cd "${CURDIR}/${PACKAGE_NAME}"
+    pip3 install nox
+    if python3 -m nox -e "test-3(coverage=False)" -- --core-tests --slow-tests -o "asyncio_mode=auto" ; then
         printf -- 'Test Completed \n\n'
     else
         printf -- 'Some Tests Failed \n\n'
@@ -78,69 +77,69 @@ function run_tests() {
 function configureAndInstall()
 {
   printf -- 'Configuration and Installation started \n'
-  
-	printf -- 'Building Python \n'
-	cd "${CURDIR}"
-	wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz 
-	tar -xzf Python-${PYTHON_VERSION}.tgz
-	cd Python-${PYTHON_VERSION}
-	./configure --prefix=/usr/local --exec-prefix=/usr/local --enable-loadable-sqlite-extensions
-	make
-	sudo make install
-	export PATH=/usr/local/bin/python3.10:$PATH
-	sudo mkdir -p /usr/bin
-        sudo ln -sf "$(command -v python3)" /usr/bin/python3
-	python3 -V 	
 
-	sudo mkdir -p /var/cache/salt /var/run/salt /srv/salt
+        printf -- 'Building Python \n'
+        cd "${CURDIR}"
+        wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
+        tar -xzf Python-${PYTHON_VERSION}.tgz
+        cd Python-${PYTHON_VERSION}
+        ./configure --prefix=/usr/local --exec-prefix=/usr/local --enable-loadable-sqlite-extensions
+        make
+        sudo make install
+        export PATH=/usr/local/bin/python3.10:$PATH
+        sudo mkdir -p /usr/bin
+        sudo ln -sf "$(command -v python3)" /usr/bin/python3
+        python3 -V
+
+        sudo mkdir -p /var/cache/salt /var/run/salt /srv/salt
         sudo chown -R $(whoami) /var/cache/salt /var/run/salt /srv/salt
         export PATH=$PATH:/usr/sbin:/sbin
-	SFTP_PATH=$(sudo find /usr -name sftp-server | head -n 1)
-        if [ -n "$SFTP_PATH" ]; then
-		sudo mkdir -p /usr/lib/ssh;
-     		sudo ln -sf "$SFTP_PATH" /usr/lib/ssh/sftp-server;
-    	fi
+        SFTP_PATH=$(sudo find /usr -name sftp-server 2>/dev/null | head -n 1)
+        TARGET="/usr/lib/ssh/sftp-server"
+        [ -n "$SFTP_PATH" ] && \
+        [ "$SFTP_PATH" != "$TARGET" ] && \
+        sudo mkdir -p /usr/lib/ssh && \
+        sudo ln -sf "$SFTP_PATH" "$TARGET"
+        if [[ "$ID" == "rhel" && "$VERSION_ID" == 8.* ]]; then
+                pip3 install "M2Crypto<0.40"
+        elif [[ "$ID" == "rhel" ]]; then
+                pip3 install M2Crypto
+        fi
 
-    	if [[ "$ID" == "rhel" && "$VERSION_ID" == 8.* ]]; then
-    		pip3 install "M2Crypto<0.40"
-	elif [[ "$ID" == "rhel" ]]; then
-    		pip3 install M2Crypto
-	fi
+        printf -- 'Building Libgit2 \n'
+        cd "${CURDIR}"
+        wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.7.1.tar.gz
+        tar xzf v1.7.1.tar.gz
+        cd libgit2-1.7.1/
+        cmake .
+        make
+        sudo make install
 
-	printf -- 'Building Libgit2 \n'
-    	cd "${CURDIR}"  
-	wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.7.1.tar.gz 
-	tar xzf v1.7.1.tar.gz
-	cd libgit2-1.7.1/
-	cmake .
-	make
-	sudo make install
-	
-	#Install python packages
-	python3 -m pip install setuptools wheel && python3 -m pip wheel cassandra-driver==3.28.0 websocket-client==0.40.0 --no-build-isolation
-	pip3 install pyzmq PyYAML cryptography msgpack jinja2 psutil tornado python-dateutil genshi looseversion packaging distro
-		
-	#Download Salt
-	cd "${CURDIR}"
-	printf -- 'Downloading Salt \n'
-	git clone --depth 1 -b v${PACKAGE_VERSION} https://github.com/saltstack/salt.git
-	cd salt
-	curl -sSL $PATCH_URL/salt.patch |  git apply -
-	sed -i 's/PKCS1v15-SHA1/PKCS1v15-SHA224/g' tests/conftest.py tests/pytests/conftest.py
-	sed -i 's/install_command.extend(\["setuptools", "pip", "wheel"\])/install_command.extend(["setuptools==65.5.0", "pip", "wheel"])/' noxfile.py
-	sed -i '/^lxml==/c\lxml==5.2.1' requirements/static/ci/py3.10/linux.txt
-	pip3 install -e .
+        #Install python packages
+        python3 -m pip install setuptools wheel && python3 -m pip wheel cassandra-driver==3.28.0 websocket-client==0.40.0 --no-build-isolation
+        pip3 install pyzmq PyYAML cryptography msgpack jinja2 psutil tornado python-dateutil genshi looseversion packaging distro
 
-	#Install pyzmq
-    	if [[ "$ID-$VERSION_ID" == sles* ]]; then
-		wget https://github.com/zeromq/libzmq/releases/download/v4.3.5/zeromq-4.3.5.tar.gz
-    		tar -xzf zeromq-4.3.5.tar.gz
-		cd zeromq-4.3.5
-    		./configure
-    		make
-    		sudo make install
-    		pip install pyzmq
-	fi
+        #Download Salt
+        cd "${CURDIR}"
+        printf -- 'Downloading Salt \n'
+        git clone --depth 1 -b v${PACKAGE_VERSION} https://github.com/saltstack/salt.git
+        cd salt
+        curl -sSL $PATCH_URL/salt.patch |  git apply -
+        sed -i 's/PKCS1v15-SHA1/PKCS1v15-SHA224/g' tests/conftest.py tests/pytests/conftest.py
+        sed -i 's/install_command.extend(\["setuptools", "pip", "wheel"\])/install_command.extend(["setuptools==65.5.0", "pip", "wheel"])/' noxfile.py
+        sed -i '/^lxml==/c\lxml==5.2.1' requirements/static/ci/py3.10/linux.txt
+        pip3 install -e .
+
+        #Install pyzmq
+        if [[ "$ID-$VERSION_ID" == sles* ]]; then
+                wget https://github.com/zeromq/libzmq/releases/download/v4.3.5/zeromq-4.3.5.tar.gz
+                tar -xzf zeromq-4.3.5.tar.gz
+                cd zeromq-4.3.5
+                ./configure
+                make
+                sudo make install
+                pip install pyzmq
+        fi
 
 #Run tests
   runTest
@@ -154,14 +153,14 @@ function configureAndInstall()
 
 function logDetails()
 {
-	printf -- '**************************** SYSTEM DETAILS *************************************************************\n' > "$LOG_FILE";
+        printf -- '**************************** SYSTEM DETAILS *************************************************************\n' > "$LOG_FILE";
 if [ -f "/etc/os-release" ]; then
-		cat "/etc/os-release" >> "$LOG_FILE"
-	fi
+                cat "/etc/os-release" >> "$LOG_FILE"
+        fi
 cat /proc/version >> "$LOG_FILE"
-	printf -- '*********************************************************************************************************\n' >> "$LOG_FILE";
+        printf -- '*********************************************************************************************************\n' >> "$LOG_FILE";
 printf -- "Detected %s \n" "$PRETTY_NAME"
-	printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
+        printf -- "Request details : PACKAGE NAME= %s , VERSION= %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" |& tee -a "$LOG_FILE"
 }
 
 # Print the usage message
@@ -174,18 +173,18 @@ function printHelp() {
 while getopts "dthy?" opt; do
   case "$opt" in
   d)
-	set -x
-	;;
+        set -x
+        ;;
   t)
-	TESTS="true"
-	;;
+        TESTS="true"
+        ;;
   y)
-	FORCE="true"
-	;;
+        FORCE="true"
+        ;;
   h | \?)
-	printHelp
-	exit 0
-	;;
+        printHelp
+        exit 0
+        ;;
   esac
 done
 
