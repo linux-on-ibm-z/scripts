@@ -1,0 +1,121 @@
+diff --git a/registers.go b/registers.go
+index 67e6a1d..4685791 100644
+--- a/registers.go
++++ b/registers.go
+@@ -42,11 +42,33 @@ func getRegistersResolver(arch string) (registersResolver, error) {
+ 		return &registersAmd64{}, nil
+ 	case "arm64":
+ 		return &registersArm64{}, nil
++	case "s390x":
++		return &registersS390x{}, nil
+ 	default:
+ 		return nil, fmt.Errorf("%s not supported: %w", arch, ErrUnsupportedArch)
+ 	}
+ }
+ 
++type registersS390x struct{}
++
++func (*registersS390x) GetFuncParamRegister(index int) (string, error) {
++	// s390x architecture registers for passing function arguments:
++	// General-purpose: r2, r3, r4, r5, r6
++	// Floating-point: f0, f1, f2, f3
++	var registers []string
++	registers = []string{"%r2", "%r3", "%r4", "%r5", "%r6"}
++
++	if index < 0 || index >= len(registers) {
++		return "", ErrUnsupportedFuncParamIndex
++	}
++
++	return registers[index], nil
++}
++
++func (*registersS390x) GetFuncReturnRegister() string {
++        return "%r2"
++}
++
+ // registersAmd64 is the registersResolver implementation for amd64 architecture
+ type registersAmd64 struct{}
+ 
+diff --git a/registers_test.go b/registers_test.go
+index b599f4f..2c412e8 100644
+--- a/registers_test.go
++++ b/registers_test.go
+@@ -35,6 +35,10 @@ func Test_getRegistersResolver(t *testing.T) {
+ 		},
+ 		{
+ 			arch: "arm64",
++			err: nil,
++		},
++		{
++			arch: "s390x",
+ 			err:  nil,
+ 		},
+ 		{
+@@ -196,3 +200,67 @@ func TestRegistersArm64_GetReturnRegister(t *testing.T) {
+ 
+ 	require.Equal(t, regs.GetFuncReturnRegister(), "%x0")
+ }
++
++func TestRegistersS390x_GetFuncParamRegister(t *testing.T) {
++	regs, err := getRegistersResolver("s390x")
++	require.NoError(t, err)
++
++	cases := []struct {
++		name       string
++		reg        string
++		paramIndex int
++		err        error
++	}{
++		{
++			name:       "s390x_param_0",
++			reg:        "%r2",
++			paramIndex: 0,
++			err:        nil,
++		},
++		{
++			name:       "s390x_param_1",
++			reg:        "%r3",
++			paramIndex: 1,
++			err:        nil,
++		},
++		{
++			name:       "s390x_param_2",
++			reg:        "%r4",
++			paramIndex: 2,
++			err:        nil,
++		},
++		{
++			name:       "s390x_param_3",
++			reg:        "%r5",
++			paramIndex: 3,
++			err:        nil,
++		},
++		{
++			name:       "s390x_param_4",
++			reg:        "%r6",
++			paramIndex: 4,
++			err:        nil,
++		},
++		{
++			name:       "s390x_param_5",
++			reg:        "",
++			paramIndex: 5,
++			err:        ErrUnsupportedFuncParamIndex,
++		},
++	}
++
++	for _, c := range cases {
++		t.Run(c.name, func(t *testing.T) {
++			reg, err := regs.GetFuncParamRegister(c.paramIndex)
++			require.Equal(t, c.reg, reg)
++			require.ErrorIs(t, err, c.err)
++		})
++	}
++}
++
++func TestRegistersS390x_GetReturnRegister(t *testing.T) {
++	regs, err := getRegistersResolver("s390x")
++	require.NoError(t, err)
++
++	require.Equal(t, regs.GetFuncReturnRegister(), "%r2")
++}
