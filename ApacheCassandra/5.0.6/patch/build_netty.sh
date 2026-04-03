@@ -220,7 +220,7 @@ fi
         sed -i '87,87 s/boringssl.googlesource.com/github.com\/linux-on-ibm-z/g' boringssl-static/pom.xml
         sed -i '88,88 s/chromium-stable/patch-s390x-Jan2021/g' boringssl-static/pom.xml
 
-        if [[ "${DISTRO}" == ubuntu* || "${DISTRO}" == rhel-9*  || "${DISTRO}" == sles* || "${DISTRO}" == "debian-12" ]] ;then
+         if [[ "${DISTRO}" == ubuntu* || "${DISTRO}" == rhel-9* || "${DISTRO}" == rhel-8*  || "${DISTRO}" == sles* || "${DISTRO}" == "debian-12" ]] ;then
         curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff
         cp gcc_patch.diff /tmp/gcc_patch.diff
 
