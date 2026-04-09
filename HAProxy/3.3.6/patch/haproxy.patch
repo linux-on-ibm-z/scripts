@@ -10,3 +10,16 @@
 	load_file_into_tar(&ctx->storage, &ctx->size, ctx->prefix, fname, NULL, "haproxy-libs-dump");
  
 	/* try to load equivalent debug symbols for absolute paths  */
+--- haproxy-3.3.6/scripts/build-vtest.sh        2026-03-19 15:32:03.000000000 +0000
++++ haproxy-3.3.6_updated/scripts/build-vtest.sh        2026-04-09 08:08:17.902299067 +0000
+@@ -2,9 +2,7 @@
+
+ set -eux
+
+-curl -fsSL "https://code.vinyl-cache.org/vtest/VTest2/archive/main.tar.gz" -o VTest.tar.gz
+-mkdir ../vtest
+-tar xvf VTest.tar.gz -C ../vtest --strip-components=1
++git clone https://code.vinyl-cache.org/vtest/VTest2 "../vtest"
+ # Special flags due to: https://github.com/vtest/VTest/issues/12
+
+ # Note: do not use "make -C ../vtest", otherwise MAKEFLAGS contains "w"
