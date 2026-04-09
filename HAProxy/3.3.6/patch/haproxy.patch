@@ -1,0 +1,12 @@
+--- haproxy-3.3.6/src/tools.c   2026-03-19 15:32:03.000000000 +0000
++++ haproxy-3.3.6_org/src/tools.c       2026-04-02 04:53:30.672299067 +0000
+@@ -6003,6 +6003,9 @@
+		/* else it's a VDSO or similar and we're not interested */
+		goto leave;
+ 
++	if (!fname)
++		goto leave;
++
+	load_file_into_tar(&ctx->storage, &ctx->size, ctx->prefix, fname, NULL, "haproxy-libs-dump");
+ 
+	/* try to load equivalent debug symbols for absolute paths  */
