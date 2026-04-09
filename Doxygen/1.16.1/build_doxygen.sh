@@ -167,26 +167,26 @@ case "$DISTRO" in
 "rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y gcc gcc-c++ python3 cmake bison qt5-devel diffutils unzip texlive |& tee -a "$LOG_FILE"
+    sudo yum install -y wget git gcc gcc-c++ python3 cmake bison qt5-devel diffutils unzip texlive |& tee -a "$LOG_FILE"
     installFlex |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "rhel-9.4" | "rhel-9.6" | "rhel-9.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y gcc gcc-c++ python3 flex cmake bison qt5-devel diffutils unzip texlive |& tee -a "$LOG_FILE"
+    sudo yum install -y wget git gcc gcc-c++ python3 flex cmake bison qt5-devel diffutils unzip texlive |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "rhel-10.0" | "rhel-10.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y gcc gcc-c++ flex cmake bison qt5-qtbase-devel qt5-qtsvg-devel diffutils unzip texlive |& tee -a "$LOG_FILE"
+    sudo yum install -y wget git gcc gcc-c++ flex cmake bison qt5-qtbase-devel qt5-qtsvg-devel diffutils unzip texlive |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;		
 "sles-15.7" | "sles-16.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y gcc gcc-c++ flex cmake bison libqt5-qtsvg-devel libqt5-qtbase-devel libxml2-devel unzip texlive-bibtex-bin |& tee -a "$LOG_FILE"
+    sudo zypper install -y wget git gcc gcc-c++ flex cmake bison libqt5-qtsvg-devel libqt5-qtbase-devel libxml2-devel unzip texlive-bibtex-bin |& tee -a "$LOG_FILE"
     if [[ $DISTRO == "sles-15.7" ]]; then
         sudo zypper install -y gcc14 gcc14-c++ |& tee -a "$LOG_FILE"
         sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 14 |& tee -a "$LOG_FILE"
@@ -200,7 +200,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip cmake flex bison build-essential libqt5svg5-dev qtbase5-dev libxml2-utils texlive-bibtex-extra |& tee -a "${LOG_FILE}" 
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y wget git unzip cmake flex bison build-essential libqt5svg5-dev qtbase5-dev libxml2-utils texlive-bibtex-extra |& tee -a "${LOG_FILE}" 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
