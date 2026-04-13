@@ -193,7 +193,7 @@ function configureAndInstall() {
 
     #Build Tensorflow
     printf -- '\nBuilding TENSORFLOW wheel..... \n'
-    bazel build //tensorflow/tools/pip_package:wheel --repo_env=USE_PYWRAP_RULES=1 --repo_env=WHEEL_NAME=tensorflow_cpu --repo_env=HERMETIC_PYTHON_VERSION=$PYTHON_V
+    bazel build //tensorflow/tools/pip_package:wheel --repo_env=USE_PYWRAP_RULES=1 --repo_env=WHEEL_NAME=tensorflow_cpu --repo_env=HERMETIC_PYTHON_VERSION=$PYTHON_V --repo_env=ML_WHEEL_TYPE=release
 
     # Run Tests
     runTest
@@ -278,7 +278,7 @@ function gettingStarted() {
 
     printf -- "3. Verify the installation.\n\n"
     printf -- "     python -c \"import tensorflow as tf; print(tf.__version__)\"\n"
-    printf -- "     ${PACKAGE_VERSION}-dev0+selfbuilt\n\n"
+    printf -- "     ${PACKAGE_VERSION}\n\n"
 
     printf -- "Note:\n"
     printf -- "  - Python version used for installation must match the build Python.\n"
