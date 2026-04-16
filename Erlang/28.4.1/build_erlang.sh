@@ -264,6 +264,10 @@ function configureAndInstall() {
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK25" ]]; then
         if [[ "$ID" == "rhel" ]]; then
+          if [[ "$DISTRO" == "rhel-8.10" ]]; then
+             printf -- 'OpenJDK25 is not supported on rhel 8.10, Please use IBM Semeru runtime or Eclipse Adoptium Temurin runtime instead.\n' | tee -a "$LOG_FILE"
+             exit 1
+          fi
             sudo yum install -y java-25-openjdk-devel
             export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
             printf -- 'export JAVA_HOME=/usr/lib/jvm/java-25-openjdk\n'  >> "$BUILD_ENV"
