@@ -261,9 +261,6 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
 
-    # Refresh compiler repository
-    sudo zypper refresh GCC_Compilers |& tee -a "$LOG_FILE"
-
     # Install required dependencies
     sudo zypper install -y \
         curl wget tar patch git \
