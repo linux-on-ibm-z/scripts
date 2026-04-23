@@ -106,7 +106,7 @@ function prepareSUSE15() {
     sudo zypper install -y asciidoc autoconf automake cmake curl libcurl-devel flex openssh \
         gcc gcc-c++ gcc14-c++ gcc14 git-core glib2 glib2-devel \
         libopenssl-devel libncurses6 xz glibc-locale bzip2 ccache\
-        libtirpc-devel libtool libxml2-tools libxslt-tools binutils-devel\
+        libexpat1 libexpat-devel libtirpc-devel libtool libxml2-tools libxslt-tools binutils-devel\
         make makedepend ncurses-devel ninja patch pkg-config libpsl-devel\
         python311 python-xml python3-httplib2 re2c ruby sqlite3 tar \
         unixODBC wget which xinetd xmlto python311-pip python311-devel
