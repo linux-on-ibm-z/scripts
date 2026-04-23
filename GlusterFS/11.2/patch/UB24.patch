@@ -1,0 +1,91 @@
+diff --git a/configure.ac b/configure.ac
+index 7c4894cf2d..eb975b94ce 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1315,8 +1315,8 @@ if test "x$ac_cv_file__etc_os_release" = "xyes"; then
+    AC_CANONICAL_HOST
+ 
+    if test "x${host_cpu}" = "xs390x" || test "x${host_cpu}" = "xs390" ; then
+-      if grep "Red Hat Enterprise Linux 8\|SUSE Linux Enterprise Server 15" /etc/os-release ; then
+-         AC_DEFINE(REDHAT8_OR_SLES15_ON_S390X, 1, [Red Hat 8 or SLES 15 on s390x])
++      if grep "Red Hat Enterprise Linux 8\|Red Hat Enterprise Linux 9\|Red Hat Enterprise Linux 10\|Ubuntu\|SUSE Linux Enterprise Server 15" /etc/os-release ; then
++         AC_DEFINE(REDHAT8_RHEHAT9_REDHAT10_UBUNTU_OR_SLES15_ON_S390X, 1, [Red Hat 8 or SLES 15 on s390x])
+       fi
+    fi
+ fi
+diff --git a/geo-replication/syncdaemon/gsyncdconfig.py b/geo-replication/syncdaemon/gsyncdconfig.py
+index bad1bc6791..aefc456884 100644
+--- a/geo-replication/syncdaemon/gsyncdconfig.py
++++ b/geo-replication/syncdaemon/gsyncdconfig.py
+@@ -96,7 +96,7 @@ class Gconf(object):
+ 
+         cnf = RawConfigParser()
+         with open(self.custom_conf_file) as f:
+-            cnf.readfp(f)
++            cnf.read_file(f)
+ 
+             # Nothing to Reset, Not configured
+             if name != "all":
+@@ -140,7 +140,7 @@ class Gconf(object):
+ 
+         cnf = RawConfigParser()
+         with open(self.custom_conf_file) as f:
+-            cnf.readfp(f)
++            cnf.read_file(f)
+ 
+         if not cnf.has_section("vars"):
+             cnf.add_section("vars")
+@@ -181,12 +181,12 @@ class Gconf(object):
+         conf = RawConfigParser()
+         # Default Template config file
+         with open(self.default_conf_file) as f:
+-            conf.readfp(f)
++            conf.read_file(f)
+ 
+         # Custom Config file
+         if self.custom_conf_file is not None:
+             with open(self.custom_conf_file) as f:
+-                conf.readfp(f)
++                conf.read_file(f)
+ 
+         # Get version from default conf file
+         self.version = conf.get("__meta__", "version")
+diff --git a/xlators/mgmt/glusterd/src/glusterd-utils.c b/xlators/mgmt/glusterd/src/glusterd-utils.c
+index 436762802f..25a8188ea1 100644
+--- a/xlators/mgmt/glusterd/src/glusterd-utils.c
++++ b/xlators/mgmt/glusterd/src/glusterd-utils.c
+@@ -3232,7 +3232,7 @@ glusterd_dict_searialize(dict_t *dict_arr[], unsigned int count,
+ {
+     int i = 0;
+     uint32_t keylen = 0;
+-    uint64_t netword = 0;
++    uint32_t netword = 0;
+     data_pair_t *pair = NULL;
+     unsigned int dict_count = 0;
+     int ret = 0;
+diff --git a/xlators/nfs/server/src/nfs.c b/xlators/nfs/server/src/nfs.c
+index 3033d4b5b8..2713330969 100644
+--- a/xlators/nfs/server/src/nfs.c
++++ b/xlators/nfs/server/src/nfs.c
+@@ -1679,7 +1679,7 @@ nfs_start_rpc_poller(struct nfs_state *state)
+  *     all registered services, from any thread.
+  */
+ #ifdef HAVE_LIBTIRPC
+-#ifdef REDHAT8_OR_SLES15_ON_S390X
++#ifdef REDHAT8_RHEHAT9_REDHAT10_UBUNTU_OR_SLES15_ON_S390X
+     if (uatomic_xchg(&state->svc_running, 1)) {
+         return;
+     }
+diff --git a/xlators/nfs/server/src/nfs.h b/xlators/nfs/server/src/nfs.h
+index 53c9f2f6ec..6ba4428451 100644
+--- a/xlators/nfs/server/src/nfs.h
++++ b/xlators/nfs/server/src/nfs.h
+@@ -103,7 +103,7 @@ struct nfs_state {
+     gf_boolean_t rdirplus;
+ 
+ #ifdef HAVE_LIBTIRPC
+-#ifdef REDHAT8_OR_SLES15_ON_S390X
++#ifdef REDHAT8_RHEHAT9_REDHAT10_UBUNTU_OR_SLES15_ON_S390X
+     int svc_running;
+ #else
+     bool svc_running;
