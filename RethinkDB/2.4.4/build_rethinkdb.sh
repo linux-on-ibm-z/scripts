@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# © Copyright IBM Corporation 2024, 2025.
+# © Copyright IBM Corporation 2024, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -178,7 +178,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.8" | "rhel-8.10")
+"rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y python2-devel python2 openssl-devel libcurl-devel jemalloc-devel wget tar unzip bzip2 m4 git-core boost gcc-c++ ncurses-devel curl which patch make ncurses zlib-devel zlib procps protobuf-devel protobuf-compiler xz |& tee -a "$LOG_FILE"
@@ -186,7 +186,7 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-9.4" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y openssl-devel libcurl-devel jemalloc-devel wget tar unzip bzip2 m4 git-core boost gcc-c++ ncurses-devel curl which patch make ncurses zlib-devel zlib procps protobuf-devel protobuf-compiler xz
@@ -194,14 +194,34 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"sles-15.6")
+"sles-15.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y gcc gcc-c++ make libopenssl-devel zlib-devel wget tar patch unzip autoconf automake m4 libtool libicu-devel protobuf-devel libprotobuf-c-devel boost-devel termcap curl libcurl-devel git bzip2 awk gzip xz readline-devel libncurses5 ncurses-devel netcfg libbz2-devel glibc-locale  |& tee -a "$LOG_FILE"
 	buildPython2 |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
-		
+
+"sles-16.0")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
+	sudo zypper install -y gcc13 gcc13-c++ make libopenssl-devel zlib-devel wget tar patch unzip autoconf automake m4 libtool libicu-devel protobuf-devel protobuf-c-devel boost-devel curl libcurl-devel git bzip2 gawk gzip xz readline-devel libncurses5 ncurses-devel netcfg libbz2-devel glibc-locale which |& tee -a "$LOG_FILE"
+        sudo ln -sf $(which gcc-13) /usr/local/bin/gcc
+        sudo ln -sf $(which g++-13) /usr/local/bin/g++
+        sudo ln -sf $(which gcc-ar-13) /usr/local/bin/gcc-ar
+	buildPython2 |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+
+"ubuntu-24.04")
+	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+	printf -- 'Installing the dependencies for RethinkDB from repository \n' |& tee -a "$LOG_FILE"
+        sudo apt update
+	sudo apt install -y gcc g++ protobuf-compiler libjemalloc-dev libncurses-dev libboost-dev curl openssl make xz-utils bzip2 libssl-dev m4 |& tee -a "$LOG_FILE"
+        buildPython2 |& tee -a "$LOG_FILE"
+	configureAndInstall |& tee -a "$LOG_FILE"
+	;;
+
 *)
 	printf -- "%s not supported \n" "$DISTRO" |& tee -a "$LOG_FILE"
 	exit 1
