@@ -37,3 +37,4 @@ index 7857f9376..b486a8e97 100644
 +//go:build !darwin && !s390x
  
  package tpmsimulator
+
