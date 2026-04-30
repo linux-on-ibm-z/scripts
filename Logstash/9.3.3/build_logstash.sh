@@ -217,7 +217,7 @@ logDetails
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.5" | "rhel-9.6")
+"rhel-8.10" | "rhel-9.6")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum install -y gcc make tar wget |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
