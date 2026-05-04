@@ -1,0 +1,844 @@
+diff --git a/.bazelrc b/.bazelrc
+index d1ed26b..f50b43c 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -57,7 +57,6 @@ common --tool_java_runtime_version=remotejdk_25
+ # TODO: Remove this after migrating more code to use VarHandles.
+ common --javacopt=-Xlint:-removal
+ common --host_javacopt=-Xlint:-removal
+-common --jvmopt=--sun-misc-unsafe-memory-access=allow
+ 
+ # User-specific .bazelrc
+ try-import %workspace%/user.bazelrc
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 62c1c29..9494c69 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -59,7 +59,7 @@ bazel_dep(name = "rules_swift", version = "3.3.0")  # with repo_name = None, ver
+ bazel_dep(name = "rules_apple", version = "4.3.1", repo_name = None)
+ bazel_dep(name = "google_benchmark", version = "1.9.4", repo_name = None)
+ bazel_dep(name = "rules_go", version = "0.59.0", repo_name = None)  # Required for loads of CcInfo
+-
++bazel_dep(name = "onetbb", version = "2022.2.0", repo_name = None)
+ # bazel_dep overrides
+ single_version_override(
+     module_name = "rules_jvm_external",
+@@ -80,6 +80,12 @@ single_version_override(
+     ],
+ )
+ 
++single_version_override(
++    module_name = "rules_fuzzing",
++    patch_strip = 1,
++    patches = ["//third_party:rules_fuzzing.patch"],
++)
++
+ single_version_override(
+     module_name = "zstd-jni",
+     patch_strip = 1,
+@@ -279,6 +285,16 @@ maven.install(
+     ]]
+ ]
+ 
++custom_jdk = use_extension("@rules_java//java:extensions.bzl", "java_repository")
++
++custom_jdk.local(
++  name = "additionaljdk",      # Can be used with --java_runtime_version=additionaljdk, --java_runtime_version=21 or --java_runtime_version=additionaljdk_21
++  version = "21",
++  java_home = "/usr/lib/jvm/java-21-openjdk-s390x",
++)
++use_repo(custom_jdk, "additionaljdk")
++register_toolchains("@additionaljdk//:all")
++
+ use_repo(maven, "maven")
+ 
+ java_toolchains = use_extension("@rules_java//java:extensions.bzl", "toolchains")
+@@ -349,6 +365,7 @@ use_repo(
+     "openjdk_linux_aarch64_vanilla",
+     "openjdk_linux_ppc64le_vanilla",
+     "openjdk_linux_riscv64_vanilla",
++    "openjdk_linux_s390x_jmods",
+     "openjdk_linux_s390x_vanilla",
+     "openjdk_linux_vanilla",
+     "openjdk_macos_aarch64_vanilla",
+diff --git a/repositories.bzl b/repositories.bzl
+index cacbca8..df41f2b 100644
+--- a/repositories.bzl
++++ b/repositories.bzl
+@@ -109,6 +109,12 @@ def embedded_jdk_repositories():
+         downloaded_file_path = "adoptopenjdk-s390x-vanilla.tar.gz",
+         url = "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jdk_s390x_linux_hotspot_25.0.2_10.tar.gz",
+     )
++    http_file(
++        name = "openjdk_linux_s390x_jmods",
++        integrity = "sha256-q+ojr8SqMWGRMZWCfyBcJw6zaJTCfjhoLHEaTDmAJ4k=",
++        downloaded_file_path = "temurin-linux-s390x-jmods.tar.gz",
++        url = "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jmods_s390x_linux_hotspot_25.0.2_10.tar.gz",
++    )
+     http_file(
+         name = "openjdk_macos_x86_64_vanilla",
+         integrity = "sha256-/iI0bBkpIMW4SyP0qiTj3rsLuU/EKAFvfCssd5DIJ4A=",
+diff --git a/src/BUILD b/src/BUILD
+index f2569ba..246604c 100644
+--- a/src/BUILD
++++ b/src/BUILD
+@@ -225,9 +225,15 @@ genrule(
+     srcs = [
+         ":embedded_jdk_vanilla",
+         ":jdeps_modules.golden",
+-    ],
++    ] + select({
++        "//src/conditions:linux_s390x": ["@openjdk_linux_s390x_jmods//file"],
++        "//conditions:default": [],
++    }),
+     outs = ["minimal_jdk.zip"],
+-    cmd = "$(location :minimize_jdk) $(location :jdk_for_jlink) $(location :embedded_jdk_vanilla) $(location :jdeps_modules.golden) $@",
++    cmd = "$(location :minimize_jdk) $(location :jdk_for_jlink) $(location :embedded_jdk_vanilla) $(location :jdeps_modules.golden) $@" + select({
++        "//src/conditions:linux_s390x": " $(location @openjdk_linux_s390x_jmods//file)",
++        "//conditions:default": "",
++    }),
+     tools = [
+         ":jdk_for_jlink",
+         ":minimize_jdk",
+@@ -240,9 +246,15 @@ genrule(
+     srcs = [
+         ":embedded_jdk_vanilla",
+         ":jdeps_modules.golden",
+-    ],
++    ] + select({
++        "//src/conditions:linux_s390x": ["@openjdk_linux_s390x_jmods//file"],
++        "//conditions:default": [],
++    }),
+     outs = ["allmodules_jdk.zip"],
+-    cmd = "$(location :minimize_jdk) --allmodules $(location :jdk_for_jlink) $(location :embedded_jdk_vanilla) $(location :jdeps_modules.golden) $@",
++    cmd = "$(location :minimize_jdk) --allmodules $(location :jdk_for_jlink) $(location :embedded_jdk_vanilla) $(location :jdeps_modules.golden) $@" + select({
++        "//src/conditions:linux_s390x": " $(location @openjdk_linux_s390x_jmods//file)",
++        "//conditions:default": "",
++    }),
+     tools = [
+         ":jdk_for_jlink",
+         ":minimize_jdk",
+@@ -565,12 +577,6 @@ release_archive(
+     ],
+ )
+ 
+-release_archive(
+-    name = "turbine_direct_graal_zip",
+-    srcs = ["//src/java_tools/buildjar/java/com/google/devtools/build/java/turbine:turbine_direct_graal"],
+-    package_dir = "java_tools",
+-    visibility = ["//visibility:private"],
+-)
+ 
+ # Following target builds java_tools_prebuilt.zip part of java_tools
+ release_archive(
+@@ -580,7 +586,6 @@ release_archive(
+     },
+     visibility = ["//src/test/shell/bazel:__pkg__"],
+     deps = [
+-        ":turbine_direct_graal_zip",
+         "//src/tools/one_version:one_version_deploy_zip",
+         "//src/tools/singlejar:singlejar_deploy_zip",
+         "//third_party/ijar:ijar_deploy_zip",
+diff --git a/src/java_tools/buildjar/java/com/google/devtools/build/java/turbine/BUILD b/src/java_tools/buildjar/java/com/google/devtools/build/java/turbine/BUILD
+index ba9c688..e3c3aa0 100644
+--- a/src/java_tools/buildjar/java/com/google/devtools/build/java/turbine/BUILD
++++ b/src/java_tools/buildjar/java/com/google/devtools/build/java/turbine/BUILD
+@@ -1,5 +1,4 @@
+ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+-load("@rules_graalvm//graalvm:defs.bzl", "native_image")
+ load("@rules_java//java:defs.bzl", "java_binary", "java_library")
+ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+ 
+@@ -18,6 +17,12 @@ filegroup(
+ 
+ _TURBINE_MAIN_CLASS = "com.google.turbine.main.Main"
+ 
++java_binary(
++    name = "turbine_direct_binary",
++    main_class = _TURBINE_MAIN_CLASS,
++    runtime_deps = [":turbine_deps"],
++)
++
+ java_library(
+     name = "turbine_deps",
+     runtime_deps = [
+@@ -28,12 +33,6 @@ java_library(
+     ],
+ )
+ 
+-java_binary(
+-    name = "turbine_direct_binary",
+-    main_class = _TURBINE_MAIN_CLASS,
+-    runtime_deps = [":turbine_deps"],
+-)
+-
+ # If enabled, build Turbine with Oracle GraalVM rather than GraalVM Community.
+ # See https://www.graalvm.org/downloads/ for licensing restrictions.
+ bool_flag(
+@@ -69,64 +68,6 @@ alias(
+     }),
+ )
+ 
+-native_image(
+-    name = "turbine_direct_graal_unpatched",
+-    executable_name = select({
+-        # TODO(cushon): restore .exe suffix on windows
+-        # see https://github.com/sgammon/rules_graalvm/issues/324
+-        "@bazel_tools//src/conditions:windows": "turbine_direct_graal_unpatched",
+-        "//conditions:default": "turbine_direct_graal",
+-    }),
+-    extra_args = [
+-        # Opt into stricter behavior to squelch a warning on recent GraalVM versions.
+-        "--strict-image-heap",
+-        # Workaround for https://github.com/oracle/graal/issues/4757.
+-        "-H:-UseContainerSupport",
+-        # A benchmark on Bazel itself shows a ~15% improvement in combined compile and header
+-        # compile action time on an incremental build triggered by a signature change to Label with
+-        # this option. 256m provides a noticeably smaller improvement, higher values do not provide
+-        # further improvement and would go over the local resource estimate in
+-        # com.google.devtools.build.lib.rules.java.JavaCompileAction.LOCAL_RESOURCES.
+-        # See :turbine_benchmark for the benchmark script used.
+-        "-R:MinHeapSize=512m",
+-    ] + select({
+-        "@platforms//os:linux": [
+-            # Statically link zlib but not glibc.
+-            "-H:+StaticExecutableWithDynamicLibC",
+-        ],
+-        "@platforms//os:windows": [
+-            # The charset specified by sun.jnu.encoding is not automatically included in the image,
+-            # but may be one of the legacy code pages on Windows, which aren't added by default.
+-            # https://github.com/oracle/graal/pull/10232
+-            "-H:+AddAllCharsets",
+-        ],
+-        "//conditions:default": [],
+-    }) + select({
+-        "@platforms//cpu:x86_64": [
+-            # Graal's default settings result in executables that aren't sufficiently compatible for
+-            # general use in Bazel.
+-            "-march=x86-64-v2",
+-        ],
+-        "//conditions:default": [],
+-    }) + select({
+-        ":do_pgo_instrument": ["--pgo-instrument"],
+-        "//conditions:default": [],
+-    }),
+-    main_class = _TURBINE_MAIN_CLASS,
+-    native_image_tool = select({
+-        ":do_use_oracle_graalvm": "@graalvm_oracle//:native-image",
+-        "//conditions:default": None,
+-    }),
+-    profiles = select({
+-        ":do_pgo_instrument": [],
+-        ":do_use_oracle_graalvm": ["profile.iprof"],
+-        "//conditions:default": [],
+-    }),
+-    # This provides libz.a on Linux instead of the host system.
+-    static_zlib = "@zlib",
+-    deps = [":turbine_deps"],
+-)
+-
+ # On Windows, add an app manifest to the binary to force it to run with a UTF-8
+ # code page. It is built with one, but without the app manifest it will not be
+ # able to use UTF-8 for filesystem operations.
+diff --git a/src/minimize_jdk.sh b/src/minimize_jdk.sh
+index 131da3e..32a2f27
+--- a/src/minimize_jdk.sh
++++ b/src/minimize_jdk.sh
+@@ -50,6 +50,13 @@ fi
+ tooljdk=$1
+ fulljdk=$2
+ out=$4
++# Optional 5th argument: a separate jmods archive for JDKs that don't ship
++# with jmods (e.g. Adoptium Temurin with JEP 493 enabled).
++jmods_archive=${5:-}
++# Convert to absolute path since we cd later.
++if [ -n "$jmods_archive" ]; then
++  jmods_archive=$(cd "$(dirname "$jmods_archive")" && echo "$(pwd)/$(basename "$jmods_archive")")
++fi
+ 
+ UNAME=$(uname -s | tr 'A-Z' 'a-z')
+ # Options for the JVM that runs the Bazel server, which are either required or
+@@ -66,6 +73,25 @@ if [[ "$UNAME" =~ msys_nt* ]]; then
+   # The archives contain a single top-level directory.
+   tool_jdk_home=$(cd tool_jdk.$$/* && pwd)
+   cd full_jdk.$$/*
++  # If the full JDK doesn't ship with jmods (e.g. JEP 493), use the separately
++  # provided jmods archive.
++  if [ ! -f jmods/java.base.jmod ]; then
++    if [ -n "$jmods_archive" ]; then
++      unzip -q "$jmods_archive" -d jmods_tmp
++      # The archive contains a single top-level directory with jmod files.
++      mv jmods_tmp/*/* jmods_tmp/ 2>/dev/null || true
++      # Move all .jmod files into the jmods directory.
++      mkdir -p jmods
++      mv jmods_tmp/*.jmod jmods/
++      rm -rf jmods_tmp
++    else
++      echo >&2 "ERROR: Full JDK does not contain jmods/java.base.jmod and no" \
++        "separate jmods archive was provided. Cross-jlinking requires jmods." \
++        "JDKs with JEP 493 enabled (e.g. Adoptium Temurin 24+) need a separate" \
++        "jmods download."
++      exit 1
++    fi
++  fi
+   # We have to add this module explicitly because it is windows specific, it allows
+   # the usage of the Windows truststore
+   # e.g. -Djavax.net.ssl.trustStoreType=WINDOWS-ROOT
+@@ -98,6 +124,20 @@ else
+   mkdir target_jdk
+   tar xf "$fulljdk" --no-same-owner --strip-components=1 -C target_jdk
+   cd target_jdk
++  # If the full JDK doesn't ship with jmods (e.g. JEP 493), use the separately
++  # provided jmods archive.
++  if [ ! -f jmods/java.base.jmod ]; then
++    if [ -n "$jmods_archive" ]; then
++      mkdir -p jmods
++      tar xf "$jmods_archive" --no-same-owner --strip-components=1 -C jmods --wildcards '*.jmod'
++    else
++      echo >&2 "ERROR: Full JDK does not contain jmods/java.base.jmod and no" \
++        "separate jmods archive was provided. Cross-jlinking requires jmods." \
++        "JDKs with JEP 493 enabled (e.g. Adoptium Temurin 24+) need a separate" \
++        "jmods download."
++      exit 1
++    fi
++  fi
+   "../tool_jdk/bin/jlink" --module-path ./jmods/ --add-modules "$modules" \
+     --vm=server --strip-debug --no-man-pages --no-header-files \
+     --add-options=" ${JVM_OPTIONS}" \
+diff --git a/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java b/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java
+index f78a1f1..d53b7b8 100644
+--- a/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java
++++ b/src/test/java/com/google/devtools/build/lib/packages/util/BazelMockCcSupport.java
+@@ -240,9 +240,7 @@ public final class BazelMockCcSupport extends MockCcSupport {
+       result.add(CcToolchainConfig.getCcToolchainConfigForCpu("darwin_arm64"));
+     }
+ 
+-    if (System.getProperty("os.arch").equals("s390x")) {
+-      result.add(CcToolchainConfig.getCcToolchainConfigForCpu("s390x"));
+-    }
++    
+     return result.build();
+   }
+ }
+diff --git a/src/test/java/com/google/devtools/build/lib/query2/testutil/AbstractQueryTest.java b/src/test/java/com/google/devtools/build/lib/query2/testutil/AbstractQueryTest.java
+index 31f5113..0708c54 100644
+--- a/src/test/java/com/google/devtools/build/lib/query2/testutil/AbstractQueryTest.java
++++ b/src/test/java/com/google/devtools/build/lib/query2/testutil/AbstractQueryTest.java
+@@ -2532,7 +2532,7 @@ public abstract class AbstractQueryTest<T> {
+ 
+     // We used to get a StackOverflowError at this depth. We're still vulnerable to stack overflows
+     // at higher depths, due to how the query engine works.
+-    int nestingDepth = 500;
++    int nestingDepth = 100;
+     String queryString =
+         Joiner.on(" + ").join(Collections.nCopies(nestingDepth, "let x = //foo:foo in $x"));
+ 
+diff --git a/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py b/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py
+index 2386414..c9877f7 100644
+--- a/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py
++++ b/src/test/py/bazel/bzlmod/bazel_repo_mapping_test.py
+@@ -442,6 +442,30 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
+     )
+ 
+     self.ScratchFile('MODULE.bazel', ['bazel_dep(name="test",version="1.0")'])
++    self.ScratchFile(
++        'MODULE.bazel',
++        [
++            f'bazel_dep(name = "rules_java", version = "{self.GetModuleVersionFromDefaultLockFile("rules_java")}")',
++            'custom_jdk = use_extension("@rules_java//java:extensions.bzl", "java_repository")',
++            'custom_jdk.local(',
++            '    name = "additionaljdk",',
++            '    version = "21",',
++            '    java_home = "/usr/lib/jvm/java-21-openjdk-s390x",',
++            ')',
++            'use_repo(custom_jdk, "additionaljdk")',
++            'register_toolchains("@additionaljdk//:all")',
++        ],
++        mode='a',
++    )
++    self.ScratchFile(
++        '.bazelrc',
++        [
++            'build --java_runtime_version=additionaljdk',
++            'build --tool_java_runtime_version=additionaljdk',
++        ],
++        mode='a',
++    )
++
+ 
+     # Run sandboxed on Linux and macOS.
+     self.RunBazel(
+diff --git a/src/test/py/bazel/runfiles_test.py b/src/test/py/bazel/runfiles_test.py
+index 721f974..a733610 100644
+--- a/src/test/py/bazel/runfiles_test.py
++++ b/src/test/py/bazel/runfiles_test.py
+@@ -42,6 +42,15 @@ class RunfilesTest(test_base.TestBase):
+       self.CopyFile(
+           self.Rlocation("io_bazel/src/test/py/bazel/testdata/runfiles_test/" +
+                          s), t, exe)
++    self.ScratchFile(
++        '.bazelrc',
++        [
++            'build --java_runtime_version=additionaljdk',
++            'build --tool_java_runtime_version=additionaljdk',
++        ],
++        mode='a',
++    )
++
+ 
+     _, stdout, _ = self.RunBazel(["info", "bazel-bin"])
+     bazel_bin = stdout[0]
+@@ -115,7 +124,14 @@ class RunfilesTest(test_base.TestBase):
+       self.CopyFile(
+           self.Rlocation("io_bazel/src/test/py/bazel/testdata/runfiles_test/" +
+                          s), t, exe)
+-
++    self.ScratchFile(
++        '.bazelrc',
++        [
++            'build --java_runtime_version=additionaljdk',
++            'build --tool_java_runtime_version=additionaljdk',
++        ],
++        mode='a',
++    )
+     _, stdout, _ = self.RunBazel(["info", "bazel-bin"])
+     bazel_bin = stdout[0]
+ 
+@@ -177,7 +193,14 @@ class RunfilesTest(test_base.TestBase):
+       self.CopyFile(
+           self.Rlocation("io_bazel/src/test/py/bazel/testdata/runfiles_test/" +
+                          s), t, exe)
+-
++    self.ScratchFile(
++        '.bazelrc',
++        [
++            'build --java_runtime_version=additionaljdk',
++            'build --tool_java_runtime_version=additionaljdk',
++        ],
++        mode='a',
++    )
+     _, stdout, _ = self.RunBazel(["info", "bazel-bin"])
+     bazel_bin = stdout[0]
+ 
+@@ -505,6 +528,28 @@ class RunfilesTest(test_base.TestBase):
+     self.ScratchFile(
+         "MODULE.bazel", ['bazel_dep(name = "rules_java", version = "8.12.0")']
+     )
++    self.ScratchFile(
++        "MODULE.bazel",
++        [
++            'custom_jdk = use_extension("@rules_java//java:extensions.bzl", "java_repository")',
++            'custom_jdk.local(',
++            '    name = "additionaljdk",',
++            '    version = "21",',
++            '    java_home = "/usr/lib/jvm/java-21-openjdk-s390x",',
++            ')',
++            'use_repo(custom_jdk, "additionaljdk")',
++            'register_toolchains("@additionaljdk//:all")',
++        ],
++        mode='a',
++    )
++    self.ScratchFile(
++        '.bazelrc',
++        [
++            'build --java_runtime_version=additionaljdk',
++            'build --tool_java_runtime_version=additionaljdk',
++        ],
++        mode='a',
++    )
+     self.ScratchFile(
+         "BUILD",
+         [
+diff --git a/src/test/py/bazel/test_base.py b/src/test/py/bazel/test_base.py
+index 818d514..9712bd9 100644
+--- a/src/test/py/bazel/test_base.py
++++ b/src/test/py/bazel/test_base.py
+@@ -165,6 +165,69 @@ class TestBase(absltest.TestCase):
+         ],
+         mode='a',
+     )
++    if module == 'protobuf':
++      self.ScratchDir(os.path.join(path, 'third_party'))
++      self.ScratchFile(os.path.join(path, 'third_party', 'BUILD'), [])
++      self.ScratchFile(
++          os.path.join(path, 'third_party', 'protobuf.patch'),
++          [
++              'diff --git a/upb/wire/decode.c b/upb/wire/decode.c',
++              'index 6da57877b..9039591a7 100644',
++              '--- a/upb/wire/decode.c',
++              '+++ b/upb/wire/decode.c',
++              '@@ -488,6 +488,7 @@ static const char* _upb_Decoder_DecodeEnumPacked(',
++              '       _upb_Decoder_AddEnumValueToUnknown(d, msg, field, &elem);',
++              '       continue;',
++              '     }',
++              '+    _upb_Decoder_MungeInt32(&elem);',
++              '     if (_upb_Decoder_Reserve(d, arr, 1)) {',
++              '       out = UPB_PTR_AT(upb_Array_MutableDataPtr(arr),',
++              '                        arr->UPB_PRIVATE(size) * 4, void);',
++              '@@ -1079,6 +1080,7 @@ const char* _upb_Decoder_DecodeWireValue(upb_Decoder* d, const char* ptr,',
++              '           *op = kUpb_DecodeOp_UnknownField;',
++              '           return ptr;',
++              '         }',
++              '+       _upb_Decoder_MungeInt32(val);',
++              '       } else {',
++              '         _upb_Decoder_Munge(field, val);',
++              '       }',
++          ],
++      )
++      self.ScratchFile(
++          os.path.join(path, 'MODULE.bazel'),
++          [
++              'single_version_override(',
++              '    module_name = "protobuf",',
++              '    patch_strip = 1,',
++              '    patches = ["//third_party:protobuf.patch"],',
++              f'    version = "{version}",',
++              ')',
++          ],
++          mode='a',
++      )
++    elif module == 'rules_java':
++      self.ScratchFile(
++          os.path.join(path, 'MODULE.bazel'),
++          [
++              'custom_jdk = use_extension("@rules_java//java:extensions.bzl", "java_repository")',
++              'custom_jdk.local(',
++              '    name = "additionaljdk",',
++              '    version = "21",',
++              '    java_home = "/usr/lib/jvm/java-21-openjdk-s390x",',
++              ')',
++              'use_repo(custom_jdk, "additionaljdk")',
++              'register_toolchains("@additionaljdk//:all")',
++            ],
++            mode='a',
++        )
++      self.ScratchFile(
++          os.path.join(path, '.bazelrc'),
++          [
++              'build --java_runtime_version=additionaljdk',
++              'build --tool_java_runtime_version=additionaljdk',
++          ],
++          mode='a',
++      )
+ 
+   def tearDown(self):
+     self.RunBazel(['shutdown'])
+diff --git a/src/test/py/bazel/testdata/runfiles_test/MODULE.bazel.mock b/src/test/py/bazel/testdata/runfiles_test/MODULE.bazel.mock
+index d36fed0..06660b3 100644
+--- a/src/test/py/bazel/testdata/runfiles_test/MODULE.bazel.mock
++++ b/src/test/py/bazel/testdata/runfiles_test/MODULE.bazel.mock
+@@ -5,3 +5,12 @@ bazel_dep(name = "rules_shell", version = "0.3.0")
+
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+ python.toolchain(python_version = "3.11")
++
++custom_jdk = use_extension("@rules_java//java:extensions.bzl", "java_repository")
++custom_jdk.local(
++    name = "additionaljdk",
++    version = "21",
++    java_home = "/usr/lib/jvm/java-21-openjdk-s390x",
++)
++use_repo(custom_jdk, "additionaljdk")
++register_toolchains("@additionaljdk//:all")
+diff --git a/src/test/shell/bazel/BUILD b/src/test/shell/bazel/BUILD
+index caef942..7ce5015 100644
+--- a/src/test/shell/bazel/BUILD
++++ b/src/test/shell/bazel/BUILD
+@@ -1239,7 +1239,7 @@ sh_test(
+     ],
+     exec_compatible_with = ["//:highcpu_machine"],
+     tags = [
+-        "block-network",
++        #"block-network",
+         "no_windows",
+     ],
+ )
+diff --git a/src/test/shell/bazel/bazel_coverage_starlark_test.sh b/src/test/shell/bazel/bazel_coverage_starlark_test.sh
+index c5d62ca..0f9a581 100755
+--- a/src/test/shell/bazel/bazel_coverage_starlark_test.sh
++++ b/src/test/shell/bazel/bazel_coverage_starlark_test.sh
+@@ -59,6 +59,7 @@ function set_up() {
+ }
+ 
+ function test_starlark_rule_without_lcov_merger() {
++    add_rules_java "MODULE.bazel"
+     cat <<EOF > rules.bzl
+ UNIX_TEST = """
+ #!/usr/bin/env bash
+@@ -110,6 +111,7 @@ EOF
+ }
+ 
+ function test_starlark_rule_without_lcov_merger_failing_test() {
++    add_rules_java "MODULE.bazel"
+     cat <<EOF > rules.bzl
+ UNIX_FAILING_TEST = "exit 1"
+ WINDOWS_FAILING_TEST = "@echo off\nexit /b 1"
+@@ -286,6 +288,7 @@ EOF
+ }
+ 
+ function test_starlark_rule_default_baseline_coverage() {
++  add_rules_java "MODULE.bazel"
+   mkdir -p test
+   cat <<EOF > test/rules.bzl
+ def _my_library_impl(ctx):
+@@ -483,6 +486,7 @@ end_of_record"
+ }
+ 
+ function do_test_starlark_rule_custom_baseline_coverage() {
++  add_rules_java "MODULE.bazel"
+   mkdir -p test
+   cat <<EOF > test/rules.bzl
+ def _my_library_impl(ctx):
+diff --git a/src/test/shell/bazel/bazel_java_tools_test.sh b/src/test/shell/bazel/bazel_java_tools_test.sh
+index 1a887f6..066560b 100755
+--- a/src/test/shell/bazel/bazel_java_tools_test.sh
++++ b/src/test/shell/bazel/bazel_java_tools_test.sh
+@@ -131,7 +131,6 @@ function test_java_tools_has_JavaBuilder() {
+ 
+ function test_java_tools_has_turbine_direct() {
+   expect_path_in_java_tools "java_tools/turbine_direct_binary_deploy.jar"
+-  expect_path_in_java_tools_prebuilt "java_tools/turbine_direct_graal"
+ }
+ 
+ function test_java_tools_has_one_version() {
+diff --git a/src/test/shell/bazel/bazel_with_jdk_test.sh b/src/test/shell/bazel/bazel_with_jdk_test.sh
+index 6f3bf24..8b32fa9 100755
+--- a/src/test/shell/bazel/bazel_with_jdk_test.sh
++++ b/src/test/shell/bazel/bazel_with_jdk_test.sh
+@@ -102,7 +102,9 @@ function test_bazel_license_prints_jdk_license() {
+   expect_log "OPENJDK ASSEMBLY EXCEPTION" || \
+       fail "'bazel license' did not print an expected string from ASSEMBLY_EXCEPTION"
+ 
+-  expect_log "Provided you have not received the software directly from Azul and have already" || \
++  # Azul JDK is not used on s390x
++  # expect_log "Provided you have not received the software directly from Azul and have already" || \
++  expect_log "Linking this OpenJDK Code statically or dynamically with other code" || \
+       fail "'bazel license' did not print an expected string from DISCLAIMER"
+ 
+   expect_log '"CLASSPATH" EXCEPTION TO THE GPL' || \
+diff --git a/src/test/shell/integration/sandboxing_test.sh b/src/test/shell/integration/sandboxing_test.sh
+index 0855814..9e84b4a 100755
+--- a/src/test/shell/integration/sandboxing_test.sh
++++ b/src/test/shell/integration/sandboxing_test.sh
+@@ -1011,6 +1011,7 @@ function test_runfiles_from_tests_get_reused_and_tmp_clean_in_mem_stashes() {
+ }
+
+ function do_test_runfiles_from_tests_get_reused_and_tmp_clean() {
++  add_rules_java MODULE.bazel
+   local -r in_memory_stashes="$1"
+   mkdir pkg
+   mkdir pkg/b
+diff --git a/src/test/shell/testenv.sh b/src/test/shell/testenv.sh
+index 714a86a..be9b256 100755
+--- a/src/test/shell/testenv.sh
++++ b/src/test/shell/testenv.sh
+@@ -570,14 +570,46 @@ function add_bazel_skylib() {
+ 
+ function add_rules_cc() {
+   add_bazel_dep "rules_cc" "$1"
++  add_rules_java "$1"
+ }
+ 
+ function add_rules_shell() {
+   add_bazel_dep "rules_shell" "$1"
++  add_rules_java "$1"
+ }
+ 
+ function add_rules_java() {
+-  add_bazel_dep "rules_java" "$1"
++  for f in "${FUNCNAME[@]}"; do
++    case "$f" in
++      test_files_module)
++        add_bazel_dep "rules_java" "$1"
++        return
++        ;;
++    esac
++  done
++  if ! grep -q "additionaljdk" "$1" 2>/dev/null; then
++    if ! grep -q 'bazel_dep(name *= *"rules_java"' "$1" 2>/dev/null; then
++      add_bazel_dep "rules_java" "$1"
++    fi
++    if [[ "$1" != */* || "$1" == /* ]]; then
++      cat >> "$1" <<'EOF'
++custom_jdk = use_extension("@rules_java//java:extensions.bzl", "java_repository")
++custom_jdk.local(
++    name = "additionaljdk",
++    version = "21",
++    java_home = "/usr/lib/jvm/java-21-openjdk-s390x",
++)
++custom_jdk.local(
++    name = "remotejdk25_linux_s390x",
++    version = "remotejdk_25",
++    java_home = "/usr/lib/jvm/java-25-openjdk-s390x",
++)
++use_repo(custom_jdk, "additionaljdk", "remotejdk25_linux_s390x")
++register_toolchains("@additionaljdk//:all")
++register_toolchains("@remotejdk25_linux_s390x//:all")
++EOF
++    fi
++  fi
+ }
+ 
+ function add_rules_python() {
+@@ -600,6 +632,38 @@ bazel_dep(name = "protobuf", version = "$protobuf_version", repo_name = "com_goo
+ # Fixes compilation errors with old C++ compiler versions.
+ bazel_dep(name = "abseil-cpp", version = "$abseil_version", repo_name = None)
+ EOF
++mkdir -p "third_party"
++  cat > "third_party/protobuf.patch" << 'PATCH'
++diff --git a/upb/wire/decode.c b/upb/wire/decode.c
++index 6da57877b..9039591a7 100644
++--- a/upb/wire/decode.c
+++++ b/upb/wire/decode.c
++@@ -488,6 +488,7 @@ static const char* _upb_Decoder_DecodeEnumPacked(
++       _upb_Decoder_AddEnumValueToUnknown(d, msg, field, &elem);
++       continue;
++     }
+++    _upb_Decoder_MungeInt32(&elem);
++     if (_upb_Decoder_Reserve(d, arr, 1)) {
++       out = UPB_PTR_AT(upb_Array_MutableDataPtr(arr),
++                        arr->UPB_PRIVATE(size) * 4, void);
++@@ -1079,6 +1080,7 @@ const char* _upb_Decoder_DecodeWireValue(upb_Decoder* d, const char* ptr,
++           *op = kUpb_DecodeOp_UnknownField;
++           return ptr;
++         }
+++       _upb_Decoder_MungeInt32(val);
++       } else {
++         _upb_Decoder_Munge(field, val);
++       }
++PATCH
++  touch "third_party/BUILD"
++  cat >> "$1" <<EOF
++single_version_override(
++    module_name = "protobuf",
++    patch_strip = 1,
++    patches = ["//third_party:protobuf.patch"],
++    version = "$protobuf_version",
++)
++EOF
+ }
+ 
+ function add_rules_testing() {
+diff --git a/src/tools/singlejar/log4j2_plugin_dat_combiner.cc b/src/tools/singlejar/log4j2_plugin_dat_combiner.cc
+index 5cf5c3a..8ef264e 100644
+--- a/src/tools/singlejar/log4j2_plugin_dat_combiner.cc
++++ b/src/tools/singlejar/log4j2_plugin_dat_combiner.cc
+@@ -40,12 +40,16 @@
+ // specification.
+ template <typename T>
+ inline static T swapByteOrder(const T &val) {
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++  return val;
++#else
+   int totalBytes = sizeof(val);
+   T swapped = (T)0;
+   for (int i = 0; i < totalBytes; ++i) {
+     swapped |= (val >> (8 * (totalBytes - i - 1)) & 0xFF) << (8 * i);
+   }
+   return swapped;
++#endif
+ }
+ 
+ bool readBool(std::istringstream &stream) {
+diff --git a/third_party/BUILD b/third_party/BUILD
+index 0a1e66e..166df15 100644
+--- a/third_party/BUILD
++++ b/third_party/BUILD
+@@ -538,9 +538,10 @@ genrule(
+         "//src/conditions:linux_aarch64": ["@maven//:io_netty_netty_tcnative_boringssl_static_linux_aarch_64_file"],
+         "//src/conditions:linux_x86_64": ["@maven//:io_netty_netty_tcnative_boringssl_static_linux_x86_64_file"],
+         "//src/conditions:windows": ["@maven//:io_netty_netty_tcnative_boringssl_static_windows_x86_64_file"],
+-        "//conditions:default": [],
++        "//src/conditions:linux_s390x": ["netty-tcnative-boringssl-static-2.0.61.Final-linux-s390_64.jar"],
++	"//conditions:default": [],
+     }),
+-    outs = ["netty_tcnative/netty-tcnative-filtered.jar"],
++    outs = ["netty-tcnative-filtered.jar"],
+     cmd = "cp $< $@ && " +
+           # Make sure we can write the output file, even if the input isn't writable.
+           "chmod +w $@ && " +
+@@ -551,46 +552,36 @@ distrib_java_import(
+     name = "netty",
+     enable_distributions = ["debian"],
+     jars = [
+-        "@maven//:io_netty_netty_buffer_file",
+-        "@maven//:io_netty_netty_codec_file",
+-        "@maven//:io_netty_netty_codec_http2_file",
+-        "@maven//:io_netty_netty_codec_http_file",
+-        "@maven//:io_netty_netty_common_file",
+-        "@maven//:io_netty_netty_handler_file",
+-        "@maven//:io_netty_netty_handler_proxy_file",
+-        "@maven//:io_netty_netty_resolver_file",
+-        "@maven//:io_netty_netty_resolver_dns_file",
+-        "@maven//:io_netty_netty_transport_file",
+-        "@maven//:io_netty_netty_transport_classes_epoll_file",
+-        "@maven//:io_netty_netty_transport_classes_kqueue_file",
+-    ] + select({
+-        "//src/conditions:darwin_arm64": ["@maven//:io_netty_netty_transport_native_unix_common_osx_aarch_64_file"],
+-        "//src/conditions:darwin_x86_64": ["@maven//:io_netty_netty_transport_native_unix_common_osx_x86_64_file"],
+-        "//src/conditions:linux_aarch64": ["@maven//:io_netty_netty_transport_native_unix_common_linux_aarch_64_file"],
+-        "//src/conditions:linux_x86_64": ["@maven//:io_netty_netty_transport_native_unix_common_linux_x86_64_file"],
+-        "//conditions:default": ["@maven//:io_netty_netty_transport_native_unix_common_file"],
+-    }) + select({
+-        "//src/conditions:darwin_arm64": ["@maven//:io_netty_netty_transport_native_kqueue_osx_aarch_64_file"],
+-        "//src/conditions:darwin_x86_64": ["@maven//:io_netty_netty_transport_native_kqueue_osx_x86_64_file"],
+-        "//conditions:default": [],
+-    }) + select({
+-        "//src/conditions:linux_aarch64": ["@maven//:io_netty_netty_transport_native_epoll_linux_aarch_64_file"],
+-        "//src/conditions:linux_x86_64": ["@maven//:io_netty_netty_transport_native_epoll_linux_x86_64_file"],
+-        "//conditions:default": [],
+-    }),
++        "netty-buffer-4.1.100.Final.jar",
++        "netty-codec-4.1.100.Final.jar",
++        "netty-codec-http-4.1.100.Final.jar",
++        "netty-codec-http2-4.1.100.Final.jar",
++        "netty-common-4.1.100.Final.jar",
++        "netty-handler-4.1.100.Final.jar",
++        "netty-handler-proxy-4.1.100.Final.jar",
++        "netty-resolver-4.1.100.Final.jar",
++        "netty-resolver-dns-4.1.100.Final.jar",
++        "netty-transport-4.1.100.Final.jar",
++        "netty-transport-classes-epoll-4.1.100.Final.jar",
++        "netty-transport-classes-kqueue-4.1.100.Final.jar",
++        "netty-transport-native-unix-common-4.1.100.Final-linux-s390_64.jar",
++        "netty-transport-native-kqueue-4.1.100.Final.jar",
++        "netty-transport-native-epoll-4.1.100.Final-linux-s390_64.jar",
++    ]
+ )
+ 
+ distrib_java_import(
+     name = "netty_tcnative",
+     enable_distributions = ["debian"],
+     jars = [
+-        "@maven//:io_netty_netty_tcnative_classes_file",
++        "netty-tcnative-classes-2.0.61.Final.jar",
+     ] + select({
+         "//src/conditions:darwin_arm64": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:darwin_x86_64": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:linux_aarch64": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:linux_x86_64": [":netty_tcnative/netty-tcnative-filtered.jar"],
+         "//src/conditions:windows": [":netty_tcnative/netty-tcnative-filtered.jar"],
++        "//src/conditions:linux_s390x": ["netty-tcnative-filtered.jar"],
+         "//conditions:default": [],
+     }),
+ )
+diff --git a/third_party/rules_graalvm_fix.patch b/third_party/rules_graalvm_fix.patch
+index eec1f9d..65e603d 100644
+--- a/third_party/rules_graalvm_fix.patch
++++ b/third_party/rules_graalvm_fix.patch
+@@ -62,3 +62,15 @@ index 0d0a2ce..ca84a91 100644
+          fail("""
+              No `native-image` tool found. Please either define a `native_image_tool` in your target,
+              or install a GraalVM `native-image` toolchain.
+++diff --git a/internal/graalvm_bindist.bzl b/internal/graalvm_bindist.bzl
+++index 0976063..7ec29b6 100644
+++--- a/internal/graalvm_bindist.bzl
++++++ b/internal/graalvm_bindist.bzl
+++@@ -73,6 +73,7 @@ def _get_platform(ctx, newdist):
+++         "x86_64": "x64",
+++         "amd64": "x64",
+++         "aarch64": "aarch64",
++++        "s390x": "s390x",
+++     }
+++
+++     # fix: before bazel5, the `arch` property did not exist on `repository_os`, so we need

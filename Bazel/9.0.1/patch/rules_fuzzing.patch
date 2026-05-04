@@ -1,0 +1,12 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 351664a..4f972e4 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -41,7 +41,6 @@ use_repo(
+ )
+ 
+ SUPPORTED_PYTHON_VERSIONS = [
+-    "3.8",
+     "3.9",
+     "3.10",
+     "3.11",
