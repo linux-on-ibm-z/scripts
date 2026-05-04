@@ -117,7 +117,7 @@ function configureAndInstall()
 
         #Install python packages
         python3 -m pip install setuptools wheel && python3 -m pip wheel cassandra-driver==3.28.0 websocket-client==0.40.0 --no-build-isolation
-        pip3 install pyzmq PyYAML cryptography msgpack jinja2 psutil tornado python-dateutil genshi looseversion packaging distro
+        pip3 install pyzmq PyYAML cryptography==46.0.7 msgpack jinja2 psutil tornado python-dateutil genshi looseversion packaging distro
 
         #Download Salt
         cd "${CURDIR}"
