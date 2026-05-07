@@ -103,8 +103,6 @@ function configureAndInstall() {
 		curl -sSL $PATCH_URL/UB24.patch | git apply
 	elif [[ "${DISTRO}" == "rhel-8.10" ]]; then
 		curl -sSL $PATCH_URL/RHEL8.patch | git apply
-	elif [[ "${DISTRO}" == "sles-15.7" ]]; then
-		curl -sSL $PATCH_URL/SLES.patch | git apply
 	fi
 
 	printf -- '\n---Patches are applied-----\n'
@@ -172,12 +170,6 @@ function runTest() {
             yum install -y dbench perl-Test-Harness yajl net-tools psmisc nfs-utils xfsprogs attr procps-ng gdb python3 iproute
 				pip3 install prettytable
 	    ;;
-        "sles-15.7")
-	    zypper install -y acl attr bc bind-utils gdb libxml2-tools net-tools-deprecated nfs-utils psmisc thin-provisioning-tools vim xfsprogs python3-PrettyTable libselinux-devel selinux-tools popt-devel libyajl2 libyajl-devel sysvinit-tools python3-pip procps e2fsprogs
-	    pip3 install prettytable
-	    wget https://www.rpmfind.net/linux/opensuse/distribution/leap/15.6/repo/oss/s390x/yajl-2.1.0-150000.4.6.1.s390x.rpm
-	    rpm -ivh yajl-2.1.0-150000.4.6.1.s390x.rpm
-            ;;
         "ubuntu-22.04" | "ubuntu-24.04")
             apt install -y dbench yajl-tools net-tools psmisc libnfs-utils xfsprogs attr procps gdb iproute2 nfs-common python3 python3-pip python3-prettytable libxml2-utils bc zfsutils-linux acl xdg-utils uuid-runtime
 
@@ -190,23 +182,6 @@ function runTest() {
          ;;
 	 esac
 
-	   # link the gstack command to pstack for sles
-	   if [[ "${ID}" == "sles" ]]; then
-		ln -sf `which gstack` /usr/bin/pstack
-	   fi
-						
-	   # Install dbench SLES only
-    if [[ "${DISTRO}" == "sles-15.7" ]]; then
-		   cd "${SOURCE_ROOT}"
-		   git clone https://github.com/sahlberg/dbench
-		   cd dbench
-		   git checkout caa52d347171f96eef5f8c2d6ab04a9152eaf113
-		   ./autogen.sh
-		   ./configure --datadir=/usr/local/share/doc/loadfiles/
-		   make
-		   make install
-	  fi
-
 	   # Apply patches for testcase fix
 	   cd $SOURCE_ROOT/glusterfs	 
 			
@@ -215,10 +190,7 @@ function runTest() {
 	      ldconfig /usr/local/lib
 	      ldconfig /usr/local/lib64
 	   fi
-	   if [[ "${ID}" == "sles" ]]; then
-	     curl -sSL $PATCH_URL/test-sles.patch | git apply 
-	   fi	
-	
+	  
 		
 	   printf -- '\n-------------------\nRunning Test Suite\n-------------------\n'
 	   # Run the Test Suite
@@ -297,13 +269,6 @@ case "$DISTRO" in
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	yum install -y curl autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel iproute |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
- "sles-15.7")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	zypper install -y curl autoconf automake bison cmake flex fuse-devel gcc-c++ git-core glib2-devel libacl-devel libaio-devel librdmacm1 libtool liburcu-devel libuuid-devel libxml2-devel lvm2 make pkg-config python3 python3-xattr rdma-core-devel readline-devel openssl-devel zlib-devel which wget gawk dmraid popt-devel gperftools-devel gperf gperftools libtirpc-devel rpcgen liburing-devel util-linux hostname iproute util-linux-systemd keyutils-devel |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
 "ubuntu-22.04" | "ubuntu-24.04")
