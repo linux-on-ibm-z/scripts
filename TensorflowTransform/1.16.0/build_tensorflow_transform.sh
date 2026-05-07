@@ -132,6 +132,7 @@ function configureAndInstall() {
 
     cd "${CURDIR}"
     echo "setuptools==80.10.1" > constraints.txt
+    echo "cryptography<47" >> constraints.txt
     GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True PIP_CONSTRAINT=constraints.txt pip3 install 'apache-beam[gcp]'==2.61.0
 
     printf -- 'Apache Beam installed successfully \n'
