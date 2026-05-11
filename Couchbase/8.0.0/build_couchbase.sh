@@ -1542,6 +1542,11 @@ function buildLibsodium() {
     git clone -b $VERSION_LIBSODIUM --depth 1 https://github.com/jedisct1/libsodium.git
     cd libsodium
     ./autogen.sh
+    if [[ "$DISTRO" == rhel* ]]; then
+        chmod +x build-aux/config.sub build-aux/config.guess || true
+        sed -i 's/\r$//' build-aux/config.sub
+        sed -i 's/\r$//' build-aux/config.guess
+    fi
     ./configure --prefix=$(pwd)/_build --libdir=$(pwd)/_build/lib
     make -j$(nproc)
     make install
