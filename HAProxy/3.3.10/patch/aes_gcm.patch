@@ -1,0 +1,58 @@
+--- src/ssl_sample.c	2026-01-28 06:15:51.905937730 +0000
++++ src/ssl_sample.c	2026-01-28 05:44:20.343245503 +0000
+@@ -290,6 +290,10 @@
+ 	struct buffer *smp_trash = NULL, *smp_trash_alloc = NULL, *aad_trash = NULL;
+ 	EVP_CIPHER_CTX *ctx = NULL;
+ 	int size, ret, dec;
++	int final_len = 0;
++	int tag_len = 0;
++	int update_len = 0;
++	int output_len = 0;
+ 
+ 	smp_trash_alloc = alloc_trash_chunk();
+ 	if (!smp_trash_alloc)
+@@ -387,9 +391,12 @@
+ 			goto err;
+ 	}
+ 
+-	if (!sample_conv_aes_gcm_update(dec, ctx, (unsigned char *) smp_trash->area, (int *) &smp_trash->data,
+-	                                (unsigned char *) smp_trash_alloc->area, (int) smp_trash_alloc->data))
+-		goto err;
++	update_len = (int)smp_trash_alloc->data;
++	output_len = 0;
++		if (!sample_conv_aes_gcm_update(dec, ctx, (unsigned char *) smp_trash->area, &output_len,
++						(unsigned char *) smp_trash_alloc->area, update_len))
++			goto err;
++	smp_trash->data = output_len;
+ 
+ 	smp_set_owner(&aead_tag, smp->px, smp->sess, smp->strm, smp->opt);
+ 	if (dec) {
+@@ -405,14 +412,15 @@
+ 			aead_tag.data.u.str = *smp_trash_alloc;
+ 		}
+ 
+-		EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, aead_tag.data.u.str.data,
+-		                    (void *) aead_tag.data.u.str.area);
++		tag_len = (int)aead_tag.data.u.str.data;
++		EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tag_len,		
++				(void *) aead_tag.data.u.str.area);
+ 	}
+ 
+ 	size = smp_trash->data;
+ 
+-	ret = sample_conv_aes_gcm_final(dec, ctx, (unsigned char *) smp_trash->area + smp_trash->data,
+-	                                (int *) &smp_trash->data);
++	ret = sample_conv_aes_gcm_final(dec, ctx, (unsigned char *) smp_trash->area + size,
++					&final_len);
+ 	if (ret <= 0)
+ 		goto err;
+ 
+@@ -435,7 +443,7 @@
+ 		}
+ 	}
+ 
+-	smp->data.u.str.data = size + smp_trash->data;
++	smp->data.u.str.data = size + final_len;
+ 	smp->data.u.str.area = smp_trash->area;
+ 	smp->data.type = SMP_T_BIN;
+ 	smp_dup(smp);
