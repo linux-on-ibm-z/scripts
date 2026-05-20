@@ -69,7 +69,7 @@ function configureAndInstall() {
 
     if [[ "$DISTRO" == "rhel-8.10" ]]; then
         cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DBUILD_SYSDIG_MODERN_BPF=OFF -DSYSDIG_VERSION=$PACKAGE_VERSION ..
-    elif [[ "$DISTRO" == "rhel-9.4" ]] || [[ "$DISTRO" == "rhel-9.6" ]] || [[ "$DISTRO" == "rhel-9.7" ]] || [[ "$DISTRO" == "rhel-10.0" ]]; then
+    elif [[ "$DISTRO" == "rhel-9.6" ]] || [[ "$DISTRO" == "rhel-9.7" ]] || [[ "$DISTRO" == "rhel-10.0" ]]; then
         cmake -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
     elif [[ "$DISTRO" == "sles-15.7" ]]; then
         cmake -DCMAKE_C_COMPILER=/usr/bin/gcc-14 -DCMAKE_CXX_COMPILER=/usr/bin/g++-14 -DCREATE_TEST_TARGETS=ON -DUSE_BUNDLED_DEPS=ON -DSYSDIG_VERSION=$PACKAGE_VERSION ..
@@ -222,7 +222,7 @@ logDetails
 prepare
 
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
     sudo mkdir -p /lib/modules/$(uname -r)
@@ -247,7 +247,7 @@ case "$DISTRO" in
     version=$(sudo yum info kernel-devel | grep Version | awk 'NR==1{print $3}')
     release=$(sudo yum info kernel-devel | grep Release | awk 'NR==1{print $3}')
     echo $version-$release.s390x
-     Check if the symbolic link already exists
+    # Check if the symbolic link already exists
     if [ ! -L "/lib/modules/$(uname -r)/build" ]; then
         # If the symbolic link does not exist, create it
         sudo ln -s "/usr/src/kernels/$version-$release.s390x" "/lib/modules/$(uname -r)/build"
