@@ -203,7 +203,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7")
+"rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum groupinstall -y 'Development Tools'
@@ -211,12 +211,20 @@ case "$DISTRO" in
     installUnixODBC |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
+"rhel-9.6" | "rhel-9.7")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
+    printf -- "Installing dependencies... it may take some time.\n"
+    sudo yum groupinstall -y --nobest 'Development Tools'
+    sudo yum install -y --nobest mariadb mariadb-server mysql-devel git cmake gcc gcc-c++ libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make glibc-langpack-en autoconf automake libtool libtool-ltdl-devel libiodbc-devel |& tee -a "$LOG_FILE"
+    installUnixODBC |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
 "rhel-10.0" | "rhel-10.1")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo dnf update openssl-libs openssl openssl-fips-provider openssl-fips-provider-so
-    sudo yum groupinstall -y 'Development Tools'
-    sudo yum install -y mariadb mariadb-server mysql8.4-devel.s390x git cmake gcc gcc-c++ libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make glibc-langpack-en autoconf automake libtool libtool-ltdl-devel libiodbc-devel |& tee -a "$LOG_FILE"
+    sudo dnf update -y openssl-libs openssl openssl-fips-provider openssl-fips-provider-so
+    sudo yum groupinstall -y --nobest --nogpgcheck 'Development Tools'
+    sudo yum install -y --nobest --nogpgcheck mariadb mariadb-server mysql8.4-devel.s390x git cmake gcc gcc-c++ libarchive openssl-devel openssl tar curl libcurl-devel krb5-devel make glibc-langpack-en autoconf automake libtool libtool-ltdl-devel libiodbc-devel |& tee -a "$LOG_FILE"
     installUnixODBC |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
