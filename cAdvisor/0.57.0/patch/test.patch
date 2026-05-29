@@ -1,0 +1,18 @@
+diff --git a/machine/topology_test.go b/machine/topology_test.go
+index 24618dc0..55abeeeb 100644
+--- a/machine/topology_test.go
++++ b/machine/topology_test.go
+@@ -491,6 +491,13 @@ func TestTopologyOnSystemZ(t *testing.T) {
+                assert.Nil(t, err)
+                assert.Equal(t, 2, len(topology))
+                assert.Equal(t, 4, numCores)
++
++               sort.Slice(topology, func(i, j int) bool {
++               if len(topology[i].Cores) == 0 || len(topology[j].Cores) == 0 {
++                       return i < j
++               }
++               return topology[i].Cores[0].SocketID < topology[j].Cores[0].SocketID
++               })
+
+                topologyJSON1, err := json.Marshal(topology[0])
+                assert.Nil(t, err)
