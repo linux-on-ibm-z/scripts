@@ -15,7 +15,7 @@ FORCE="false"
 TEST="false"
 OVERRIDE="false"
 LOG_FILE="$SOURCE_ROOT/logs/$PACKAGE_NAME-$PACKAGE_VERSION-$(date +"%F-%T").log"
-PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Spire/1.14.5/patch"
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Spire/$PACKAGE_VERSION/patch"
 
 trap 0 1 2 ERR
 
