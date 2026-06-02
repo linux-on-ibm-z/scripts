@@ -89,9 +89,9 @@ function configureAndInstall() {
     #Install wasmtime library
     cd $SOURCE_ROOT
     mkdir -p golang-wasmtime && cd golang-wasmtime
-    wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v39.0.1/wasmtime-v39.0.1-s390x-linux-c-api.tar.xz
-    tar xf wasmtime-v39.0.1-s390x-linux-c-api.tar.xz
-    sudo cp wasmtime-v39.0.1-s390x-linux-c-api/lib/libwasmtime.a /usr/lib
+    wget https://github.com/bytecodealliance/wasmtime/releases/download/v43.0.2/wasmtime-v43.0.2-s390x-linux-c-api.tar.xz
+    tar xf wasmtime-v43.0.2-s390x-linux-c-api.tar.xz
+    sudo cp wasmtime-v43.0.2-s390x-linux-c-api/lib/libwasmtime.a /usr/lib
     
     #Setup OPA build
     cd $SOURCE_ROOT
@@ -99,7 +99,7 @@ function configureAndInstall() {
         git clone -b v$PACKAGE_VERSION https://github.com/open-policy-agent/opa.git
     fi
     cd opa
-    curl -sSL ${PATCH_URL}/opa.diff | git apply - || echo "Error: patch failed."
+    curl -sSL ${PATCH_URL}/opa.patch | git apply - || echo "Error: patch failed."
 
     make build
     printf -- "OPA build completed successfully. \n"
