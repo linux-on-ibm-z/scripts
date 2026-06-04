@@ -126,7 +126,7 @@ function configureAndInstall() {
     go version
     # Download `etcd ${ETCD_VERSION}`.
     cd $SOURCE_ROOT
-    wget -q --no-check-certificate https://github.com/etcd-io/etcd/releases/download/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-s390x.tar.gz
+    wget -q https://github.com/etcd-io/etcd/releases/download/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-s390x.tar.gz
     tar xvf etcd-${ETCD_VERSION}-linux-s390x.tar.gz
     sudo cp -f etcd-${ETCD_VERSION}-linux-s390x/etcd /usr/local/bin
 
@@ -197,7 +197,7 @@ function runTest() {
     printf -- "\nBuilding Kubectl Image for s390x ... \n" | tee -a "$KUBECTL_LOG"
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate $PATCH_URL/Dockerfile
+    wget $PATCH_URL/Dockerfile
     docker build --build-arg TARGETPLATFORM=linux/s390x --build-arg KUBERNETES_RELEASE=$K8S_VERSION -t rancher/kubectl:"$K8S_VERSION" . 2>&1 | tee -a "$KUBECTL_LOG"
 
     if [ $(docker images "rancher/kubectl:$K8S_VERSION" | wc -l) == 2 ]; then
