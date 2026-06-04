@@ -84,7 +84,7 @@ function configureAndInstall() {
 
     # Download openresty Source code
     cd $SOURCE_ROOT/openresty
-    wget --no-check-certificate https://openresty.org/download/openresty-${PACKAGE_VERSION}.tar.gz
+    wget https://openresty.org/download/openresty-${PACKAGE_VERSION}.tar.gz
     tar xvf openresty-${PACKAGE_VERSION}.tar.gz
     # Build and install OpenResty
     cd openresty-${PACKAGE_VERSION}
