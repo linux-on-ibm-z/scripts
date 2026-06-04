@@ -70,7 +70,7 @@ function cleanup() {
 function buildAndInstallOpenSSL() {
 
   cd $SOURCE_ROOT
-  wget --no-check-certificate $OPENSSL_URL
+  wget $OPENSSL_URL
   tar -xzf "${OPENSSL_VERSION}.tar.gz"
   cd $OPENSSL_VERSION
   ./config --prefix=/usr --openssldir=/usr
@@ -81,7 +81,7 @@ function buildAndInstallOpenSSL() {
 function buildAndInstallLua() {
   printf -- 'Building lua\n'
   cd $SOURCE_ROOT
-  wget --no-check-certificate https://www.lua.org/ftp/lua-5.4.0.tar.gz
+  wget https://www.lua.org/ftp/lua-5.4.0.tar.gz
   tar zxf lua-5.4.0.tar.gz
   cd lua-5.4.0
   sed -i '61 i \\t$(CC) -shared -ldl -Wl,-soname,liblua$R.so -o liblua$R.so $? -lm $(MYLDFLAGS)\n' src/Makefile
