@@ -1,0 +1,54 @@
+diff --git a/osquery/events/linux/inotify.cpp b/osquery/events/linux/inotify.cpp
+index 22ed78558..354e25c35 100644
+--- a/osquery/events/linux/inotify.cpp
++++ b/osquery/events/linux/inotify.cpp
+@@ -36,6 +36,39 @@ static const size_t kINotifyEventSize =
+ static const size_t kINotifyBufferSize =
+     (kINotifyMaxEvents * kINotifyEventSize);
+ 
++static std::string canonicalizePathForExclusion(const std::string& path) {
++  if (path.empty()) {
++    return path;
++  }
++
++  boost::system::error_code ec;
++  auto canonical_path = fs::canonical(path, ec);
++  if (ec) {
++    return path;
++  }
++
++  auto result = canonical_path.make_preferred().string();
++  if (!result.empty() && isDirectory(canonical_path).ok() &&
++      result.back() != '/') {
++    result += '/';
++  }
++  return result;
++}
++
++static bool isPathExcluded(const ExcludePathSet& exclude_paths,
++                           const std::string& path) {
++  if (path.empty()) {
++    return false;
++  }
++
++  if (exclude_paths.find(path)) {
++    return true;
++  }
++
++  const auto canonical_path = canonicalizePathForExclusion(path);
++  return canonical_path != path && exclude_paths.find(canonical_path);
++}
++
+ std::map<int, std::string> kMaskActions = {
+     {IN_ACCESS, "ACCESSED"},
+     {IN_ATTRIB, "ATTRIBUTES_MODIFIED"},
+@@ -351,7 +384,8 @@ bool INotifyEventPublisher::shouldFire(const INotifySubscriptionContextRef& sc,
+   // Need to have two finds,
+   // what if somebody excluded an individual file inside a directory
+   if (!exclude_paths_.empty() &&
+-      (exclude_paths_.find(path) || exclude_paths_.find(ec->path))) {
++      (isPathExcluded(exclude_paths_, path) ||
++       isPathExcluded(exclude_paths_, ec->path))) {
+     return false;
+   }
+ 

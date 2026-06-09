@@ -1,0 +1,239 @@
+diff --git a/cmake/globals.cmake b/cmake/globals.cmake
+index 549a82a46..cbdb70bf3 100644
+--- a/cmake/globals.cmake
++++ b/cmake/globals.cmake
+@@ -39,6 +39,9 @@ elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+ elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+   # Windows on Arm
+   set(TARGET_PROCESSOR "aarch64")
++elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "s390x")
++  # Linux on IBM Z
++  set(TARGET_PROCESSOR "s390x")
+ else()
+   message(FATAL_ERROR "Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
+ endif()
+diff --git a/cmake/options.cmake b/cmake/options.cmake
+index 4a4996d4e..b3c292eb7 100644
+--- a/cmake/options.cmake
++++ b/cmake/options.cmake
+@@ -21,7 +21,7 @@ function(detectOsqueryVersion)
+     find_package(Git REQUIRED)
+ 
+     execute_process(
+-      COMMAND "${GIT_EXECUTABLE}" describe --tags --always --dirty
++      COMMAND "${GIT_EXECUTABLE}" describe --tags --always
+       WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+       OUTPUT_VARIABLE branch_version
+       RESULT_VARIABLE exit_code
+diff --git a/libraries/cmake/formula/openssl/CMakeLists.txt b/libraries/cmake/formula/openssl/CMakeLists.txt
+index 7fa1d6f56..b117f9aba 100644
+--- a/libraries/cmake/formula/openssl/CMakeLists.txt
++++ b/libraries/cmake/formula/openssl/CMakeLists.txt
+@@ -28,9 +28,15 @@ function(opensslMain)
+   endif()
+ 
+   if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
++    set(target_name "linux-${TARGET_PROCESSOR}")
++
++    if(TARGET_PROCESSOR STREQUAL "s390x")
++      set(target_name "linux64-s390x")
++    endif()
++
+     set(configure_command
+       "${CMAKE_COMMAND}" -E env "CC=${CMAKE_C_COMPILER}" "AR=${CMAKE_AR}"
+-      perl ./Configure linux-${TARGET_PROCESSOR}
++      perl ./Configure "${target_name}"
+         ${common_options}
+         ${OSQUERY_FORMULA_CFLAGS}
+ 
+diff --git a/libraries/cmake/source/augeas/gnulib/CMakeLists.txt b/libraries/cmake/source/augeas/gnulib/CMakeLists.txt
+index edb9d7da6..a2efe4f6d 100644
+--- a/libraries/cmake/source/augeas/gnulib/CMakeLists.txt
++++ b/libraries/cmake/source/augeas/gnulib/CMakeLists.txt
+@@ -37,6 +37,7 @@ function(gnulibMain)
+ 
+   if(PLATFORM_LINUX)
+     target_sources(thirdparty_gnulib_library PRIVATE
++      "${library_root}/lib/fnmatch.c"
+       "${library_root}/lib/vasnprintf.c"
+     )
+ 
+diff --git a/libraries/cmake/source/aws-sdk-cpp/CMakeLists.txt b/libraries/cmake/source/aws-sdk-cpp/CMakeLists.txt
+index 0703276cd..2ad20dfb0 100644
+--- a/libraries/cmake/source/aws-sdk-cpp/CMakeLists.txt
++++ b/libraries/cmake/source/aws-sdk-cpp/CMakeLists.txt
+@@ -3246,6 +3246,10 @@ function(generateAwsChecksums)
+       COMPILE_FLAGS
+         "-march=armv8-a+crc"
+     )
++  elseif(TARGET_PROCESSOR STREQUAL "s390x")
++    target_sources(thirdparty_aws-checksums PRIVATE
++      "${library_root}/source/generic/crc32c_null.c"
++    )
+   endif()
+ 
+   target_include_directories(thirdparty_aws-checksums PRIVATE
+@@ -3542,6 +3546,11 @@ function(generateS2n)
+     target_sources(thirdparty_s2n PRIVATE
+       "${library_root}/pq-crypto/sike_r3/sikep434r3_fp_x64_asm.S"
+     )
++
++  elseif(TARGET_PROCESSOR STREQUAL "s390x")
++    target_compile_definitions(thirdparty_s2n PRIVATE
++      _S390X_
++    )
+   endif()
+ 
+   target_include_directories(thirdparty_s2n PRIVATE
+@@ -4028,7 +4037,7 @@ function(generateAwsCCommon)
+       USE_SIMD_ENCODING
+     )
+ 
+-  elseif(TARGET_PROCESSOR STREQUAL "aarch64")
++  elseif(TARGET_PROCESSOR STREQUAL "aarch64" OR TARGET_PROCESSOR STREQUAL "s390x")
+     target_sources(thirdparty_aws-c-common PRIVATE
+       "${library_root}/source/arch/generic/cpuid.c"
+     )
+diff --git a/libraries/cmake/source/boost/CMakeLists.txt b/libraries/cmake/source/boost/CMakeLists.txt
+index 97914354e..1d8871895 100644
+--- a/libraries/cmake/source/boost/CMakeLists.txt
++++ b/libraries/cmake/source/boost/CMakeLists.txt
+@@ -147,7 +147,7 @@ function(importBoostInterfaceLibraries)
+   )
+ 
+   # silence enum constexpr conversion for MPL on Xcode 26
+-  if(PLATFORM_MACOS)
++  if(PLATFORM_MACOS OR PLATFORM_LINUX)
+      target_compile_options(thirdparty_boost_mpl INTERFACE
+        -Wno-enum-constexpr-conversion
+       )
+@@ -755,6 +755,13 @@ function(generateBoostContext)
+           "${library_root}/src/asm/make_arm64_aapcs_elf_gas.S"
+           "${library_root}/src/asm/ontop_arm64_aapcs_elf_gas.S"
+         )
++
++      elseif(TARGET_PROCESSOR STREQUAL "s390x")
++        set(source_file_list
++          "${library_root}/src/asm/jump_s390x_sysv_elf_gas.S"
++          "${library_root}/src/asm/make_s390x_sysv_elf_gas.S"
++          "${library_root}/src/asm/ontop_s390x_sysv_elf_gas.S"
++        )
+       endif()
+ 
+     elseif(PLATFORM_MACOS)
+diff --git a/libraries/cmake/source/libgcrypt/CMakeLists.txt b/libraries/cmake/source/libgcrypt/CMakeLists.txt
+index d4d84c604..be57b9057 100644
+--- a/libraries/cmake/source/libgcrypt/CMakeLists.txt
++++ b/libraries/cmake/source/libgcrypt/CMakeLists.txt
+@@ -124,12 +124,16 @@ function(libgcryptMain)
+     target_sources(thirdparty_libgcrypt PRIVATE
+       "${library_root}/src/hwf-arm.c"
+       "${library_root}/cipher/rijndael-armv8-ce.c")
+-  else()
++  elseif(TARGET_PROCESSOR STREQUAL "x86_64")
+     target_sources(thirdparty_libgcrypt PRIVATE
+       "${library_root}/cipher/crc-intel-pclmul.c"
+       "${library_root}/cipher/rijndael-ssse3-amd64.c"
+       "${library_root}/cipher/rijndael-aesni.c"
+-      "${library_root}/src/hwf-x86.c"
++      "${library_root}/src/hwf-x86.c")
++  endif()
++
++  if(NOT TARGET_PROCESSOR STREQUAL "aarch64")
++    target_sources(thirdparty_libgcrypt PRIVATE
+       "${generated_root}/mpi/mpih-add1.c"
+       "${generated_root}/mpi/mpih-sub1.c"
+       "${generated_root}/mpi/mpih-mul1.c"
+@@ -160,7 +164,7 @@ function(libgcryptMain)
+       "${generated_root}/mpi/mpih-mul2-asm.S"
+       "${generated_root}/mpi/mpih-mul3-asm.S"
+       )
+-  else()
++  elseif(TARGET_PROCESSOR STREQUAL "x86_64")
+     set(asm_source_list
+       "${library_root}/cipher/arcfour-amd64.S"
+       "${library_root}/cipher/blowfish-amd64.S"
+@@ -181,6 +185,8 @@ function(libgcryptMain)
+       "${library_root}/cipher/sha512-ssse3-amd64.S"
+       "${library_root}/cipher/sha1-ssse3-amd64.S"
+     )
++  else()
++    set(asm_source_list)
+   endif()
+ 
+   add_custom_target(thirdparty_libgcrypt_asm)
+diff --git a/libraries/cmake/source/rocksdb/CMakeLists.txt b/libraries/cmake/source/rocksdb/CMakeLists.txt
+index 9f2dd12e1..356a2a499 100644
+--- a/libraries/cmake/source/rocksdb/CMakeLists.txt
++++ b/libraries/cmake/source/rocksdb/CMakeLists.txt
+@@ -372,7 +372,7 @@ function(rocksdbMain)
+           ROCKSDB_SCHED_GETCPU_PRESENT
+       )
+ 
+-    elseif(TARGET_PROCESSOR STREQUAL "aarch64")
++    elseif(TARGET_PROCESSOR STREQUAL "aarch64" OR TARGET_PROCESSOR STREQUAL "s390x")
+       target_compile_definitions(thirdparty_rocksdb PRIVATE
+         NIOSTATS_CONTEXT
+         NPERF_CONTEXT
+diff --git a/osquery/events/linux/socket_events.cpp b/osquery/events/linux/socket_events.cpp
+index dcc5c744f..5639c78d7 100644
+--- a/osquery/events/linux/socket_events.cpp
++++ b/osquery/events/linux/socket_events.cpp
+@@ -29,8 +29,12 @@ std::set<int> getSocketEventsSyscalls() {
+   auto syscall_set = kBaseSyscallSet;
+ 
+   if (FLAGS_audit_allow_accept_socket_events) {
++#ifdef __NR_accept
+     syscall_set.insert(__NR_accept);
++#endif
++#ifdef __NR_accept4
+     syscall_set.insert(__NR_accept4);
++#endif
+   }
+ 
+   return syscall_set;
+diff --git a/osquery/tables/events/linux/socket_events.cpp b/osquery/tables/events/linux/socket_events.cpp
+index c4c53ef03..36adc1985 100644
+--- a/osquery/tables/events/linux/socket_events.cpp
++++ b/osquery/tables/events/linux/socket_events.cpp
+@@ -159,8 +159,12 @@ Status SocketEventSubscriber::ProcessEvents(
+       row["action"] = "connect";
+       break;
+ 
++#ifdef __NR_accept
+     case __NR_accept:
++#endif
++#ifdef __NR_accept4
+     case __NR_accept4:
++#endif
+       row["action"] = "accept";
+       skip_event = !allow_accept_events;
+       break;
+@@ -201,8 +205,13 @@ Status SocketEventSubscriber::ProcessEvents(
+                                         : SyscallStatus::Failed};
+ 
+     if (!event_data.succeeded && (event_data.syscall_number == __NR_connect ||
++#ifdef __NR_accept
+                                   event_data.syscall_number == __NR_accept ||
+-                                  event_data.syscall_number == __NR_accept4)) {
++#endif
++#ifdef __NR_accept4
++                                  event_data.syscall_number == __NR_accept4 ||
++#endif
++                                  false)) {
+       int exit_code{};
+ 
+       {
+@@ -226,8 +235,12 @@ Status SocketEventSubscriber::ProcessEvents(
+ 
+         break;
+ 
++#ifdef __NR_accept
+       case __NR_accept:
++#endif
++#ifdef __NR_accept4
+       case __NR_accept4:
++#endif
+         if (exit_code == -EAGAIN && allow_null_accept_events) {
+           event_status = SyscallStatus::NoClient;
+         }
