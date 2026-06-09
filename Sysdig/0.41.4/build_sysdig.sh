@@ -222,62 +222,42 @@ logDetails
 prepare
 
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.6" | "rhel-9.7")
+"rhel-8.10")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo mkdir -p /lib/modules/$(uname -r)
-    version=$(sudo yum info kernel-devel | grep Version | awk 'NR==1{print $3}')
-    release=$(sudo yum info kernel-devel | grep Release | awk 'NR==1{print $3}')
-    echo $version-$release.s390x
-    # Check if the symbolic link already exists
-    if [ ! -L "/lib/modules/$(uname -r)/build" ]; then
-        # If the symbolic link does not exist, create it
-        sudo ln -s "/usr/src/kernels/$version-$release.s390x" "/lib/modules/$(uname -r)/build"
-    else
-        echo "Symbolic link already exists."
-    fi
     sudo yum install -y wget tar patch gcc gcc-c++ git bpftool clang pkg-config elfutils-libelf-devel kernel-devel kmod llvm perl libstdc++-static |& tee -a "$LOG_FILE"
     installCMakeFromSource |& tee -a "$LOG_FILE"
+    configureAndInstall |& tee -a "$LOG_FILE"
+    ;;
+"rhel-9.6" | "rhel-9.7")
+    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
+    printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
+    sudo yum install -y wget tar patch gcc gcc-c++ git clang-19.1.7 llvm-19.1.7 pkg-config elfutils-libelf-devel kernel-devel kmod perl libstdc++-static |& tee -a "$LOG_FILE"
+    installCMakeFromSource |& tee -a "$LOG_FILE"
+    bpftoolInstall |& tee -a "$LOG_FILE" 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "rhel-10.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-    sudo mkdir -p /lib/modules/$(uname -r)
-    version=$(sudo yum info kernel-devel | grep Version | awk 'NR==1{print $3}')
-    release=$(sudo yum info kernel-devel | grep Release | awk 'NR==1{print $3}')
-    echo $version-$release.s390x
-    # Check if the symbolic link already exists
-    if [ ! -L "/lib/modules/$(uname -r)/build" ]; then
-        # If the symbolic link does not exist, create it
-        sudo ln -s "/usr/src/kernels/$version-$release.s390x" "/lib/modules/$(uname -r)/build"
-    else
-        echo "Symbolic link already exists."
-    fi
     sudo yum install -y wget tar patch gcc gcc-c++ git bpftool clang cmake pkg-config elfutils-libelf-devel kernel-devel kmod llvm perl libstdc++-static |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-15.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' | tee -a "$LOG_FILE"
-
-    # Install required dependencies
     sudo zypper install -y \
         curl wget tar patch git \
         gcc gcc-c++ gcc14 gcc14-c++ \
         zlib-devel libelf-devel pkg-config kmod \
         openssl-devel kernel-default-devel \
         cmake llvm clang bpftool |& tee -a "$LOG_FILE"
-
     # Configure GCC alternatives
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 70
     sudo update-alternatives --set gcc /usr/bin/gcc-7
     sudo update-alternatives --set g++ /usr/bin/g++-7
-
-    # Verify compiler version
     gcc -v |& tee -a "$LOG_FILE"
-
     configureAndInstall | tee -a "$LOG_FILE"
     ;;
 "ubuntu-22.04" | "ubuntu-24.04")
@@ -286,21 +266,10 @@ case "$DISTRO" in
     sudo apt-get update >/dev/null
     export DEBIAN_FRONTEND=noninteractive
     sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl wget tar patch git g++ gcc zlib1g clang llvm linux-headers-generic cmake libelf-dev pkg-config kmod libssl-dev |& tee -a "$LOG_FILE"
-
-    sudo mkdir -p /lib/modules/$(uname -r)
-    version=$(ls /usr/src/ | grep generic | tail -1)
-    # Check if the symbolic link already exists
-    if [ ! -L "/lib/modules/$(uname -r)/build" ]; then
-        # If the symbolic link does not exist, create it
-        sudo ln -s /usr/src/$version /lib/modules/$(uname -r)/build
-    else
-        echo "Symbolic link already exists."
-    fi
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y  g++-11
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 11
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 11
     gcc -v
-
     if [[ "${DISTRO}" == "ubuntu-22.04" ]]; then
         installCMakeFromSource |& tee -a "$LOG_FILE"
     fi
