@@ -75,12 +75,8 @@ function configureAndInstall() {
 	./configure --enable-agent --with-libpcre2
 	make
 	sudo make install
-
 	export PATH=$PATH:/usr/local/sbin/
-
-	#start the zabbix agent
-	echo "Starting zabbix agent"
-	zabbix_agentd
+ 
 }
 
 function logDetails() {
@@ -121,13 +117,12 @@ while getopts "h?dy" opt; do
 done
 
 function gettingStarted() {
-	printf -- "\n\nUsage: \n"
-	printf -- "  If you get an error \" cannot open /tmp/zabbix_agentd.log\", \n"
-	printf -- "  Change file permissions of Zabbix agent log file using the command :\n"
-	printf -- "  \"sudo chmod 766 /tmp/zabbix_agentd.log\" and start Zabbix agent again. \n"
-	printf -- "\n"
-	printf -- "  Verify the installed Zabbix agent version with the following command:\n"
-	printf -- "     zabbix_get -s <host_ip> -k \"agent.version\" \n"
+	printf -- "\n* Getting Started * \n"
+	printf -- " Follow the official guide given [here](https://www.zabbix.com/documentation/7.0/en/manual/concepts/agent) to verify the installation. \n"
+	printf -- "\n\nReference: \n"
+	printf -- " More information can be found here: https://www.zabbix.com/documentation/7.0/manual/installation\n"
+	printf -- '\n'
+	printf -- ""
 }
 
 ###############################################################################################################
@@ -136,13 +131,6 @@ logDetails
 checkPrequisites #Check Prequisites
 
 case "$DISTRO" in
- "rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
-	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
-	sudo yum install -y tar wget make gcc pcre2-devel |& tee -a "$LOG_FILE"
-	configureAndInstall |& tee -a "$LOG_FILE"
-	;;
-
 "sles-15.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Zabbix agent from repository \n' |& tee -a "$LOG_FILE"
