@@ -1539,14 +1539,9 @@ function buildLibsodium() {
     fi
 
     cd $SOURCE_ROOT
-    git clone -b $VERSION_LIBSODIUM --depth 1 https://github.com/jedisct1/libsodium.git
-    cd libsodium
-    ./autogen.sh
-    if [[ "$DISTRO" == rhel* ]]; then
-        chmod +x build-aux/config.sub build-aux/config.guess || true
-        sed -i 's/\r$//' build-aux/config.sub
-        sed -i 's/\r$//' build-aux/config.guess
-    fi
+    wget https://download.libsodium.org/libsodium/releases/old/libsodium-${VERSION_LIBSODIUM}.tar.gz
+    tar -xzf libsodium-${VERSION_LIBSODIUM}.tar.gz
+    cd libsodium-${VERSION_LIBSODIUM}
     ./configure --prefix=$(pwd)/_build --libdir=$(pwd)/_build/lib
     make -j$(nproc)
     make install
@@ -2016,13 +2011,11 @@ EOF
 }
 
 function buildCouchbase() {
-    if [[ $DISTRO != rhel9.4 ]]; then
-        echo "export PATH=$SOURCE_ROOT/openssl-3.5.1/_build/bin:$PATH" >> $PRESERVE_ENVARS
-        echo "export LD_LIBRARY_PATH=$SOURCE_ROOT/openssl-3.5.1/_build/lib:$LD_LIBRARY_PATH" >> $PRESERVE_ENVARS
-        echo "export OPENSSL_ROOT_DIR=$SOURCE_ROOT/openssl-3.5.1/_build" >> $PRESERVE_ENVARS
-        echo "export OPENSSL_CONF=$SOURCE_ROOT/openssl-3.5.1/_build/etc/openssl" >> $PRESERVE_ENVARS
-        source $PRESERVE_ENVARS
-    fi 
+    echo "export PATH=$SOURCE_ROOT/openssl-3.5.1/_build/bin:$PATH" >> $PRESERVE_ENVARS
+    echo "export LD_LIBRARY_PATH=$SOURCE_ROOT/openssl-3.5.1/_build/lib:$LD_LIBRARY_PATH" >> $PRESERVE_ENVARS
+    echo "export OPENSSL_ROOT_DIR=$SOURCE_ROOT/openssl-3.5.1/_build" >> $PRESERVE_ENVARS
+    echo "export OPENSSL_CONF=$SOURCE_ROOT/openssl-3.5.1/_build/etc/openssl" >> $PRESERVE_ENVARS
+    source $PRESERVE_ENVARS
     
     if [[ $DISTRO == ubuntu* ]]; then
         export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
@@ -2112,7 +2105,7 @@ function main() {
         prepareRHEL8
         ;;
 
-    rhel9.4 | rhel9.6 | rhel9.7)
+    rhel9.6 | rhel9.7)
         prepareRHEL9
         ;;
 
