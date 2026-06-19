@@ -23,14 +23,14 @@ set -o pipefail
 PACKAGE_NAME="calico"
 PACKAGE_VERSION="v3.31.4"
 ETCD_VERSION="v3.5.6"
-GOLANG_VERSION="go1.24.13.linux-s390x.tar.gz"
-GOBUILD_VERSION="1.24.13-llvm18.1.8-k8s1.32.13"
+GOLANG_VERSION="1.24.13"
+GOBUILD_VERSION="1.24.13-llvm18.1.8-k8s1.33.8"
 K8S_VERSION="v1.33.3"
 FORCE="false"
 TESTS="false"
 export SOURCE_ROOT=$(pwd)
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Calico/3.31.4/patch"
-GO_INSTALL_URL="https://go.dev/dl/${GOLANG_VERSION}"
+GO_INSTALL_URL="https://go.dev/dl/go"$GOLANG_VERSION".linux-s390x.tar.gz"
 GO_DEFAULT="$SOURCE_ROOT/go"
 GO_FLAG="DEFAULT"
 LOGDIR="$SOURCE_ROOT/logs"
@@ -84,7 +84,7 @@ function prepare() {
 }
 
 function cleanup() {
-    rm -rf "$SOURCE_ROOT/$GOLANG_VERSION" "$SOURCE_ROOT/etcd-${ETCD_VERSION}-linux-s390x" "$SOURCE_ROOT/etcd-${ETCD_VERSION}-linux-s390x.tar.gz"
+    rm -rf "$SOURCE_ROOT/go"$GOLANG_VERSION".linux-s390x.tar.gz" "$SOURCE_ROOT/etcd-${ETCD_VERSION}-linux-s390x" "$SOURCE_ROOT/etcd-${ETCD_VERSION}-linux-s390x.tar.gz"
     printf -- '\nCleaned up the artifacts.\n' >>"$LOG_FILE"
 }
 
@@ -95,16 +95,18 @@ function configureAndInstall() {
     cd $SOURCE_ROOT
     export LOG_FILE="$LOGDIR/configuration-$(date +"%F-%T").log"
     printf -- "\nInstalling Go ... \n" | tee -a "$LOG_FILE"
+    export INSTALL_DIR="${SOURCE_ROOT}/${GOLANG_VERSION}"
+    export GOROOT=${INSTALL_DIR}
+    sudo mkdir -p "${INSTALL_DIR}"
     wget -q $GO_INSTALL_URL
-    sudo tar -C /usr/local -xzf $GOLANG_VERSION
-    sudo ln -sf /usr/local/go/bin/go /usr/bin/
-    sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
-
+    chmod ugo+r go"$GOLANG_VERSION".linux-s390x.tar.gz
+    sudo tar -C "${INSTALL_DIR}" --strip-components=1 -xzf go"$GOLANG_VERSION".linux-s390x.tar.gz
+    
     if [[ "${ID}" != "ubuntu" ]]; then
-        sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
-        printf -- 'Symlink done for gcc \n'
+        sudo update-alternatives --install /usr/bin/s390x-linux-gnu-gcc s390x-linux-gnu-gcc /usr/bin/gcc 100
     fi
-
+    
+    
     # Set GOPATH if not already set
     if [[ -z "${GOPATH}" ]]; then
         printf -- "\nSetting default value for GOPATH \n"
@@ -121,9 +123,10 @@ function configureAndInstall() {
         export GO_FLAG="CUSTOM"
     fi
 
-    export PATH=/usr/local/go/bin:$PATH
+    export PATH="$GOROOT/bin:$PATH"
     export PATH=$PATH:/usr/local/bin
     go version
+    
     # Download `etcd ${ETCD_VERSION}`.
     cd $SOURCE_ROOT
     wget -q https://github.com/etcd-io/etcd/releases/download/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-s390x.tar.gz
@@ -140,11 +143,6 @@ export GOPATH=$GOPATH
 export PATH=$PATH
 export LOGDIR=$LOGDIR
 EOF
-
-    # Start docker service
-    printf -- "Starting docker service\n" 
-    sudo service docker start
-    sleep 20s
 
     docker pull calico/go-build:${GOBUILD_VERSION}
 
@@ -454,10 +452,7 @@ case "$DISTRO" in
 "rhel-8.10" | "rhel-9.6" | "rhel-9.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo yum remove -y podman buildah
-    sudo yum install -y yum-utils
-    sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo yum install -y --allowerasing curl git wget tar gcc glibc.s390x docker-ce docker-ce-cli containerd.io make which patch iproute-devel 2>&1 | tee -a "$LOG_FILE"
+    sudo yum install -y --allowerasing yum-utils curl git wget tar gcc glibc.s390x make which patch iproute-devel 2>&1 | tee -a "$LOG_FILE"
     export CC=gcc
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
@@ -465,12 +460,7 @@ case "$DISTRO" in
 "rhel-10.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo rm -f /etc/yum.repos.d/docker*.repo
-    sudo dnf clean all
-    sudo dnf remove -y podman buildah
-    sudo dnf install -y dnf-plugins-core
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-    sudo dnf install -y --allowerasing curl git wget tar gcc glibc.s390x docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin make which patch iproute-devel 2>&1 | tee -a "$LOG_FILE"
+    sudo dnf install -y --allowerasing curl git wget tar gcc glibc.s390x make which patch iproute-devel 2>&1 | tee -a "$LOG_FILE"
     export CC=gcc
     configureAndInstall |& tee -a "$LOG_FILE"   
     ;;
@@ -478,7 +468,7 @@ case "$DISTRO" in
 "sles-15.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch docker containerd docker-buildx iproute2 2>&1 | tee -a "$LOG_FILE"
+    sudo zypper install -y curl git wget tar gcc glibc-devel-static make which patch iproute2 2>&1 | tee -a "$LOG_FILE"
     export CC=gcc
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
@@ -487,21 +477,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y ca-certificates curl gnupg iproute2
-    if [[ $DISTRO == "ubuntu-24.04" ]]; then 
-        sudo apt-get install -y software-properties-common
-        sudo add-apt-repository -y universe
-        sudo apt-get update
-    fi
-    sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
-    echo \
-        "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" |
-        sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-    sudo apt-get update
-    sudo apt-get install -y patch git curl tar gcc wget make docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>&1 | tee -a "$LOG_FILE"
+    sudo apt-get install -y ca-certificates curl gnupg iproute2 patch git curl tar gcc wget make  2>&1 | tee -a "$LOG_FILE"
     if [[ $DISTRO == "ubuntu-24.04" ]]; then
         sudo apt-get install -y libclang1-18 2>&1 | tee -a "$LOG_FILE"
     else
