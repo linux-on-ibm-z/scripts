@@ -1,0 +1,53 @@
+diff --git a/tensorflow/tools/pip_package/BUILD b/tensorflow/tools/pip_package/BUILD
+index 8a38b8146a1..3aadc6d294d 100644
+--- a/tensorflow/tools/pip_package/BUILD
++++ b/tensorflow/tools/pip_package/BUILD
+@@ -328,6 +328,7 @@ tf_wheel(
+         "@platforms//cpu:arm64": "arm64",
+         "@platforms//cpu:x86_64": "x86_64",
+         "@platforms//cpu:ppc": "ppc64le",
++       "@platforms//cpu:s390x": "s390x",
+     }),
+     source_files = [
+         "MANIFEST.in",
+diff --git a/tensorflow/tools/pip_package/utils/tf_wheel.bzl b/tensorflow/tools/pip_package/utils/tf_wheel.bzl
+index e541c1310eb..2e86ecfcbd6 100644
+--- a/tensorflow/tools/pip_package/utils/tf_wheel.bzl
++++ b/tensorflow/tools/pip_package/utils/tf_wheel.bzl
+@@ -47,6 +47,8 @@ def _get_wheel_platform_name(platform_name, platform_tag):
+         tag = "amd64"
+     if platform_tag == "arm64" and platform_name == "linux":
+         tag = "aarch64"
++    if platform_tag == "s390x" and platform_name == "linux":
++        tag = "s390x"
+     return "{platform_name}_{platform_version}{platform_tag}".format(
+         platform_name = platform_name,
+         platform_tag = tag,
+diff --git a/third_party/tf_runtime/temporary.patch b/third_party/tf_runtime/temporary.patch
+new file mode 100644
+index 00000000000..00b9f4e2b12
+--- /dev/null
++++ b/third_party/tf_runtime/temporary.patch
+@@ -0,0 +1,22 @@
++diff --git a/include/tfrt/host_context/attribute_utils.h b/include/tfrt/host_context/attribute_utils.h
++index cbded469..79a53dd3 100644
++--- a/include/tfrt/host_context/attribute_utils.h
+++++ b/include/tfrt/host_context/attribute_utils.h
++@@ -52,7 +52,7 @@ class Attribute {
++  public:
++   explicit Attribute(const void* value)
++       : value_(*reinterpret_cast<const T*>(value)) {
++-    ASSERT_LITTLE_ENDIAN();
+++   // ASSERT_LITTLE_ENDIAN();
++   }
++
++   const T& get() const { return value_; }
++@@ -127,7 +127,7 @@ class CompilationUnitAttribute {
++  public:
++   explicit CompilationUnitAttribute(const void* value)
++       : addr_(reinterpret_cast<intptr_t>(value)) {
++-    ASSERT_LITTLE_ENDIAN();
+++    // ASSERT_LITTLE_ENDIAN();
++     const auto* ptr = static_cast<const uint8_t*>(value);
++
++     ptr = ReadVbrInt(ptr, &id_);

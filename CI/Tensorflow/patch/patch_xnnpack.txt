@@ -1,0 +1,23 @@
+diff --git a/third_party/xnn.patch b/third_party/xnn.patch
+new file mode 100644
+index 00000000000..00b9f4e2b12
+--- /dev/null
++++ b/third_party/xnn.patch
+@@ -0,0 +1,17 @@
++diff --git a/src/xnnpack/common.h b/src/xnnpack/common.h
++index 101bd3d40..2d182bf57 100644
++--- a/src/xnnpack/common.h
+++++ b/src/xnnpack/common.h
++@@ -47,6 +47,12 @@
++ #define XNN_ARCH_PPC64 0
++ #endif
++
+++#if defined(__S390X__) || defined(__s390x__)
+++#define XNN_ARCH_S390X 1
+++#else
+++#define XNN_ARCH_S390X 0
+++#endif
+++
++ #if defined(__riscv) || defined(__riscv__)
++ #define XNN_ARCH_RISCV 1
++ #else

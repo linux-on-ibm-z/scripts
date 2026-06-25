@@ -1,0 +1,342 @@
+diff --git a/Cargo.Bazel.lock b/Cargo.Bazel.lock
+index 44d587659c..86a1c3f667 100644
+--- a/Cargo.Bazel.lock
++++ b/Cargo.Bazel.lock
+@@ -1,5 +1,5 @@
+ {
+-  "checksum": "5b2732d6faf4872654fe43d84a7d3424c73c0bbd48835c02915ef6c4443adadc",
++  "checksum": "02fb2e1c496ec146014f13819282337aa7bb290c6f3388acd013f4f4715fb9fe",
+   "crates": {
+     "aho-corasick 1.1.4": {
+       "name": "aho-corasick",
+@@ -4016,6 +4016,9 @@
+             "aarch64-unknown-linux-gnu": [
+               "serde"
+             ],
++            "s390x-unknown-linux-gnu": [
++              "serde"
++            ],
+             "x86_64-pc-windows-msvc": [
+               "serde"
+             ],
+@@ -4051,6 +4054,12 @@
+                 "target": "serde_core"
+               }
+             ],
++            "s390x-unknown-linux-gnu": [
++              {
++                "id": "serde_core 1.0.228",
++                "target": "serde_core"
++              }
++            ],
+             "x86_64-pc-windows-msvc": [
+               {
+                 "id": "serde_core 1.0.228",
+@@ -4784,6 +4793,10 @@
+               "default",
+               "std"
+             ],
++            "s390x-unknown-linux-gnu": [
++              "default",
++              "std"
++            ],
+             "wasm32-wasip1": [
+               "default",
+               "std"
+@@ -7791,6 +7804,9 @@
+             "aarch64-unknown-linux-gnu": [
+               "alloc"
+             ],
++            "s390x-unknown-linux-gnu": [
++              "alloc"
++            ],
+             "x86_64-pc-windows-msvc": [
+               "alloc"
+             ],
+@@ -7898,6 +7914,9 @@
+             "aarch64-unknown-linux-gnu": [
+               "alloc"
+             ],
++            "s390x-unknown-linux-gnu": [
++              "alloc"
++            ],
+             "x86_64-pc-windows-msvc": [
+               "alloc"
+             ],
+@@ -9349,6 +9368,16 @@
+                 "target": "socket2"
+               }
+             ],
++            "s390x-unknown-linux-gnu": [
++              {
++                "id": "libc 0.2.183",
++                "target": "libc"
++              },
++              {
++                "id": "socket2 0.6.3",
++                "target": "socket2"
++              }
++            ],
+             "x86_64-pc-windows-msvc": [
+               {
+                 "id": "socket2 0.6.3",
+@@ -9973,6 +10002,12 @@
+                 "target": "getrandom"
+               }
+             ],
++            "s390x-unknown-linux-gnu": [
++              {
++                "id": "getrandom 0.4.2",
++                "target": "getrandom"
++              }
++            ],
+             "wasm32-wasip1": [
+               {
+                 "id": "getrandom 0.4.2",
+@@ -12984,6 +13019,7 @@
+     ],
+     "cfg(all(any(target_os = \"linux\", target_os = \"android\"), not(any(all(target_os = \"linux\", target_env = \"\"), getrandom_backend = \"custom\", getrandom_backend = \"linux_raw\", getrandom_backend = \"rdrand\", getrandom_backend = \"rndr\"))))": [
+       "aarch64-unknown-linux-gnu",
++      "s390x-unknown-linux-gnu",
+       "x86_64-unknown-linux-gnu",
+       "x86_64-unknown-nixos-gnu"
+     ],
+@@ -13020,6 +13056,7 @@
+     "cfg(any(unix, target_os = \"wasi\"))": [
+       "aarch64-apple-darwin",
+       "aarch64-unknown-linux-gnu",
++      "s390x-unknown-linux-gnu",
+       "wasm32-wasip1",
+       "x86_64-unknown-linux-gnu",
+       "x86_64-unknown-nixos-gnu"
+@@ -13036,6 +13073,7 @@
+     "cfg(unix)": [
+       "aarch64-apple-darwin",
+       "aarch64-unknown-linux-gnu",
++      "s390x-unknown-linux-gnu",
+       "x86_64-unknown-linux-gnu",
+       "x86_64-unknown-nixos-gnu"
+     ],
+@@ -13043,6 +13081,9 @@
+       "x86_64-pc-windows-msvc"
+     ],
+     "i686-pc-windows-gnullvm": [],
++    "s390x-unknown-linux-gnu": [
++      "s390x-unknown-linux-gnu"
++    ],
+     "wasm32-unknown-unknown": [
+       "wasm32-unknown-unknown"
+     ],
+diff --git a/bazel/dependency_imports.bzl b/bazel/dependency_imports.bzl
+index f0e3f47a..0c743344 100644
+--- a/bazel/dependency_imports.bzl
++++ b/bazel/dependency_imports.bzl
+@@ -66,7 +66,7 @@ def envoy_dependency_imports(
+             "wasm32-unknown-unknown",
+             "wasm32-wasip1",
+         ],
+-        versions = [rust_common.default_version],
++        versions = ["1.88.0"],
+     )
+     rules_rust_dependencies()
+     rust_register_toolchains(
+diff --git a/bazel/envoy_binary.bzl b/bazel/envoy_binary.bzl
+index fed6118702..d20949b17e 100644
+--- a/bazel/envoy_binary.bzl
++++ b/bazel/envoy_binary.bzl
+@@ -85,6 +85,7 @@ def _envoy_linkopts():
+         ],
+         "//conditions:default": [
+             "-pthread",
++            "-latomic",
+             "-lrt",
+             "-ldl",
+             "-Wl,-z,relro,-z,now",
+diff --git a/bazel/platforms/BUILD b/bazel/platforms/BUILD
+index f204c7089a..6a3934a6d7 100644
+--- a/bazel/platforms/BUILD
++++ b/bazel/platforms/BUILD
+@@ -96,6 +96,14 @@ platform(
+     ],
+ )
+ 
++platform(
++    name = "linux_s390x",
++    constraint_values = [
++        "@platforms//os:linux",
++        "@platforms//cpu:s390x",
++    ],
++)
++
+ platform(
+     name = "macos_x86_64",
+     constraint_values = [
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index f77d973161..6eb074d2e8 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -277,6 +277,7 @@ def _boringssl():
+         name = "boringssl",
+         patches = [
+             "@envoy//bazel:boringssl-bssl-compat.patch",
++           "@envoy//bazel:boringssl-s390x.patch",
+         ],
+         patch_args = ["-p1"],
+     )
+@@ -727,7 +728,10 @@ def _com_google_protobuf():
+ 
+     external_http_archive(
+         "com_google_protobuf",
+-        patches = ["@envoy//bazel:protobuf.patch"],
++        patches = [
++               "@envoy//bazel:protobuf.patch",
++               "@envoy//bazel:protobuf-s390x.patch",
++       ],
+         patch_args = ["-p1"],
+         repo_mapping = {"@com_google_absl": "@abseil-cpp"},
+     )
+@@ -742,6 +746,7 @@ def _v8():
+             "@envoy//bazel:v8_ppc64le.patch",
+             # https://issues.chromium.org/issues/423403090
+             "@envoy//bazel:v8_python.patch",
++           "@envoy//bazel:v8_s390x.patch",
+         ],
+         patch_args = ["-p1"],
+         patch_cmds = [
+@@ -769,6 +774,7 @@ def _highway():
+         name = "highway",
+         patches = [
+             "@envoy//bazel:highway-ppc64le.patch",
++           "@envoy//bazel:highway-s390x.patch",
+         ],
+         patch_args = ["-p1"],
+     )
+@@ -850,7 +856,10 @@ def _quiche():
+     external_http_archive(
+         name = "quiche",
+         patch_args = ["-p1"],
+-        patches = ["@envoy//bazel:quiche.patch"],
++        patches = [
++               "@envoy//bazel:quiche.patch",
++               "@envoy//bazel/external:quiche-s390x.patch"
++       ],
+         patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
+         build_file = "@envoy//bazel/external:quiche.BUILD",
+         repo_mapping = {"@com_google_absl": "@abseil-cpp"},
+@@ -845,7 +853,10 @@ def _com_github_grpc_grpc():
+     external_http_archive(
+         name = "com_github_grpc_grpc",
+         patch_args = ["-p1"],
+-        patches = ["@envoy//bazel:grpc.patch"],
++        patches = [
++               "@envoy//bazel:grpc.patch",
++               "@envoy//bazel:grpc-s390x.patch",
++       ],
+         repo_mapping = {
+             "@com_google_absl": "@abseil-cpp",
+             "@com_github_cncf_xds": "@xds",
+@@ -884,6 +895,7 @@ def _proxy_wasm_cpp_host():
+         patch_args = ["-p1"],
+         patches = [
+             "@envoy//bazel:proxy_wasm_cpp_host.patch",
++           "@envoy//bazel:proxy_wasm_cpp_host-s390x.patch",
+         ],
+         repo_mapping = {"@com_google_absl": "@abseil-cpp"},
+     )
+@@ -901,7 +913,11 @@ def _luajit():
+     external_http_archive(
+         name = "luajit",
+         build_file_content = LUAJIT_BUILD_CONTENT,
+-        patches = ["@envoy//bazel/foreign_cc:luajit.patch"],
++        patches = [
++               "@envoy//bazel/foreign_cc:luajit.patch",
++               "@envoy//bazel/foreign_cc:luajit-s390x.patch",
++               "@envoy//bazel/foreign_cc:luajit-as.patch",
++       ],
+         patch_args = ["-p1"],
+     )
+ 
+@@ -958,7 +958,7 @@ def _toolchains_llvm():
+         name = "toolchains_llvm",
+         patch_args = ["-p1"],
+         patches = [
+-            "@envoy_toolshed//:patches/toolchains_llvm.patch",
++            "@envoy//bazel:toolchains_llvm-s390x.patch",
+             "@envoy//bazel/foreign_cc:toolchains_llvm_stdc++.patch",
+         ],
+     )
+@@ -1017,7 +1033,10 @@ def _rules_ruby():
+ def _foreign_cc_dependencies():
+     external_http_archive(
+         name = "rules_foreign_cc",
+-        patches = ["@envoy//bazel:rules_foreign_cc.patch"],
++        patches = [
++               "@envoy//bazel:rules_foreign_cc.patch",
++               "@envoy//bazel:rules_foreign_cc-s390x.patch",
++       ],
+         patch_args = ["-p1"],
+     )
+ 
+diff --git a/bazel/repository_locations.bzl b/bazel/repository_locations.bzl
+index 8ff3ec9b7d..fefcbeb0b5 100644
+--- a/bazel/repository_locations.bzl
++++ b/bazel/repository_locations.bzl
+@@ -11,6 +11,7 @@ PROTOC_VERSIONS = dict(
+     linux_aarch_64 = "706662a332683aa2fffe1c4ea61588279d31679cd42d91c7d60a69651768edb8",
+     linux_x86_64 = "b24b53f87c151bfd48b112fe4c3a6e6574e5198874f38036aff41df3456b8caf",
+     linux_ppcle_64 = "16b4a36c07daab458bc040523b1f333ddd37e1440fa71634f297a458c7fef4c4",
++    linux_s390_64 = "c53c6513ebd6cd8c3592e2d75ea9d8aa1a91be3ba1e17f3bf95cabc2d6b8c3e0",
+     osx_aarch_64 = "5be1427127788c9f7dd7d606c3e69843dd3587327dea993917ffcb77e7234b44",
+     osx_x86_64 = "dba51cfcc85076d56e7de01a647865c5a7f995c3dce427d5215b53e50b7be43f",
+     win64 = "376770cd4073beb63db56fdd339260edb9957b3c4472e05a75f5f9ec8f98d8f5",
+diff --git a/bazel/rules_rust.patch b/bazel/rules_rust.patch
+index 10bb4d2d1f..933302c54c 100644
+--- a/bazel/rules_rust.patch
++++ b/bazel/rules_rust.patch
+@@ -21,3 +21,14 @@
+  
+      if toolchain._experimental_link_std_dylib:
+          rustc_flags.add("--codegen=prefer-dynamic")
++
++--- crate_universe/private/crates_repository.bzl
+++++ crate_universe/private/crates_repository.bzl
++@@ -29,6 +29,7 @@ load("//rust/platform:triple.bzl", "get_host_triple")
++ SUPPORTED_PLATFORM_TRIPLES = [
++     "aarch64-apple-darwin",
++     "aarch64-unknown-linux-gnu",
+++    "s390x-unknown-linux-gnu",
++     "wasm32-unknown-unknown",
++     "wasm32-wasip1",
++     "x86_64-pc-windows-msvc",
+diff --git a/bazel/toolchains.bzl b/bazel/toolchains.bzl
+index b02ca3bc..73da05b8 100644
+--- a/bazel/toolchains.bzl
++++ b/bazel/toolchains.bzl
+@@ -56,6 +56,7 @@ def envoy_toolchains():
+         aliases = {
+             "amd64": "@envoy//bazel/platforms/rbe:linux_x64",
+             "aarch64": "@envoy//bazel/platforms/rbe:linux_arm64",
++            "s390x": "@envoy//bazel/platforms:linux_s390x",
+         },
+     )
+
+@@ -66,15 +66,14 @@ def envoy_toolchains():
+     llvm_toolchain(
+         name = "llvm_toolchain",
+         llvm_version = LLVM_VERSION,
+-        cxx_cross_lib = {} if LLVM_PATH else {
+-            "linux-aarch64": "@libcxx_libs_aarch64",
+-            "linux-x86_64": "@libcxx_libs_x86_64",
+-        },
+         cxx_standard = {"": "c++20"},
+         stdlib = {"": "stdc++"} if USE_LIBSTDCPP else {},
+         sysroot = {} if USE_LOCAL_SYSROOT else {
+             "linux-x86_64": "@sysroot_linux_amd64//:sysroot",
+             "linux-aarch64": "@sysroot_linux_arm64//:sysroot",
+         },
+-        toolchain_roots = {"": LLVM_PATH} if LLVM_PATH else {},
++       toolchain_roots = {
++            "": LLVM_PATH,
++            "linux-s390x": LLVM_PATH,
++        } if LLVM_PATH else {},
+     )

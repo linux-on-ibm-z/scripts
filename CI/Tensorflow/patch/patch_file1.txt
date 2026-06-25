@@ -1,0 +1,54 @@
+diff --git a/tensorflow/distribute/experimental/rpc/kernels/BUILD b/tensorflow/distribute/experimental/rpc/kernels/BUILD
+index 174fabfa71a..3d47b936369 100644
+--- a/tensorflow/distribute/experimental/rpc/kernels/BUILD
++++ b/tensorflow/distribute/experimental/rpc/kernels/BUILD
+@@ -19,7 +19,7 @@ cc_library(
+     deps = [
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_cc_grpc_proto",
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_proto_cc",
+-        "@com_github_grpc_grpc//:grpc++",
++       "//tensorflow:grpc++",
+     ],
+     alwayslink = 1,
+ )
+@@ -28,7 +28,7 @@ cc_library(
+     name = "grpc_credentials",
+     hdrs = ["grpc_credentials.h"],
+     deps = [
+-        "@com_github_grpc_grpc//:grpc++",
++       "//tensorflow:grpc++",
+     ] + grpc_credentials_dependency(),
+ )
+
+@@ -61,7 +61,7 @@ tf_kernel_library(
+         "//tensorflow/core/distributed_runtime/rpc:grpc_util",
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_cc_grpc_proto",
+         "//tensorflow/distribute/experimental/rpc/proto:tf_rpc_service_proto_cc",
+-        "@com_github_grpc_grpc//:grpc++",
++       "//tensorflow:grpc++",
+         "@com_google_absl//absl/container:flat_hash_map",
+         "@com_google_absl//absl/log",
+         "@com_google_absl//absl/status",
+diff --git a/third_party/tf_runtime/workspace.bzl b/third_party/tf_runtime/workspace.bzl
+index 369544051ee..c95d041ac11 100644
+--- a/third_party/tf_runtime/workspace.bzl
++++ b/third_party/tf_runtime/workspace.bzl
+@@ -16,5 +16,5 @@ def repo():
+         urls = tf_mirror_urls("https://github.com/tensorflow/runtime/archive/{commit}.tar.gz".format(commit = TFRT_COMMIT)),
+         # A patch file can be provided for atomic commits to both TF and TFRT.
+         # The job that bumps the TFRT_COMMIT also resets patch_file to 'None'.
+-        patch_file = ["//third_party/tf_runtime:f16_attr.patch"],
++        patch_file = ["//third_party/tf_runtime:f16_attr.patch", "//third_party/tf_runtime:temporary.patch"],
+     )
+diff --git a/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc b/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc
+index 4befeb379d2..c5f843aa4fa 100644
+--- a/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc
++++ b/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc
+@@ -38,7 +38,7 @@ void RngState::GetAndUpdateState(uint64_t* data) {
+   uint64_t low = absl::Int128Low64(state_);
+   uint64_t high = absl::Int128High64(state_);
+
+-  static_assert(ABSL_IS_LITTLE_ENDIAN, "Big endian not supported");
++  //static_assert(ABSL_IS_LITTLE_ENDIAN, "Big endian not supported");
+   std::memcpy(data, &low, sizeof(low));
+   std::memcpy(data + 1, &high, sizeof(high));
