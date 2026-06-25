@@ -1,0 +1,543 @@
+diff --git a/bazel/dependency_imports.bzl b/bazel/dependency_imports.bzl
+index 67fb6f7..5b3cb67 100644
+--- a/bazel/dependency_imports.bzl
++++ b/bazel/dependency_imports.bzl
+@@ -171,7 +171,11 @@ def envoy_dependency_imports(
+         importpath = "github.com/spf13/afero",
+         sum = "h1:EaGW2JJh15aKOejeuJ+wpFSHnbd7GE6Wvp3TsNhb6LY=",
+         version = "v1.10.0",
+-        build_external = "external",
++        build_directives = [
++            "gazelle:resolve go golang.org/x/text/runes @org_golang_x_text//runes",
++            "gazelle:resolve go golang.org/x/text/transform @org_golang_x_text//transform",
++            "gazelle:resolve go golang.org/x/text/unicode/norm @org_golang_x_text//unicode/norm",
++        ],
+     )
+     go_repository(
+         name = "com_github_lyft_protoc_gen_star_v2",
+@@ -179,6 +183,9 @@ def envoy_dependency_imports(
+         sum = "h1:sIXJOMrYnQZJu7OB7ANSF4MYri2fTEGIsRLz6LwI4xE=",
+         version = "v2.0.4-0.20230330145011-496ad1ac90a4",
+         build_external = "external",
++        build_directives = [
++            "gazelle:resolve go golang.org/x/tools/imports @org_golang_x_tools//imports",
++        ],
+     )
+     go_repository(
+         name = "com_github_iancoleman_strcase",
+diff --git a/bazel/envoy_binary.bzl b/bazel/envoy_binary.bzl
+index d4a73b9..faa0585 100644
+--- a/bazel/envoy_binary.bzl
++++ b/bazel/envoy_binary.bzl
+@@ -85,6 +85,7 @@ def _envoy_linkopts():
+         ],
+         "//conditions:default": [
+             "-pthread",
++           "-latomic",
+             "-lrt",
+             "-ldl",
+             "-Wl,-z,relro,-z,now",
+diff --git a/bazel/platforms/BUILD b/bazel/platforms/BUILD
+index f204c70..6a3934a 100644
+--- a/bazel/platforms/BUILD
++++ b/bazel/platforms/BUILD
+@@ -96,6 +96,14 @@ platform(
+     ],
+ )
+ 
++platform(
++    name = "linux_s390x",
++    constraint_values = [
++        "@platforms//os:linux",
++        "@platforms//cpu:s390x",
++    ],
++)
++
+ platform(
+     name = "macos_x86_64",
+     constraint_values = [
+diff --git a/bazel/platforms/rbe/BUILD b/bazel/platforms/rbe/BUILD
+index 4c887af..cde47a8 100644
+--- a/bazel/platforms/rbe/BUILD
++++ b/bazel/platforms/rbe/BUILD
+@@ -36,3 +36,14 @@ platform(
+     },
+     parents = ["//bazel/platforms:linux_arm64"],
+ )
++
++platform(
++    name = "linux_s390x",
++    exec_properties = create_rbe_exec_properties_dict(
++        container_image = "docker://%s" % image_worker(),
++        docker_add_capabilities = "SYS_PTRACE,NET_RAW,NET_ADMIN",
++        docker_network = "standard",
++        docker_privileged = True,
++    ),
++    parents = ["//bazel/platforms:linux_s390x"],
++)
+\ No newline at end of file
+diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
+index f06126f..6327179 100644
+--- a/bazel/repositories.bzl
++++ b/bazel/repositories.bzl
+@@ -253,7 +253,13 @@ def envoy_dependencies(skip_targets = []):
+     )
+ 
+ def _boringssl():
+-    external_http_archive(name = "boringssl")
++    external_http_archive(
++        name = "boringssl",
++        patch_args = ["-p1"],
++        patches = [
++            "@envoy//bazel:boringssl-s390x.patch",
++        ],
++    )
+ 
+ def _boringssl_fips():
+     external_http_archive(
+@@ -662,7 +668,10 @@ def _com_google_protobuf():
+ 
+     external_http_archive(
+         "com_google_protobuf",
+-        patches = ["@envoy//bazel:protobuf.patch"],
++        patches = [
++            "@envoy//bazel:protobuf.patch",
++            "@envoy//bazel:protobuf-s390x.patch",
++        ],
+         patch_args = ["-p1"],
+         repo_mapping = {
+             "@abseil-cpp": "@com_google_absl",
+@@ -701,6 +710,7 @@ def _highway():
+         name = "highway",
+         patches = [
+             "@envoy//bazel:highway-ppc64le.patch",
++           "@envoy//bazel:highway-s390x.patch",
+         ],
+         patch_args = ["-p1"],
+     )
+@@ -734,6 +744,8 @@ def _com_github_google_quiche():
+         name = "com_github_google_quiche",
+         patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
+         build_file = "@envoy//bazel/external:quiche.BUILD",
++       patches = ["@envoy//bazel/external:quiche-s390x.patch"],
++        patch_args = ["-p1"],
+     )
+ 
+ def _googleurl():
+@@ -753,7 +765,10 @@ def _com_github_grpc_grpc():
+     external_http_archive(
+         name = "com_github_grpc_grpc",
+         patch_args = ["-p1"],
+-        patches = ["@envoy//bazel:grpc.patch"],
++        patches = [
++            "@envoy//bazel:grpc.patch",
++            "@envoy//bazel:grpc-s390x.patch",
++        ],
+         repo_mapping = {"@openssl": "@boringssl"},
+     )
+     external_http_archive(
+@@ -786,6 +801,7 @@ def _proxy_wasm_cpp_host():
+         patch_args = ["-p1"],
+         patches = [
+             "@envoy//bazel:proxy_wasm_cpp_host.patch",
++            "@envoy//bazel:proxy_wasm_cpp_host-s390x.patch",
+         ],
+     )
+ 
+@@ -807,7 +823,11 @@ def _com_github_luajit_luajit():
+     external_http_archive(
+         name = "com_github_luajit_luajit",
+         build_file_content = BUILD_ALL_CONTENT,
+-        patches = ["@envoy//bazel/foreign_cc:luajit.patch"],
++        patches = [
++            "@envoy//bazel/foreign_cc:luajit-s390x.patch",
++            "@envoy//bazel/foreign_cc:luajit.patch",
++            "@envoy//bazel/foreign_cc:luajit-as.patch",
++        ],
+         patch_args = ["-p1"],
+     )
+ 
+@@ -830,7 +850,11 @@ def _com_github_wamr():
+     )
+ 
+ def _toolchains_llvm():
+-    external_http_archive(name = "toolchains_llvm")
++    external_http_archive(
++        name = "toolchains_llvm",
++        patches = ["@envoy//bazel:toolchains_llvm-s390x.patch"],
++        patch_args = ["-p1"],
++    )
+ 
+ def _com_github_wasmtime():
+     external_http_archive(
+@@ -916,7 +940,10 @@ def _rules_ruby():
+ def _foreign_cc_dependencies():
+     external_http_archive(
+         name = "rules_foreign_cc",
+-        patches = ["@envoy//bazel:rules_foreign_cc.patch"],
++        patches = [
++            "@envoy//bazel:rules_foreign_cc.patch",
++            "@envoy//bazel:rules_foreign_cc-s390x.patch",
++        ],
+         patch_args = ["-p1"],
+     )
+ 
+diff --git a/bazel/repository_locations.bzl b/bazel/repository_locations.bzl
+index 73615b3..ef0353f 100644
+--- a/bazel/repository_locations.bzl
++++ b/bazel/repository_locations.bzl
+@@ -11,6 +11,7 @@ PROTOC_VERSIONS = dict(
+     linux_aarch_64 = "706662a332683aa2fffe1c4ea61588279d31679cd42d91c7d60a69651768edb8",
+     linux_x86_64 = "b24b53f87c151bfd48b112fe4c3a6e6574e5198874f38036aff41df3456b8caf",
+     linux_ppcle_64 = "16b4a36c07daab458bc040523b1f333ddd37e1440fa71634f297a458c7fef4c4",
++    linux_s390_64 = "c53c6513ebd6cd8c3592e2d75ea9d8aa1a91be3ba1e17f3bf95cabc2d6b8c3e0",
+     osx_aarch_64 = "5be1427127788c9f7dd7d606c3e69843dd3587327dea993917ffcb77e7234b44",
+     osx_x86_64 = "dba51cfcc85076d56e7de01a647865c5a7f995c3dce427d5215b53e50b7be43f",
+     win64 = "376770cd4073beb63db56fdd339260edb9957b3c4472e05a75f5f9ec8f98d8f5",
+diff --git a/bazel/toolchains.bzl b/bazel/toolchains.bzl
+index 61aa4f9..33f0008 100644
+--- a/bazel/toolchains.bzl
++++ b/bazel/toolchains.bzl
+@@ -9,6 +9,7 @@ def envoy_toolchains():
+         aliases = {
+             "amd64": "@envoy//bazel/platforms/rbe:linux_x64",
+             "aarch64": "@envoy//bazel/platforms/rbe:linux_arm64",
++            "s390x": "@envoy//bazel/platforms/rbe:linux_s390x",
+         },
+     )
+     llvm_toolchain(
+@@ -19,5 +20,8 @@ def envoy_toolchains():
+             "linux-x86_64": "@sysroot_linux_amd64//:sysroot",
+             "linux-aarch64": "@sysroot_linux_arm64//:sysroot",
+         },
+-        toolchain_roots = {"": LLVM_PATH} if LLVM_PATH else {},
++        toolchain_roots = {
++            "": LLVM_PATH,
++            "linux-s390x": LLVM_PATH,
++        } if LLVM_PATH else {},
+     )
+diff --git a/source/extensions/common/wasm/context.cc b/source/extensions/common/wasm/context.cc
+index f18a640..c270969 100644
+--- a/source/extensions/common/wasm/context.cc
++++ b/source/extensions/common/wasm/context.cc
+@@ -353,9 +353,49 @@ void Context::onStatsUpdate(Envoy::Stats::MetricSnapshot& snapshot) {
+   envoyWasm()->on_stats_update_(this, id_, counter_block_size + gauge_block_size);
+ }
+ 
++static void assignNumeric(const char* value, size_t length, std::string* result,
++                          [[maybe_unused]] bool uses_wasm_byte_order) {
++#ifdef ABSL_IS_LITTLE_ENDIAN
++  result->assign(value, length);
++#else
++  if (!uses_wasm_byte_order) {
++    result->assign(value, length);
++    return;
++  }
++
++  switch (length) {
++  case 8: {
++    uint64_t value_uint64_le;
++    safeMemcpyUnsafeSrc(&value_uint64_le, value);
++    value_uint64_le = le64toh(value_uint64_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint64_le), length);
++    break;
++  }
++  case 4: {
++    uint32_t value_uint32_le;
++    safeMemcpyUnsafeSrc(&value_uint32_le, value);
++    value_uint32_le = le32toh(value_uint32_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint32_le), length);
++    break;
++  }
++  case 2: {
++    uint16_t value_uint16_le;
++    safeMemcpyUnsafeSrc(&value_uint16_le, value);
++    value_uint16_le = le16toh(value_uint16_le);
++    result->assign(reinterpret_cast<const char*>(&value_uint16_le), length);
++    break;
++  }
++  default:
++    result->assign(value, length);
++    break;
++  }
++#endif
++}
++
+ // Native serializer carrying over bit representation from CEL value to the extension.
+ // This implementation assumes that the value type is static and known to the consumer.
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result) {
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order) {
+   using Filters::Common::Expr::CelValue;
+   int64_t out_int64;
+   uint64_t out_uint64;
+@@ -371,15 +411,18 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     return WasmResult::Ok;
+   case CelValue::Type::kInt64:
+     out_int64 = value.Int64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kUint64:
+     out_uint64 = value.Uint64OrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kDouble:
+     out_double = value.DoubleOrDie();
+-    result->assign(reinterpret_cast<const char*>(&out_double), sizeof(double));
++    assignNumeric(reinterpret_cast<const char*>(&out_double), sizeof(double), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kBool:
+     out_bool = value.BoolOrDie();
+@@ -388,12 +431,14 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+   case CelValue::Type::kDuration:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToInt64Nanoseconds(value.DurationOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kTimestamp:
+     // Warning: loss of precision to nanoseconds
+     out_int64 = absl::ToUnixNanos(value.TimestampOrDie());
+-    result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
++    assignNumeric(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t), result,
++                  uses_wasm_byte_order);
+     return WasmResult::Ok;
+   case CelValue::Type::kMessage:
+     out_message = value.MessageOrDie();
+@@ -411,10 +456,11 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& keys = *keys_list.value();
+     std::vector<std::pair<std::string, std::string>> pairs(map.size(), std::make_pair("", ""));
+     for (auto i = 0; i < map.size(); i++) {
+-      if (serializeValue(keys[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(keys[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+-      if (serializeValue(map[keys[i]].value(), &pairs[i].second) != WasmResult::Ok) {
++      if (serializeValue(map[keys[i]].value(), &pairs[i].second, uses_wasm_byte_order) !=
++          WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -431,7 +477,7 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& list = *value.ListOrDie();
+     std::vector<std::pair<std::string, std::string>> pairs(list.size(), std::make_pair("", ""));
+     for (auto i = 0; i < list.size(); i++) {
+-      if (serializeValue(list[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(list[i], &pairs[i].first, uses_wasm_byte_order) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -615,7 +661,7 @@ WasmResult Context::getProperty(std::string_view path, std::string* result) {
+     }
+   }
+ 
+-  return serializeValue(value, result);
++  return serializeValue(value, result, wasmVm()->usesWasmByteOrder());
+ }
+ 
+ // Header/Trailer/Metadata Maps.
+diff --git a/source/extensions/common/wasm/context.h b/source/extensions/common/wasm/context.h
+index 147b39e..6bce287 100644
+--- a/source/extensions/common/wasm/context.h
++++ b/source/extensions/common/wasm/context.h
+@@ -466,7 +466,8 @@ protected:
+ };
+ using ContextSharedPtr = std::shared_ptr<Context>;
+ 
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result);
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool uses_wasm_byte_order);
+ 
+ } // namespace Wasm
+ } // namespace Common
+diff --git a/source/extensions/common/wasm/foreign.cc b/source/extensions/common/wasm/foreign.cc
+index c428ac1..5fbe15d 100644
+--- a/source/extensions/common/wasm/foreign.cc
++++ b/source/extensions/common/wasm/foreign.cc
+@@ -357,7 +357,7 @@ public:
+         return WasmResult::InternalFailure;
+       }
+       std::string result;
+-      auto serialize_status = serializeValue(value, &result);
++      auto serialize_status = serializeValue(value, &result, false);
+       if (serialize_status != WasmResult::Ok) {
+         return serialize_status;
+       }
+diff --git a/source/extensions/filters/http/oauth2/filter.cc b/source/extensions/filters/http/oauth2/filter.cc
+index a22f431..0e0f459 100644
+--- a/source/extensions/filters/http/oauth2/filter.cc
++++ b/source/extensions/filters/http/oauth2/filter.cc
+@@ -283,7 +283,7 @@ std::string generateCodeVerifier(Random::RandomGenerator& random) {
+   // create 4 random uint64_t values to fill the buffer because RFC 7636 recommends 32 octets of
+   // randomness.
+   for (size_t i = 0; i < 4; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+ 
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+@@ -330,7 +330,7 @@ std::string encrypt(const std::string& plaintext, const std::string& secret,
+   MemBlockBuilder<uint64_t> mem_block(4);
+   // create 2 random uint64_t values to fill the buffer because AES-256-CBC requires 16 bytes IV
+   for (size_t i = 0; i < 2; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+ 
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+diff --git a/test/common/quic/platform/quic_platform_test.cc b/test/common/quic/platform/quic_platform_test.cc
+index 6aff0a0..e682411 100644
+--- a/test/common/quic/platform/quic_platform_test.cc
++++ b/test/common/quic/platform/quic_platform_test.cc
+@@ -147,10 +147,11 @@ TEST_F(QuicPlatformTest, QuicServerStats) {
+ }
+ 
+ TEST_F(QuicPlatformTest, QuicStackTraceTest) {
+-#if !defined(ENVOY_CONFIG_COVERAGE) && !defined(GCC_COMPILER)
++#if !defined(ENVOY_CONFIG_COVERAGE) && !defined(GCC_COMPILER) && !(defined(__s390x__) && defined(NDEBUG))
+   // This doesn't work in coverage build because part of the stacktrace will be overwritten by
+   // __llvm_coverage_mapping
+   // Stack trace under gcc with optimizations on (-c opt) doesn't include the test name
++  // Stack trace on s390x with optimizations doesn't preserve function names
+   EXPECT_THAT(QuicStackTrace(), HasSubstr("QuicStackTraceTest"));
+ #endif
+ }
+diff --git a/test/common/stream_info/stream_info_impl_test.cc b/test/common/stream_info/stream_info_impl_test.cc
+index 8f63de8..9cdfc37 100644
+--- a/test/common/stream_info/stream_info_impl_test.cc
++++ b/test/common/stream_info/stream_info_impl_test.cc
+@@ -400,7 +400,7 @@ TEST_F(StreamInfoImplTest, SetFromForRecreateStream) {
+   s1.addPacketsRetransmitted(1);
+ 
+ #ifdef __clang__
+-#if defined(__linux__)
++#if defined(__linux__) && !defined(__s390x__)
+ #if defined(__has_feature) && !(__has_feature(thread_sanitizer))
+   assertStreamInfoSize(s1);
+ #endif
+@@ -461,7 +461,7 @@ TEST_F(StreamInfoImplTest, SetFrom) {
+   s1.addCustomFlag("test_flag2");
+ 
+ #ifdef __clang__
+-#if defined(__linux__)
++#if defined(__linux__) && !defined(__s390x__)
+ #if defined(__has_feature) && !(__has_feature(thread_sanitizer))
+   assertStreamInfoSize(s1);
+ #endif
+diff --git a/test/exe/BUILD b/test/exe/BUILD
+index cdaec46..458e76b 100644
+--- a/test/exe/BUILD
++++ b/test/exe/BUILD
+@@ -46,7 +46,7 @@ envoy_sh_test(
+     data = [
+         "//source/exe:envoy-static",
+     ] + select({
+-        "//bazel:clang_build": ["@llvm_toolchain_llvm//:readelf"],
++        "@envoy_repo//:use_local_llvm": [],
+         "//conditions:default": [],
+     }),
+     # Since VS2015 or even earlier, link.exe defaults to PIE generation
+@@ -159,11 +159,10 @@ envoy_cc_test(
+     data = [
+         "fips_check.sh",
+         "//source/extensions:extensions_metadata.yaml",
+-        "@llvm_toolchain_llvm//:objdump",
+     ],
+     env = select({
+-        "//bazel:clang_build": {
+-            "OBJDUMP": "$(location @llvm_toolchain_llvm//:objdump)",
++        "@envoy_repo//:use_local_llvm": {
++	    "OBJDUMP": "objdump",
+         },
+         "//conditions:default": {},
+     }),
+diff --git a/test/extensions/common/wasm/context_test.cc b/test/extensions/common/wasm/context_test.cc
+index 5304384..6e5ea8d 100644
+--- a/test/extensions/common/wasm/context_test.cc
++++ b/test/extensions/common/wasm/context_test.cc
+@@ -203,13 +203,13 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   CelValue value = CelValue::CreateMap(&mock_cel_map_);
+   EXPECT_CALL(mock_cel_map_, ListKeys())
+       .WillOnce(testing::Return(absl::UnimplementedError("CelMap::ListKeys is not implemented")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_map_, size()).WillRepeatedly(testing::Return(1));
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -217,7 +217,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -225,7 +225,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+ 
+ TEST_F(ContextTest, SerializeValueListTest) {
+@@ -235,12 +235,12 @@ TEST_F(ContextTest, SerializeValueListTest) {
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_list_, size()).WillRepeatedly(testing::Return(1));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(1)
+       .WillRepeatedly(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+ 
+ TEST_F(ContextTest, FindValueTest) {
+diff --git a/test/extensions/filters/http/wasm/test_data/test_cpp.cc b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+index 8ba4fbd..b31e495 100644
+--- a/test/extensions/filters/http/wasm/test_data/test_cpp.cc
++++ b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+@@ -584,10 +584,11 @@ void TestContext::onLog() {
+     }
+     {
+       // Some properties are defined in the stream context.
++      const uint64_t expected_connection_id = 4;
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"connection_id"}, std::string("\x4\0\0\0\0\0\0\0\0", 8)},
++         {{"connection_id"}, std::string(reinterpret_cast<const char*>(&expected_connection_id), 8)},
+           {{"connection", "requested_server_name"}, "w3.org"},
+           {{"source", "address"}, "127.0.0.1:0"},
+           {{"destination", "address"}, "127.0.0.2:0"},
+diff --git a/tools/base/requirements.txt b/tools/base/requirements.txt
+index 75b275e..22399c0 100644
+--- a/tools/base/requirements.txt
++++ b/tools/base/requirements.txt
+@@ -460,7 +460,8 @@ cryptography==46.0.1 \
+     --hash=sha256:1cd6d50c1a8b79af1a6f703709d8973845f677c8e97b1268f5ff323d38ce8475 \
+     --hash=sha256:757af4f6341ce7a1e47c326ca2a81f41d236070217e5fbbad61bbfe299d55d28 \
+     --hash=sha256:e22801b61613ebdebf7deb18b507919e107547a1d39a3b57f5f855032dd7cfb8 \
+-    --hash=sha256:f7a24ea78de345cfa7f6a8d3bde8b242c7fac27f2bd78fa23474ca38dfaeeab9
++    --hash=sha256:f7a24ea78de345cfa7f6a8d3bde8b242c7fac27f2bd78fa23474ca38dfaeeab9 \
++    --hash=sha256:ed570874e88f213437f5cf758f9ef26cbfc3f336d889b1e592ee11283bb8d1c7
+     # via
+     #   -r requirements.in
+     #   aioquic
