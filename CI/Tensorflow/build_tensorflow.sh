@@ -89,12 +89,12 @@ cd $work_dir/tensorflow/
 sed -i '/name *= *"XNNPACK"/a\
         patch_file = ["//third_party:xnn.patch"],' tensorflow/workspace2.bzl
 
-patch -p1 < $work_dir/scripts/OSUOSL-CI/TensorFlow/patch/patch_file1.txt
-patch -p1 < $work_dir/scripts/OSUOSL-CI/TensorFlow/patch/patch_xnnpack.txt
-patch -p1 < $work_dir/scripts/OSUOSL-CI/TensorFlow/patch/patch_file2.txt
-patch -p1 < $work_dir/scripts/OSUOSL-CI/TensorFlow/patch/patch_BUILD_llvm.txt
-patch -p1 < $work_dir/scripts/OSUOSL-CI/TensorFlow/patch/patch_builtin_fp16.txt
-patch -p1 < $work_dir/scripts/OSUOSL-CI/TensorFlow/patch/patch_vector_ops.txt
+patch -p1 < $work_dir/patch/patch_file1.txt
+patch -p1 < $work_dir/patch/patch_xnnpack.txt
+patch -p1 < $work_dir/patch/patch_file2.txt
+patch -p1 < $work_dir/patch/patch_BUILD_llvm.txt
+patch -p1 < $work_dir/patch/patch_builtin_fp16.txt
+patch -p1 < $work_dir/patch/patch_vector_ops.txt
 
 export TEST_TMPDIR=$work_dir/Tensorflow_tmp
 yes "" | ./configure

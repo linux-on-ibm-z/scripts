@@ -38,14 +38,14 @@ pipeline {
         stage('Checkout Build files') {
             steps {
                 script {
-                    // Checkout OSUOSL-Jenkins/Envoy folder from scripts repository
+                    // Checkout CI/Envoy folder from scripts repository
                     dir('scripts-repo') {
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: '*/master']],
                             extensions: [
                                 [$class: 'SparseCheckoutPaths', 
-                                 sparseCheckoutPaths: [[path: 'OSUOSL-Jenkins/Envoy/*']]]
+                                 sparseCheckoutPaths: [[path: 'CI/Envoy/*']]]
                             ],
                             userRemoteConfigs: [[url: 'https://github.com/linux-on-ibm-z/scripts.git']]
                         ])
@@ -60,10 +60,10 @@ pipeline {
                     sh '''
 						pwd
 						ls -l
-	                    ls -la scripts-repo/OSUOSL-Jenkins/
-	                    ls -l scripts-repo/OSUOSL-Jenkins/Envoy
-	                    cp scripts-repo/OSUOSL-Jenkins/Envoy/build_envoy.sh .
-						cp -r scripts-repo/OSUOSL-Jenkins/Envoy/patch .
+	                    ls -la scripts-repo/CI/
+	                    ls -l scripts-repo/CI/Envoy
+	                    cp scripts-repo/CI/Envoy/build_envoy.sh .
+						cp -r scripts-repo/CI/Envoy/patch .
 						ls -l
 						bash build_envoy.sh -y
 					'''
