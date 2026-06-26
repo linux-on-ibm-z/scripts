@@ -141,7 +141,7 @@ checkPrequisites #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- 'Installing the dependencies for postgresql from repository \n' |& tee -a "$LOG_FILE"
         sudo yum install -y --allowerasing git wget gcc gcc-c++ tar make readline-devel zlib-devel bison flex glibc-langpack-en procps-ng diffutils patch curl libicu-devel |& tee -a "$LOG_FILE"
