@@ -274,7 +274,7 @@ case "$DISTRO" in
 "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-    apt-get update && apt-get install -y gcc g++ make automake autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python3-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev liburing-dev google-perftools libgoogle-perftools-dev libtirpc-dev |& tee -a "$LOG_FILE"
+    apt-get update && apt-get install -y gcc g++ git make automake autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python3-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev liburing-dev google-perftools libgoogle-perftools-dev libtirpc-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
