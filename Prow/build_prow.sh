@@ -4,7 +4,7 @@
 
 ################################################################################################################################################################
 #Script     :   build_prow.sh
-#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.10, 9.6, 9.7, 9.8, 10.0, 10.1, 10.2), Ubuntu (22.04, 24.04) and SLES (15 SP7, 16).
+#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.10, 9.6, 9.7, 9.8, 10.0, 10.1, 10.2) and Ubuntu (22.04, 24.04).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Prow mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Prow ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -240,13 +240,6 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo yum install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-CPAN perl-devel bison flex rsync mailcap 2>&1 | tee -a "$LOG_FILE"
-    configureAndInstall |& tee -a "$LOG_FILE"
-    ;;
-
-"sles-15.7" | "sles-16.0")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
-    printf -- "Installing dependencies ... it may take some time.\n"
-    sudo zypper install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf gawk rsync 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
