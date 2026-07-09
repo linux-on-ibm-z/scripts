@@ -3,7 +3,7 @@
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
-# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Htop/3.5.1/build_htop.sh
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Htop/3.5.1/build_htop.sh 
 # Execute build script: bash build_htop.sh    (provide -h for help)
 
 set -e -o pipefail
@@ -62,7 +62,6 @@ function cleanup() {
 
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
- 
 	# Download and unpack the htop source code
 	cd /"$CURDIR"/
 	git clone -b $PACKAGE_VERSION https://github.com/htop-dev/htop.git
@@ -135,24 +134,24 @@ checkPrequisites #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
 
-"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo yum install -y ncurses-devel automake autoconf gcc git make |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 	
-"sles-15.7" | "sles-16.0")
+"sles-15.7")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
 	sudo zypper install -y ncurses ncurses-devel gcc make wget tar awk git autoconf libtool xz gzip|& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- 'Installing the dependencies for Htop from repository \n' |& tee -a "$LOG_FILE"
-    	sudo apt-get update -y >/dev/null
+    sudo apt-get update -y |& tee -a "$LOG_FILE"
 	sudo apt install -y libncursesw5-dev autotools-dev autoconf build-essential git |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
