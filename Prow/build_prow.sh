@@ -1,10 +1,10 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2023,2025.
+# © Copyright IBM Corporation 2023, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
 ################################################################################################################################################################
 #Script     :   build_prow.sh
-#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.10, 9.4), Ubuntu (22.04, 24.04) and SLES 15 SP6.
+#Description:   The script builds Prow on Linux on IBM Z for RHEL (8.10, 9.6, 9.7, 9.8, 10.0, 10.1, 10.2), Ubuntu (22.04, 24.04) and SLES (15 SP7, 16).
 #Maintainer :   LoZ Open Source Ecosystem (https://www.ibm.com/community/z/usergroups/opensource)
 #Info/Notes :   Please refer to the instructions first for Building Prow mentioned in wiki( https://github.com/linux-on-ibm-z/docs/wiki/Building-Prow ).
 #               Build and Test logs can be found in $CURDIR/logs/.
@@ -22,6 +22,7 @@ set -o pipefail
 PACKAGE_NAME="prow"
 PACKAGE_VERSION="master"
 GOLANG_VERSION="go1.22.7.linux-s390x.tar.gz"
+GO_VERSION="1.22.7"
 FORCE="false"
 TESTS="false"
 CURDIR="$(pwd)"
@@ -86,7 +87,7 @@ function prepare() {
 }
 
 function cleanup() {
-	sudo rm -rf go go1.22.7.linux-s390x.tar.gz jq
+	sudo rm -rf "${CURDIR}/${GO_VERSION}" jq "${GOLANG_VERSION}"
     printf -- '\nCleaned up the artifacts.\n' >>"$LOG_FILE"
 }
 
@@ -96,14 +97,18 @@ function configureAndInstall() {
     cd "$CURDIR"
     export LOG_FILE="$LOGDIR/configuration-$(date +"%F-%T").log"
     printf -- "\nInstalling Go ... \n" | tee -a "$LOG_FILE"
-    wget $GO_INSTALL_URL
-    sudo tar -C /usr/local -xzf ${GOLANG_VERSION}
-    sudo ln -sf /usr/local/go/bin/go /usr/bin/
-    sudo ln -sf /usr/local/go/bin/gofmt /usr/bin/
+
+    wget -q https://go.dev/dl/go"${GO_VERSION}".linux-s390x.tar.gz |& tee -a  "$LOG_FILE"
+    chmod ugo+r go"${GO_VERSION}".linux-s390x.tar.gz
+    sudo mkdir -p /usr/local/go-${GO_VERSION}
+    sudo tar -C /usr/local/go-${GO_VERSION} --strip-components=1 -xzf go${GO_VERSION}.linux-s390x.tar.gz
+    export GOROOT="/usr/local/go-${GO_VERSION}"
+    export PATH="$GOROOT/bin:$PATH"
+
+    go version
 
     if [[ "${ID}" != "ubuntu" ]]; then
-        sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
-        printf -- 'Symlink done for gcc \n'
+        sudo update-alternatives --install /usr/bin/s390x-linux-gnu-gcc s390x-linux-gnu-gcc /usr/bin/gcc 100
     fi
 
     # Set GOPATH if not already set
@@ -113,7 +118,7 @@ function configureAndInstall() {
         if [ ! -d "$CURDIR/go" ]; then
             mkdir "$CURDIR/go"
         fi
-        export GOPATH="${GO_DEFAULT}"
+        export GOPATH="$GO_DEFAULT"
     else
         printf -- "\nGOPATH already set : Value : %s \n" "$GOPATH"
         if [ ! -d "$GOPATH" ]; then
@@ -121,17 +126,13 @@ function configureAndInstall() {
         fi
         export GO_FLAG="CUSTOM"
     fi
-	
+    
     if [[ $(s390x-linux-gnu-gcc --version) ]]; then
         printf --  'Found s390x-linux-gnu-gcc binary in the PATH...\n' >>"$LOG_FILE"
     else
-        printf --  'Did not found s390x-linux-gnu-gcc binary in the PATH. Creating symlink...\n' >>"$LOG_FILE"
-        sudo ln -s /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
+        sudo update-alternatives --install /usr/bin/s390x-linux-gnu-gcc s390x-linux-gnu-gcc /usr/bin/gcc 100
     fi
 
-    export PATH=/usr/local/go/bin:$PATH
-    export PATH=/usr/local/bin:$PATH
-    
     # Build jq
     printf -- "Building jq ...\n"
     cd "$CURDIR"
@@ -164,6 +165,15 @@ EOF
 
 function runTest() {
     cd "$CURDIR"
+	
+    if [ -f "$CURDIR/setenv.sh" ]; then
+        source "$CURDIR/setenv.sh"
+    fi
+    echo "PATH=$PATH"
+    echo "GOROOT=$GOROOT"
+    which go
+    go version
+
     cd test-infra/
     mkdir _bin/jq-1.5
     cp /usr/local/bin/jq _bin/jq-1.5/jq
@@ -226,14 +236,14 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
-    sudo yum install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-CPAN perl-devel 2>&1 | tee -a "$LOG_FILE"
+    sudo yum install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-CPAN perl-devel bison flex rsync mailcap 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-15.6")
+"sles-15.7" | "sles-16.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo zypper install -y zip tar unzip git vim wget make curl python3-devel gcc gcc-c++ libtool autoconf gawk rsync 2>&1 | tee -a "$LOG_FILE"
@@ -244,7 +254,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y zip tar unzip git vim wget make curl python2.7-dev python3.8-dev gcc g++ python3-distutils libtool libtool-bin autoconf 2>&1 | tee -a "$LOG_FILE"
+    sudo apt-get install -y zip tar unzip git vim wget make curl python2.7-dev python3.8-dev gcc g++ python3-distutils libtool libtool-bin autoconf bison flex rsync 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
@@ -252,7 +262,7 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
-    sudo apt-get install -y zip tar unzip git vim wget make curl python3-dev gcc g++ python3-distutils-extra libtool libtool-bin autoconf 2>&1 | tee -a "$LOG_FILE"
+    sudo apt-get install -y zip tar unzip git vim wget make curl python3-dev gcc g++ python3-distutils-extra libtool libtool-bin autoconf bison flex rsync 2>&1 | tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
