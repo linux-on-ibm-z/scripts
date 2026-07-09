@@ -1,0 +1,115 @@
+diff --git a/.cargo/config.toml b/.cargo/config.toml
+index 0125418..aad613d 100644
+--- a/.cargo/config.toml
++++ b/.cargo/config.toml
+@@ -21,3 +21,13 @@ rustflags = [
+     "-C", "link-arg=-Wl,--no-rosegment",
+     "-C", "force-frame-pointers=yes",
+ ]
++
++[target.s390x-unknown-linux-gnu]
++rustflags = [
++    "--cfg", "tokio_unstable",
++    # Faster linker (requires lld installed locally)
++    "-C", "link-arg=-fuse-ld=lld",
++    # Fix `perf` profiling - see https://bugs.chromium.org/p/chromium/issues/detail?id=919499#c16
++    "-C", "link-arg=-Wl,--no-rosegment",
++    "-C", "force-frame-pointers=yes",
++]
+diff --git a/Cargo.toml b/Cargo.toml
+index d216f2d..17971a4 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -317,3 +317,19 @@ datafusion-execution = { git = "https://github.com/influxdata/arrow-datafusion.g
+ datafusion-expr = { git = "https://github.com/influxdata/arrow-datafusion.git", rev = "dfdd85535f762b38bffb6f8bcd1d4ea54f76e603" }
+ datafusion-proto = { git = "https://github.com/influxdata/arrow-datafusion.git", rev = "dfdd85535f762b38bffb6f8bcd1d4ea54f76e603" }
+ datafusion-sql = { git = "https://github.com/influxdata/arrow-datafusion.git", rev = "dfdd85535f762b38bffb6f8bcd1d4ea54f76e603" }
++arrow = { path = "SOURCE_ROOT/arrow-rs/arrow" }
++arrow-arith = { path = "SOURCE_ROOT/arrow-rs/arrow-arith" }
++arrow-array = { path = "SOURCE_ROOT/arrow-rs/arrow-array" }
++arrow-buffer = { path = "SOURCE_ROOT/arrow-rs/arrow-buffer" }
++arrow-cast = { path = "SOURCE_ROOT/arrow-rs/arrow-cast" }
++arrow-csv = { path = "SOURCE_ROOT/arrow-rs/arrow-csv" }
++arrow-data = { path = "SOURCE_ROOT/arrow-rs/arrow-data" }
++arrow-flight = { path = "SOURCE_ROOT/arrow-rs/arrow-flight" }
++arrow-ipc = { path = "SOURCE_ROOT/arrow-rs/arrow-ipc" }
++arrow-json = { path = "SOURCE_ROOT/arrow-rs/arrow-json" }
++arrow-ord = { path = "SOURCE_ROOT/arrow-rs/arrow-ord" }
++arrow-row = { path = "SOURCE_ROOT/arrow-rs/arrow-row" }
++arrow-schema = { path = "SOURCE_ROOT/arrow-rs/arrow-schema" }
++arrow-select = { path = "SOURCE_ROOT/arrow-rs/arrow-select" }
++arrow-string = { path = "SOURCE_ROOT/arrow-rs/arrow-string" }
++parquet = { path = "SOURCE_ROOT/arrow-rs/parquet" }
+diff --git a/core/iox_query_udf/build.rs b/core/iox_query_udf/build.rs
+index 43fc649..b3e261c 100644
+--- a/core/iox_query_udf/build.rs
++++ b/core/iox_query_udf/build.rs
+@@ -17,6 +17,10 @@ use std::{
+     time::Duration,
+ };
+ 
++const LOCAL_PYTHON_WASM_ENV: &str = "IOX_QUERY_UDF_PYTHON_WASM";
++const DEFAULT_LOCAL_PYTHON_WASM_PATH: &str =
++    "SOURCE_ROOT/datafusion-udf-wasm/out/datafusion_udf_wasm_python.release.s390x-unknown-linux-gnu.elf";
++
+ use sha2::Digest;
+ 
+ /// GIT hash of the commit in <https://github.com/influxdata/datafusion-udf-wasm>.
+@@ -38,6 +42,11 @@ const SHA256_TXT_CHECKSUM: &str =
+     "sha256:1fcd991e5e03f9c2e56e7ba5e9d56af9343b53bf9c3383b19e7ca985a9d3d823";
+ 
+ fn main() {
++    if let Some(local_elf) = local_python_wasm_override() {
++        println!("cargo::rustc-env=BIN_PATH_PYTHON_WASM={}", local_elf.display());
++        return;
++    }
++
+     let sha256sum_txt_checksum = SHA256_TXT_CHECKSUM.to_lowercase().replace("sha256:", "");
+     let sha256sum_txt = fetch_artifact("sha256sum.txt", &sha256sum_txt_checksum);
+     let checksums = std::fs::read_to_string(&sha256sum_txt)
+@@ -58,6 +67,27 @@ fn main() {
+     println!("cargo::rustc-env=BIN_PATH_PYTHON_WASM={}", elf.display(),);
+ }
+ 
++fn local_python_wasm_override() -> Option<PathBuf> {
++    println!("cargo::rerun-if-env-changed={LOCAL_PYTHON_WASM_ENV}");
++
++    if let Some(path) = std::env::var_os(LOCAL_PYTHON_WASM_ENV) {
++        let path = PathBuf::from(path);
++        assert!(
++            path.is_file(),
++            "{LOCAL_PYTHON_WASM_ENV} points to a non-existent file: {}",
++            path.display()
++        );
++        return Some(path);
++    }
++
++    let default_path = PathBuf::from(DEFAULT_LOCAL_PYTHON_WASM_PATH);
++    if default_path.is_file() {
++        return Some(default_path);
++    }
++
++    None
++}
++
+ /// Download release artifact/file.
+ fn fetch_artifact(name: &str, checksum: &str) -> PathBuf {
+     let target_file = download_target_location(name);
+diff --git a/influxdb3_server/src/tests.rs b/influxdb3_server/src/tests.rs
+index 1e856da..82b6cb2 100644
+--- a/influxdb3_server/src/tests.rs
++++ b/influxdb3_server/src/tests.rs
+@@ -138,11 +138,11 @@ async fn write_and_query() {
+ 
+     assert_eq!(
+         batches[0]["time"].to_data().buffers(),
+-        &[Buffer::from([123, 0, 0, 0, 0, 0, 0, 0])]
++        &[Buffer::from([0, 0, 0, 0, 0, 0, 0, 123])]
+     );
+     assert_eq!(
+         batches[0]["val"].to_data().buffers(),
+-        &[Buffer::from(1_u64.to_le_bytes())]
++        &[Buffer::from([0, 0, 0, 0, 0, 0, 0, 1])]
+     );
+ 
+     shutdown.cancel();
