@@ -89,7 +89,7 @@ function configureAndInstall()
   #Verify installation
   ruby -v
   gem env
-  #Clean up the downloaded zip
+  #Clean up the downloaded zip 
   cleanup
 }
 function logDetails()
@@ -140,7 +140,7 @@ logDetails
 checkPrequisites  #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.6"| "rhel-9.7" | "rhel-10.0"| "rhel-10.1")
+"rhel-8.10" | "rhel-9.6"| "rhel-9.7" | "rhel-9.8" |  "rhel-10.0"| "rhel-10.1" | "rhel-10.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	sudo yum install -y bison flex openssl-devel readline-devel gdbm-devel gcc make wget tar libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
@@ -150,7 +150,7 @@ case "$DISTRO" in
 	sudo zypper install -y bison flex libopenssl-devel readline-devel gdbm-devel gcc make wget tar gawk gzip libyaml-devel |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
   ;;
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04")
   printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
   sudo apt-get update > /dev/null
   sudo apt-get install -y gcc make libc6-dev wget tar bison flex openssl libssl-dev libdb-dev libgdbm-dev libreadline-dev libyaml-dev |& tee -a "${LOG_FILE}"
