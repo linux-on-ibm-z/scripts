@@ -103,6 +103,7 @@ function configureAndInstall() {
         cd "${CURDIR}/elasticsearch"
 	wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/archives/linux-s390x-tar
         wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/archives/oss-linux-s390x-tar
+        wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/archives/oss-no-jdk-s390x-tar
 	wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/packages/s390x-deb
 	wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/packages/s390x-oss-deb
 	wget $PATCH_URL/build.gradle -P ${CURDIR}/elasticsearch/distribution/packages/s390x-oss-rpm
