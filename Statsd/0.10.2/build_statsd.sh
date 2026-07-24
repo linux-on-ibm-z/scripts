@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2023, 2025.
+# © Copyright IBM Corporation 2023, 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -155,14 +155,7 @@ done
 function gettingStarted() {
 	printf -- '\n***********************************************************************************************\n'
 	printf -- "Getting Started: \n"
-	printf -- "To run Statsd daemon : \n"
-	printf -- "  $ cd $SOURCE_ROOT/statsd  \n"
-	printf -- "  $ export PATH=\$PATH:/usr/local/node-${NODE_VERSION}-linux-s390x/bin  \n"
-	printf -- "  $ node stats.js <path_to_config> #eg: node stats.js $SOURCE_ROOT/statsd/exampleConfig.js  \n\n"
-	printf -- "Usage:  \n"
-	printf -- "The basic line protocol expects metrics to be sent in the format: <metricname>:<value>|<type>  \n"
-	printf -- 'e.g. echo "foo:1|c" | nc -u -w2 127.0.0.1 8125  #But make sure you have the netcat installed before executing this command. \n'
-	printf -- "\n\n"
+	printf -- "For instructions on starting the StatsD daemon, usage details, and examples, refer to the official StatsD documentation: https://github.com/statsd/statsd#manual-installation and https://github.com/statsd/statsd#usage \n"
 	printf -- '*************************************************************************************************\n'
 	printf -- '\n'
 }
@@ -175,7 +168,7 @@ prepare #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo apt-get update -y
@@ -183,14 +176,14 @@ case "$DISTRO" in
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
-"sles-15.6")
+"sles-15.7" | "sles-16.0")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing the dependencies for $PACKAGE_NAME from repository \n" |& tee -a "$LOG_FILE"
 	sudo zypper install -y git wget tar unzip hostname make gcc-c++ xz gzip python3 nmap procps  |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git wget tar unzip hostname make gcc-c++ xz gzip python3 nmap procps netcat |& tee -a "${LOG_FILE}"
