@@ -1,0 +1,8 @@
+--- a/backend/vendor/github.com/cilium/cilium/pkg/byteorder/byteorder_bigendian.go
++++ b/backend/vendor/github.com/cilium/cilium/pkg/byteorder/byteorder_bigendian.go
+@@ -1,4 +1,4 @@
+-//go:build armbe || arm64be || mips || mips64 || mips64p32 || ppc || ppc64 || sparc || sparc64
++//go:build armbe || arm64be || mips || mips64 || mips64p32 || ppc || ppc64 || s390x || sparc || sparc64
+
+ // SPDX-License-Identifier: Apache-2.0
+ // Copyright Authors of Cilium

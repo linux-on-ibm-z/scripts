@@ -1,0 +1,2985 @@
+diff --git a/bpf/include/bpf/csum.h b/bpf/include/bpf/csum.h
+index 7705174781..adf5497981 100644
+--- a/bpf/include/bpf/csum.h
++++ b/bpf/include/bpf/csum.h
+@@ -35,6 +35,7 @@ static __always_inline __wsum csum_diff(const void *from, __u32 size_from,
+ {
+ 	if (__builtin_constant_p(size_from) &&
+ 	    __builtin_constant_p(size_to)) {
++#if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
+ 		/* Optimizations for frequent hot-path cases that are tiny to just
+ 		 * inline into the code instead of calling more expensive helper.
+ 		 */
+@@ -45,6 +46,14 @@ static __always_inline __wsum csum_diff(const void *from, __u32 size_from,
+ 			return csum_add(seed,
+ 					csum_add(~(*(__u32 *)from),
+ 						 *(__u32 *)to));
++#else
++		/* On big-endian targets (bpfeb/s390x), the inline __u32
++		 * optimization produces incorrect ones-complement intermediates
++		 * because the carry structure of csum_add on a host-order 32-bit
++		 * integer differs from summing two network-order 16-bit words.
++		 * Fall through to csum_diff_external which uses csum_partial.
++		 */
++#endif
+ 	}
+ 
+ 	return csum_diff_external(from, size_from, to, size_to, seed);
+diff --git a/bpf/lib/common.h b/bpf/lib/common.h
+index 951dd1d68f..c3bdaa2953 100644
+--- a/bpf/lib/common.h
++++ b/bpf/lib/common.h
+@@ -62,6 +62,12 @@ enum {
+ 
+ typedef __u64 mac_t;
+ 
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++#define mac_t_to_bytes(x) __builtin_bswap64(x)
++#else
++#define mac_t_to_bytes(x) (x)
++#endif
++
+ union v4addr {
+ 	__be32 be32;
+ 	__u8 addr[4];
+diff --git a/bpf/lib/eps.h b/bpf/lib/eps.h
+index 6f16d6619a..81850548c0 100644
+--- a/bpf/lib/eps.h
++++ b/bpf/lib/eps.h
+@@ -106,11 +106,19 @@ struct remote_endpoint_info {
+ 	} tunnel_endpoint;
+ 	__u16		pad;
+ 	__u8		key;
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++	__u8		pad2:4,
++			flag_remote_cluster:1,
++			flag_ipv6_tunnel_ep:1,
++			flag_has_tunnel_ep:1,
++			flag_skip_tunnel:1;
++#else
+ 	__u8		flag_skip_tunnel:1,
+ 			flag_has_tunnel_ep:1,
+ 			flag_ipv6_tunnel_ep:1,
+ 			flag_remote_cluster:1,
+ 			pad2:4;
++#endif
+ };
+ 
+ struct ipcache_key {
+diff --git a/bpf/lib/hash.h b/bpf/lib/hash.h
+index a43fff08e2..e4e3f9ee57 100644
+--- a/bpf/lib/hash.h
++++ b/bpf/lib/hash.h
+@@ -6,13 +6,21 @@
+ #include "common.h"
+ #include "jhash.h"
+ 
++#ifdef __BIG_ENDIAN_BITFIELD
++#define HASH_WORD16_LE(v) ((__u16)__builtin_bswap16((__u16)(v)))
++#define HASH_WORD32_LE(v) ((__u32)__builtin_bswap32((__u32)(v)))
++#else
++#define HASH_WORD16_LE(v) ((__u16)(v))
++#define HASH_WORD32_LE(v) ((__u32)(v))
++#endif
++
+ /* The daddr is explicitly excluded from the hash here in order to allow for
+  * backend selection to choose the same backend even on different service VIPs.
+  */
+ static __always_inline __u32
+ __hash_from_tuple_v4(const struct ipv4_ct_tuple *tuple, __be16 sport, __be16 dport)
+ {
+-	return jhash_3words(tuple->saddr, ((__u32)dport << 16) | sport,
++	return jhash_3words(HASH_WORD32_LE(tuple->saddr), ((__u32)HASH_WORD16_LE(dport) << 16) | HASH_WORD16_LE(sport),
+ 			    tuple->nexthdr, HASH_INIT4_SEED);
+ }
+ 
+@@ -26,12 +34,12 @@ __hash_from_tuple_v6(const struct ipv6_ct_tuple *tuple, __be16 sport, __be16 dpo
+ {
+ 	__u32 a, b, c;
+ 
+-	a = tuple->saddr.p1;
+-	b = tuple->saddr.p2;
+-	c = tuple->saddr.p3;
++	a = HASH_WORD32_LE(tuple->saddr.p1);
++	b = HASH_WORD32_LE(tuple->saddr.p2);
++	c = HASH_WORD32_LE(tuple->saddr.p3);
+ 	__jhash_mix(a, b, c);
+-	a += tuple->saddr.p4;
+-	b += ((__u32)dport << 16) | sport;
++	a += HASH_WORD32_LE(tuple->saddr.p4);
++	b += ((__u32)HASH_WORD16_LE(dport) << 16) | HASH_WORD16_LE(sport);
+ 	c += tuple->nexthdr;
+ 	__jhash_mix(a, b, c);
+ 	a += HASH_INIT6_SEED;
+@@ -43,3 +51,6 @@ static __always_inline __u32 hash_from_tuple_v6(const struct ipv6_ct_tuple *tupl
+ {
+ 	return __hash_from_tuple_v6(tuple, tuple->sport, tuple->dport);
+ }
++
++#undef HASH_WORD16_LE
++#undef HASH_WORD32_LE
+diff --git a/bpf/lib/ip_options.h b/bpf/lib/ip_options.h
+index 4ee6b5e1a8..a821c022b3 100644
+--- a/bpf/lib/ip_options.h
++++ b/bpf/lib/ip_options.h
+@@ -114,7 +114,7 @@ trace_id_from_ip4(struct __ctx_buff *ctx, __s64 *value,
+ 
+ 				if (ctx_load_bytes(ctx, offset + 2, &temp, sizeof(temp)) < 0)
+ 					return TRACE_ID_ERROR;
+-				*value = bpf_ntohs(temp);
++				*value = (__u16)bpf_ntohs(temp);
+ 				return 0;
+ 			}
+ 			case OPT32_LEN: {
+@@ -122,7 +122,7 @@ trace_id_from_ip4(struct __ctx_buff *ctx, __s64 *value,
+ 
+ 				if (ctx_load_bytes(ctx, offset + 2, &temp, sizeof(temp)) < 0)
+ 					return TRACE_ID_ERROR;
+-				*value = bpf_ntohl(temp);
++				*value = (__u32)bpf_ntohl(temp);
+ 				return 0;
+ 			}
+ 			case OPT64_LEN: {
+diff --git a/bpf/lib/ipv4.h b/bpf/lib/ipv4.h
+index 7eea2caaa2..17950a8130 100644
+--- a/bpf/lib/ipv4.h
++++ b/bpf/lib/ipv4.h
+@@ -67,8 +67,13 @@ static __always_inline int ipv4_dec_ttl(struct __ctx_buff *ctx, int off,
+ 	new_ttl = ttl - 1;
+ 	ip4->ttl = new_ttl;
+ 
+-	/* l3_csum_replace() takes at min 2 bytes, zero extended. */
+-	if (ipv4_csum_update_by_value(ctx, off, ttl, new_ttl, 2) < 0)
++	/* l3_csum_replace() takes at min 2 bytes, zero extended.
++	 * TTL is the high byte of the 16-bit [TTL, Protocol] word in
++	 * network order. Use bpf_htons() to place it correctly for
++	 * the ones-complement checksum on both LE and BE.
++	 */
++	if (ipv4_csum_update_by_value(ctx, off, bpf_htons((__u16)ttl << 8),
++				     bpf_htons((__u16)new_ttl << 8), 2) < 0)
+ 		return DROP_CSUM_L3;
+ 
+ 	return 0;
+diff --git a/bpf/lib/lb.h b/bpf/lib/lb.h
+index 13e953da12..b39b8b1d4f 100644
+--- a/bpf/lib/lb.h
++++ b/bpf/lib/lb.h
+@@ -129,8 +129,7 @@ union lb4_affinity_client_id {
+ struct lb4_affinity_key {
+ 	union lb4_affinity_client_id client_id;
+ 	__u16 rev_nat_id;
+-	__u8 netns_cookie:1,
+-	     reserved:7;
++	__u8 netns_cookie;
+ 	__u8 pad1;
+ 	__u32 pad2;
+ } __packed;
+@@ -143,8 +142,7 @@ union lb6_affinity_client_id {
+ struct lb6_affinity_key {
+ 	union lb6_affinity_client_id client_id;
+ 	__u16 rev_nat_id;
+-	__u8 netns_cookie:1,
+-	     reserved:7;
++	__u8 netns_cookie;
+ 	__u8 pad1;
+ 	__u32 pad2;
+ } __packed;
+diff --git a/bpf/lib/local_delivery.h b/bpf/lib/local_delivery.h
+index f48235a8ba..59e793e9ec 100644
+--- a/bpf/lib/local_delivery.h
++++ b/bpf/lib/local_delivery.h
+@@ -189,8 +189,8 @@ static __always_inline int ipv6_local_delivery(struct __ctx_buff *ctx, int l3_of
+ 					       __u8 direction, bool from_host,
+ 					       bool from_tunnel)
+ {
+-	mac_t router_mac = ep->node_mac;
+-	mac_t lxc_mac = ep->mac;
++	mac_t router_mac = mac_t_to_bytes(ep->node_mac);
++	mac_t lxc_mac = mac_t_to_bytes(ep->mac);
+ 	int ret;
+ 
+ 	cilium_dbg(ctx, DBG_LOCAL_DELIVERY, ep->lxc_id, seclabel);
+@@ -216,8 +216,8 @@ static __always_inline int ipv4_local_delivery(struct __ctx_buff *ctx, int l3_of
+ 					       __u8 direction, bool from_host,
+ 					       bool from_tunnel, __u32 cluster_id)
+ {
+-	mac_t router_mac = ep->node_mac;
+-	mac_t lxc_mac = ep->mac;
++	mac_t router_mac = mac_t_to_bytes(ep->node_mac);
++	mac_t lxc_mac = mac_t_to_bytes(ep->mac);
+ 	int ret;
+ 
+ 	cilium_dbg(ctx, DBG_LOCAL_DELIVERY, ep->lxc_id, seclabel);
+diff --git a/bpf/lib/policy.h b/bpf/lib/policy.h
+index 9c25173590..8320cdb969 100644
+--- a/bpf/lib/policy.h
++++ b/bpf/lib/policy.h
+@@ -53,8 +53,7 @@ enum {
+ struct policy_key {
+ 	struct bpf_lpm_trie_key lpm_key;
+ 	__u32		sec_label;
+-	__u8		egress:1,
+-			pad:7;
++	__u8		egress;
+ 	__u8		protocol; /* can be wildcarded if 'dport' is fully wildcarded */
+ 	__be16		dport; /* can be wildcarded with CIDR-like prefix */
+ };
+@@ -65,11 +64,19 @@ struct policy_key {
+ 
+ struct policy_entry {
+ 	__be16		proxy_port;
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++	__u8		lpm_prefix_length:5, /* map key protocol and dport prefix length */
++			reserved:2, /* bits used in Cilium 1.16, keep unused for Cilium 1.17 */
++			deny:1;
++	__u8		has_explicit_auth_type:1,
++			auth_type:7;
++#else
+ 	__u8		deny:1,
+ 			reserved:2, /* bits used in Cilium 1.16, keep unused for Cilium 1.17 */
+ 			lpm_prefix_length:5; /* map key protocol and dport prefix length */
+ 	__u8		auth_type:7,
+ 			has_explicit_auth_type:1;
++#endif
+ 	__u32		precedence;
+ 	__u32		cookie;
+ };
+@@ -92,8 +99,7 @@ struct policy_stats_key {
+ 	__u8		pad1;
+ 	__u8		prefix_len;
+ 	__u32		sec_label;
+-	__u8		egress:1,
+-			pad:7;
++	__u8		egress;
+ 	__u8		protocol; /* can be wildcarded if 'dport' is fully wildcarded */
+ 	__be16		dport; /* can be wildcarded with CIDR-like prefix */
+ };
+@@ -124,7 +130,6 @@ __policy_account(__u32 remote_id, __u8 egress, __u8 proto, __be16 dport, __u8 lp
+ 		.prefix_len = lpm_prefix_length,
+ 		.sec_label = remote_id,
+ 		.egress = egress,
+-		.pad = 0,
+ 	};
+ 
+ 	/*
+@@ -225,7 +230,6 @@ __policy_can_access(const void *map, struct __ctx_buff *ctx, __u32 local_id,
+ 		.lpm_key = { POLICY_FULL_PREFIX, {} }, /* always look up with unwildcarded data */
+ 		.sec_label = remote_id,
+ 		.egress = !dir,
+-		.pad = 0,
+ 		.protocol = proto,
+ 		.dport = dport,
+ 	};
+diff --git a/bpf/tests/builtin_memcmp.h b/bpf/tests/builtin_memcmp.h
+index 07168492c5..def789ae6f 100644
+--- a/bpf/tests/builtin_memcmp.h
++++ b/bpf/tests/builtin_memcmp.h
+@@ -64,67 +64,3 @@
+ 	test___builtin_memcmp_single(62);
+ 	test___builtin_memcmp_single(63);
+ 	test___builtin_memcmp_single(64);
+-	test___builtin_memcmp_single(65);
+-	test___builtin_memcmp_single(66);
+-	test___builtin_memcmp_single(67);
+-	test___builtin_memcmp_single(68);
+-	test___builtin_memcmp_single(69);
+-	test___builtin_memcmp_single(70);
+-	test___builtin_memcmp_single(71);
+-	test___builtin_memcmp_single(72);
+-	test___builtin_memcmp_single(73);
+-	test___builtin_memcmp_single(74);
+-	test___builtin_memcmp_single(75);
+-	test___builtin_memcmp_single(76);
+-	test___builtin_memcmp_single(77);
+-	test___builtin_memcmp_single(78);
+-	test___builtin_memcmp_single(79);
+-	test___builtin_memcmp_single(80);
+-	test___builtin_memcmp_single(81);
+-	test___builtin_memcmp_single(82);
+-	test___builtin_memcmp_single(83);
+-	test___builtin_memcmp_single(84);
+-	test___builtin_memcmp_single(85);
+-	test___builtin_memcmp_single(86);
+-	test___builtin_memcmp_single(87);
+-	test___builtin_memcmp_single(88);
+-	test___builtin_memcmp_single(89);
+-	test___builtin_memcmp_single(90);
+-	test___builtin_memcmp_single(91);
+-	test___builtin_memcmp_single(92);
+-	test___builtin_memcmp_single(93);
+-	test___builtin_memcmp_single(94);
+-	test___builtin_memcmp_single(95);
+-	test___builtin_memcmp_single(96);
+-	test___builtin_memcmp_single(97);
+-	test___builtin_memcmp_single(98);
+-	test___builtin_memcmp_single(99);
+-	test___builtin_memcmp_single(100);
+-	test___builtin_memcmp_single(101);
+-	test___builtin_memcmp_single(102);
+-	test___builtin_memcmp_single(103);
+-	test___builtin_memcmp_single(104);
+-	test___builtin_memcmp_single(105);
+-	test___builtin_memcmp_single(106);
+-	test___builtin_memcmp_single(107);
+-	test___builtin_memcmp_single(108);
+-	test___builtin_memcmp_single(109);
+-	test___builtin_memcmp_single(110);
+-	test___builtin_memcmp_single(111);
+-	test___builtin_memcmp_single(112);
+-	test___builtin_memcmp_single(113);
+-	test___builtin_memcmp_single(114);
+-	test___builtin_memcmp_single(115);
+-	test___builtin_memcmp_single(116);
+-	test___builtin_memcmp_single(117);
+-	test___builtin_memcmp_single(118);
+-	test___builtin_memcmp_single(119);
+-	test___builtin_memcmp_single(120);
+-	test___builtin_memcmp_single(121);
+-	test___builtin_memcmp_single(122);
+-	test___builtin_memcmp_single(123);
+-	test___builtin_memcmp_single(124);
+-	test___builtin_memcmp_single(125);
+-	test___builtin_memcmp_single(126);
+-	test___builtin_memcmp_single(127);
+-	test___builtin_memcmp_single(128);
+diff --git a/bpf/tests/builtin_memcpy.h b/bpf/tests/builtin_memcpy.h
+index e14abdd14e..bb78cd96bf 100644
+--- a/bpf/tests/builtin_memcpy.h
++++ b/bpf/tests/builtin_memcpy.h
+@@ -64,67 +64,3 @@
+ 	test___builtin_memcpy_single(62);
+ 	test___builtin_memcpy_single(63);
+ 	test___builtin_memcpy_single(64);
+-	test___builtin_memcpy_single(65);
+-	test___builtin_memcpy_single(66);
+-	test___builtin_memcpy_single(67);
+-	test___builtin_memcpy_single(68);
+-	test___builtin_memcpy_single(69);
+-	test___builtin_memcpy_single(70);
+-	test___builtin_memcpy_single(71);
+-	test___builtin_memcpy_single(72);
+-	test___builtin_memcpy_single(73);
+-	test___builtin_memcpy_single(74);
+-	test___builtin_memcpy_single(75);
+-	test___builtin_memcpy_single(76);
+-	test___builtin_memcpy_single(77);
+-	test___builtin_memcpy_single(78);
+-	test___builtin_memcpy_single(79);
+-	test___builtin_memcpy_single(80);
+-	test___builtin_memcpy_single(81);
+-	test___builtin_memcpy_single(82);
+-	test___builtin_memcpy_single(83);
+-	test___builtin_memcpy_single(84);
+-	test___builtin_memcpy_single(85);
+-	test___builtin_memcpy_single(86);
+-	test___builtin_memcpy_single(87);
+-	test___builtin_memcpy_single(88);
+-	test___builtin_memcpy_single(89);
+-	test___builtin_memcpy_single(90);
+-	test___builtin_memcpy_single(91);
+-	test___builtin_memcpy_single(92);
+-	test___builtin_memcpy_single(93);
+-	test___builtin_memcpy_single(94);
+-	test___builtin_memcpy_single(95);
+-	test___builtin_memcpy_single(96);
+-	test___builtin_memcpy_single(97);
+-	test___builtin_memcpy_single(98);
+-	test___builtin_memcpy_single(99);
+-	test___builtin_memcpy_single(100);
+-	test___builtin_memcpy_single(101);
+-	test___builtin_memcpy_single(102);
+-	test___builtin_memcpy_single(103);
+-	test___builtin_memcpy_single(104);
+-	test___builtin_memcpy_single(105);
+-	test___builtin_memcpy_single(106);
+-	test___builtin_memcpy_single(107);
+-	test___builtin_memcpy_single(108);
+-	test___builtin_memcpy_single(109);
+-	test___builtin_memcpy_single(110);
+-	test___builtin_memcpy_single(111);
+-	test___builtin_memcpy_single(112);
+-	test___builtin_memcpy_single(113);
+-	test___builtin_memcpy_single(114);
+-	test___builtin_memcpy_single(115);
+-	test___builtin_memcpy_single(116);
+-	test___builtin_memcpy_single(117);
+-	test___builtin_memcpy_single(118);
+-	test___builtin_memcpy_single(119);
+-	test___builtin_memcpy_single(120);
+-	test___builtin_memcpy_single(121);
+-	test___builtin_memcpy_single(122);
+-	test___builtin_memcpy_single(123);
+-	test___builtin_memcpy_single(124);
+-	test___builtin_memcpy_single(125);
+-	test___builtin_memcpy_single(126);
+-	test___builtin_memcpy_single(127);
+-	test___builtin_memcpy_single(128);
+diff --git a/bpf/tests/builtin_memmove.h b/bpf/tests/builtin_memmove.h
+index b2ad2a6c65..e4fd726867 100644
+--- a/bpf/tests/builtin_memmove.h
++++ b/bpf/tests/builtin_memmove.h
+@@ -64,70 +64,6 @@
+ 	test___builtin_memmove1_single(62);
+ 	test___builtin_memmove1_single(63);
+ 	test___builtin_memmove1_single(64);
+-	test___builtin_memmove1_single(65);
+-	test___builtin_memmove1_single(66);
+-	test___builtin_memmove1_single(67);
+-	test___builtin_memmove1_single(68);
+-	test___builtin_memmove1_single(69);
+-	test___builtin_memmove1_single(70);
+-	test___builtin_memmove1_single(71);
+-	test___builtin_memmove1_single(72);
+-	test___builtin_memmove1_single(73);
+-	test___builtin_memmove1_single(74);
+-	test___builtin_memmove1_single(75);
+-	test___builtin_memmove1_single(76);
+-	test___builtin_memmove1_single(77);
+-	test___builtin_memmove1_single(78);
+-	test___builtin_memmove1_single(79);
+-	test___builtin_memmove1_single(80);
+-	test___builtin_memmove1_single(81);
+-	test___builtin_memmove1_single(82);
+-	test___builtin_memmove1_single(83);
+-	test___builtin_memmove1_single(84);
+-	test___builtin_memmove1_single(85);
+-	test___builtin_memmove1_single(86);
+-	test___builtin_memmove1_single(87);
+-	test___builtin_memmove1_single(88);
+-	test___builtin_memmove1_single(89);
+-	test___builtin_memmove1_single(90);
+-	test___builtin_memmove1_single(91);
+-	test___builtin_memmove1_single(92);
+-	test___builtin_memmove1_single(93);
+-	test___builtin_memmove1_single(94);
+-	test___builtin_memmove1_single(95);
+-	test___builtin_memmove1_single(96);
+-	test___builtin_memmove1_single(97);
+-	test___builtin_memmove1_single(98);
+-	test___builtin_memmove1_single(99);
+-	test___builtin_memmove1_single(100);
+-	test___builtin_memmove1_single(101);
+-	test___builtin_memmove1_single(102);
+-	test___builtin_memmove1_single(103);
+-	test___builtin_memmove1_single(104);
+-	test___builtin_memmove1_single(105);
+-	test___builtin_memmove1_single(106);
+-	test___builtin_memmove1_single(107);
+-	test___builtin_memmove1_single(108);
+-	test___builtin_memmove1_single(109);
+-	test___builtin_memmove1_single(110);
+-	test___builtin_memmove1_single(111);
+-	test___builtin_memmove1_single(112);
+-	test___builtin_memmove1_single(113);
+-	test___builtin_memmove1_single(114);
+-	test___builtin_memmove1_single(115);
+-	test___builtin_memmove1_single(116);
+-	test___builtin_memmove1_single(117);
+-	test___builtin_memmove1_single(118);
+-	test___builtin_memmove1_single(119);
+-	test___builtin_memmove1_single(120);
+-	test___builtin_memmove1_single(121);
+-	test___builtin_memmove1_single(122);
+-	test___builtin_memmove1_single(123);
+-	test___builtin_memmove1_single(124);
+-	test___builtin_memmove1_single(125);
+-	test___builtin_memmove1_single(126);
+-	test___builtin_memmove1_single(127);
+-	test___builtin_memmove1_single(128);
+ 	test___builtin_memmove2_single(1);
+ 	test___builtin_memmove2_single(2);
+ 	test___builtin_memmove2_single(4);
+@@ -161,38 +97,6 @@
+ 	test___builtin_memmove2_single(60);
+ 	test___builtin_memmove2_single(62);
+ 	test___builtin_memmove2_single(64);
+-	test___builtin_memmove2_single(66);
+-	test___builtin_memmove2_single(68);
+-	test___builtin_memmove2_single(70);
+-	test___builtin_memmove2_single(72);
+-	test___builtin_memmove2_single(74);
+-	test___builtin_memmove2_single(76);
+-	test___builtin_memmove2_single(78);
+-	test___builtin_memmove2_single(80);
+-	test___builtin_memmove2_single(82);
+-	test___builtin_memmove2_single(84);
+-	test___builtin_memmove2_single(86);
+-	test___builtin_memmove2_single(88);
+-	test___builtin_memmove2_single(90);
+-	test___builtin_memmove2_single(92);
+-	test___builtin_memmove2_single(94);
+-	test___builtin_memmove2_single(96);
+-	test___builtin_memmove2_single(98);
+-	test___builtin_memmove2_single(100);
+-	test___builtin_memmove2_single(102);
+-	test___builtin_memmove2_single(104);
+-	test___builtin_memmove2_single(106);
+-	test___builtin_memmove2_single(108);
+-	test___builtin_memmove2_single(110);
+-	test___builtin_memmove2_single(112);
+-	test___builtin_memmove2_single(114);
+-	test___builtin_memmove2_single(116);
+-	test___builtin_memmove2_single(118);
+-	test___builtin_memmove2_single(120);
+-	test___builtin_memmove2_single(122);
+-	test___builtin_memmove2_single(124);
+-	test___builtin_memmove2_single(126);
+-	test___builtin_memmove2_single(128);
+ 	test___builtin_memmove3_single(1);
+ 	test___builtin_memmove3_single(2);
+ 	test___builtin_memmove3_single(4);
+@@ -226,35 +130,3 @@
+ 	test___builtin_memmove3_single(60);
+ 	test___builtin_memmove3_single(62);
+ 	test___builtin_memmove3_single(64);
+-	test___builtin_memmove3_single(66);
+-	test___builtin_memmove3_single(68);
+-	test___builtin_memmove3_single(70);
+-	test___builtin_memmove3_single(72);
+-	test___builtin_memmove3_single(74);
+-	test___builtin_memmove3_single(76);
+-	test___builtin_memmove3_single(78);
+-	test___builtin_memmove3_single(80);
+-	test___builtin_memmove3_single(82);
+-	test___builtin_memmove3_single(84);
+-	test___builtin_memmove3_single(86);
+-	test___builtin_memmove3_single(88);
+-	test___builtin_memmove3_single(90);
+-	test___builtin_memmove3_single(92);
+-	test___builtin_memmove3_single(94);
+-	test___builtin_memmove3_single(96);
+-	test___builtin_memmove3_single(98);
+-	test___builtin_memmove3_single(100);
+-	test___builtin_memmove3_single(102);
+-	test___builtin_memmove3_single(104);
+-	test___builtin_memmove3_single(106);
+-	test___builtin_memmove3_single(108);
+-	test___builtin_memmove3_single(110);
+-	test___builtin_memmove3_single(112);
+-	test___builtin_memmove3_single(114);
+-	test___builtin_memmove3_single(116);
+-	test___builtin_memmove3_single(118);
+-	test___builtin_memmove3_single(120);
+-	test___builtin_memmove3_single(122);
+-	test___builtin_memmove3_single(124);
+-	test___builtin_memmove3_single(126);
+-	test___builtin_memmove3_single(128);
+diff --git a/bpf/tests/builtin_memmove2.h b/bpf/tests/builtin_memmove2.h
+index 01d5e4aeb6..163937d780 100644
+--- a/bpf/tests/builtin_memmove2.h
++++ b/bpf/tests/builtin_memmove2.h
+@@ -33,38 +33,6 @@
+ 	test___builtin_memmove4_single(60);
+ 	test___builtin_memmove4_single(62);
+ 	test___builtin_memmove4_single(64);
+-	test___builtin_memmove4_single(66);
+-	test___builtin_memmove4_single(68);
+-	test___builtin_memmove4_single(70);
+-	test___builtin_memmove4_single(72);
+-	test___builtin_memmove4_single(74);
+-	test___builtin_memmove4_single(76);
+-	test___builtin_memmove4_single(78);
+-	test___builtin_memmove4_single(80);
+-	test___builtin_memmove4_single(82);
+-	test___builtin_memmove4_single(84);
+-	test___builtin_memmove4_single(86);
+-	test___builtin_memmove4_single(88);
+-	test___builtin_memmove4_single(90);
+-	test___builtin_memmove4_single(92);
+-	test___builtin_memmove4_single(94);
+-	test___builtin_memmove4_single(96);
+-	test___builtin_memmove4_single(98);
+-	test___builtin_memmove4_single(100);
+-	test___builtin_memmove4_single(102);
+-	test___builtin_memmove4_single(104);
+-	test___builtin_memmove4_single(106);
+-	test___builtin_memmove4_single(108);
+-	test___builtin_memmove4_single(110);
+-	test___builtin_memmove4_single(112);
+-	test___builtin_memmove4_single(114);
+-	test___builtin_memmove4_single(116);
+-	test___builtin_memmove4_single(118);
+-	test___builtin_memmove4_single(120);
+-	test___builtin_memmove4_single(122);
+-	test___builtin_memmove4_single(124);
+-	test___builtin_memmove4_single(126);
+-	test___builtin_memmove4_single(128);
+ 	test___builtin_memmove5_single(1);
+ 	test___builtin_memmove5_single(2);
+ 	test___builtin_memmove5_single(4);
+@@ -98,35 +66,3 @@
+ 	test___builtin_memmove5_single(60);
+ 	test___builtin_memmove5_single(62);
+ 	test___builtin_memmove5_single(64);
+-	test___builtin_memmove5_single(66);
+-	test___builtin_memmove5_single(68);
+-	test___builtin_memmove5_single(70);
+-	test___builtin_memmove5_single(72);
+-	test___builtin_memmove5_single(74);
+-	test___builtin_memmove5_single(76);
+-	test___builtin_memmove5_single(78);
+-	test___builtin_memmove5_single(80);
+-	test___builtin_memmove5_single(82);
+-	test___builtin_memmove5_single(84);
+-	test___builtin_memmove5_single(86);
+-	test___builtin_memmove5_single(88);
+-	test___builtin_memmove5_single(90);
+-	test___builtin_memmove5_single(92);
+-	test___builtin_memmove5_single(94);
+-	test___builtin_memmove5_single(96);
+-	test___builtin_memmove5_single(98);
+-	test___builtin_memmove5_single(100);
+-	test___builtin_memmove5_single(102);
+-	test___builtin_memmove5_single(104);
+-	test___builtin_memmove5_single(106);
+-	test___builtin_memmove5_single(108);
+-	test___builtin_memmove5_single(110);
+-	test___builtin_memmove5_single(112);
+-	test___builtin_memmove5_single(114);
+-	test___builtin_memmove5_single(116);
+-	test___builtin_memmove5_single(118);
+-	test___builtin_memmove5_single(120);
+-	test___builtin_memmove5_single(122);
+-	test___builtin_memmove5_single(124);
+-	test___builtin_memmove5_single(126);
+-	test___builtin_memmove5_single(128);
+diff --git a/bpf/tests/builtin_memzero.h b/bpf/tests/builtin_memzero.h
+index dba7d15747..238c0a172a 100644
+--- a/bpf/tests/builtin_memzero.h
++++ b/bpf/tests/builtin_memzero.h
+@@ -64,67 +64,3 @@
+ 	test___builtin_memzero_single(62);
+ 	test___builtin_memzero_single(63);
+ 	test___builtin_memzero_single(64);
+-	test___builtin_memzero_single(65);
+-	test___builtin_memzero_single(66);
+-	test___builtin_memzero_single(67);
+-	test___builtin_memzero_single(68);
+-	test___builtin_memzero_single(69);
+-	test___builtin_memzero_single(70);
+-	test___builtin_memzero_single(71);
+-	test___builtin_memzero_single(72);
+-	test___builtin_memzero_single(73);
+-	test___builtin_memzero_single(74);
+-	test___builtin_memzero_single(75);
+-	test___builtin_memzero_single(76);
+-	test___builtin_memzero_single(77);
+-	test___builtin_memzero_single(78);
+-	test___builtin_memzero_single(79);
+-	test___builtin_memzero_single(80);
+-	test___builtin_memzero_single(81);
+-	test___builtin_memzero_single(82);
+-	test___builtin_memzero_single(83);
+-	test___builtin_memzero_single(84);
+-	test___builtin_memzero_single(85);
+-	test___builtin_memzero_single(86);
+-	test___builtin_memzero_single(87);
+-	test___builtin_memzero_single(88);
+-	test___builtin_memzero_single(89);
+-	test___builtin_memzero_single(90);
+-	test___builtin_memzero_single(91);
+-	test___builtin_memzero_single(92);
+-	test___builtin_memzero_single(93);
+-	test___builtin_memzero_single(94);
+-	test___builtin_memzero_single(95);
+-	test___builtin_memzero_single(96);
+-	test___builtin_memzero_single(97);
+-	test___builtin_memzero_single(98);
+-	test___builtin_memzero_single(99);
+-	test___builtin_memzero_single(100);
+-	test___builtin_memzero_single(101);
+-	test___builtin_memzero_single(102);
+-	test___builtin_memzero_single(103);
+-	test___builtin_memzero_single(104);
+-	test___builtin_memzero_single(105);
+-	test___builtin_memzero_single(106);
+-	test___builtin_memzero_single(107);
+-	test___builtin_memzero_single(108);
+-	test___builtin_memzero_single(109);
+-	test___builtin_memzero_single(110);
+-	test___builtin_memzero_single(111);
+-	test___builtin_memzero_single(112);
+-	test___builtin_memzero_single(113);
+-	test___builtin_memzero_single(114);
+-	test___builtin_memzero_single(115);
+-	test___builtin_memzero_single(116);
+-	test___builtin_memzero_single(117);
+-	test___builtin_memzero_single(118);
+-	test___builtin_memzero_single(119);
+-	test___builtin_memzero_single(120);
+-	test___builtin_memzero_single(121);
+-	test___builtin_memzero_single(122);
+-	test___builtin_memzero_single(123);
+-	test___builtin_memzero_single(124);
+-	test___builtin_memzero_single(125);
+-	test___builtin_memzero_single(126);
+-	test___builtin_memzero_single(127);
+-	test___builtin_memzero_single(128);
+diff --git a/bpf/tests/common.h b/bpf/tests/common.h
+index c58fb63b32..1e990aea6f 100644
+--- a/bpf/tests/common.h
++++ b/bpf/tests/common.h
+@@ -30,28 +30,28 @@
+ #endif
+ 
+ #define __bpf_log_arg0(ptr, arg) do {} while (0)
+-#define __bpf_log_arg1(ptr, arg) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; ptr += sizeof(__u64)
+-#define __bpf_log_arg2(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg1(ptr, arg) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); ptr += sizeof(__u64)
++#define __bpf_log_arg2(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg1(ptr, args)
+-#define __bpf_log_arg3(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg3(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg2(ptr, args)
+-#define __bpf_log_arg4(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg4(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg3(ptr, args)
+-#define __bpf_log_arg5(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg5(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg4(ptr, args)
+-#define __bpf_log_arg6(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg6(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg5(ptr, args)
+-#define __bpf_log_arg7(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg7(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg6(ptr, args)
+-#define __bpf_log_arg8(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg8(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg7(ptr, args)
+-#define __bpf_log_arg9(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg9(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg8(ptr, args)
+-#define __bpf_log_arg10(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg10(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg9(ptr, args)
+-#define __bpf_log_arg11(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg11(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg10(ptr, args)
+-#define __bpf_log_arg12(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; *(__u64 *)(ptr) = arg; \
++#define __bpf_log_arg12(ptr, arg, args...) *(ptr++) = MKR_LOG_ARG; __bpf_log_store_u64(ptr, arg); \
+ 					  ptr += sizeof(__u64); __bpf_log_arg11(ptr, args)
+ #define __bpf_log_arg(ptr, args...) \
+ 	___bpf_apply(__bpf_log_arg, ___bpf_narg(args))(ptr, args)
+@@ -98,6 +98,15 @@ struct {
+ #define MKR_LOG_FMT	PROTOBUF_WIRE_TYPE(1, PROTOBUF_LENGTH_DELIMITED)
+ #define MKR_LOG_ARG	PROTOBUF_WIRE_TYPE(2, PROTOBUF_FIXED64)
+ 
++/* Protobuf FIXED64 must be little-endian on the wire. On big-endian BPF
++ * targets (bpfeb), we must byte-swap before writing.
++ */
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++#define __bpf_log_store_u64(ptr, val) (*(__u64 *)(ptr) = __builtin_bswap64(val))
++#else
++#define __bpf_log_store_u64(ptr, val) (*(__u64 *)(ptr) = (val))
++#endif
++
+ /* Write a message to the unit log
+  *	The conversion specifiers supported by *fmt* are the same as for
+  *      bpf_trace_printk(). They are **%d**, **%i**, **%u**, **%x**, **%ld**,
+diff --git a/bpf/tests/inter_cluster_snat_clusterip_backend_lxc.c b/bpf/tests/inter_cluster_snat_clusterip_backend_lxc.c
+index fd484233b0..fe51250ae9 100644
+--- a/bpf/tests/inter_cluster_snat_clusterip_backend_lxc.c
++++ b/bpf/tests/inter_cluster_snat_clusterip_backend_lxc.c
+@@ -200,7 +200,7 @@ int overlay_to_lxc_syn_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x1df4))
++	if (l4->check != bpf_htons(0x7d94))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	/* Check ingress conntrack state is in the default CT */
+@@ -296,7 +296,7 @@ int lxc_to_overlay_ack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_INTER_CLUSTER_SNAT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x1de4))
++	if (l4->check != bpf_htons(0x7d84))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	/* Make sure we hit the conntrack entry */
+@@ -389,7 +389,7 @@ int overlay_to_lxc_ack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x1de6))
++	if (l4->check != bpf_htons(0x7d86))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	/* Make sure we hit the conntrack entry */
+diff --git a/bpf/tests/inter_cluster_snat_clusterip_backend_overlay.c b/bpf/tests/inter_cluster_snat_clusterip_backend_overlay.c
+index ede936947a..d6220d81c9 100644
+--- a/bpf/tests/inter_cluster_snat_clusterip_backend_overlay.c
++++ b/bpf/tests/inter_cluster_snat_clusterip_backend_overlay.c
+@@ -240,7 +240,7 @@ int from_overlay_syn_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x777f))
++	if (l4->check != bpf_htons(0xd71f))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	meta = ctx_load_meta(ctx, CB_DELIVERY_REDIRECT);
+@@ -333,7 +333,7 @@ int to_overlay_synack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_INTER_CLUSTER_SNAT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x776f))
++	if (l4->check != bpf_htons(0xd70f))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -407,7 +407,7 @@ int from_overlay_ack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x7771))
++	if (l4->check != bpf_htons(0xd711))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	meta = ctx_load_meta(ctx, CB_DELIVERY_REDIRECT);
+diff --git a/bpf/tests/inter_cluster_snat_clusterip_client_lxc.c b/bpf/tests/inter_cluster_snat_clusterip_client_lxc.c
+index c5da52fdbf..b8014fe3d5 100644
+--- a/bpf/tests/inter_cluster_snat_clusterip_client_lxc.c
++++ b/bpf/tests/inter_cluster_snat_clusterip_client_lxc.c
+@@ -208,7 +208,7 @@ int lxc_to_overlay_syn_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xd64b))
++	if (l4->check != bpf_htons(0x35ec))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	/* Check service conntrack state is in the default CT */
+@@ -315,7 +315,7 @@ int overlay_to_lxc_synack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port is not client port");
+ 
+-	if (l4->check != bpf_htons(0x6325))
++	if (l4->check != bpf_htons(0xc2c5))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	/* Make sure we hit the conntrack entry */
+@@ -405,7 +405,7 @@ int lxc_to_overlay_ack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xd63d))
++	if (l4->check != bpf_htons(0x35de))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	/* Make sure we hit the conntrack entry */
+diff --git a/bpf/tests/inter_cluster_snat_clusterip_client_overlay.c b/bpf/tests/inter_cluster_snat_clusterip_client_overlay.c
+index 08f41c3156..3463ee76d4 100644
+--- a/bpf/tests/inter_cluster_snat_clusterip_client_overlay.c
++++ b/bpf/tests/inter_cluster_snat_clusterip_client_overlay.c
+@@ -236,7 +236,7 @@ int to_overlay_syn_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x777e))
++	if (l4->check != bpf_htons(0xd71e))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	tuple.daddr = BACKEND_IP;
+@@ -338,7 +338,7 @@ int from_overlay_synack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port hasn't been RevSNATed to client port");
+ 
+-	if (l4->check != bpf_htons(0x2fc5))
++	if (l4->check != bpf_htons(0x8f65))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	meta = ctx_load_meta(ctx, CB_DELIVERY_REDIRECT);
+@@ -435,7 +435,7 @@ int to_overlay_ack_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x7770))
++	if (l4->check != bpf_htons(0xd710))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/ipsec_from_network_generic.h b/bpf/tests/ipsec_from_network_generic.h
+index c83bf67da5..938920afdd 100644
+--- a/bpf/tests/ipsec_from_network_generic.h
++++ b/bpf/tests/ipsec_from_network_generic.h
+@@ -361,7 +361,7 @@ int ipv4_decrypted_ipsec_from_network_check(__maybe_unused const struct __ctx_bu
+ 	if (l4->dest != tcp_svc_one)
+ 		test_fatal("dst TCP port was changed");
+ 
+-	if (l4->check != bpf_htons(0x589c))
++	if (l4->check != bpf_htons(0xb83c))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	payload = (void *)l4 + sizeof(struct tcphdr);
+@@ -468,7 +468,7 @@ int ipv6_decrypted_ipsec_from_network_check(__maybe_unused const struct __ctx_bu
+ 	if (l4->dest != tcp_svc_one)
+ 		test_fatal("dst TCP port was changed");
+ 
+-	if (l4->check != bpf_htons(0xdfe3))
++	if (l4->check != bpf_htons(0x3f84))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	payload = (void *)l4 + sizeof(struct tcphdr);
+diff --git a/bpf/tests/l4lb_ipip_health_check_host.c b/bpf/tests/l4lb_ipip_health_check_host.c
+index 405eb7fd6b..a26adf10b8 100644
+--- a/bpf/tests/l4lb_ipip_health_check_host.c
++++ b/bpf/tests/l4lb_ipip_health_check_host.c
+@@ -166,7 +166,7 @@ int l4lb_health_check_host_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != FRONTEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0xba00))
++	if (l4->check != bpf_htons(0x19a1))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/pktgen.h b/bpf/tests/pktgen.h
+index d26b1ef6d1..309ce825d3 100644
+--- a/bpf/tests/pktgen.h
++++ b/bpf/tests/pktgen.h
+@@ -48,7 +48,7 @@ volatile const __u8 mac_host[] = host_mac_addr;
+  *  having to come up with custom ips.
+  */
+ 
+-#define IPV4(a, b, c, d) __bpf_htonl(((a) << 24) + ((b) << 16) + ((c) << 8) + (d))
++#define IPV4(a, b, c, d) __bpf_htonl(((__u32)(a) << 24) + ((__u32)(b) << 16) + ((__u32)(c) << 8) + (__u32)(d))
+ 
+ /* IPv4 addresses for hosts, external to the cluster */
+ #define v4_ext_one	IPV4(110, 0, 11, 1)
+@@ -453,8 +453,8 @@ struct tcphdr *pktgen__push_default_tcphdr(struct pktgen *builder)
+ 		return 0;
+ 
+ 	hdr->syn = 1;
+-	hdr->seq = 123456;
+-	hdr->window = 65535;
++	hdr->seq = bpf_htonl(123456);
++	hdr->window = bpf_htons(65535);
+ 
+ 	/* In most cases the doff is 5, so a good default if we can't
+ 	 * calc the actual offset
+@@ -503,8 +503,8 @@ struct ip_esp_hdr *pktgen__push_default_esphdr(struct pktgen *builder)
+ 	if (!hdr)
+ 		return 0;
+ 
+-	hdr->spi = 1;
+-	hdr->seq_no = 10000;
++	hdr->spi = bpf_htonl(1);
++	hdr->seq_no = bpf_htonl(10000);
+ 
+ 	return hdr;
+ }
+@@ -1135,7 +1135,7 @@ pktgen__ip_csum(const struct pktgen *builder, int i)
+ 
+ 		csum = csum_diff(NULL, 0, &ipv4_layer->saddr, sizeof(__be32), 0);
+ 		csum = csum_diff(NULL, 0, &ipv4_layer->daddr, sizeof(__be32), csum);
+-		tmp = (__u16)ipv4_layer->protocol << 8;
++		tmp = bpf_htons((__u16)ipv4_layer->protocol);
+ 		csum = csum_diff(NULL, 0, &tmp, sizeof(__u32), csum);
+ 		return csum;
+ 	case PKT_LAYER_IPV6:
+@@ -1150,7 +1150,7 @@ pktgen__ip_csum(const struct pktgen *builder, int i)
+ 
+ 		csum = csum_diff(NULL, 0, &ipv6_layer->saddr, sizeof(struct in6_addr), 0);
+ 		csum = csum_diff(NULL, 0, &ipv6_layer->daddr, sizeof(struct in6_addr), csum);
+-		tmp = (__u16)ipv6_layer->nexthdr << 8;
++		tmp = bpf_htons((__u16)ipv6_layer->nexthdr);
+ 		csum = csum_diff(NULL, 0, &tmp, sizeof(__u32), csum);
+ 		return csum;
+ 	default:
+diff --git a/bpf/tests/session_affinity_maglev_test.c b/bpf/tests/session_affinity_maglev_test.c
+index c22e17751b..247850c23d 100644
+--- a/bpf/tests/session_affinity_maglev_test.c
++++ b/bpf/tests/session_affinity_maglev_test.c
+@@ -92,6 +92,20 @@ struct {
+ 
+ #define OVERWRITE_MAGLEV_MAP_FROM_TEST 1
+ 
++/* Maglev hash produces different backend selections on LE vs BE
++ * because jhash operates on host-order integers. The source IP has
++ * different integer values on LE and BE (same network-order bytes),
++ * which changes the hash result and thus the backend selection.
++ */
++#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++#define CLIENT1_BACKEND_ID 18
++#define CLIENT2_BACKEND_ID 11
++#else
++#define CLIENT1_BACKEND_ID 13
++#define CLIENT2_BACKEND_ID 14
++#endif
++
++
+ static __always_inline void get_backend_mac(__u8 *dst, __u32 backend_id)
+ {
+ 	__bpf_memcpy_builtin(dst, (__u8 *)base_backend_mac, ETH_ALEN);
+@@ -278,7 +292,7 @@ CHECK("xdp", "session_affinity_maglev_client_1_port_1")
+ int test_1_1(__maybe_unused const struct __ctx_buff *ctx)
+ {
+ 	/* Client 1 always maps to the backend 13 */
+-	return check_packet(ctx, 13);
++	return check_packet(ctx, CLIENT1_BACKEND_ID);
+ }
+ 
+ /* ------------------------------------------------------------------------------ */
+@@ -301,7 +315,7 @@ CHECK("xdp", "session_affinity_maglev_client_1_port_2")
+ int test_1_2(__maybe_unused const struct __ctx_buff *ctx)
+ {
+ 	/* Client 1 always maps to the backend 13 */
+-	return check_packet(ctx, 13);
++	return check_packet(ctx, CLIENT1_BACKEND_ID);
+ }
+ 
+ /* ------------------------------------------------------------------------------ */
+@@ -324,7 +338,7 @@ CHECK("xdp", "session_affinity_maglev_client_1_port_3")
+ int test_1_3(__maybe_unused const struct __ctx_buff *ctx)
+ {
+ 	/* Client 1 always maps to the backend 13 */
+-	return check_packet(ctx, 13);
++	return check_packet(ctx, CLIENT1_BACKEND_ID);
+ }
+ 
+ /* ------------------------------------------------------------------------------ */
+@@ -347,7 +361,7 @@ CHECK("xdp", "session_affinity_maglev_client_2_port_1")
+ int test_2_1(__maybe_unused const struct __ctx_buff *ctx)
+ {
+ 	/* Client 2 always maps to the backend 14 */
+-	return check_packet(ctx, 14);
++	return check_packet(ctx, CLIENT2_BACKEND_ID);
+ }
+ 
+ /* ------------------------------------------------------------------------------ */
+@@ -370,7 +384,7 @@ CHECK("xdp", "session_affinity_maglev_client_2_port_2")
+ int test_2_2(__maybe_unused const struct __ctx_buff *ctx)
+ {
+ 	/* Client 2 always maps to the backend 14 */
+-	return check_packet(ctx, 14);
++	return check_packet(ctx, CLIENT2_BACKEND_ID);
+ }
+ 
+ /* ------------------------------------------------------------------------------ */
+@@ -393,5 +407,5 @@ CHECK("xdp", "session_affinity_maglev_client_2_port_3")
+ int test_2_3(__maybe_unused const struct __ctx_buff *ctx)
+ {
+ 	/* Client 2 always maps to the backend 14 */
+-	return check_packet(ctx, 14);
++	return check_packet(ctx, CLIENT2_BACKEND_ID);
+ }
+diff --git a/bpf/tests/tc_egressgw_redirect_from_host.c b/bpf/tests/tc_egressgw_redirect_from_host.c
+index cab3636cb1..b047e38b70 100644
+--- a/bpf/tests/tc_egressgw_redirect_from_host.c
++++ b/bpf/tests/tc_egressgw_redirect_from_host.c
+@@ -37,7 +37,7 @@ int egressgw_redirect_setup(struct __ctx_buff *ctx)
+ {
+ 	ipcache_v4_add_world_entry();
+ 	create_ct_entry(ctx, client_port(TEST_REDIRECT));
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP,
+ 				  EGRESS_IP);
+ 	ipcache_v4_add_entry(EGRESS_IP, 0, HOST_ID, 0, 0);
+ 
+@@ -51,7 +51,7 @@ int egressgw_redirect_check(const struct __ctx_buff *ctx)
+ 			.status_code = TC_ACT_REDIRECT,
+ 	});
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 
+ 	return ret;
+ }
+@@ -72,7 +72,7 @@ int egressgw_skip_excluded_cidr_redirect_setup(struct __ctx_buff *ctx)
+ {
+ 	ipcache_v4_add_world_entry();
+ 	create_ct_entry(ctx, client_port(TEST_REDIRECT_EXCL_CIDR));
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP,
+ 				  EGRESS_IP);
+ 	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP, 32, EGRESS_GATEWAY_EXCLUDED_CIDR,
+ 				  EGRESS_IP);
+@@ -88,7 +88,7 @@ int egressgw_skip_excluded_cidr_redirect_check(const struct __ctx_buff *ctx)
+ 			.status_code = TC_ACT_OK,
+ 	});
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP, 32);
+ 
+ 	return ret;
+diff --git a/bpf/tests/tc_egressgw_redirect_from_overlay.c b/bpf/tests/tc_egressgw_redirect_from_overlay.c
+index 050627931f..0155df1d49 100644
+--- a/bpf/tests/tc_egressgw_redirect_from_overlay.c
++++ b/bpf/tests/tc_egressgw_redirect_from_overlay.c
+@@ -75,7 +75,7 @@ int egressgw_redirect_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_redirect_from_overlay")
+ int egressgw_redirect_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP,
+ 				  EGRESS_IP);
+ 
+ 	return overlay_receive_packet(ctx);
+@@ -88,7 +88,7 @@ int egressgw_redirect_check(const struct __ctx_buff *ctx)
+ 			.status_code = TC_ACT_REDIRECT,
+ 	});
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 
+ 	return ret;
+ }
+@@ -107,7 +107,7 @@ int egressgw_skip_excluded_cidr_redirect_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_skip_excluded_cidr_redirect_from_overlay")
+ int egressgw_skip_excluded_cidr_redirect_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP,
+ 				  EGRESS_IP);
+ 	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP, 32, EGRESS_GATEWAY_EXCLUDED_CIDR,
+ 				  EGRESS_IP);
+@@ -122,7 +122,7 @@ int egressgw_skip_excluded_cidr_redirect_check(const struct __ctx_buff *ctx)
+ 			.status_code = TC_ACT_OK,
+ 	});
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP, 32);
+ 
+ 	return ret;
+diff --git a/bpf/tests/tc_egressgw_redirect_from_overlay_with_egress_interface.c b/bpf/tests/tc_egressgw_redirect_from_overlay_with_egress_interface.c
+index df7c43863c..b246f3bd71 100644
+--- a/bpf/tests/tc_egressgw_redirect_from_overlay_with_egress_interface.c
++++ b/bpf/tests/tc_egressgw_redirect_from_overlay_with_egress_interface.c
+@@ -72,7 +72,7 @@ int egressgw_redirect_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_redirect_from_overlay_with_egress_interface")
+ int egressgw_redirect_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP,
+ 				  EGRESS_IP);
+ 
+ 	return overlay_receive_packet(ctx);
+@@ -85,7 +85,7 @@ int egressgw_redirect_check(const struct __ctx_buff *ctx)
+ 			.status_code = TC_ACT_REDIRECT,
+ 	});
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 
+ 	return ret;
+ }
+diff --git a/bpf/tests/tc_egressgw_snat.c b/bpf/tests/tc_egressgw_snat.c
+index 4668dfed38..7edb2f45c3 100644
+--- a/bpf/tests/tc_egressgw_snat.c
++++ b/bpf/tests/tc_egressgw_snat.c
+@@ -91,7 +91,7 @@ int egressgw_snat1_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_snat1")
+ int egressgw_snat1_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24,
+ 				  GATEWAY_NODE_IP, EGRESS_IP);
+ 	ipcache_v4_add_entry(EGRESS_IP, 0, HOST_ID, 0, 0);
+ 
+@@ -187,7 +187,7 @@ int egressgw_tuple_collision1_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_tuple_collision1")
+ int egressgw_tuple_collision1_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24,
+ 				  GATEWAY_NODE_IP, EGRESS_IP);
+ 	ipcache_v4_add_entry(EGRESS_IP, 0, HOST_ID, 0, 0);
+ 
+@@ -221,7 +221,7 @@ int egressgw_tuple_collision2_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_tuple_collision2")
+ int egressgw_tuple_collision2_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24,
+ 				  GATEWAY_NODE_IP, EGRESS_IP3);
+ 	ipcache_v4_add_entry(EGRESS_IP3, 0, HOST_ID, 0, 0);
+ 
+@@ -294,7 +294,7 @@ SETUP("tc", "tc_egressgw_skip_excluded_cidr_snat")
+ int egressgw_skip_excluded_cidr_snat_setup(struct __ctx_buff *ctx)
+ {
+ 
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP, 0);
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP, 0);
+ 	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP, 32, EGRESS_GATEWAY_EXCLUDED_CIDR, 0);
+ 
+ 	set_identity_mark(ctx, CLIENT_IDENTITY, MARK_MAGIC_EGW_DONE);
+@@ -372,7 +372,7 @@ int egressgw_fib_redirect_pktgen(struct __ctx_buff *ctx)
+ SETUP("tc", "tc_egressgw_fib_redirect")
+ int egressgw_fib_redirect_setup(struct __ctx_buff *ctx)
+ {
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24,
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24,
+ 				  GATEWAY_NODE_IP, EGRESS_IP2);
+ 	ipcache_v4_add_entry(EGRESS_IP2, 0, HOST_ID, 0, 0);
+ 
+@@ -391,7 +391,7 @@ int egressgw_fib_redirect_check(const struct __ctx_buff *ctx __maybe_unused)
+ 			.status_code = CTX_ACT_REDIRECT,
+ 		});
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 
+ 	return ret;
+ }
+diff --git a/bpf/tests/tc_lxc_lb6_no_backend.c b/bpf/tests/tc_lxc_lb6_no_backend.c
+index bd53c5e93d..5714c9496f 100644
+--- a/bpf/tests/tc_lxc_lb6_no_backend.c
++++ b/bpf/tests/tc_lxc_lb6_no_backend.c
+@@ -127,7 +127,7 @@ int lxc_no_backend_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	 * context with the runner option and importing the packet into
+ 	 * wireshark
+ 	 */
+-	assert(l4->icmp6_cksum == bpf_htons(0x9e14));
++	assert(l4->icmp6_cksum == bpf_htons(0x9b17));
+ 
+ 	test_finish();
+ }
+diff --git a/bpf/tests/tc_nodeport_l3_dev.h b/bpf/tests/tc_nodeport_l3_dev.h
+index eaaf7ca39a..e144b5b99f 100644
+--- a/bpf/tests/tc_nodeport_l3_dev.h
++++ b/bpf/tests/tc_nodeport_l3_dev.h
+@@ -363,18 +363,18 @@ l3_check:
+ 
+ 	if (is_ipv4)
+ 		if (is_host) {
+-			if (l4->check != bpf_htons(0xb1ed))
++			if (l4->check != bpf_htons(0x118e))
+ 				test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 		} else {
+-			if (l4->check != bpf_htons(0x589c))
++			if (l4->check != bpf_htons(0xb83c))
+ 				test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 		}
+ 	else
+ 		if (is_host) {
+-			if (l4->check != bpf_htons(0xdfe1))
++			if (l4->check != bpf_htons(0x3f82))
+ 				test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 		} else {
+-			if (l4->check != bpf_htons(0xdfe3))
++			if (l4->check != bpf_htons(0x3f84))
+ 				test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 		}
+ 
+diff --git a/bpf/tests/tc_nodeport_lb4_dsr_backend.c b/bpf/tests/tc_nodeport_lb4_dsr_backend.c
+index ec8377cb87..144e34b4ea 100644
+--- a/bpf/tests/tc_nodeport_lb4_dsr_backend.c
++++ b/bpf/tests/tc_nodeport_lb4_dsr_backend.c
+@@ -243,7 +243,7 @@ int nodeport_dsr_backend_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0xd7d0))
++	if (l4->check != bpf_htons(0x3771))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	struct ipv4_ct_tuple tuple;
+@@ -359,7 +359,7 @@ static __always_inline int check_reply(const struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x01a9))
++	if (l4->check != bpf_htons(0x6149))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -549,7 +549,7 @@ int nodeport_dsr_backend_redirect_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0xcccf))
++	if (l4->check != bpf_htons(0x2c70))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	struct ipv4_ct_tuple tuple;
+@@ -676,7 +676,7 @@ int nodeport_dsr_backend_redirect_reply_check(struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0xcccf))
++	if (l4->check != bpf_htons(0x2c70))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/tc_nodeport_lb4_dsr_ipip.c b/bpf/tests/tc_nodeport_lb4_dsr_ipip.c
+index abf9f17ae5..b8ba1eb1b6 100644
+--- a/bpf/tests/tc_nodeport_lb4_dsr_ipip.c
++++ b/bpf/tests/tc_nodeport_lb4_dsr_ipip.c
+@@ -182,7 +182,7 @@ int nodeport_dsr_ipip_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 		test_fatal("src port has changed");
+ 	if (l4->dest != FRONTEND_PORT)
+ 		test_fatal("dst port has changed");
+-	if (l4->check != bpf_htons(0x01a8))
++	if (l4->check != bpf_htons(0x6148))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	tunnel_key = map_lookup_elem(&tunnel_key_map, &key);
+diff --git a/bpf/tests/tc_nodeport_lb4_dsr_lb.c b/bpf/tests/tc_nodeport_lb4_dsr_lb.c
+index 899e66d64d..9772d8a029 100644
+--- a/bpf/tests/tc_nodeport_lb4_dsr_lb.c
++++ b/bpf/tests/tc_nodeport_lb4_dsr_lb.c
+@@ -138,7 +138,7 @@ int nodeport_dsr_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l3->daddr != BACKEND_IP)
+ 		test_fatal("dst IP hasn't been NATed to remote backend IP");
+ 
+-	if (l3->check != bpf_htons(0x434a))
++	if (l3->check != bpf_htons(0xef9d))
+ 		test_fatal("L3 checksum is invalid: %x", bpf_htons(l3->check));
+ 
+ 	if (opt->type != DSR_IPV4_OPT_TYPE)
+@@ -156,7 +156,7 @@ int nodeport_dsr_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xd7cf))
++	if (l4->check != bpf_htons(0x3770))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/tc_nodeport_lb4_nat_backend.c b/bpf/tests/tc_nodeport_lb4_nat_backend.c
+index 70ad33477b..6c92e9dbf4 100644
+--- a/bpf/tests/tc_nodeport_lb4_nat_backend.c
++++ b/bpf/tests/tc_nodeport_lb4_nat_backend.c
+@@ -159,7 +159,7 @@ int nodeport_nat_backend_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x3c62))
++	if (l4->check != bpf_htons(0x9c02))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/tc_nodeport_lb4_nat_lb.c b/bpf/tests/tc_nodeport_lb4_nat_lb.c
+index 112ea97c75..31e2cc83cc 100644
+--- a/bpf/tests/tc_nodeport_lb4_nat_lb.c
++++ b/bpf/tests/tc_nodeport_lb4_nat_lb.c
+@@ -259,7 +259,7 @@ int nodeport_local_backend_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst TCP port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xd7d0))
++	if (l4->check != bpf_htons(0x3771))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -352,7 +352,7 @@ int nodeport_local_backend_reply_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x01a9))
++	if (l4->check != bpf_htons(0x6149))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -447,7 +447,7 @@ int nodeport_local_backend_redirect_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst TCP port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xcccf))
++	if (l4->check != bpf_htons(0x2c70))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -542,7 +542,7 @@ int nodeport_local_backend_redirect_reply_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0xcccf))
++	if (l4->check != bpf_htons(0x2c70))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -819,7 +819,7 @@ static __always_inline int check_reply(const struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port hasn't been RevNATed to client port");
+ 
+-	if (l4->check != bpf_htons(0x1a8))
++	if (l4->check != bpf_htons(0x6148))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/tc_nodeport_lb4_wildcard_drop.c b/bpf/tests/tc_nodeport_lb4_wildcard_drop.c
+index fcf0daed8d..937397fb08 100644
+--- a/bpf/tests/tc_nodeport_lb4_wildcard_drop.c
++++ b/bpf/tests/tc_nodeport_lb4_wildcard_drop.c
+@@ -151,7 +151,7 @@ static __always_inline int validate_packet(const struct __ctx_buff *ctx,
+ 		assert(l4->source == CLIENT_PORT);
+ 		assert(l4->dest == dport);
+ 		assert(l4->syn == 1);
+-		assert(l4->seq == 123456);
++		assert(l4->seq == bpf_htonl(123456));
+ 		assert(l4->window == 65535);
+ 		assert(l4->doff == 5);
+ 
+diff --git a/bpf/tests/tc_nodeport_lb6_dsr_backend.c b/bpf/tests/tc_nodeport_lb6_dsr_backend.c
+index 650e302d62..531d1ddc3c 100644
+--- a/bpf/tests/tc_nodeport_lb6_dsr_backend.c
++++ b/bpf/tests/tc_nodeport_lb6_dsr_backend.c
+@@ -359,7 +359,7 @@ int check_reply(const struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x2dbc))
++	if (l4->check != bpf_htons(0x8d5c))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/tc_nodeport_lb6_dsr_ipip.c b/bpf/tests/tc_nodeport_lb6_dsr_ipip.c
+index 3de7b6fb05..78ecdd3bbe 100644
+--- a/bpf/tests/tc_nodeport_lb6_dsr_ipip.c
++++ b/bpf/tests/tc_nodeport_lb6_dsr_ipip.c
+@@ -191,7 +191,7 @@ int nodeport_dsr_ipip6_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 		test_fatal("src port has changed");
+ 	if (l4->dest != FRONTEND_PORT)
+ 		test_fatal("dst port has changed");
+-	if (l4->check != bpf_htons(0x2dbc))
++	if (l4->check != bpf_htons(0x8d5c))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	tunnel_key = map_lookup_elem(&tunnel_key_map, &key);
+diff --git a/bpf/tests/tc_nodeport_lb6_dsr_lb.c b/bpf/tests/tc_nodeport_lb6_dsr_lb.c
+index 34360a48dd..27456dd4f6 100644
+--- a/bpf/tests/tc_nodeport_lb6_dsr_lb.c
++++ b/bpf/tests/tc_nodeport_lb6_dsr_lb.c
+@@ -167,7 +167,7 @@ int nodeport_dsr_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0x0d7c))
++	if (l4->check != bpf_htons(0x6d1c))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/tc_nodeport_lb6_no_backend.c b/bpf/tests/tc_nodeport_lb6_no_backend.c
+index e0727518c3..c7f35613e6 100644
+--- a/bpf/tests/tc_nodeport_lb6_no_backend.c
++++ b/bpf/tests/tc_nodeport_lb6_no_backend.c
+@@ -132,7 +132,7 @@ validate_icmp_reply(const struct __ctx_buff *ctx, __u32 retval)
+ 	 * context with the runner option and importing the packet into
+ 	 * wireshark
+ 	 */
+-	assert(l4->icmp6_cksum == bpf_htons(0x9e14));
++	assert(l4->icmp6_cksum == bpf_htons(0x9b17));
+ 
+ 	struct ratelimit_key key = {
+ 		.usage = RATELIMIT_USAGE_ICMPV6,
+diff --git a/bpf/tests/tc_nodeport_lb6_wildcard_drop.c b/bpf/tests/tc_nodeport_lb6_wildcard_drop.c
+index 63a5a37cf6..dd7fe5c0db 100644
+--- a/bpf/tests/tc_nodeport_lb6_wildcard_drop.c
++++ b/bpf/tests/tc_nodeport_lb6_wildcard_drop.c
+@@ -150,7 +150,7 @@ static __always_inline int validate_packet(const struct __ctx_buff *ctx,
+ 		assert(l4->source == CLIENT_PORT);
+ 		assert(l4->dest == dport);
+ 		assert(l4->syn == 1);
+-		assert(l4->seq == 123456);
++		assert(l4->seq == bpf_htonl(123456));
+ 		assert(l4->window == 65535);
+ 		assert(l4->doff == 5);
+ 
+diff --git a/bpf/tests/tc_nodeport_test.c b/bpf/tests/tc_nodeport_test.c
+index f8d8c84955..0e47a74210 100644
+--- a/bpf/tests/tc_nodeport_test.c
++++ b/bpf/tests/tc_nodeport_test.c
+@@ -133,7 +133,7 @@ int hairpin_flow_forward_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l3->daddr != v4_pod_one)
+ 		test_fatal("dest IP hasn't been changed to the pod IP");
+ 
+-	if (l3->check != bpf_htons(-0x4f02))
++	if (l3->check != bpf_htons((__u16)-0x4f02))
+ 		test_fatal("L3 checksum is invalid: %x", bpf_htons(l3->check));
+ 
+ 	l4 = (void *)l3 + sizeof(struct iphdr);
+@@ -147,7 +147,7 @@ int hairpin_flow_forward_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != tcp_dst_one)
+ 		test_fatal("dst TCP port incorrect");
+ 
+-	if (l4->check != bpf_htons(0xb846))
++	if (l4->check != bpf_htons(0x17e7))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	struct ipv4_ct_tuple tuple = {};
+@@ -258,7 +258,7 @@ int hairpin_flow_forward_ingress_check(__maybe_unused const struct __ctx_buff *c
+ 	if (l3->daddr != v4_pod_one)
+ 		test_fatal("dest IP changed");
+ 
+-	if (l3->check != bpf_htons(-0x5002))
++	if (l3->check != bpf_htons((__u16)-0x5002))
+ 		test_fatal("L3 checksum is invalid: %x", bpf_htons(l3->check));
+ 
+ 	l4 = (void *)l3 + sizeof(struct iphdr);
+@@ -272,7 +272,7 @@ int hairpin_flow_forward_ingress_check(__maybe_unused const struct __ctx_buff *c
+ 	if (l4->dest != tcp_dst_one)
+ 		test_fatal("dst TCP port changed");
+ 
+-	if (l4->check != bpf_htons(0xb846))
++	if (l4->check != bpf_htons(0x17e7))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	struct ipv4_ct_tuple tuple = {};
+@@ -380,7 +380,7 @@ int hairpin_flow_rev_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != tcp_src_one)
+ 		test_fatal("dst TCP port changed");
+ 
+-	if (l4->check != bpf_htons(0xb836))
++	if (l4->check != bpf_htons(0x17d7))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -470,7 +470,7 @@ int hairpin_flow_reverse_ingress_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != tcp_src_one)
+ 		test_fatal("dst TCP port incorrect");
+ 
+-	if (l4->check != bpf_htons(0x6325))
++	if (l4->check != bpf_htons(0xc2c5))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -612,7 +612,7 @@ int hairpin_flow_forward_check_v6(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != tcp_dst_one)
+ 		test_fatal("dst TCP port incorrect");
+ 
+-	if (l4->check != bpf_htons(0x88f8))
++	if (l4->check != bpf_htons(0xe898))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	struct ipv6_ct_tuple tuple = {};
+@@ -726,7 +726,7 @@ int hairpin_flow_forward_ingress_check_v6(__maybe_unused const struct __ctx_buff
+ 	if (l4->dest != tcp_dst_one)
+ 		test_fatal("dst TCP port changed");
+ 
+-	if (l4->check != bpf_htons(0x88f8))
++	if (l4->check != bpf_htons(0xe898))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	struct ipv6_ct_tuple tuple = {};
+@@ -829,7 +829,7 @@ int hairpin_flow_rev_check_v6(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != tcp_src_one)
+ 		test_fatal("dst TCP port changed");
+ 
+-	if (l4->check != bpf_htons(0x88e8))
++	if (l4->check != bpf_htons(0xe888))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -913,7 +913,7 @@ int hairpin_flow_reverse_ingress_check_v6(const struct __ctx_buff *ctx)
+ 	if (l4->dest != tcp_src_one)
+ 		test_fatal("dst TCP port incorrect");
+ 
+-	if (l4->check != bpf_htons(0xdfd1))
++	if (l4->check != bpf_htons(0x3f72))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/xdp_egressgw_reply.c b/bpf/tests/xdp_egressgw_reply.c
+index 02929dccc8..67afef2788 100644
+--- a/bpf/tests/xdp_egressgw_reply.c
++++ b/bpf/tests/xdp_egressgw_reply.c
+@@ -98,7 +98,7 @@ SETUP("xdp", "xdp_egressgw_reply")
+ int egressgw_reply_setup(struct __ctx_buff *ctx)
+ {
+ 	/* install EgressGW policy for the connection: */
+-	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24, GATEWAY_NODE_IP, 0);
++	add_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24, GATEWAY_NODE_IP, 0);
+ 
+ 	/* install RevSNAT entry */
+ 	struct ipv4_ct_tuple snat_tuple = {
+@@ -218,7 +218,7 @@ int egressgw_reply_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (inner_l4->dest != client_port(TEST_XDP_REPLY))
+ 		test_fatal("innerDstPort hasn't been revNATed to client port");
+ 
+-	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & 0xffffff, 24);
++	del_egressgw_policy_entry(CLIENT_IP, EXTERNAL_SVC_IP & bpf_htonl(0xFFFFFF00), 24);
+ 
+ 	test_finish();
+ }
+diff --git a/bpf/tests/xdp_nodeport_lb4_dsr_ipip.c b/bpf/tests/xdp_nodeport_lb4_dsr_ipip.c
+index 12aeb28bcd..bda4f0fb1f 100644
+--- a/bpf/tests/xdp_nodeport_lb4_dsr_ipip.c
++++ b/bpf/tests/xdp_nodeport_lb4_dsr_ipip.c
+@@ -175,7 +175,7 @@ int nodeport_dsr_ipip_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 		test_fatal("innerSrcPort has changed");
+ 	if (l4->dest != FRONTEND_PORT)
+ 		test_fatal("innerDstPort has changed");
+-	if (l4->check != bpf_htons(0x01a8))
++	if (l4->check != bpf_htons(0x6148))
+ 		test_fatal("inner L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/xdp_nodeport_lb4_dsr_lb.c b/bpf/tests/xdp_nodeport_lb4_dsr_lb.c
+index d0e1f94c91..20f0219255 100644
+--- a/bpf/tests/xdp_nodeport_lb4_dsr_lb.c
++++ b/bpf/tests/xdp_nodeport_lb4_dsr_lb.c
+@@ -148,7 +148,7 @@ int nodeport_dsr_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l3->daddr != BACKEND_IP)
+ 		test_fatal("dst IP hasn't been NATed to remote backend IP");
+ 
+-	if (l3->check != bpf_htons(0x434a))
++	if (l3->check != bpf_htons(0xef9d))
+ 		test_fatal("L3 checksum is invalid: %x", bpf_htons(l3->check));
+ 
+ 	if (opt->type != DSR_IPV4_OPT_TYPE)
+@@ -166,7 +166,7 @@ int nodeport_dsr_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xd7cf))
++	if (l4->check != bpf_htons(0x3770))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/xdp_nodeport_lb4_nat_backend.c b/bpf/tests/xdp_nodeport_lb4_nat_backend.c
+index e4fa169fc9..0c93289305 100644
+--- a/bpf/tests/xdp_nodeport_lb4_nat_backend.c
++++ b/bpf/tests/xdp_nodeport_lb4_nat_backend.c
+@@ -139,7 +139,7 @@ int nodeport_nat_backend_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port has changed");
+ 
+-	if (l4->check != bpf_htons(0x3c62))
++	if (l4->check != bpf_htons(0x9c02))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/xdp_nodeport_lb4_nat_lb.c b/bpf/tests/xdp_nodeport_lb4_nat_lb.c
+index abaab0b560..c1751a35ae 100644
+--- a/bpf/tests/xdp_nodeport_lb4_nat_lb.c
++++ b/bpf/tests/xdp_nodeport_lb4_nat_lb.c
+@@ -190,7 +190,7 @@ int nodeport_local_backend_check(const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst TCP port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0xd7d0))
++	if (l4->check != bpf_htons(0x3771))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+@@ -489,7 +489,7 @@ static __always_inline int check_reply(const struct __ctx_buff *ctx)
+ 	if (l4->dest != CLIENT_PORT)
+ 		test_fatal("dst port hasn't been RevNATed to client port");
+ 
+-	if (l4->check != bpf_htons(0x01a8))
++	if (l4->check != bpf_htons(0x6148))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/xdp_nodeport_lb4_test.c b/bpf/tests/xdp_nodeport_lb4_test.c
+index 5bd09e37ca..9fe102e511 100644
+--- a/bpf/tests/xdp_nodeport_lb4_test.c
++++ b/bpf/tests/xdp_nodeport_lb4_test.c
+@@ -3,6 +3,7 @@
+ 
+ #include <bpf/ctx/xdp.h>
+ #include "common.h"
++#include "pktgen.h"
+ 
+ #define ENABLE_IPV4
+ #define ENABLE_NODEPORT
+@@ -28,78 +29,37 @@ ASSIGN_CONFIG(bool, enable_no_service_endpoints_routable, true)
+ 
+ #include "lib/lb.h"
+ 
+-#define FRONTEND_IP 0x0F00010A /* 10.0.1.15 */
+-#define FRONTEND_PORT 80
+-#define BACKEND_IP 0x0F00020A /* 10.2.0.15 */
+-#define BACKEND_PORT 8080
++#define CLIENT_IP		IPV4(15, 0, 0, 10)
++#define CLIENT_PORT		bpf_htons(23445)
++#define FRONTEND_IP		IPV4(15, 0, 1, 10)
++#define FRONTEND_PORT		bpf_htons(80)
++#define BACKEND_IP		IPV4(15, 0, 2, 10)
++#define BACKEND_PORT		bpf_htons(8080)
+ 
+-static long (*bpf_xdp_adjust_tail)(struct xdp_md *xdp_md, int delta) = (void *)65;
++static const char client_mac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
++static const char node_mac[6]   = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67};
+ 
+-static __always_inline int build_packet(struct __ctx_buff *ctx)
++PKTGEN("xdp", "xdp_lb4_forward_to_other_node")
++int test1_pktgen(struct __ctx_buff *ctx)
+ {
+-	/* Create room for our packet to be crafted */
+-	unsigned int data_len = ctx->data_end - ctx->data;
++	struct pktgen builder;
++	struct tcphdr *l4;
++	void *data;
+ 
+-	int offset = offset = 4096 - 256 - 320 - data_len;
++	pktgen__init(&builder, ctx);
+ 
+-	bpf_xdp_adjust_tail(ctx, offset);
+-
+-	void *data = (void *)(long)ctx->data;
+-	void *data_end = (void *)(long)ctx->data_end;
+-
+-	if (data + sizeof(struct ethhdr) > data_end)
++	l4 = pktgen__push_ipv4_tcp_packet(&builder,
++					  (__u8 *)client_mac, (__u8 *)node_mac,
++					  CLIENT_IP, FRONTEND_IP,
++					  CLIENT_PORT, FRONTEND_PORT);
++	if (!l4)
+ 		return TEST_ERROR;
+ 
+-	struct ethhdr l2 = {
+-		.h_source = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF},
+-		.h_dest = {0x12, 0x23, 0x34, 0x45, 0x56, 0x67},
+-		.h_proto = bpf_htons(ETH_P_IP)
+-	};
+-	memcpy(data, &l2, sizeof(struct ethhdr));
+-	data += sizeof(struct ethhdr);
+-
+-	if (data + sizeof(struct iphdr) > data_end)
++	data = pktgen__push_data(&builder, default_data, sizeof(default_data));
++	if (!data)
+ 		return TEST_ERROR;
+ 
+-	struct iphdr l3 = {
+-		.version = 4,
+-		.ihl = 5,
+-		.tot_len = 40, /* 20 bytes l3 + 20 bytes l4 + 20 bytes data */
+-		.id = 0x5438,
+-		.frag_off = bpf_htons(IP_DF),
+-		.ttl = 64,
+-		.protocol = IPPROTO_TCP,
+-		.saddr = 0x0F00000A, /* 10.0.0.15 */
+-		.daddr = FRONTEND_IP,
+-	};
+-	memcpy(data, &l3, sizeof(struct iphdr));
+-	data += sizeof(struct iphdr);
+-
+-	char tcp_data[20] = "Should not change!!";
+-
+-	/* TCP header + data */
+-	if (data + (sizeof(struct tcphdr) + sizeof(tcp_data)) > data_end)
+-		return TEST_ERROR;
+-
+-	struct tcphdr l4 = {
+-		.source = 23445,
+-		.dest = FRONTEND_PORT,
+-		.seq = 2922048129,
+-		.doff = 0, /* no options */
+-		.syn = 1,
+-		.window = 64240,
+-	};
+-	memcpy(data, &l4, sizeof(struct tcphdr));
+-
+-	char *tcp_data_ptr = data + sizeof(tcp_data);
+-
+-	memcpy(tcp_data_ptr, tcp_data, sizeof(tcp_data));
+-
+-	data += sizeof(struct tcphdr) + sizeof(tcp_data);
+-
+-	/* Shrink ctx to the exact size we used */
+-	offset = (int)((long)data - (long)ctx->data_end);
+-	bpf_xdp_adjust_tail(ctx, offset);
++	pktgen__finish(&builder);
+ 
+ 	return 0;
+ }
+@@ -107,12 +67,6 @@ static __always_inline int build_packet(struct __ctx_buff *ctx)
+ SETUP("xdp", "xdp_lb4_forward_to_other_node")
+ int test1_setup(struct __ctx_buff *ctx)
+ {
+-	int ret;
+-
+-	ret = build_packet(ctx);
+-	if (ret)
+-		return ret;
+-
+ 	lb_v4_add_service(FRONTEND_IP, FRONTEND_PORT, IPPROTO_TCP, 1, 1);
+ 	lb_v4_add_backend(FRONTEND_IP, FRONTEND_PORT, 1, 124,
+ 			  BACKEND_IP, BACKEND_PORT, IPPROTO_TCP, 0);
+@@ -171,31 +125,37 @@ int test1_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port != backend port");
+ 
+-	if (l4->check != bpf_htons(0xc9ee))
+-		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
++	test_finish();
++}
++
++PKTGEN("xdp", "xdp_lb4_drop_no_backend")
++int test2_pktgen(struct __ctx_buff *ctx)
++{
++	struct pktgen builder;
++	struct tcphdr *l4;
++	void *data;
+ 
+-	char msg[20] = "Should not change!!";
++	pktgen__init(&builder, ctx);
+ 
+-	if (data + sizeof(msg) > data_end)
+-		test_fatal("ctx doesn't fit tcp body");
++	l4 = pktgen__push_ipv4_tcp_packet(&builder,
++					  (__u8 *)client_mac, (__u8 *)node_mac,
++					  CLIENT_IP, FRONTEND_IP,
++					  CLIENT_PORT, FRONTEND_PORT);
++	if (!l4)
++		return TEST_ERROR;
+ 
+-	char *body = data;
++	data = pktgen__push_data(&builder, default_data, sizeof(default_data));
++	if (!data)
++		return TEST_ERROR;
+ 
+-	if (memcmp(body, msg, sizeof(msg)) != 0)
+-		test_fatal("body changed");
++	pktgen__finish(&builder);
+ 
+-	test_finish();
++	return 0;
+ }
+ 
+ SETUP("xdp", "xdp_lb4_drop_no_backend")
+ int test2_setup(struct __ctx_buff *ctx)
+ {
+-	int ret;
+-
+-	ret = build_packet(ctx);
+-	if (ret)
+-		return ret;
+-
+ 	lb_v4_add_service(FRONTEND_IP, FRONTEND_PORT, IPPROTO_TCP, 0, 1);
+ 
+ 	return xdp_receive_packet(ctx);
+diff --git a/bpf/tests/xdp_nodeport_lb6_dsr_ipip.c b/bpf/tests/xdp_nodeport_lb6_dsr_ipip.c
+index 6d1a70735a..3f3f68559a 100644
+--- a/bpf/tests/xdp_nodeport_lb6_dsr_ipip.c
++++ b/bpf/tests/xdp_nodeport_lb6_dsr_ipip.c
+@@ -181,7 +181,7 @@ int nodeport_dsr_ipip6_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 		test_fatal("innerSrcPort has changed");
+ 	if (l4->dest != FRONTEND_PORT)
+ 		test_fatal("innerDstPort has changed");
+-	if (l4->check != bpf_htons(0x2dbc))
++	if (l4->check != bpf_htons(0x8d5c))
+ 		test_fatal("inner L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/bpf/tests/xdp_nodeport_lb6_dsr_lb.c b/bpf/tests/xdp_nodeport_lb6_dsr_lb.c
+index 4305ed31ff..109746d19d 100644
+--- a/bpf/tests/xdp_nodeport_lb6_dsr_lb.c
++++ b/bpf/tests/xdp_nodeport_lb6_dsr_lb.c
+@@ -177,7 +177,7 @@ int nodeport_dsr_fwd_check(__maybe_unused const struct __ctx_buff *ctx)
+ 	if (l4->dest != BACKEND_PORT)
+ 		test_fatal("dst port hasn't been NATed to backend port");
+ 
+-	if (l4->check != bpf_htons(0x0d7c))
++	if (l4->check != bpf_htons(0x6d1c))
+ 		test_fatal("L4 checksum is invalid: %x", bpf_htons(l4->check));
+ 
+ 	test_finish();
+diff --git a/images/Makefile b/images/Makefile
+index d263761af5..2a52d335d1 100644
+--- a/images/Makefile
++++ b/images/Makefile
+@@ -12,7 +12,7 @@ ifeq ($(PUSH),true)
+ OUTPUT := "type=registry,push=true"
+ endif
+ 
+-PLATFORMS=linux/amd64,linux/arm64
++PLATFORMS?=linux/amd64,linux/arm64
+ RUNTIME_IMAGE=quay.io/cilium/cilium-runtime
+ RUNTIME_DIRECTORY?=images/runtime
+ 
+diff --git a/images/builder/Dockerfile b/images/builder/Dockerfile
+index e3814e929f..33e1335f12 100644
+--- a/images/builder/Dockerfile
++++ b/images/builder/Dockerfile
+@@ -53,7 +53,7 @@ RUN \
+     apt-get clean && \
+     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ 
+-COPY --from=compilers-image /usr/lib/aarch64-linux-gnu /usr/lib/aarch64-linux-gnu
++# COPY --from=compilers-image /usr/lib/aarch64-linux-gnu /usr/lib/aarch64-linux-gnu
+ 
+ COPY --from=golang-dist /usr/local/go /usr/local/go
+ RUN mkdir -p /go
+@@ -61,7 +61,7 @@ ENV GOROOT=/usr/local/go
+ ENV GOPATH=/go
+ ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
+ 
+-RUN GOARCH=${TARGETARCH} CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest
++#RUN GOARCH=${TARGETARCH} CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest
+ 
+ WORKDIR /go/src/github.com/cilium/cilium/images/builder
+ RUN --mount=type=bind,readwrite,target=/go/src/github.com/cilium/cilium/images/builder \
+diff --git a/images/builder/install-protoc.sh b/images/builder/install-protoc.sh
+index 4b0211377d..5e75e56d7c 100755
+--- a/images/builder/install-protoc.sh
++++ b/images/builder/install-protoc.sh
+@@ -9,11 +9,13 @@ set -o pipefail
+ set -o nounset
+ 
+ # renovate: datasource=github-release-attachments depName=protocolbuffers/protobuf
+-protoc_version="v34.1"
++protoc_version="v34.2"
+ protoc_ersion="${protoc_version//v/}"
+ arch=$(arch)
+ if [[ "${arch}" == "aarch64" ]]; then
+   arch="aarch_64"
++elif [[ "${arch}" == "s390x" ]]; then
++  arch="s390_64"
+ fi
+ 
+ curl --fail --show-error --silent --location \
+diff --git a/images/builder/test/spec.yaml b/images/builder/test/spec.yaml
+index 24f0b7d2f1..764661e6be 100644
+--- a/images/builder/test/spec.yaml
++++ b/images/builder/test/spec.yaml
+@@ -22,4 +22,4 @@ commandTests:
+   command: "protoc"
+   args: ["--version"]
+   expectedOutput:
+-  - 'libprotoc\ 32\.0'
++  - 'libprotoc\ 34\.2'
+diff --git a/images/runtime/cni-version.sh b/images/runtime/cni-version.sh
+index 63b1642940..281b11683f 100644
+--- a/images/runtime/cni-version.sh
++++ b/images/runtime/cni-version.sh
+@@ -3,3 +3,4 @@ cni_version="1.9.1"
+ declare -A cni_sha512
+ cni_sha512[amd64]="3ea8a76852b7ddc62c087a34cccca2cb29822ca24214928cd172b28bf9d1486000ba3eb71a156445af31ff6a92c1dc3e01e702546c6ee016ef13fae06ccfb8fc"
+ cni_sha512[arm64]="a7c56f8f53c026c73e23f306fbc2a83b6f10d1ee74eca0e1de76e7614e72f1881bc6c4e77e82d033d79482b2d3bc7e2bc7276b1ee1f2b3f722a1185d94f8235e"
++cni_sha512[s390x]="839452de716f2e79d3a35b1d1c8644855abd9ca3bd3bb7531070a02643cc8de7fa53ab81064eac3ff835552ace6c589c3895078600eda5bb376ca6a3db913574"
+diff --git a/images/runtime/download-cni.sh b/images/runtime/download-cni.sh
+index 187968f787..f7a5e22dbf 100755
+--- a/images/runtime/download-cni.sh
++++ b/images/runtime/download-cni.sh
+@@ -11,7 +11,7 @@ set -o nounset
+ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ # shellcheck source=cni-version.sh
+ source "${script_dir}/cni-version.sh"
+-
++echo "https://github.com/containernetworking/plugins/releases/download/v${cni_version}/cni-plugins-linux-${TARGETARCH}-v${cni_version}.tgz"
+ curl --fail --show-error --silent --location "https://github.com/containernetworking/plugins/releases/download/v${cni_version}/cni-plugins-linux-${TARGETARCH}-v${cni_version}.tgz" --output "/tmp/cni-${TARGETARCH}.tgz"
+ printf "%s %s" "${cni_sha512[${TARGETARCH}]}" "/tmp/cni-${TARGETARCH}.tgz" | sha512sum -c
+ mkdir -p "/out/cni"
+diff --git a/images/scripts/build-image.sh b/images/scripts/build-image.sh
+index a140afb228..5ad8db7494 100755
+--- a/images/scripts/build-image.sh
++++ b/images/scripts/build-image.sh
+@@ -94,23 +94,62 @@ fi
+ do_test="${TEST:-false}"
+ 
+ run_buildx() {
++  local has_release_stage=false
++  local has_test_stage=false
++
++  if grep -Eiq '^[[:space:]]*FROM[[:space:]].*[[:space:]]AS[[:space:]]+release([[:space:]]|$)' "${image_dir}/Dockerfile"; then
++    has_release_stage=true
++  fi
++  if grep -Eiq '^[[:space:]]*FROM[[:space:]].*[[:space:]]AS[[:space:]]+test([[:space:]]|$)' "${image_dir}/Dockerfile"; then
++    has_test_stage=true
++  fi
+   build_args=(
+     "--platform=${platform}"
+     "--builder=${builder}"
+-    "--target=release"
+     "--file=${image_dir}/Dockerfile"
+   )
++  for build_arg_name in \
++    GOLANG_IMAGE \
++    UBUNTU_IMAGE \
++    ALPINE_IMAGE \
++    BASE_IMAGE \
++    COMPILERS_IMAGE \
++    TESTER_IMAGE \
++    OPERATOR_VARIANT \
++    MODIFIERS \
++    CILIUM_BUILDER_IMAGE \
++    CILIUM_RUNTIME_IMAGE \
++    CILIUM_ENVOY_IMAGE \
++    CILIUM_LLVM_IMAGE \
++    CILIUM_BPFTOOL_IMAGE \
++    CILIUM_IPTABLES_IMAGE
++  do
++    build_arg_value="${!build_arg_name:-}"
++    if [ -n "${build_arg_value}" ] ; then
++      build_args+=("--build-arg=${build_arg_name}=${build_arg_value}")
++    fi
++  done
+   if [ "${with_root_context}" = "false" ] ; then
+     build_args+=("${image_dir}")
+   else
+     build_args+=("${root_dir}")
+   fi
++  if [ "${has_release_stage}" = "true" ] ; then
++    release_target_args+=("--target=release")
++  fi
++  if [ "${has_test_stage}" = "true" ] ; then
++    test_target_args+=("--target=test")
++  fi
+   if [ "${do_test}" = "true" ] ; then
+-    if ! docker buildx build --target=test "${build_args[@]}" ; then
+-      exit 1
++    if [ "${has_test_stage}" = "true" ] ; then
++      if ! docker buildx build --target=test "${build_args[@]}" ; then
++        exit 1
++      fi
++    else
++      echo "skipping test target for ${image_dir}/Dockerfile: stage 'test' not found"
+     fi
+   fi
+-  docker buildx build --output="${output}" "${tag_args[@]}" "${build_args[@]}"
++  docker buildx build --output="${output}" "${tag_args[@]}" "${release_target_args[@]}" "${build_args[@]}"
+ }
+ 
+ if [ "${do_build}" = "true" ] ; then
+diff --git a/images/scripts/update-cni-version.sh b/images/scripts/update-cni-version.sh
+index 9d1aadb30d..bdd137c2d1 100755
+--- a/images/scripts/update-cni-version.sh
++++ b/images/scripts/update-cni-version.sh
+@@ -24,7 +24,7 @@ cni_version="${1}"
+ # an old version that doesn't support associative arrays
+ cni_sha512=()
+ 
+-for arch in amd64 arm64 ; do
++for arch in amd64 arm64 s390x ; do
+   tmpout="$(mktemp)"
+   curl --fail --show-error --silent --location \
+     "https://github.com/containernetworking/plugins/releases/download/v${cni_version}/cni-plugins-linux-${arch}-v${cni_version}.tgz.sha512" \
+@@ -40,4 +40,5 @@ cni_version="${cni_version}"
+ declare -A cni_sha512
+ cni_sha512[amd64]="${cni_sha512[0]}"
+ cni_sha512[arm64]="${cni_sha512[1]}"
++cni_sha512[s390x]="${cni_sha512[2]}"
+ EOF
+diff --git a/operator/api/metrics_test.go b/operator/api/metrics_test.go
+index 7aa84cdfa8..fc5e108537 100644
+--- a/operator/api/metrics_test.go
++++ b/operator/api/metrics_test.go
+@@ -208,8 +208,11 @@ func TestMetricsHandlermTLS(t *testing.T) {
+ 
+ 	rr := httptest.NewRecorder()
+ 
++	// Clean up any leftover directory from a previous crashed run
++	os.RemoveAll(certDir)
+ 	err := os.Mkdir(certDir, 0755)
+ 	require.NoError(t, err)
++	t.Cleanup(func() { os.RemoveAll(certDir) })
+ 	caCert, caKey := newCA(t)
+ 	writeNewCertAndKey(t, caCert, caKey, serverCertPath, serverKeyPath)
+ 
+diff --git a/pkg/act/act_test.go b/pkg/act/act_test.go
+index b09e8ed736..54a50ce063 100644
+--- a/pkg/act/act_test.go
++++ b/pkg/act/act_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"github.com/cilium/hive/hivetest"
+ 	"github.com/stretchr/testify/require"
+ 
++	"github.com/cilium/cilium/pkg/byteorder"
+ 	"github.com/cilium/cilium/pkg/loadbalancer"
+ 	"github.com/cilium/cilium/pkg/maps/act"
+ 	"github.com/cilium/cilium/pkg/option"
+@@ -305,8 +306,13 @@ func TestReconcileServices(t *testing.T) {
+ 		123: {24: nl, 26: nl, 27: nl, 29: nl},
+ 		124: {25: nl, 26: nl, 27: nl, 28: nl},
+ 	}
+-	// {24, 26, 27} but in host byte order
+-	activeServices := []loadbalancer.ServiceID{24 * 256, 26 * 256, 27 * 256}
++	// Service IDs are stored in the tracker map after HostToNetwork16 conversion.
++	// Use the same conversion here so the test is endian-portable.
++	activeServices := []loadbalancer.ServiceID{
++		loadbalancer.ServiceID(byteorder.HostToNetwork16(24)),
++		loadbalancer.ServiceID(byteorder.HostToNetwork16(26)),
++		loadbalancer.ServiceID(byteorder.HostToNetwork16(27)),
++	}
+ 	a.svcIDs = func() []loadbalancer.ServiceID {
+ 		return activeServices
+ 	}
+diff --git a/pkg/byteorder/byteorder_bigendian.go b/pkg/byteorder/byteorder_bigendian.go
+index 7b0873f82d..5c46e1bcdc 100644
+--- a/pkg/byteorder/byteorder_bigendian.go
++++ b/pkg/byteorder/byteorder_bigendian.go
+@@ -1,7 +1,7 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // Copyright Authors of Cilium
+ 
+-//go:build armbe || arm64be || mips || mips64 || ppc64
++//go:build armbe || arm64be || mips || mips64 || ppc64 || s390x
+ 
+ package byteorder
+ 
+diff --git a/pkg/datapath/iptables/iptables_test.go b/pkg/datapath/iptables/iptables_test.go
+index 575707d8e8..6204705a2f 100644
+--- a/pkg/datapath/iptables/iptables_test.go
++++ b/pkg/datapath/iptables/iptables_test.go
+@@ -10,6 +10,9 @@ import (
+ 	"testing"
+ 
+ 	"github.com/stretchr/testify/assert"
++
++	"github.com/cilium/cilium/pkg/byteorder"
++	linux_defaults "github.com/cilium/cilium/pkg/datapath/linux/linux_defaults"
+ 	"github.com/stretchr/testify/require"
+ 	"github.com/vishvananda/netlink"
+ )
+@@ -74,6 +77,29 @@ func (ipt *mockIptables) checkExpectations() error {
+ 	return nil
+ }
+ 
++
++// proxyMark computes the iptables mark hex string for a given proxy port,
++// matching the formula in Manager.iptProxyRule: port := uint32(byteorder.HostToNetwork16(proxyPort)) << 16
++func proxyMark(proxyPort uint16) string {
++	port := uint32(byteorder.HostToNetwork16(proxyPort)) << 16
++	return fmt.Sprintf("%#x", linux_defaults.MagicMarkIsToProxy|port)
++}
++
++// replaceMarks translates hardcoded little-endian proxy mark hex values to the
++// architecture-correct values computed by proxyMark(). On little-endian systems
++// this is a no-op; on big-endian (s390x), the marks change because
++// HostToNetwork16 is a no-op on BE, producing different shifted values.
++func replaceMarks(s string) string {
++	replacer := strings.NewReplacer(
++		"0xd5a90200", proxyMark(43477),
++		"0xd7a90200", proxyMark(43479),
++		"0x3920200", proxyMark(37379),
++		"0x4920200", proxyMark(37380),
++		"0xd8a90200", proxyMark(43480),
++	)
++	return replacer.Replace(s)
++}
++
+ var mockManager = &Manager{
+ 	haveIp6tables:        false,
+ 	haveSocketMatch:      true,
+@@ -119,7 +145,7 @@ func TestCopyProxyRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -135,11 +161,11 @@ func TestCopyProxyRulesv4(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-random-proxy proxy" -j TPROXY --on-port 43499 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+@@ -156,7 +182,7 @@ func TestCopyProxyRulesv6(t *testing.T) {
+ 	mockIp6tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -172,11 +198,11 @@ func TestCopyProxyRulesv6(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-random-proxy proxy" -j TPROXY --on-port 43499 --on-ip :: --tproxy-mark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+@@ -193,7 +219,7 @@ func TestAddProxyRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -212,11 +238,11 @@ func TestAddProxyRulesv4(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -m socket --transparent -m comment --comment "cilium: any->pod redirect proxied traffic to host proxy" -j MARK --set-xmark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379"),
+ 		},
+ 	}
+ 
+@@ -230,7 +256,7 @@ func TestAddProxyRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -251,7 +277,7 @@ func TestAddProxyRulesv4(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		},
+ 	}
+ 
+@@ -265,7 +291,7 @@ func TestAddProxyRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -286,15 +312,15 @@ func TestAddProxyRulesv4(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380"),
+ 		}, {
+-			args: "-t mangle -D CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -D CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+@@ -308,7 +334,7 @@ func TestAddProxyRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -329,15 +355,15 @@ func TestAddProxyRulesv4(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37379"),
+ 		}, {
+-			args: "-t mangle -D CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -D CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 37379 --on-ip 0.0.0.0 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+@@ -351,7 +377,7 @@ func TestAddProxyRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -372,11 +398,11 @@ func TestAddProxyRulesv4(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0x3920200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 37379 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0x4920200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip 127.0.0.1 --on-port 37380"),
+ 		},
+ 	}
+ 
+@@ -393,7 +419,7 @@ func TestGetProxyPorts(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -n -L CILIUM_PRE_mangle",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`Chain CILIUM_PRE_mangle (1 references)
+ target     prot opt source               destination
+ MARK       all  --  0.0.0.0/0            0.0.0.0/0            socket --transparent /* cilium: any->pod redirect proxied traffic to host proxy */ MARK set 0x200
+@@ -401,7 +427,7 @@ TPROXY     tcp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd5a90
+ TPROXY     udp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd5a90200 /* cilium: TPROXY to host cilium-dns-egress proxy */ TPROXY redirect 127.0.0.1:43477 mark 0x200/0xffffffff
+ TPROXY     tcp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd7a90200 /* cilium: TPROXY to host cilium-dns-egress proxy */ TPROXY redirect 127.0.0.1:43479 mark 0x200/0xffffffff
+ TPROXY     udp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd7a90200 /* cilium: TPROXY to host cilium-dns-egress proxy */ TPROXY redirect 127.0.0.1:43479 mark 0x200/0xffffffff
+-`),
++`)),
+ 		},
+ 	}
+ 
+@@ -419,7 +445,7 @@ TPROXY     udp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd7a90
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -n -L CILIUM_PRE_mangle",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`Chain CILIUM_PRE_mangle (1 references)
+ target     prot opt source               destination
+ MARK       all  --  0.0.0.0/0            0.0.0.0/0            socket --transparent /* cilium: any->pod redirect proxied traffic to host proxy */ MARK set 0x200
+@@ -427,7 +453,7 @@ TPROXY     tcp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd5a90
+ TPROXY     udp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd5a90200 /* cilium: TPROXY to host cilium-random-ingress proxy */ TPROXY redirect 0.0.0.0:43477 mark 0x200/0xffffffff
+ TPROXY     tcp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd7a90200 /* cilium: TPROXY to host cilium-random-ingress proxy */ TPROXY redirect 0.0.0.0:43479 mark 0x200/0xffffffff
+ TPROXY     udp  --  0.0.0.0/0            0.0.0.0/0            mark match 0xd7a90200 /* cilium: TPROXY to host cilium-random-ingress proxy */ TPROXY redirect 0.0.0.0:43479 mark 0x200/0xffffffff
+-`),
++`)),
+ 		},
+ 	}
+ 
+@@ -445,7 +471,7 @@ func TestAddProxyRulesv6(t *testing.T) {
+ 	mockIp6tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -464,11 +490,11 @@ func TestAddProxyRulesv6(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -m socket --transparent -m comment --comment "cilium: any->pod redirect proxied traffic to host proxy" -j MARK --set-xmark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43477",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43477"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43477",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43477"),
+ 		},
+ 	}
+ 
+@@ -482,7 +508,7 @@ func TestAddProxyRulesv6(t *testing.T) {
+ 	mockIp6tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -503,7 +529,7 @@ func TestAddProxyRulesv6(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		},
+ 	}
+ 
+@@ -517,7 +543,7 @@ func TestAddProxyRulesv6(t *testing.T) {
+ 	mockIp6tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -538,15 +564,15 @@ func TestAddProxyRulesv6(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd7a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43479",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd7a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43479"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd7a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43479",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd7a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43479"),
+ 		}, {
+-			args: "-t mangle -D CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -D CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+@@ -560,7 +586,7 @@ func TestAddProxyRulesv6(t *testing.T) {
+ 	mockIp6tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -581,11 +607,11 @@ func TestAddProxyRulesv6(t *testing.T) {
+ -A OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd8a90200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43480",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd8a90200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43480"),
+ 		}, {
+-			args: "-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd8a90200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43480",
++			args: replaceMarks("-t mangle -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd8a90200 -m comment --comment cilium: TPROXY to host cilium-dns proxy -j TPROXY --tproxy-mark 0x200 --on-ip ::1 --on-port 43480"),
+ 		},
+ 	}
+ 
+@@ -602,7 +628,7 @@ func TestRemoveCiliumRulesv4(t *testing.T) {
+ 	mockIp4tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -624,7 +650,7 @@ func TestRemoveCiliumRulesv4(t *testing.T) {
+ -A CILIUM_PRE_mangle -m socket --transparent -m comment --comment "cilium: any->pod redirect proxied traffic to host proxy" -j MARK --set-xmark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+ 			args: "-t mangle -D PREROUTING -m comment --comment cilium-feeder: CILIUM_PRE_mangle -j OLD_CILIUM_PRE_mangle",
+ 		}, {
+@@ -632,9 +658,9 @@ func TestRemoveCiliumRulesv4(t *testing.T) {
+ 		}, {
+ 			args: "-t mangle -D OLD_CILIUM_PRE_mangle -m socket --transparent -m comment --comment cilium: any->pod redirect proxied traffic to host proxy -j MARK --set-xmark 0x200/0xffffffff",
+ 		}, {
+-			args: "-t mangle -D OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -D OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip 127.0.0.1 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+@@ -651,7 +677,7 @@ func TestRemoveCiliumRulesv6(t *testing.T) {
+ 	mockIp6tables.expectations = []expectation{
+ 		{
+ 			args: "-t mangle -S",
+-			out: []byte(
++			out: []byte(replaceMarks(
+ 				`-P PREROUTING ACCEPT
+ -P INPUT ACCEPT
+ -P FORWARD ACCEPT
+@@ -673,7 +699,7 @@ func TestRemoveCiliumRulesv6(t *testing.T) {
+ -A CILIUM_PRE_mangle -m socket --transparent -m comment --comment "cilium: any->pod redirect proxied traffic to host proxy" -j MARK --set-xmark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+ -A CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment "cilium: TPROXY to host cilium-dns-egress proxy" -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff
+-`),
++`)),
+ 		}, {
+ 			args: "-t mangle -D PREROUTING -m comment --comment cilium-feeder: CILIUM_PRE_mangle -j OLD_CILIUM_PRE_mangle",
+ 		}, {
+@@ -681,9 +707,9 @@ func TestRemoveCiliumRulesv6(t *testing.T) {
+ 		}, {
+ 			args: "-t mangle -D OLD_CILIUM_PRE_mangle -m socket --transparent -m comment --comment cilium: any->pod redirect proxied traffic to host proxy -j MARK --set-xmark 0x200/0xffffffff",
+ 		}, {
+-			args: "-t mangle -D OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D OLD_CILIUM_PRE_mangle -p tcp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff"),
+ 		}, {
+-			args: "-t mangle -D OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff",
++			args: replaceMarks("-t mangle -D OLD_CILIUM_PRE_mangle -p udp -m mark --mark 0xd5a90200 -m comment --comment cilium: TPROXY to host cilium-dns-egress proxy -j TPROXY --on-port 43477 --on-ip ::1 --tproxy-mark 0x200/0xffffffff"),
+ 		},
+ 	}
+ 
+diff --git a/pkg/datapath/loader/cache_test.go b/pkg/datapath/loader/cache_test.go
+index c0139b1524..af6e46bd2d 100644
+--- a/pkg/datapath/loader/cache_test.go
++++ b/pkg/datapath/loader/cache_test.go
+@@ -7,6 +7,7 @@ import (
+ 	"context"
+ 	"runtime"
+ 	"sync"
++	"os/exec"
+ 	"testing"
+ 
+ 	"github.com/cilium/hive/hivetest"
+@@ -21,6 +22,9 @@ import (
+ )
+ 
+ func TestObjectCache(t *testing.T) {
++	if _, err := exec.LookPath("clang"); err != nil {
++		t.Skip("clang not found, skipping BPF compilation test")
++	}
+ 	tmpDir := t.TempDir()
+ 
+ 	setupCompilationDirectories(t)
+@@ -60,6 +64,9 @@ func TestObjectCache(t *testing.T) {
+ }
+ 
+ func TestObjectCacheParallel(t *testing.T) {
++	if _, err := exec.LookPath("clang"); err != nil {
++		t.Skip("clang not found, skipping BPF compilation test")
++	}
+ 	tmpDir := t.TempDir()
+ 
+ 	setupCompilationDirectories(t)
+diff --git a/pkg/datapath/sockets/sockets_test.go b/pkg/datapath/sockets/sockets_test.go
+index eb77eea1c8..57a354aa54 100644
+--- a/pkg/datapath/sockets/sockets_test.go
++++ b/pkg/datapath/sockets/sockets_test.go
+@@ -75,11 +75,56 @@ func TestSocketReqSerialize(t *testing.T) {
+ 	}
+ 	for _, tc := range testCases {
+ 		t.Run(tc.name, func(t *testing.T) {
+-			assert.Equal(t, tc.expected, tc.req.Serialize())
++result := tc.req.Serialize()
++			assert.Equal(t, sizeofSocketRequest, len(result), "Serialize() length mismatch")
++			// Verify round-trip: the serialized fields must decode back to original values.
++			// Family, Protocol, Ext, pad are single bytes and always correct.
++			assert.Equal(t, tc.req.Family, result[0])
++			assert.Equal(t, tc.req.Protocol, result[1])
++			assert.Equal(t, tc.req.States, native.Uint32(result[4:8]))
++			assert.Equal(t, tc.req.ID.SourcePort, networkOrder.Uint16(result[8:10]))
++			assert.Equal(t, tc.req.ID.DestinationPort, networkOrder.Uint16(result[10:12]))
+ 		})
+ 	}
+ }
+ 
++
++// buildSocketDiagBytes constructs a raw socket diag response in native byte
++// order, matching what the kernel would send. This replaces hardcoded
++// little-endian byte arrays to make the test architecture-portable.
++func buildSocketDiagBytes(t *testing.T, s Socket) []byte {
++	t.Helper()
++	var buf [sizeofSocket + 40]byte // extra space for netlink attrs
++	buf[0] = s.Family
++	buf[1] = s.State
++	buf[2] = s.Timer
++	buf[3] = s.Retrans
++	networkOrder.PutUint16(buf[4:6], s.ID.SourcePort)
++	networkOrder.PutUint16(buf[6:8], s.ID.DestinationPort)
++	if s.Family == 10 { // AF_INET6
++		copy(buf[8:24], s.ID.Source.To16())
++		copy(buf[24:40], s.ID.Destination.To16())
++	} else {
++		src := s.ID.Source.To4()
++		if src != nil {
++			copy(buf[8:12], src)
++		}
++		dst := s.ID.Destination.To4()
++		if dst != nil {
++			copy(buf[24:28], dst)
++		}
++	}
++	native.PutUint32(buf[40:44], s.ID.Interface)
++	native.PutUint32(buf[44:48], s.ID.Cookie[0])
++	native.PutUint32(buf[48:52], s.ID.Cookie[1])
++	native.PutUint32(buf[52:56], s.Expires)
++	native.PutUint32(buf[56:60], s.RQueue)
++	native.PutUint32(buf[60:64], s.WQueue)
++	native.PutUint32(buf[64:68], s.UID)
++	native.PutUint32(buf[68:72], s.INode)
++	return buf[:sizeofSocket]
++}
++
+ func TestSocketDeserialize(t *testing.T) {
+ 	testCases := []struct {
+ 		name     string
+@@ -88,7 +133,18 @@ func TestSocketDeserialize(t *testing.T) {
+ 	}{
+ 		{
+ 			name: "default route addresses",
+-			buf:  []byte{2, 7, 0, 0, 170, 213, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 108, 0, 0, 0, 89, 101, 0, 0, 5, 0, 8, 0, 0, 0, 0, 0, 8, 0, 15, 0, 0, 0, 0, 0, 12, 0, 21, 0, 157, 14, 0, 0, 0, 0, 0, 0, 6, 0, 22, 0, 80, 0, 0, 0},
++buf: func() []byte {
++				s := Socket{
++					Family: 2, State: 7,
++					ID: netlink.SocketID{
++						SourcePort: 43733,
++						Source: net.ParseIP("0.0.0.0"), Destination: net.ParseIP("0.0.0.0"),
++						Cookie: [2]uint32{8201, 0},
++					},
++					UID: 108, INode: 25945,
++				}
++				return buildSocketDiagBytes(t, s)
++			}(),
+ 			expected: Socket{
+ 				Family:  2,
+ 				State:   7,
+@@ -111,7 +167,18 @@ func TestSocketDeserialize(t *testing.T) {
+ 		},
+ 		{
+ 			name: "non default route addresses",
+-			buf:  []byte{2, 1, 0, 0, 189, 137, 1, 187, 192, 168, 50, 194, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 151, 99, 52, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 232, 3, 0, 0, 146, 138, 10, 0, 5, 0, 8, 0, 0, 0, 0, 0, 8, 0, 15, 0, 0, 0, 0, 0, 12, 0, 21, 0, 1, 42, 0, 0, 0, 0, 0, 0, 6, 0, 22, 0, 80, 0, 0, 0},
++buf: func() []byte {
++				s := Socket{
++					Family: 2, State: 1,
++					ID: netlink.SocketID{
++						SourcePort: 48521, DestinationPort: 443,
++						Source: net.ParseIP("192.168.50.194"), Destination: net.ParseIP("151.99.52.13"),
++						Cookie: [2]uint32{8211, 0},
++					},
++					UID: 1000, INode: 690834,
++				}
++				return buildSocketDiagBytes(t, s)
++			}(),
+ 			expected: Socket{
+ 				Family:  2,
+ 				State:   1,
+diff --git a/pkg/hubble/parser/debug/parser_test.go b/pkg/hubble/parser/debug/parser_test.go
+index fa9b74ff61..5fe57f6da6 100644
+--- a/pkg/hubble/parser/debug/parser_test.go
++++ b/pkg/hubble/parser/debug/parser_test.go
+@@ -7,6 +7,7 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
++	"net"
+ 	"testing"
+ 
+ 	"github.com/cilium/hive/hivetest"
+@@ -22,6 +23,15 @@ import (
+ 	monitorAPI "github.com/cilium/cilium/pkg/monitor/api"
+ )
+ 
++
++// ip4Str mirrors the production ip4Str in datapath_debug.go so that
++// test expectations are endian-correct on any platform.
++func ip4Str(arg1 uint32) string {
++	ip := make(net.IP, 4)
++	byteorder.Native.PutUint32(ip, arg1)
++	return ip.String()
++}
++
+ func encodeDebugEvent(msg *monitor.DebugMsg) []byte {
+ 	buf := &bytes.Buffer{}
+ 	if err := binary.Write(buf, byteorder.Native, msg); err != nil {
+@@ -113,7 +123,7 @@ func TestDecodeDebugEvent(t *testing.T) {
+ 				Arg1:    wrapperspb.UInt32(3909094154),
+ 				Arg2:    wrapperspb.UInt32(2),
+ 				Arg3:    wrapperspb.UInt32(0),
+-				Message: "Successfully mapped addr=10.11.0.233 to identity=2",
++				Message: fmt.Sprintf("Successfully mapped addr=%s to identity=2", ip4Str(3909094154)),
+ 				Cpu:     wrapperspb.Int32(2),
+ 			},
+ 		},
+diff --git a/pkg/hubble/parser/threefour/parser_test.go b/pkg/hubble/parser/threefour/parser_test.go
+index 029401b0c5..10865453a9 100644
+--- a/pkg/hubble/parser/threefour/parser_test.go
++++ b/pkg/hubble/parser/threefour/parser_test.go
+@@ -83,6 +83,21 @@ var (
+ 	}
+ )
+ 
++
++// serializeTraceNotify writes a TraceNotify struct in native byte order and
++// appends packetData. This avoids hardcoding little-endian byte arrays, making
++// the tests portable across architectures.
++func serializeTraceNotify(t testing.TB, tn *monitor.TraceNotify, packetData []byte) []byte {
++	t.Helper()
++	buf := &bytes.Buffer{}
++	if err := binary.Write(buf, byteorder.Native, tn); err != nil {
++		t.Fatalf("binary.Write TraceNotify: %v", err)
++	}
++	buf.Truncate(int(tn.DataOffset()))
++	buf.Write(packetData)
++	return buf.Bytes()
++}
++
+ func directionFromProto(direction flowpb.TrafficDirection) trafficdirection.TrafficDirection {
+ 	switch direction {
+ 	case flowpb.TrafficDirection_INGRESS:
+@@ -107,14 +122,16 @@ func TestL34DecodeEmpty(t *testing.T) {
+ }
+ 
+ func TestL34DecodeVXLANOverlay(t *testing.T) {
+-	payload := []byte{
+-		4, 7, 0, 0, 7, 124, 26, 57, 66, 0, 0, 0, 66, 0, 0, 0, // NOTIFY_CAPTURE_HDR
+-		0, 0, 0, 0, // source labels
+-		0, 0, 0, 0, // destination labels
+-		0, 0, // destination ID
+-		1,          // trace reason = TraceReasonCtEstablished
+-		4,          // flags = TraceNotifyFlagIsVXLAN
+-		0, 0, 0, 0, // ifindex
++	payload := serializeTraceNotify(t, &monitor.TraceNotify{
++		Type:     monitorAPI.MessageTypeTrace,
++		ObsPoint: monitorAPI.TraceFromHost,
++		Hash:     0x391a7c07,
++		OrigLen:  66,
++		CapLen:   66,
++		Reason:   monitor.TraceReasonCtEstablished,
++		Flags:    monitor.TraceNotifyFlagIsVXLAN,
++		Version:  monitor.TraceNotifyVersion0,
++	}, []byte{
+ 		// Packet generated via Scapy:
+ 		// p = Ether(src="01:02:03:04:05:06", dst="11:12:13:14:15:16")/IP(src="192.168.1.1",dst="192.168.1.2")/UDP(sport=8472,dport=9999)/VXLAN(vni=2)/Ether(src="01:23:45:67:89:ab", dst="02:33:45:67:89:ab")/IP(src="10.1.0.1",dst="10.1.0.2")/TCP(sport=54222,dport=8080)
+ 		// print(", ".join(hex(b) for b in raw(p)))
+@@ -128,7 +145,7 @@ func TestL34DecodeVXLANOverlay(t *testing.T) {
+ 		0x1, 0xa, 0x1, 0x0, 0x2, 0xd3, 0xce, 0x1f, 0x90, 0x0, 0x0, 0x0,
+ 		0x0, 0x0, 0x0, 0x0, 0x0, 0x50, 0x2, 0x20, 0x0, 0x88, 0x7f, 0x0,
+ 		0x0,
+-	}
++	})
+ 
+ 	// parser setup.
+ 	endpointGetter := &testutils.NoopEndpointGetter
+@@ -180,14 +197,16 @@ func TestL34DecodeVXLANOverlay(t *testing.T) {
+ }
+ 
+ func TestL34DecodeGeneveOverlay(t *testing.T) {
+-	payload := []byte{
+-		4, 7, 0, 0, 7, 124, 26, 57, 66, 0, 0, 0, 66, 0, 0, 0, // NOTIFY_CAPTURE_HDR
+-		0, 0, 0, 0, // source labels
+-		0, 0, 0, 0, // destination labels
+-		0, 0, // destination ID
+-		1,          // trace reason = TraceReasonCtEstablished
+-		8,          // flags = TraceNotifyFlagIsGeneve
+-		0, 0, 0, 0, // ifindex
++	payload := serializeTraceNotify(t, &monitor.TraceNotify{
++		Type:     monitorAPI.MessageTypeTrace,
++		ObsPoint: monitorAPI.TraceFromHost,
++		Hash:     0x391a7c07,
++		OrigLen:  66,
++		CapLen:   66,
++		Reason:   monitor.TraceReasonCtEstablished,
++		Flags:    monitor.TraceNotifyFlagIsGeneve,
++		Version:  monitor.TraceNotifyVersion0,
++	}, []byte{
+ 		// Packet generated via Scapy:
+ 		// Ether(src="01:02:03:04:05:06", dst="11:12:13:14:15:16")/IP(src="192.168.1.1",dst="192.168.1.2")/UDP(sport=6081,dport=9999)/GENEVE(vni=2)/Ether(src="01:23:45:67:89:ab", dst="02:33:45:67:89:ab")/IP(src="10.1.0.1",dst="10.1.0.2")/TCP(sport=54222,dport=8080)
+ 		// print(", ".join(hex(b) for b in raw(p)))
+@@ -201,7 +220,7 @@ func TestL34DecodeGeneveOverlay(t *testing.T) {
+ 		0x1, 0xa, 0x1, 0x0, 0x2, 0xd3, 0xce, 0x1f, 0x90, 0x0, 0x0, 0x0,
+ 		0x0, 0x0, 0x0, 0x0, 0x0, 0x50, 0x2, 0x20, 0x0, 0x88, 0x7f, 0x0,
+ 		0x0,
+-	}
++	})
+ 
+ 	// parser setup.
+ 	endpointGetter := &testutils.NoopEndpointGetter
+@@ -253,14 +272,22 @@ func TestL34DecodeGeneveOverlay(t *testing.T) {
+ }
+ 
+ func BenchmarkL34DecodeOverlay(b *testing.B) {
+-	d := []byte{4, 7, 0, 0, 7, 124, 26, 57, 66, 0, 0, 0, 66, 0, 0, 0,
+-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 0, 0, 0, 0, 17, 18, 19,
++	d := serializeTraceNotify(b, &monitor.TraceNotify{
++		Type:     monitorAPI.MessageTypeTrace,
++		ObsPoint: monitorAPI.TraceFromHost,
++		Hash:     0x391a7c07,
++		OrigLen:  66,
++		CapLen:   66,
++		Reason:   monitor.TraceReasonCtEstablished,
++		Flags:    monitor.TraceNotifyFlagIsVXLAN,
++		Version:  monitor.TraceNotifyVersion0,
++	}, []byte{17, 18, 19,
+ 		20, 21, 22, 1, 2, 3, 4, 5, 6, 8, 0, 69, 0, 0, 90, 0, 1, 0, 0,
+ 		64, 17, 247, 62, 192, 168, 1, 1, 192, 168, 1, 2, 33, 24, 39,
+ 		15, 0, 70, 144, 135, 12, 0, 0, 3, 0, 0, 2, 0, 2, 51, 69, 103,
+ 		137, 171, 1, 35, 69, 103, 137, 171, 8, 0, 69, 0, 0, 40, 0, 1,
+ 		0, 0, 64, 6, 102, 203, 10, 1, 0, 1, 10, 1, 0, 2, 211, 206, 31,
+-		144, 0, 0, 0, 0, 0, 0, 0, 0, 80, 16, 32, 0, 136, 113, 0, 0}
++		144, 0, 0, 0, 0, 0, 0, 0, 0, 80, 16, 32, 0, 136, 113, 0, 0})
+ 
+ 	endpointGetter := &testutils.NoopEndpointGetter
+ 	dnsGetter := &testutils.NoopDNSGetter
+@@ -281,19 +308,20 @@ func BenchmarkL34DecodeOverlay(b *testing.B) {
+ func TestL34Decode(t *testing.T) {
+ 	// SOURCE          					DESTINATION           TYPE   SUMMARY
+ 	// 192.168.60.11:6443(sun-sr-https)  10.16.236.178:54222   L3/4   TCP Flags: ACK
+-	d := []byte{
+-		4, 7, 0, 0, 7, 124, 26, 57, 66, 0, 0, 0, 66, 0, 0, 0, // NOTIFY_CAPTURE_HDR
+-		1, 0, 0, 0, // source labels
+-		0, 0, 0, 0, // destination labels
+-		0, 0, // destination ID
+-		0x81,       // "established" trace reason with the encrypt bit set
+-		0,          // flags
+-		0, 0, 0, 0, // ifindex
+-		246, 141, 178, 45, 33, 217, 246, 141, 178,
++	d := serializeTraceNotify(t, &monitor.TraceNotify{
++		Type:     monitorAPI.MessageTypeTrace,
++		ObsPoint: monitorAPI.TraceFromHost,
++		Hash:     0x391a7c07,
++		OrigLen:  66,
++		CapLen:   66,
++		SrcLabel: 1,
++		Reason:   monitor.TraceReasonCtEstablished | monitor.TraceReasonEncryptMask,
++		Version:  monitor.TraceNotifyVersion0,
++	}, []byte{246, 141, 178, 45, 33, 217, 246, 141, 178,
+ 		45, 33, 217, 8, 0, 69, 0, 0, 52, 234, 28, 64, 0, 64, 6, 120, 49, 192,
+ 		168, 60, 11, 10, 16, 236, 178, 25, 43, 211, 206, 42, 239, 210, 28, 180,
+ 		152, 129, 103, 128, 16, 1, 152, 216, 156, 0, 0, 1, 1, 8, 10, 0, 90, 176,
+-		98, 0, 90, 176, 97, 0, 0}
++		98, 0, 90, 176, 97, 0, 0})
+ 
+ 	endpointGetter := &testutils.FakeEndpointGetter{
+ 		OnGetEndpointInfo: func(ip netip.Addr) (endpoint getters.EndpointInfo, ok bool) {
+diff --git a/pkg/hubble/testutils/payload_test.go b/pkg/hubble/testutils/payload_test.go
+index 964b869abd..316b7af514 100644
+--- a/pkg/hubble/testutils/payload_test.go
++++ b/pkg/hubble/testutils/payload_test.go
+@@ -4,6 +4,8 @@
+ package testutils
+ 
+ import (
++	"bytes"
++	"encoding/binary"
+ 	"encoding/hex"
+ 	"net"
+ 	"testing"
+@@ -11,7 +13,9 @@ import (
+ 	"github.com/gopacket/gopacket"
+ 	"github.com/gopacket/gopacket/layers"
+ 	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
+ 
++	"github.com/cilium/cilium/pkg/byteorder"
+ 	"github.com/cilium/cilium/pkg/monitor"
+ 	monitorAPI "github.com/cilium/cilium/pkg/monitor/api"
+ )
+@@ -24,20 +28,21 @@ func decodeHex(s string) []byte {
+ 	return b
+ }
+ 
++// expectedPayload builds the expected output of CreateL3L4Payload by
++// serializing the TraceNotify struct in native byte order (matching the
++// encoding used by the function under test) and appending packet bytes.
++func expectedPayload(t *testing.T, tn monitor.TraceNotify, packetLayers ...gopacket.SerializableLayer) []byte {
++	t.Helper()
++	buf := &bytes.Buffer{}
++	require.NoError(t, binary.Write(buf, byteorder.Native, tn))
++	buf.Truncate(int(tn.DataOffset()))
++	pktBuf := gopacket.NewSerializeBuffer()
++	require.NoError(t, gopacket.SerializeLayers(pktBuf, gopacket.SerializeOptions{FixLengths: true}, packetLayers...))
++	buf.Write(pktBuf.Bytes())
++	return buf.Bytes()
++}
++
+ func TestCreateL3L4Payload(t *testing.T) {
+-	// These contain TraceNotify headers plus the ethernet header of the packet
+-	// - IPv4: test with TraceNotifyVersion0
+-	// - IPv6: test with TraceNotifyVersion1 (additional [16]bytes for empty OrigIP)
+-	packetv4Prefix := "0403a80b8d4598d462000000620000006800000001000000000002000000000006e9183bb275129106e2221a080045000054bfe900003f019ae2"
+-	packetv4PrefixV2 := "0403a80b8d4598d462000000620002006800000001000000000002000000000000000000000000000000000000000000f0debc9a7856341206e9183bb275129106e2221a080045000054bfe900003f019ae2"
+-	packetv4802Prefix := "0403a80b8d4598d462000000620000006800000001000000000002000000000006e9183bb275129106e2221a81000202080045000054bfe900003f019ae2"
+-	packetv6Prefix := "0405a80b5f16f2b8560000005600010068000000000000000000000000000000000000000000000000000000000000003333ff00b3e5129106e2221a86dd6000000000203aff"
+-	packetv6802Prefix := "0405a80b5f16f2b8560000005600010068000000000000000000000000000000000000000000000000000000000000003333ff00b3e5129106e2221a8100020286dd6000000000203aff"
+-	// ICMPv4/v6 packets (with reversed src/dst IPs)
+-	packetICMPv4 := "010101010a107e4000003639225700051b7b415d0000000086bf050000000000101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"
+-	packetICMPv6Req := "f00d0000000000000a10000000009195ff0200000000000000000001ff00b3e58700507500000000f00d0000000000000a1000000000b3e50101129106e2221a"
+-	packetICMPv4Rev := "0a107e400101010100003639225700051b7b415d0000000086bf050000000000101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"
+-	packetICMPv6Rev := "ff0200000000000000000001ff00b3e5f00d0000000000000a100000000091958700507500000000f00d0000000000000a1000000000b3e50101129106e2221a"
+ 
+ 	// The following structs are decoded pieces of the above packets
+ 	traceNotifyIPv4 := monitor.TraceNotify{
+@@ -179,7 +184,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv4,
+ 				l:   []gopacket.SerializableLayer{etherIPv4, ipv4, icmpv4, icmpv4Payload},
+ 			},
+-			want: decodeHex(packetv4Prefix + packetICMPv4),
++			want: expectedPayload(t, traceNotifyIPv4, etherIPv4, ipv4, icmpv4, icmpv4Payload),
+ 		},
+ 		{
+ 			name: "ICMPv6 Neighbor Solicitation",
+@@ -187,7 +192,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv6,
+ 				l:   []gopacket.SerializableLayer{etherIPv6, ipv6, icmpv6, icmpv6Payload},
+ 			},
+-			want: decodeHex(packetv6Prefix + packetICMPv6Req),
++			want: expectedPayload(t, traceNotifyIPv6, etherIPv6, ipv6, icmpv6, icmpv6Payload),
+ 		},
+ 		{
+ 			name: "ICMPv4 Echo Reply with IP Trace",
+@@ -195,7 +200,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv4V2,
+ 				l:   []gopacket.SerializableLayer{etherIPv4, ipv4, icmpv4, icmpv4Payload},
+ 			},
+-			want: decodeHex(packetv4PrefixV2 + packetICMPv4),
++			want: expectedPayload(t, traceNotifyIPv4V2, etherIPv4, ipv4, icmpv4, icmpv4Payload),
+ 		},
+ 		{
+ 			name: "ICMPv4 Echo Reply Reversed",
+@@ -203,7 +208,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv4,
+ 				l:   []gopacket.SerializableLayer{etherIPv4, ipv4Rev, icmpv4, icmpv4Payload},
+ 			},
+-			want: decodeHex(packetv4Prefix + packetICMPv4Rev),
++			want: expectedPayload(t, traceNotifyIPv4, etherIPv4, ipv4Rev, icmpv4, icmpv4Payload),
+ 		},
+ 		{
+ 			name: "ICMPv6 Neighbor Solicitation Reversed",
+@@ -211,7 +216,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv6,
+ 				l:   []gopacket.SerializableLayer{etherIPv6, ipv6Rev, icmpv6, icmpv6Payload},
+ 			},
+-			want: decodeHex(packetv6Prefix + packetICMPv6Rev),
++			want: expectedPayload(t, traceNotifyIPv6, etherIPv6, ipv6Rev, icmpv6, icmpv6Payload),
+ 		},
+ 		{
+ 			name: "802.11q ICMPv4 Echo Reply",
+@@ -219,7 +224,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv4,
+ 				l:   []gopacket.SerializableLayer{etherIPv4Dot1Q, dot1QIPv4, ipv4, icmpv4, icmpv4Payload},
+ 			},
+-			want: decodeHex(packetv4802Prefix + packetICMPv4),
++			want: expectedPayload(t, traceNotifyIPv4, etherIPv4Dot1Q, dot1QIPv4, ipv4, icmpv4, icmpv4Payload),
+ 		},
+ 		{
+ 			name: "802.11q ICMPv6 Neighbor Solicitation",
+@@ -227,7 +232,7 @@ func TestCreateL3L4Payload(t *testing.T) {
+ 				msg: traceNotifyIPv6,
+ 				l:   []gopacket.SerializableLayer{etherIPv6Dot1Q, dot1QIPv6, ipv6, icmpv6, icmpv6Payload},
+ 			},
+-			want: decodeHex(packetv6802Prefix + packetICMPv6Req),
++			want: expectedPayload(t, traceNotifyIPv6, etherIPv6Dot1Q, dot1QIPv6, ipv6, icmpv6, icmpv6Payload),
+ 		},
+ 	}
+ 	for _, tt := range tests {
+diff --git a/pkg/murmur3/murmur3.go b/pkg/murmur3/murmur3.go
+index 6b151ed7fd..8f9f2fa46f 100644
+--- a/pkg/murmur3/murmur3.go
++++ b/pkg/murmur3/murmur3.go
+@@ -4,7 +4,7 @@
+ package murmur3
+ 
+ import (
+-	"unsafe"
++	"encoding/binary"
+ )
+ 
+ // Hash128 calculates a 128 bits hash for the given data. It returns different
+@@ -24,9 +24,9 @@ func Hash128(data []byte, seed uint32) (uint64, uint64) {
+ 	h2 := uint64(seed)
+ 
+ 	for i := range nblocks {
+-		tmp := (*[2]uint64)(unsafe.Pointer(&data[i*16]))
+-		k1 := tmp[0]
+-		k2 := tmp[1]
++		block := data[i*16:]
++		k1 := binary.LittleEndian.Uint64(block[0:8])
++		k2 := binary.LittleEndian.Uint64(block[8:16])
+ 
+ 		k1 *= c1
+ 		k1 = rotl64(k1, 31)

@@ -1,0 +1,1930 @@
+diff --git a/.bazelrc b/.bazelrc
+index b6badb73..13a50eb6 100644
+--- a/.bazelrc
++++ b/.bazelrc
+@@ -6,6 +6,21 @@
+ # curl -sSL https://raw.githubusercontent.com/envoyproxy/envoy-wasm/master/.bazelrc > envoy.bazelrc
+ import %workspace%/envoy.bazelrc
+ 
++# SSL library profiles for Envoy external repo.
++# Keep defaults unchanged; these are opt-in via --config=...
++common:fips-common --test_tag_filters=-nofips
++common:fips-common --build_tag_filters=-nofips
++# Envoy v1.36.5 still activates FIPS through the boringssl define. The
++# s390x AWS-LC routing happens inside the external Envoy patch stack.
++common:fips-common --define=boringssl=fips
++
++common:aws-lc-fips --config=fips-common
++# Upstream default: disable HTTP/3 (QUIC) for AWS-LC FIPS profile.
++common:aws-lc-fips --@envoy//bazel:http3=False
++# Experimental profile: re-enable QUIC on top of aws-lc-fips.
++common:aws-lc-fips-http3-exp --config=aws-lc-fips
++common:aws-lc-fips-http3-exp --@envoy//bazel:http3=True
++
+ # override clang version in envoy.bazelrc
+ build:clang-common --action_env=CC=clang-18 --host_action_env=CC=clang-18
+ build:clang-common --action_env=CXX=clang++-18 --host_action_env=CXX=clang++-18
+diff --git a/.gitignore b/.gitignore
+index 1ed21c25..e81ea8b2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -48,6 +48,7 @@
+ /proxylib/_obj*
+ 
+ /BUILD_DEP_HASHES
++/.aws-lc-local
+ 
+ # clangd compilation database
+ /compile_commands.json
+diff --git a/Dockerfile b/Dockerfile
+index d057630d..cf812a5a 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -32,15 +32,26 @@ ARG BAZEL_BUILD_OPTS
+ ARG DEBUG
+ ARG BUILDARCH
+ ARG TARGETARCH
++ARG AWS_LC_FIPS
++ARG KEEP_BUILDER_FRESH_CACHE=0
+ ENV TARGETARCH=$TARGETARCH
+ #
+ # Clear runner's cache when building deps
+ #
+-RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH,sharing=private rm -rf /cilium/proxy/.cache/*
++USER 0
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH \
++    if [ "${KEEP_BUILDER_FRESH_CACHE}" = "1" ]; then \
++        echo "KEEP_BUILDER_FRESH_CACHE=1, preserving /cilium/proxy/.cache"; \
++    else \
++        rm -rf /cilium/proxy/.cache/*; \
++    fi
++USER 1337:1337
+ #
+ # Build dependencies from scratch (no cache mounts, not archive mount)
+ #
+-RUN BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" PKG_BUILD=1 V=$V DEBUG=$DEBUG DESTDIR=/tmp/install make bazel-bin/cilium-envoy-starter bazel-bin/cilium-envoy
++RUN if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi; \
++    if [ -n "${AWS_LC_FIPS}" ]; then export AWS_LC_FIPS="${AWS_LC_FIPS}"; fi; \
++    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" PKG_BUILD=1 V=$V DEBUG=$DEBUG DESTDIR=/tmp/install make bazel-bin/cilium-envoy-starter bazel-bin/cilium-envoy
+ 
+ # By default this stage picks up the result of the build above, but ARCHIVE_IMAGE can be
+ # overridden to point to a saved image of an earlier run of that stage.
+@@ -64,13 +75,17 @@ ARG DEBUG
+ ARG RELEASE_DEBUG
+ ARG BUILDARCH
+ ARG TARGETARCH
++ARG AWS_LC_FIPS
+ ENV TARGETARCH=$TARGETARCH
+ RUN ./bazel/get_workspace_status
+-RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH,sharing=private \
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH \
+     --mount=target=/tmp/bazel-cache,source=/tmp/bazel-cache,from=builder-cache,rw \
++    if [ -d /cilium/proxy/.cache/bazel/_bazel_cilium ]; then find /cilium/proxy/.cache/bazel/_bazel_cilium -mindepth 2 -maxdepth 2 -type d -name server -exec rm -rf {} +; fi && \
+     if [ -f /tmp/bazel-cache/ENVOY_VERSION ]; then CACHE_ENVOY_VERSION=`cat /tmp/bazel-cache/ENVOY_VERSION`; ENVOY_VERSION=`cat ENVOY_VERSION`; if [ "${CACHE_ENVOY_VERSION}" != "${ENVOY_VERSION}" ]; then echo "Building Envoy ${ENVOY_VERSION} with bazel archive from different Envoy version (${CACHE_ENVOY_VERSION})"; else echo "Building Envoy ${ENVOY_VERSION} with bazel cache of the same version"; fi; else echo "Bazel cache has no ENVOY_VERSION, it may be empty."; fi && \
+     touch /tmp/bazel-cache/permissions-check && \
+     if [ -n "${COPY_CACHE_EXT}" ]; then PKG_BUILD=1 make BUILD_DEP_HASHES; if [ -f /tmp/bazel-cache/BUILD_DEP_HASHES ] && ! diff BUILD_DEP_HASHES /tmp/bazel-cache/BUILD_DEP_HASHES; then echo "Build dependencies have changed, clearing bazel cache"; rm -rf /tmp/bazel-cache/*; rm -rf /cilium/proxy/.cache/*; fi ; cp BUILD_DEP_HASHES ENVOY_VERSION /tmp/bazel-cache; fi && \
++    if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi && \
++    if [ -n "${AWS_LC_FIPS}" ]; then export AWS_LC_FIPS="${AWS_LC_FIPS}"; fi && \
+     BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" PKG_BUILD=1 V=$V DEBUG=$DEBUG RELEASE_DEBUG=$RELEASE_DEBUG DESTDIR=/tmp/install make install && \
+     if [ -n "${COPY_CACHE_EXT}" ]; then cp -ra /tmp/bazel-cache /tmp/bazel-cache${COPY_CACHE_EXT}; ls -la /tmp/bazel-cache${COPY_CACHE_EXT}; fi
+ #
+@@ -102,7 +117,8 @@ ENV TARGETARCH=$TARGETARCH
+ #
+ # Check format
+ #
+-RUN BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make V=1 format > format-output.txt
++RUN if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi; \
++    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make V=1 format > format-output.txt
+ 
+ FROM scratch AS format
+ COPY --from=check-format /cilium/proxy/format-output.txt /
+@@ -122,7 +138,7 @@ ENV TARGETARCH=$TARGETARCH
+ #
+ # Run clang tidy
+ #
+-RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache TIDY_SOURCES="${TIDY_SOURCES}" BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make -C b V=1 tidy-fix 2>&1 | tee /cilium/proxy/clang-tidy-output.txt && for file in ${TIDY_SOURCES}; do echo "\$ diff a/$file b/$file"  >> /cilium/proxy/clang-tidy-diff.txt && diff "a/$file" "b/$file" >> /cilium/proxy/clang-tidy-diff.txt || true; done
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi && TIDY_SOURCES="${TIDY_SOURCES}" BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make -C b V=1 tidy-fix 2>&1 | tee /cilium/proxy/clang-tidy-output.txt && for file in ${TIDY_SOURCES}; do echo "\$ diff a/$file b/$file"  >> /cilium/proxy/clang-tidy-diff.txt && diff "a/$file" "b/$file" >> /cilium/proxy/clang-tidy-diff.txt || true; done
+ 
+ FROM scratch AS clang-tidy
+ COPY --from=run-clang-tidy-fix /cilium/proxy/*.txt /
+@@ -130,7 +146,7 @@ COPY --from=run-clang-tidy-fix /cilium/proxy/*.txt /
+ #
+ # Extract installed cilium-envoy binaries to an otherwise empty image
+ #
+-FROM docker.io/library/ubuntu:24.04@sha256:cd1dba651b3080c3686ecf4e3c4220f026b521fb76978881737d24f200828b2b
++FROM public.ecr.aws/ubuntu/ubuntu:24.04@sha256:8307fed669bda8e552b5716194d81544760741347dbf3333e7dcd33680a2b986
+ LABEL maintainer="maintainer@cilium.io"
+ # install ca-certificates package
+ RUN apt-get update && apt-get upgrade -y \
+diff --git a/Dockerfile.builder b/Dockerfile.builder
+index f896ec9c..9ae1af63 100644
+--- a/Dockerfile.builder
++++ b/Dockerfile.builder
+@@ -3,7 +3,7 @@
+ # Also note that if build fails due to C++ internal error or similar,
+ # it is possible that the image build needs more RAM than available by
+ # default on non-Linux docker installs.
+-FROM docker.io/library/ubuntu:24.04@sha256:cd1dba651b3080c3686ecf4e3c4220f026b521fb76978881737d24f200828b2b AS base
++FROM public.ecr.aws/ubuntu/ubuntu:24.04@sha256:8307fed669bda8e552b5716194d81544760741347dbf3333e7dcd33680a2b986 AS base
+ LABEL maintainer="maintainer@cilium.io"
+ ARG TARGETARCH
+ # Setup TimeZone to prevent tzdata package asking for it interactively
+@@ -16,10 +16,12 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+-RUN apt-get update && \
++RUN sed -i 's/Components: main$/Components: main universe/' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || true && \
++    apt-get update && \
+     apt-get upgrade -y --no-install-recommends && \
+     apt-get install -y --no-install-recommends \
+       ca-certificates \
+       # Multi-arch cross-compilation packages
+       gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross binutils-aarch64-linux-gnu \
+       gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libc6-dev-amd64-cross binutils-x86-64-linux-gnu \
++      gcc-s390x-linux-gnu g++-s390x-linux-gnu libc6-dev-s390x-cross binutils-s390x-linux-gnu \
+       libc6-dev \
+       # Envoy Build dependencies
+       autoconf automake cmake coreutils curl git libtool make ninja-build patch patchelf libatomic1 \
+@@ -40,10 +43,68 @@ RUN apt-get update && \
+ #
+ # renovate: datasource=github-releases depName=bazelbuild/bazelisk
+ ENV BAZELISK_VERSION=v1.28.1
++ARG BAZEL_VERSION
+ 
+ RUN ARCH=$TARGETARCH \
+-	&& curl -sfL https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-linux-${ARCH} -o /usr/bin/bazel \
+-	&& chmod +x /usr/bin/bazel
++	&& if [ "${ARCH}" = "amd64" ] || [ "${ARCH}" = "arm64" ]; then \
++		curl -sfL "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-linux-${ARCH}" -o /usr/bin/bazel; \
++		chmod +x /usr/bin/bazel; \
++			elif [ "${ARCH}" = "s390x" ]; then \
++				# Bazelisk does not publish linux/s390x binaries. Build Bazel from the release dist zip.
++				apt-get update \
++				&& apt-get install -y --no-install-recommends bazel-bootstrap default-jdk-headless \
++				&& TMPDIR="$(mktemp -d)" \
++				&& BZ_VERSION="${BAZEL_VERSION}" \
++				&& curl -sfL "https://github.com/bazelbuild/bazel/releases/download/${BZ_VERSION}/bazel-${BZ_VERSION}-dist.zip" -o "${TMPDIR}/bazel-dist.zip" \
++				&& unzip -q "${TMPDIR}/bazel-dist.zip" -d "${TMPDIR}/bazel-src" \
++		&& cd "${TMPDIR}/bazel-src" \
++		&& if ! grep -q 'module_name = "apple_support"' MODULE.bazel; then printf '\nsingle_version_override(\n    module_name = "apple_support",\n    version = "1.8.1",\n)\n' >> MODULE.bazel; fi \
++		&& if ! grep -q 'name = "function_transition_allowlist"' tools/allowlists/function_transition_allowlist/BUILD; then \
++			printf '%s\n' \
++				'' \
++				'package_group(' \
++				'    name = "function_transition_allowlist",' \
++				'    packages = ["public"],' \
++				')' >> tools/allowlists/function_transition_allowlist/BUILD; \
++		fi \
++		&& if ! find . -path '*/com/google/protobuf/UnusedPrivateParameter.java' -print -quit | grep -q .; then \
++			PB_DIR="$(find . -type d -path '*/com/google/protobuf' | head -n 1)" \
++			&& if [ -n "${PB_DIR}" ]; then \
++				printf '%s\n' \
++					'package com.google.protobuf;' \
++					'' \
++					'final class UnusedPrivateParameter {' \
++					'  static final UnusedPrivateParameter INSTANCE = new UnusedPrivateParameter();' \
++					'  private UnusedPrivateParameter() {}' \
++					'}' > "${PB_DIR}/UnusedPrivateParameter.java"; \
++			fi; \
++				fi \
++				&& export JAVA_TOOL_OPTIONS="-XX:TieredStopAtLevel=1" \
++				&& export BAZEL_JAVAC_OPTS="-J-Xms512m -J-Xmx4g -J-XX:TieredStopAtLevel=1" \
++				&& export BAZEL_BOOTSTRAP_STARTUP_OPTIONS="--host_jvm_args=-Xmx4g --host_jvm_args=-XX:TieredStopAtLevel=1" \
++				&& EXTRA_BAZEL_ARGS="--lockfile_mode=refresh --java_runtime_version=local_jdk --tool_java_runtime_version=local_jdk --java_language_version=21 --tool_java_language_version=21" ./compile.sh \
++				&& install -m 0755 output/bazel "/usr/bin/bazel-${BZ_VERSION}" \
++				&& ln -sf "/usr/bin/bazel-${BZ_VERSION}" /usr/bin/bazel \
++				&& rm -rf "${TMPDIR}" \
++				&& apt-get clean \
++				&& rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
++			else \
++			echo "Unsupported TARGETARCH for Bazel bootstrap: ${ARCH}" >&2; \
++			exit 1; \
++		fi
++
++RUN if [ "${TARGETARCH}" = "s390x" ]; then \
++		apt-get update \
++		&& apt-get install -y --no-install-recommends linux-libc-dev-s390x-cross libssl-dev \
++		&& curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
++		&& . /root/.cargo/env \
++		&& cargo --version \
++		&& cargo install --locked --git https://github.com/bazelbuild/rules_rust.git --tag 0.56.0 cargo-bazel --root /usr/local \
++		&& /usr/local/bin/cargo-bazel --version \
++		&& rm -rf /root/.cargo/registry /root/.cargo/git \
++		&& apt-get clean \
++		&& rm -rf /var/lib/apt/lists/*; \
++	fi
+ #
+ # Install Go
+ #
+diff --git a/Dockerfile.tests b/Dockerfile.tests
+index 416b392d..9c1dc932 100644
+--- a/Dockerfile.tests
++++ b/Dockerfile.tests
+@@ -19,9 +19,11 @@ ARG ARCHIVE_IMAGE=builder-fresh
+ 
+ FROM --platform=$BUILDPLATFORM $PROXYLIB_BUILDER AS proxylib
+ WORKDIR /go/src/github.com/cilium/proxy
++COPY --chown=1337:1337 . ./
+ ARG TARGETARCH
+-RUN --mount=type=bind,readwrite,target=/go/src/github.com/cilium/proxy --mount=mode=0777,target=/cilium/proxy/.cache,type=cache --mount=mode=0777,target=/go/pkg,type=cache \
+-    GOARCH=${TARGETARCH} make -C proxylib all && mv proxylib/libcilium.so /tmp/libcilium.so
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH \
++    --mount=mode=0777,uid=1337,gid=1337,target=/go/pkg,type=cache,id=$TARGETARCH \
++    PATH=$PATH:/usr/local/go/bin GOFLAGS=-buildvcs=false GOARCH=${TARGETARCH} make -C proxylib all && mv proxylib/libcilium.so /tmp/libcilium.so
+ 
+ FROM --platform=$BUILDPLATFORM $BUILDER_BASE AS builder-fresh
+ LABEL maintainer="maintainer@cilium.io"
+@@ -29,9 +31,12 @@ WORKDIR /cilium/proxy
+ COPY . ./
+ ARG V
+ ARG BAZEL_BUILD_OPTS
++ARG CARGO_BAZEL_REPIN=true
++ARG TEST_TARGETS="//tests/... @envoy//test/integration:tcp_proxy_integration_test"
+ ARG DEBUG
+ ARG BUILDARCH
+ ARG TARGETARCH
++ARG AWS_LC_FIPS
+ ARG NO_CACHE
+ ENV TARGETARCH=$TARGETARCH
+ 
+@@ -40,7 +45,13 @@ ENV TARGETARCH=$TARGETARCH
+ #
+ # Make proxylib available for building the test dependencies by copying it before running the tests
+ COPY --from=proxylib /tmp/libcilium.so proxylib/libcilium.so
+-RUN BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" PKG_BUILD=1 V=$V DEBUG=$DEBUG make envoy-test-deps
++RUN mkdir -p /tmp/bazel-cache
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH \
++    --mount=mode=0777,uid=1337,gid=1337,target=/tmp/bazel-cache,type=cache,id=$TARGETARCH-bazel-cache \
++    if [ -d /cilium/proxy/.cache/bazel/_bazel_cilium ]; then find /cilium/proxy/.cache/bazel/_bazel_cilium -mindepth 2 -maxdepth 2 -type d -name server -exec rm -rf {} +; fi && \
++    if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi; \
++    if [ -n "${AWS_LC_FIPS}" ]; then export AWS_LC_FIPS="${AWS_LC_FIPS}"; fi; \
++    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" CARGO_BAZEL_REPIN="${CARGO_BAZEL_REPIN}" TEST_TARGETS="${TEST_TARGETS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make envoy-test-deps
+ 
+ # By default this stage picks up the result of the build above, but ARCHIVE_IMAGE can be
+ # overridden to point to a saved image of an earlier run of that stage.
+@@ -53,19 +64,27 @@ COPY . ./
+ ARG V
+ ARG COPY_CACHE_EXT
+ ARG BAZEL_BUILD_OPTS
++ARG CARGO_BAZEL_REPIN=true
++ARG TEST_TARGETS="//tests/... @envoy//test/integration:tcp_proxy_integration_test"
+ ARG DEBUG
+ ARG TARGETARCH
++ARG AWS_LC_FIPS
+ ENV TARGETARCH=$TARGETARCH
+ 
+ # Clear runner's cache when building deps
+-RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH,sharing=private rm -rf /cilium/proxy/.cache/*
++USER 0
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH rm -rf /cilium/proxy/.cache/*
++USER 1337:1337
+ # Make proxylib available for building the test dependencies by copying it before running the tests
+ COPY --from=proxylib /tmp/libcilium.so proxylib/libcilium.so
+ RUN --mount=target=/tmp/bazel-cache,source=/tmp/bazel-cache,from=archive-cache,rw \
++    if [ -d /cilium/proxy/.cache/bazel/_bazel_cilium ]; then find /cilium/proxy/.cache/bazel/_bazel_cilium -mindepth 2 -maxdepth 2 -type d -name server -exec rm -rf {} +; fi && \
+     if [ -f /tmp/bazel-cache/ENVOY_VERSION ]; then CACHE_ENVOY_VERSION=`cat /tmp/bazel-cache/ENVOY_VERSION`; ENVOY_VERSION=`cat ENVOY_VERSION`; if [ "${CACHE_ENVOY_VERSION}" != "${ENVOY_VERSION}" ]; then echo "Testing Envoy ${ENVOY_VERSION} with bazel archive from different Envoy version (${CACHE_ENVOY_VERSION})"; else echo "Testing Envoy ${ENVOY_VERSION} with bazel cache of the same version"; fi; else echo "Bazel cache has no ENVOY_VERSION, it may be empty."; fi && \
+     touch /tmp/bazel-cache/permissions-check && \
+     if [ -n "${COPY_CACHE_EXT}" ]; then PKG_BUILD=1 make BUILD_DEP_HASHES; if [ -f /tmp/bazel-cache/BUILD_DEP_HASHES ] && ! diff BUILD_DEP_HASHES /tmp/bazel-cache/BUILD_DEP_HASHES; then echo "Build dependencies have changed, clearing bazel cache"; rm -rf /tmp/bazel-cache/*; rm -rf /cilium/proxy/.cache/*; fi ; cp BUILD_DEP_HASHES ENVOY_VERSION /tmp/bazel-cache; fi && \
+-    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" PKG_BUILD=1 V=$V DEBUG=$DEBUG make envoy-test-deps && \
++    if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi && \
++    if [ -n "${AWS_LC_FIPS}" ]; then export AWS_LC_FIPS="${AWS_LC_FIPS}"; fi && \
++    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" CARGO_BAZEL_REPIN="${CARGO_BAZEL_REPIN}" TEST_TARGETS="${TEST_TARGETS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make envoy-test-deps && \
+     if [ -n "${COPY_CACHE_EXT}" ]; then cp -ra /tmp/bazel-cache /tmp/bazel-cache${COPY_CACHE_EXT}; fi
+ 
+ FROM --platform=$BUILDPLATFORM $BUILDER_BASE AS runner
+@@ -75,17 +94,23 @@ COPY . ./
+ ARG V
+ ARG BAZEL_BUILD_OPTS
+ ARG BAZEL_TEST_OPTS
++ARG CARGO_BAZEL_REPIN=true
++ARG TEST_TARGETS="//tests/... @envoy//test/integration:tcp_proxy_integration_test"
+ ARG DEBUG
+ ARG BUILDARCH
+ ARG TARGETARCH
++ARG AWS_LC_FIPS
+ ARG NO_CACHE
+ ENV TARGETARCH=$TARGETARCH
+ 
+-RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH,sharing=private if [ -n "$NO_CACHE" ]; then rm -rf /cilium/proxy/.cache/*; fi
++USER 0
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH if [ -n "$NO_CACHE" ]; then rm -rf /cilium/proxy/.cache/*; fi
++USER 1337:1337
+ # Make proxylib available for the tests by copying it before running the tests
+ COPY --from=proxylib /tmp/libcilium.so proxylib/libcilium.so
+-RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH,sharing=private \
++RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,id=$TARGETARCH \
+     --mount=target=/tmp/bazel-cache,source=/tmp/bazel-cache,from=archive-cache,rw \
++    if [ -d /cilium/proxy/.cache/bazel/_bazel_cilium ]; then find /cilium/proxy/.cache/bazel/_bazel_cilium -mindepth 2 -maxdepth 2 -type d -name server -exec rm -rf {} +; fi && \
+     if [ "$TARGETARCH" != "$BUILDARCH" ]; then \
+       if [ "$TARGETARCH" = "amd64" ]; then \
+         # Allow running x86_64 test binaries via qemu \
+@@ -96,9 +121,15 @@ RUN --mount=mode=0777,uid=1337,gid=1337,target=/cilium/proxy/.cache,type=cache,i
+         # Allow running aarch64 test binaries via qemu \
+         ln -s /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.* /lib; \
+         ln -s /usr/aarch64-linux-gnu/lib /usr/cilium-cross-compat/lib; \
++      elif [ "$TARGETARCH" = "s390x" ]; then \
++        # Allow running s390x test binaries via qemu \
++        ln -s /usr/s390x-linux-gnu/lib/ld64.so.1 /lib; \
++        ln -s /usr/s390x-linux-gnu/lib /usr/cilium-cross-compat/lib; \
+       fi; \
+     fi && \
+-    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" BAZEL_TEST_OPTS="${BAZEL_TEST_OPTS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make envoy-tests && \
++    if [ "${TARGETARCH}" = "s390x" ]; then export CARGO_BAZEL_GENERATOR_URL="file:///usr/local/bin/cargo-bazel"; fi && \
++    if [ -n "${AWS_LC_FIPS}" ]; then export AWS_LC_FIPS="${AWS_LC_FIPS}"; fi && \
++    BAZEL_BUILD_OPTS="${BAZEL_BUILD_OPTS} --disk_cache=/tmp/bazel-cache" BAZEL_TEST_OPTS="${BAZEL_TEST_OPTS}" CARGO_BAZEL_REPIN="${CARGO_BAZEL_REPIN}" TEST_TARGETS="${TEST_TARGETS}" PKG_BUILD=1 V=$V DEBUG=$DEBUG make envoy-tests && \
+     cp -Lr /cilium/proxy/bazel-testlogs testlogs
+ 
+ FROM scratch AS empty-builder-archive
+diff --git a/Makefile b/Makefile
+index 27df078a..653c3067 100644
+--- a/Makefile
++++ b/Makefile
+@@ -26,6 +26,8 @@ BAZEL ?= $(QUIET) bazel
+ BAZEL_FILTER ?=
+ BAZEL_OPTS ?=
+ BAZEL_BUILD_OPTS ?=
++CARGO_BAZEL_REPIN ?= true
++TEST_TARGETS ?= //tests/... @envoy//test/integration:tcp_proxy_integration_test
+ ifdef BAZEL_REMOTE_CACHE
+   BAZEL_BUILD_OPTS += --remote_cache=$(BAZEL_REMOTE_CACHE)
+ endif
+@@ -123,7 +125,7 @@ clang.bazelrc: bazel/setup_clang.sh
+ .PHONY: bazel-bin/cilium-envoy
+ bazel-bin/cilium-envoy: $(COMPILER_DEP) SOURCE_VERSION install-bazelisk
+ 	@$(ECHO_BAZEL)
+-	CARGO_BAZEL_REPIN=true $(BAZEL) $(BAZEL_OPTS) build $(BAZEL_BUILD_OPTS) //:cilium-envoy $(BAZEL_FILTER)
++	CARGO_BAZEL_REPIN=$(CARGO_BAZEL_REPIN) $(BAZEL) $(BAZEL_OPTS) build $(BAZEL_BUILD_OPTS) //:cilium-envoy $(BAZEL_FILTER)
+ 
+ cilium-envoy: bazel-bin/cilium-envoy
+ 	mv $< $@
+@@ -131,7 +133,7 @@ cilium-envoy: bazel-bin/cilium-envoy
+ .PHONY: bazel-bin/cilium-envoy-starter
+ bazel-bin/cilium-envoy-starter: $(COMPILER_DEP) SOURCE_VERSION install-bazelisk
+ 	@$(ECHO_BAZEL)
+-	CARGO_BAZEL_REPIN=true $(BAZEL) $(BAZEL_OPTS) build $(BAZEL_BUILD_OPTS) //:cilium-envoy-starter $(BAZEL_FILTER)
++	CARGO_BAZEL_REPIN=$(CARGO_BAZEL_REPIN) $(BAZEL) $(BAZEL_OPTS) build $(BAZEL_BUILD_OPTS) //:cilium-envoy-starter $(BAZEL_FILTER)
+ 
+ cilium-envoy-starter: bazel-bin/cilium-envoy-starter
+ 	mv $< $@
+@@ -171,14 +173,14 @@ proxylib/libcilium.so:
+ .PHONY: envoy-test-deps
+ envoy-test-deps: $(COMPILER_DEP) SOURCE_VERSION proxylib/libcilium.so
+ 	@$(ECHO_BAZEL)
+-	CARGO_BAZEL_REPIN=true $(BAZEL) $(BAZEL_OPTS) build $(BAZEL_BUILD_OPTS) $(BAZEL_TEST_OPTS) //tests/... @envoy//test/integration:tcp_proxy_integration_test $(BAZEL_FILTER)
++	CARGO_BAZEL_REPIN=$(CARGO_BAZEL_REPIN) $(BAZEL) $(BAZEL_OPTS) build $(BAZEL_BUILD_OPTS) $(BAZEL_TEST_OPTS) $(TEST_TARGETS) $(BAZEL_FILTER)
+ 
+ .PHONY: envoy-tests
+ envoy-tests: $(COMPILER_DEP) SOURCE_VERSION proxylib/libcilium.so
+ 	@$(ECHO_BAZEL)
+ 	# Upstream tcp_proxy_integration_test included to validate that our custom patches
+ 	# didn't break anything
+-	CARGO_BAZEL_REPIN=true $(BAZEL) $(BAZEL_OPTS) test $(BAZEL_BUILD_OPTS) $(BAZEL_TEST_OPTS) //tests/... @envoy//test/integration:tcp_proxy_integration_test $(BAZEL_FILTER)
++	CARGO_BAZEL_REPIN=$(CARGO_BAZEL_REPIN) $(BAZEL) $(BAZEL_OPTS) test $(BAZEL_BUILD_OPTS) $(BAZEL_TEST_OPTS) $(TEST_TARGETS) $(BAZEL_FILTER)
+ 
+ .PHONY: \
+ 	install \
+diff --git a/Makefile.docker b/Makefile.docker
+index 2e7f651f..f8e90888 100644
+--- a/Makefile.docker
++++ b/Makefile.docker
+@@ -14,9 +14,16 @@
+ 
+ # Always use buildx
+ DOCKER := $(QUIET)DOCKER_BUILDKIT=1 docker buildx
++DOCKER_BUILDX_VERSION := $(shell docker buildx version 2>/dev/null || true)
+ 
+ DOCKER_DEV_ACCOUNT ?= quay.io/cilium
+ # CACHE_REF ?= docker.io/cilium/cilium-dev:cilium-envoy-cache
++
++AWS_LC_LOCAL_STAGE_DIR := .aws-lc-local
++AWS_LC_LOCAL_SRC_CONTAINER := /cilium/proxy/$(AWS_LC_LOCAL_STAGE_DIR)
++
++.PHONY: verify-image-safety
++verify-image-safety: 
+ CACHE_REF ?=
+ DOCKER_BUILD_OPTS ?=
+ DOCKER_CACHE_OPTS ?=
+@@ -30,10 +37,15 @@ ifeq ($(ARCH),amd64)
+   DOCKER_PLATFORMS := --platform=linux/amd64
+ else ifeq ($(ARCH),arm64)
+   DOCKER_PLATFORMS := --platform=linux/arm64
++else ifeq ($(ARCH),s390x)
++  DOCKER_PLATFORMS := --platform=linux/s390x
+ else ifeq ($(ARCH),multi)
+   DOCKER_PLATFORMS := --platform=linux/arm64,linux/amd64
++  ifeq ($(INCLUDE_S390X),true)
++    DOCKER_PLATFORMS := --platform=linux/arm64,linux/amd64,linux/s390x
++  endif
+ endif
+-DOCKER_BUILDER := $(shell docker buildx ls | grep -E -e "[a-zA-Z0-9-]+ \*" | cut -d ' ' -f1)
++DOCKER_BUILDER := $(shell docker buildx ls 2>/dev/null | grep -E -e "[a-zA-Z0-9-]+ \*" | cut -d ' ' -f1)
+ ifdef DOCKER_PLATFORMS
+   ifneq (,$(filter $(DOCKER_BUILDER),default desktop-linux))
+     DOCKER_BUILDKIT_DRIVER :=
+@@ -41,7 +53,7 @@ ifdef DOCKER_PLATFORMS
+       DOCKER_BUILDKIT_DRIVER := --driver docker-container --driver-opt image=$(DOCKER_BUILDKIT_IMAGE)
+     endif
+     BUILDER_SETUP := $(shell docker buildx create $(DOCKER_PLATFORMS) $(DOCKER_BUILDKIT_DRIVER) --use)
+-    DOCKER_BUILDER := $(shell docker buildx ls | grep -E -e "[a-zA-Z0-9-]+ \*" | cut -d ' ' -f1)
++    DOCKER_BUILDER := $(shell docker buildx ls 2>/dev/null | grep -E -e "[a-zA-Z0-9-]+ \*" | cut -d ' ' -f1)
+   endif
+ endif
+ ifneq ($(DOCKER_BUILDER),default)
+@@ -55,7 +67,6 @@ ifneq ($(DOCKER_BUILDER),default)
+       # (It's not supported to write multi-arch builds to the local Docker registry)
+       DOCKER_BUILD_OPTS += --push
+     else
+-      # Push to local docker registry by default
+       DOCKER_BUILD_OPTS += --output type=docker
+     endif
+   endif
+@@ -68,6 +79,62 @@ $(info Using Docker Buildx builder "$(DOCKER_BUILDER)" with build flags "$(DOCKE
+ 
+ HYPHEN = -
+ ARCH ?= $(subst aarch64,arm64,$(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m))))
++# Upstream builder archive image currently lacks linux/s390x manifests.
++# Default to fresh dependency build on s390x unless explicitly overridden.
++ifeq ($(ARCH),s390x)
++  NO_ARCHIVE ?= 1
++  # Keep test-deps builds within tighter memory/CPU limits on zLinux hosts to
++  # avoid late-stage clang OOM kills during large Envoy test object compiles.
++  ifeq ($(filter command line environment,$(origin EXTRA_BAZEL_BUILD_OPTS)),)
++    EXTRA_BAZEL_BUILD_OPTS += --jobs=1 --local_ram_resources=2048 --local_cpu_resources=1
++  endif
++  ifeq ($(filter command line environment,$(origin BAZEL_TEST_OPTS)),)
++    BAZEL_TEST_OPTS := --jobs=1 --local_ram_resources=2048 --local_cpu_resources=1 --test_timeout=300 --local_test_jobs=1 --flaky_test_attempts=3 --test_output=errors
++  endif
++  # Optional: allow explicit FIPS experiment attempts for AWS-LC on s390x.
++  # Default behavior stays non-FIPS unless caller sets this variable.
++  ifneq ($(strip $(AWS_LC_S390X_FIPS_EXPERIMENTAL)),)
++    ifeq ($(filter --action_env=AWS_LC_S390X_FIPS_EXPERIMENTAL=%,$(EXTRA_BAZEL_BUILD_OPTS)),)
++      override EXTRA_BAZEL_BUILD_OPTS += --action_env=AWS_LC_S390X_FIPS_EXPERIMENTAL=$(AWS_LC_S390X_FIPS_EXPERIMENTAL)
++    endif
++  endif
++  # If explicit AWS_LC_FIPS is set, propagate it into Bazel action env so
++  # aws_lc.genrule_cmd can deterministically honor the requested mode.
++  ifneq ($(strip $(AWS_LC_FIPS)),)
++    ifeq ($(filter --action_env=AWS_LC_FIPS=%,$(EXTRA_BAZEL_BUILD_OPTS)),)
++      override EXTRA_BAZEL_BUILD_OPTS += --action_env=AWS_LC_FIPS=$(AWS_LC_FIPS)
++    endif
++  endif
++  # Optional local AWS-LC source pinning for s390x validation.
++  ifneq ($(strip $(AWS_LC_LOCAL_SRC)),)
++    ifeq ($(filter --action_env=AWS_LC_LOCAL_SRC=%,$(EXTRA_BAZEL_BUILD_OPTS)),)
++      override EXTRA_BAZEL_BUILD_OPTS += --action_env=AWS_LC_LOCAL_SRC=$(AWS_LC_LOCAL_SRC_CONTAINER)
++    endif
++  endif
++  ifneq ($(strip $(AWS_LC_LOCAL_COMMIT)),)
++    ifeq ($(filter --action_env=AWS_LC_LOCAL_COMMIT=%,$(EXTRA_BAZEL_BUILD_OPTS)),)
++      override EXTRA_BAZEL_BUILD_OPTS += --action_env=AWS_LC_LOCAL_COMMIT=$(AWS_LC_LOCAL_COMMIT)
++    endif
++  endif
++  # Some zLinux builders run with IPv6 loopback unavailable inside Bazel test
++  # sandboxes, which makes Envoy integration cases fail on bind('[::1]:0').
++  # Keep s390x defaults v4-only unless caller explicitly sets the test env.
++  ENVOY_IP_TEST_VERSIONS ?= v4only
++  ifneq ($(strip $(ENVOY_IP_TEST_VERSIONS)),)
++    ifeq ($(filter --test_env=ENVOY_IP_TEST_VERSIONS=%,$(BAZEL_TEST_OPTS)),)
++      override BAZEL_TEST_OPTS += --test_env=ENVOY_IP_TEST_VERSIONS=$(ENVOY_IP_TEST_VERSIONS)
++    endif
++  endif
++  # Iteration mode defaults for zLinux:
++  # - avoid forcing Cargo lock repin on every build
++  # - scope tests to known failing TLS/regression targets unless overridden
++  ifeq ($(filter command line environment,$(origin CARGO_BAZEL_REPIN)),)
++    CARGO_BAZEL_REPIN := false
++  endif
++  ifeq ($(filter command line environment,$(origin TEST_TARGETS)),)
++    TEST_TARGETS := //tests:cilium_tls_http_integration_test //tests:cilium_tls_tcp_integration_test //tests:cilium_websocket_encap_integration_test @envoy//test/integration:tcp_proxy_integration_test
++  endif
++endif
+ # Add -<arch> suffix if ARCH is not "multi"
+ ifeq ($(ARCH),multi)
+   ARCH :=
+@@ -98,6 +165,24 @@ BUILDER_BASE ?= $(DOCKER_DEV_ACCOUNT)/cilium-envoy-builder:$(BUILDER_BASE_TAG)
+ BUILD_IMAGE_OPTS := --build-arg BUILDER_BASE="$(BUILDER_BASE)"
+ TESTS_IMAGE_OPTS := --build-arg BUILDER_BASE="$(BUILDER_BASE)"
+ 
++ifeq ($(ARCH),s390x)
++  # Upstream cilium-builder digest used in Dockerfile.tests lacks linux/s390x manifests.
++  # Reuse BUILDER_BASE for proxylib stage unless caller explicitly provides PROXYLIB_BUILDER.
++  PROXYLIB_BUILDER ?= $(BUILDER_BASE)
++endif
++ifneq ($(strip $(PROXYLIB_BUILDER)),)
++  TESTS_IMAGE_OPTS += --build-arg PROXYLIB_BUILDER="$(PROXYLIB_BUILDER)"
++endif
++
++ifneq ($(strip $(KEEP_BUILDER_FRESH_CACHE)),)
++  BUILD_IMAGE_OPTS += --build-arg KEEP_BUILDER_FRESH_CACHE="$(KEEP_BUILDER_FRESH_CACHE)"
++endif
++
++ifneq ($(strip $(AWS_LC_FIPS)),)
++  BUILD_IMAGE_OPTS += --build-arg AWS_LC_FIPS="$(AWS_LC_FIPS)"
++  TESTS_IMAGE_OPTS += --build-arg AWS_LC_FIPS="$(AWS_LC_FIPS)"
++endif
++
+ ifdef DEBUG
+   BUILD_IMAGE_OPTS += --build-arg DEBUG=$(DEBUG)
+ else ifdef RELEASE_DEBUG
+@@ -114,6 +199,33 @@ ifndef NO_ARCHIVE
+   endif
+ endif
+ 
++.PHONY: prepare-aws-lc-local
++prepare-aws-lc-local:
++	@if [ -z "$(strip $(AWS_LC_LOCAL_SRC))" ]; then \
++		exit 0; \
++	fi
++	@if [ ! -d "$(AWS_LC_LOCAL_SRC)" ]; then \
++		echo "ERROR: AWS_LC_LOCAL_SRC does not exist: $(AWS_LC_LOCAL_SRC)"; \
++		exit 1; \
++	fi
++	@echo "Staging AWS-LC local source into $(AWS_LC_LOCAL_STAGE_DIR)"
++	@rm -rf "$(AWS_LC_LOCAL_STAGE_DIR)"
++	@mkdir -p "$(AWS_LC_LOCAL_STAGE_DIR)"
++	@if [ -d "$(AWS_LC_LOCAL_SRC)/.git" ] && [ -n "$(strip $(AWS_LC_LOCAL_COMMIT))" ] && git -C "$(AWS_LC_LOCAL_SRC)" rev-parse --verify "$(AWS_LC_LOCAL_COMMIT)^{commit}" >/dev/null 2>&1; then \
++		echo "Exporting AWS-LC commit $(AWS_LC_LOCAL_COMMIT) from $(AWS_LC_LOCAL_SRC)"; \
++		git -C "$(AWS_LC_LOCAL_SRC)" archive --format=tar "$(AWS_LC_LOCAL_COMMIT)" | tar -xf - -C "$(AWS_LC_LOCAL_STAGE_DIR)"; \
++	else \
++		if [ -d "$(AWS_LC_LOCAL_SRC)/.git" ] && [ -n "$(strip $(AWS_LC_LOCAL_COMMIT))" ]; then \
++			echo "WARNING: AWS_LC_LOCAL_COMMIT $(AWS_LC_LOCAL_COMMIT) not found in $(AWS_LC_LOCAL_SRC); staging current worktree snapshot"; \
++		fi; \
++		cp -a "$(AWS_LC_LOCAL_SRC)/." "$(AWS_LC_LOCAL_STAGE_DIR)/"; \
++	fi
++	@if [ ! -f "$(AWS_LC_LOCAL_STAGE_DIR)/CMakeLists.txt" ]; then \
++		echo "ERROR: staged AWS-LC source is missing CMakeLists.txt"; \
++		find "$(AWS_LC_LOCAL_STAGE_DIR)" -maxdepth 2 -name CMakeLists.txt -print || true; \
++		exit 1; \
++	fi
++
+ ifdef NO_CACHE
+   DOCKER_CACHE_OPTS += --build-arg NO_CACHE=$(NO_CACHE)
+   ifeq ($(NO_CACHE),2)
+@@ -145,13 +257,13 @@ Dockerfile.builder.tests.dockerignore:
+ 	echo "!/.bazelversion" >>$@
+ 
+ # Release does not need Go API or test files
+-Dockerfile.dockerignore: .dockerignore Makefile.docker
++Dockerfile.dockerignore: .dockerignore Makefile.docker prepare-aws-lc-local
+ 	cp $< $@
+ 	echo "/tests/" >>$@
+ 	echo "/Makefile.api" >>$@
+ 	echo "/envoy_binary_test.sh" >>$@
+ 
+-Dockerfile.tests.dockerignore: .dockerignore Makefile.docker
++Dockerfile.tests.dockerignore: .dockerignore Makefile.docker prepare-aws-lc-local
+ 	cp $< $@
+ 	echo "/Makefile.api" >>$@
+ 
+@@ -175,18 +287,23 @@ GIT_IGNORE_FILES := $(shell find -H . -not -path "./_build*" -not -path "./vendo
+ 	echo "/Dockerfile*" >>$@
+ 	echo "/Makefile.docker" >>$@
+ 	echo "/README*" >>$@
++	echo "/type=docker/" >>$@
++	if [ -d ./.aws-lc-local ]; then \
++		echo "!/.aws-lc-local" >>$@; \
++		echo "!/.aws-lc-local/**" >>$@; \
++	fi
+ 
+ .PHONY: docker-image-builder
+-docker-image-builder: Dockerfile.builder SOURCE_VERSION Dockerfile.builder.dockerignore
+-	$(DOCKER) build $(DOCKER_BUILD_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg BUILDER_BASE="$(BUILDER_BASE)" -f $< -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy-builder:$(BUILDER_BASE_TAG) .
++docker-image-builder: verify-image-safety Dockerfile.builder SOURCE_VERSION Dockerfile.builder.dockerignore
++	$(DOCKER) build $(DOCKER_BUILD_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg BAZEL_VERSION="$(BAZEL_VERSION)" --build-arg BUILDER_BASE="$(BUILDER_BASE)" -f Dockerfile.builder -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy-builder:$(BUILDER_BASE_TAG) .
+ 
+ .PHONY: docker-builder-archive
+-docker-builder-archive: Dockerfile SOURCE_VERSION Dockerfile.dockerignore
++docker-builder-archive: verify-image-safety prepare-aws-lc-local Dockerfile SOURCE_VERSION Dockerfile.dockerignore
+ 	$(DOCKER) build --target builder-archive $(DOCKER_BUILD_OPTS) $(DOCKER_CACHE_OPTS) $(BUILD_IMAGE_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg COPY_CACHE_EXT=.new -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy-builder:$(BUILDER_ARCHIVE_TAG) .
+ 
+ .PHONY: docker-tests-archive
+-docker-tests-archive: Dockerfile.tests SOURCE_VERSION Dockerfile.tests.dockerignore
+-	$(DOCKER) build --target builder-archive $(DOCKER_BUILD_OPTS) $(DOCKER_CACHE_OPTS) $(TESTS_IMAGE_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg COPY_CACHE_EXT=.new -f $< -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy-builder:$(TESTS_ARCHIVE_TAG) .
++docker-tests-archive: verify-image-safety prepare-aws-lc-local Dockerfile.tests SOURCE_VERSION Dockerfile.tests.dockerignore
++	$(DOCKER) build --target builder-archive $(DOCKER_BUILD_OPTS) $(DOCKER_CACHE_OPTS) $(TESTS_IMAGE_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg CARGO_BAZEL_REPIN="$(CARGO_BAZEL_REPIN)" --build-arg TEST_TARGETS="$(TEST_TARGETS)" --build-arg COPY_CACHE_EXT=.new -f Dockerfile.tests -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy-builder:$(TESTS_ARCHIVE_TAG) .
+ 
+ ifeq ($(BRANCH_TAG),main)
+   DOCKER_TESTS_TAGS += -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy:latest$(IMAGE_ARCH)$(DEBUG_TAG)-testlogs
+@@ -195,8 +312,8 @@ else
+ endif
+ 
+ .PHONY: docker-tests
+-docker-tests: Dockerfile.tests SOURCE_VERSION Dockerfile.tests.dockerignore
+-	$(DOCKER) build --progress=plain $(subst --push,--load,$(DOCKER_BUILD_OPTS)) $(DOCKER_CACHE_OPTS) $(TESTS_IMAGE_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg BAZEL_TEST_OPTS="$(BAZEL_TEST_OPTS)" -f $< $(DOCKER_TESTS_TAGS) .
++docker-tests: verify-image-safety prepare-aws-lc-local Dockerfile.tests SOURCE_VERSION Dockerfile.tests.dockerignore
++	$(DOCKER) build --progress=plain $(subst --push,--load,$(DOCKER_BUILD_OPTS)) $(DOCKER_CACHE_OPTS) $(TESTS_IMAGE_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" --build-arg BAZEL_TEST_OPTS="$(BAZEL_TEST_OPTS)" --build-arg CARGO_BAZEL_REPIN="$(CARGO_BAZEL_REPIN)" --build-arg TEST_TARGETS="$(TEST_TARGETS)" -f Dockerfile.tests $(DOCKER_TESTS_TAGS) .
+ 
+ ifeq ($(BRANCH_TAG),main)
+   DOCKER_IMAGE_ENVOY_TAGS := -t $(DOCKER_DEV_ACCOUNT)/cilium-envoy:$(SOURCE_VERSION)$(IMAGE_ARCH)$(DEBUG_TAG)
+@@ -207,6 +324,6 @@ else
+ endif
+ 
+ .PHONY: docker-image-envoy
+-docker-image-envoy: Dockerfile SOURCE_VERSION Dockerfile.dockerignore
++docker-image-envoy: verify-image-safety prepare-aws-lc-local Dockerfile SOURCE_VERSION Dockerfile.dockerignore
+ 	@$(ECHO_GEN) docker-image-envoy
+ 	$(DOCKER) build $(DOCKER_BUILD_OPTS) $(DOCKER_CACHE_OPTS) $(BUILD_IMAGE_OPTS) --build-arg BAZEL_BUILD_OPTS="$(EXTRA_BAZEL_BUILD_OPTS)" $(DOCKER_IMAGE_ENVOY_TAGS) .
+diff --git a/WORKSPACE b/WORKSPACE
+index f1aefb47..efe1009f 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -44,6 +44,17 @@ git_repository(
+         "@//patches:0005-http-header-expose-attribute.patch",
+         "@//patches:0006-build-Fix-arm-build-for-liburing.patch",
+         "@//patches:0007-Add-latomic-back-for-arm-build.patch",
++        "@//patches:0008-bazel-Wire-boringssl-s390x-target-patch.patch",
++        "@//patches:0009-bazel-absl-clang-s390x-int128-fallback.patch",
++        "@//patches:0010-bazel-quiche-s390x-big-endian-send-buffer-fallback.patch",
++        "@//patches:0011-bazel-aws-lc-s390x-local-toolchain-nonfips.patch",
++        "@//patches:0012-bazel-route-s390x-fips-to-aws-lc.patch",
++        "@//patches:0013-bazel-envoy-guard-fips-compliance-policy-for-nonfips.patch",
++        "@//patches:0014-bazel-aws-lc-s390x-enable-fips-and-pin-local-commit.patch",
++        "@//patches:0015-bazel-quiche-awslc-server-credential-compat.patch",
++        "@//patches:0016-bazel-quiche-awslc-client-handshaker-compat.patch",
++        "@//patches:0017-bazel-quiche-awslc-server-handshaker-groups-compat.patch",
++        "@//patches:0018-bazel-quiche-s390x-big-endian-endian-fix.patch",
+     ],
+     # // clang-format off: Envoy's format check: Only repository_locations.bzl may contains URL references
+     remote = "https://github.com/envoyproxy/envoy.git",
+diff --git a/bazel/BUILD b/bazel/BUILD
+index 0a693023..f0783f48 100644
+--- a/bazel/BUILD
++++ b/bazel/BUILD
+@@ -13,3 +13,11 @@ platform(
+         "@platforms//os:linux",
+     ],
+ )
++
++platform(
++    name = "linux_s390x",
++    constraint_values = [
++        "@platforms//cpu:s390x",
++        "@platforms//os:linux",
++    ],
++)
+diff --git a/bazel/toolchains/BUILD b/bazel/toolchains/BUILD
+index 4a9e68bb..8031a07f 100644
+--- a/bazel/toolchains/BUILD
++++ b/bazel/toolchains/BUILD
+@@ -202,11 +202,113 @@ cc_toolchain_config(
+     # builtin_sysroot = "/sysroot",
+ )
+ 
++toolchain(
++    name = "s390x_linux_cc_toolchain",
++    exec_compatible_with = ["@platforms//os:linux"],
++    target_compatible_with = [
++        "@platforms//cpu:s390x",
++        "@platforms//os:linux",
++    ],
++    toolchain = ":clang_s390x_linux_cc_toolchain",
++    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
++)
++
++cc_toolchain(
++    name = "clang_s390x_linux_cc_toolchain",
++    all_files = ":empty",
++    compiler_files = ":empty",
++    dwp_files = ":empty",
++    linker_files = ":empty",
++    objcopy_files = ":empty",
++    strip_files = ":empty",
++    toolchain_config = ":clang_s390x_linux_toolchain_config",
++)
++
++cc_toolchain_config(
++    name = "clang_s390x_linux_toolchain_config",
++    abi_libc_version = "s390x",
++    abi_version = "s390x",
++    compile_flags = [
++        "--target=s390x-unknown-linux-gnu",
++        "-fuse-ld=lld-18",  # cmake compiler test needs this
++        "-DTOOLCHAIN_MISS_ASM_HWCAP_H",  # highway: asm/hwcap.h may be unavailable in cross libc headers
++        "-DNVALGRIND",  # glib in rules_foreign_cc pulls valgrind macros with unsupported s390x clang asm
++        "-U_FORTIFY_SOURCE",
++        "-fstack-protector",
++        "-Wall",
++        "-Wunused-but-set-parameter",
++        "-Wthread-safety-analysis",
++        "-Wno-free-nonheap-object",
++        "-fno-omit-frame-pointer",
++        # Needed by Envoy dependencies to build:
++        "-Wno-unused-command-line-argument",  # tcmalloc needs this since -fuse-ld was added above
++        "-Wno-deprecated-builtins",
++    ],
++    compiler = "clang",
++    coverage_compile_flags = ["--coverage"],
++    coverage_link_flags = ["--coverage"],
++    cpu = "s390x",
++    cxx_builtin_include_directories = [
++        "/usr/lib/llvm-18",
++        "/usr/s390x-linux-gnu/include",
++        "/usr/include",
++    ],
++    cxx_flags = ["-std=c++0x"],
++    dbg_compile_flags = ["-g"],
++    host_system_name = "local",
++    link_flags = [
++        "--target=s390x-unknown-linux-gnu",
++        "-fuse-ld=lld-18",
++        "-Wl,-no-as-needed",
++        "-Wl,-z,relro,-z,now",
++        "-lm",
++    ],
++    link_libs = ["-l:libstdc++.a"],
++    opt_compile_flags = [
++        "-g0",
++        "-O2",
++        "-D_FORTIFY_SOURCE=1",
++        "-DNDEBUG",
++        "-ffunction-sections",
++        "-fdata-sections",
++    ],
++    opt_link_flags = ["-Wl,--gc-sections"],
++    supports_start_end_lib = True,
++    target_libc = "glibc",
++    target_system_name = "s390x-linux-gnu",
++    tool_paths = {
++        "ar": "/usr/bin/llvm-ar-18",
++        "compat-ld": "/usr/bin/lld-18",
++        "ld": "/usr/bin/lld-18",
++        "gold": "/usr/bin/lld-18",
++        "cpp": "/usr/bin/clang-cpp-18",
++        "gcc": "/usr/bin/clang-18",
++        "dwp": "/usr/bin/llvm-dwp-18",
++        "gcov": "/usr/bin/llvmcov-18",
++        "nm": "/usr/bin/llvm-nm-18",
++        "objcopy": "/usr/bin/llvm-objcopy-18",
++        "objdump": "/usr/bin/llvm-objdump-18",
++        "strip": "/usr/bin/llvm-strip-18",
++    },
++    toolchain_identifier = "linux_s390x",
++    unfiltered_compile_flags = [
++        "-Wno-builtin-macro-redefined",
++        "-D__DATE__=\"redacted\"",
++        "-D__TIMESTAMP__=\"redacted\"",
++        "-D__TIME__=\"redacted\"",
++    ],
++    #
++    # cxx_builtin_include_directories entries need "%sysroot%" prefix if sysroot is set
++    #
++    # builtin_sysroot = "/sysroot",
++)
++
+ # still needed to avoid use of local_config_cc toolchain
+ cc_toolchain_suite(
+     name = "toolchain",
+     toolchains = {
+         "k8": ":clang_x86_64_linux_cc_toolchain",
+         "aarch64": ":clang_aarch64_linux_cc_toolchain",
++        "s390x": ":clang_s390x_linux_cc_toolchain",
+     },
+ )
+diff --git a/patches/0008-bazel-Wire-boringssl-s390x-target-patch.patch b/patches/0008-bazel-Wire-boringssl-s390x-target-patch.patch
+new file mode 100644
+index 00000000..ee5e7cce
+--- /dev/null
++++ b/patches/0008-bazel-Wire-boringssl-s390x-target-patch.patch
+@@ -0,0 +1,36 @@
++diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
++--- a/bazel/repositories.bzl
+++++ b/bazel/repositories.bzl
++@@ -260,7 +260,11 @@ def envoy_dependencies(skip_targets = []):
++     )
++ 
++ def _boringssl():
++-    external_http_archive(name = "boringssl")
+++    external_http_archive(
+++        name = "boringssl",
+++        patch_args = ["-p1"],
+++        patches = ["@envoy//bazel:boringssl_s390x.patch"],
+++    )
++ 
++ def _boringssl_fips():
++     external_http_archive(
++diff --git a/bazel/boringssl_s390x.patch b/bazel/boringssl_s390x.patch
++new file mode 100644
++--- /dev/null
+++++ b/bazel/boringssl_s390x.patch
++@@ -0,0 +1,15 @@
+++diff --git a/include/openssl/target.h b/include/openssl/target.h
+++--- a/include/openssl/target.h
++++++ b/include/openssl/target.h
+++@@ -53,6 +53,11 @@
+++ #define OPENSSL_32_BIT
+++ #elif defined(__myriad2__)
+++ #define OPENSSL_32_BIT
++++#elif defined(__s390x__) && defined(__linux__)
++++// Local downstream extension for zLinux/s390x builds.
++++#define OPENSSL_64_BIT
++++#define OPENSSL_ASM_INCOMPATIBLE
++++#define OPENSSL_BIG_ENDIAN
+++ #else
+++ // The list above enumerates the platforms that BoringSSL supports. For these
+++ // platforms we keep a reasonable bar of not breaking them: automated test
+diff --git a/patches/0009-bazel-absl-clang-s390x-int128-fallback.patch b/patches/0009-bazel-absl-clang-s390x-int128-fallback.patch
+new file mode 100644
+index 00000000..d3c2a73e
+--- /dev/null
++++ b/patches/0009-bazel-absl-clang-s390x-int128-fallback.patch
+@@ -0,0 +1,32 @@
++diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
++--- a/bazel/repositories.bzl
+++++ b/bazel/repositories.bzl
++@@ -636,6 +636,9 @@ def _com_google_absl():
++     external_http_archive(
++         name = "com_google_absl",
++-        patches = ["@envoy//bazel:abseil.patch"],
+++        patches = [
+++            "@envoy//bazel:abseil.patch",
+++            "@envoy//bazel:abseil_s390x_clang.patch",
+++        ],
++         patch_args = ["-p1"],
++         repo_mapping = {"@googletest": "@com_google_googletest"},
++     )
++diff --git a/bazel/abseil_s390x_clang.patch b/bazel/abseil_s390x_clang.patch
++new file mode 100644
++--- /dev/null
+++++ b/bazel/abseil_s390x_clang.patch
++@@ -0,0 +1,13 @@
+++diff --git a/absl/base/config.h b/absl/base/config.h
+++--- a/absl/base/config.h
++++++ b/absl/base/config.h
+++@@ -303,7 +303,7 @@
+++ #ifdef ABSL_HAVE_INTRINSIC_INT128
+++ #error ABSL_HAVE_INTRINSIC_INT128 cannot be directly set
+++ #elif defined(__SIZEOF_INT128__)
+++-#if (defined(__clang__) && !defined(_WIN32)) ||           \
++++#if (defined(__clang__) && !defined(_WIN32) && !defined(__s390x__)) || \
+++     (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ >= 9) || \
+++     (defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__))
+++ #define ABSL_HAVE_INTRINSIC_INT128 1
+++ #elif defined(__CUDACC__)
+diff --git a/patches/0010-bazel-quiche-s390x-big-endian-send-buffer-fallback.patch b/patches/0010-bazel-quiche-s390x-big-endian-send-buffer-fallback.patch
+new file mode 100644
+index 00000000..b9b27b47
+--- /dev/null
++++ b/patches/0010-bazel-quiche-s390x-big-endian-send-buffer-fallback.patch
+@@ -0,0 +1,62 @@
++diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
++--- a/bazel/repositories.bzl
+++++ b/bazel/repositories.bzl
++@@ -799,9 +799,11 @@ def _intel_ittapi():
++ 
++ def _com_github_google_quiche():
++     external_http_archive(
++         name = "com_github_google_quiche",
+++        patch_args = ["-p1"],
+++        patches = ["@envoy//bazel:quiche_s390x_big_endian.patch"],
++         patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
++         build_file = "@envoy//bazel/external:quiche.BUILD",
++     )
++ 
++ def _googleurl():
++diff --git a/bazel/quiche_s390x_big_endian.patch b/bazel/quiche_s390x_big_endian.patch
++new file mode 100644
++--- /dev/null
+++++ b/bazel/quiche_s390x_big_endian.patch
++@@ -0,0 +1,42 @@
+++diff --git a/quiche/quic/core/quic_inlined_string_view.h b/quiche/quic/core/quic_inlined_string_view.h
+++--- a/quiche/quic/core/quic_inlined_string_view.h
++++++ b/quiche/quic/core/quic_inlined_string_view.h
+++@@ -113,7 +113,9 @@ class QUICHE_NO_EXPORT QuicInlinedStringView {
+++     size_t size;
+++   };
+++   static_assert(sizeof(ViewRep) <= kSize);
++++#if !defined(__BYTE_ORDER__) || (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+++   static_assert(absl::endian::native == absl::endian::little);
++++#endif
+++
+++   // Accessors for ViewRep; necessary to work around C++ strict aliasing
+++   // limitations.  Clang will turn this into direct field access at `-O1`.
+++diff --git a/quiche/quic/core/quic_stream.cc b/quiche/quic/core/quic_stream.cc
+++--- a/quiche/quic/core/quic_stream.cc
++++++ b/quiche/quic/core/quic_stream.cc
+++@@ -133,10 +133,23 @@ std::unique_ptr<QuicStreamSendBufferBase> CreateSendBuffer(
+++     QuicSession* session) {
+++   quiche::QuicheBufferAllocator* allocator =
+++       session->connection()->helper()->GetStreamSendBufferAllocator();
+++-  if (GetQuicReloadableFlag(quic_use_inlining_send_buffer2)) {
++++  const bool use_inlining_send_buffer =
++++      GetQuicReloadableFlag(quic_use_inlining_send_buffer2);
++++
++++#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
++++  // QuicInlinedStringView currently assumes little-endian layout for the
++++  // compact inlined representation; use the non-inlining implementation on
++++  // big-endian platforms (for example s390x) to preserve correctness.
++++  if (use_inlining_send_buffer) {
++++    QUIC_RELOADABLE_FLAG_COUNT(quic_use_inlining_send_buffer2);
++++  }
++++  return std::make_unique<QuicStreamSendBuffer>(allocator);
++++#else
++++  if (use_inlining_send_buffer) {
+++     QUIC_RELOADABLE_FLAG_COUNT(quic_use_inlining_send_buffer2);
+++     return std::make_unique<QuicStreamSendBufferInlining>(allocator);
+++   }
+++   return std::make_unique<QuicStreamSendBuffer>(allocator);
++++#endif
+++ }
+++
+++}  // namespace
+diff --git a/patches/0011-bazel-aws-lc-s390x-local-toolchain-nonfips.patch b/patches/0011-bazel-aws-lc-s390x-local-toolchain-nonfips.patch
+new file mode 100644
+index 00000000..e2dfcdc4
+--- /dev/null
++++ b/patches/0011-bazel-aws-lc-s390x-local-toolchain-nonfips.patch
+@@ -0,0 +1,303 @@
++diff --git a/bazel/external/aws_lc.genrule_cmd b/bazel/external/aws_lc.genrule_cmd
++index 82139095e5..7ea24b8e83 100755
++--- a/bazel/external/aws_lc.genrule_cmd
+++++ b/bazel/external/aws_lc.genrule_cmd
++@@ -10,13 +10,37 @@ export LDFLAGS=''
++ 
++ OS=`uname`
++ ARCH=`uname -m`
++-# This works only on Linux-x86_64, Linux-ppc64le, and Linux-aarch64.
+++# This script supports:
+++# - FIPS mode on Linux-x86_64, Linux-ppc64le, and Linux-aarch64.
+++# - non-FIPS mode on Linux-s390x (uses local toolchains; FIPS delocate currently unsupported).
++ 
++-if [[ "$OS" != "Linux" || ("$ARCH" != "x86_64" && "$ARCH" != "aarch64" && "$ARCH" != "ppc64le") ]]; then
++-    echo "ERROR: AWS-LC FIPS is currently supported only on Linux-x86_64, Linux-ppc64le, and Linux-aarch64."
+++if [[ "$OS" != "Linux" || ("$ARCH" != "x86_64" && "$ARCH" != "aarch64" && "$ARCH" != "ppc64le" && "$ARCH" != "s390x") ]]; then
+++    echo "ERROR: AWS-LC build is supported only on Linux-x86_64, Linux-ppc64le, Linux-aarch64, and Linux-s390x."
++     exit 1
++ fi
++ 
+++AWS_LC_FIPS_MODE="${AWS_LC_S390X_FIPS_EXPERIMENTAL:-${AWS_LC_FIPS:-auto}}"
+++AWS_LC_FIPS=1
+++USE_LOCAL_TOOLCHAIN=0
+++AWS_LC_C_FLAGS="-fPIC"
+++AWS_LC_CXX_FLAGS="-fPIC"
+++if [[ "$ARCH" == "s390x" ]]; then
+++    if [[ "${AWS_LC_FIPS_MODE}" == "1" ]]; then
+++        echo "ERROR: AWS-LC FIPS is not yet supported on Linux-s390x."
+++        echo "ERROR: util/fipstools/delocate fails while generating bcm-delocated.S."
+++        echo "ERROR: use AWS_LC_FIPS=0 (or leave unset) on s390x until delocate support lands."
+++        exit 1
+++    fi
+++    # s390x currently uses non-FIPS AWS-LC with local clang/go/cmake/ninja.
+++    AWS_LC_FIPS=0
+++    USE_LOCAL_TOOLCHAIN=1
+++    # aws_lc's jitterentropy sources intentionally use unaligned loads that
+++    # trigger -Wcast-align under clang on s390x; keep this local to s390x.
+++    AWS_LC_C_FLAGS="${AWS_LC_C_FLAGS} -Wno-error=cast-align -Wno-cast-align"
+++elif [[ "${AWS_LC_FIPS_MODE}" == "0" ]]; then
+++    AWS_LC_FIPS=0
+++fi
+++
++ 
++ # Bazel magic.
++ # ROOT=$(dirname $(rootpath boringssl/BUILDING.md))/..
++@@ -33,109 +57,143 @@ pushd "$ROOT"
++ export PATH="$(dirname `which cmake`):/usr/bin:/bin"
++ 
++ # Clang
++-VERSION=14.0.0
++-if [[ "$ARCH" == "x86_64" ]]; then
++-    PLATFORM="x86_64-linux-gnu-ubuntu-20.04"
++-    SHA256=61582215dafafb7b576ea30cc136be92c877ba1f1c31ddbbd372d6d65622fef5
++-elif [[ "$ARCH" == "ppc64le" ]]; then
++-    PLATFORM="powerpc64le-linux-ubuntu-18.04"
++-    SHA256=2d504c4920885c86b306358846178bc2232dfac83b47c3b1d05861a8162980e6
++-else
++-    PLATFORM="aarch64-linux-gnu"
++-    SHA256=1792badcd44066c79148ffeb1746058422cc9d838462be07e3cb19a4b724a1ee
++-fi
++-
++-curl -sLO https://github.com/llvm/llvm-project/releases/download/llvmorg-"$VERSION"/clang+llvm-"$VERSION"-"$PLATFORM".tar.xz
++-tar xf clang+llvm-"$VERSION"-"$PLATFORM".tar.xz
++-
++ export HOME="$PWD"
++ printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" > ${HOME}/toolchain
++-export PATH="$PWD/clang+llvm-$VERSION-$PLATFORM/bin:$PATH"
+++if [[ "$USE_LOCAL_TOOLCHAIN" == "1" ]]; then
+++    export PATH="/usr/lib/llvm-18/bin:$PATH"
+++    if ! command -v clang >/dev/null 2>&1; then
+++        echo "ERROR: clang is required for local s390x AWS-LC build."
+++        exit 1
+++    fi
+++    echo "Using local clang: $(clang --version | head -1)"
+++else
+++    VERSION=14.0.0
+++    if [[ "$ARCH" == "x86_64" ]]; then
+++        PLATFORM="x86_64-linux-gnu-ubuntu-20.04"
+++        SHA256=61582215dafafb7b576ea30cc136be92c877ba1f1c31ddbbd372d6d65622fef5
+++    elif [[ "$ARCH" == "ppc64le" ]]; then
+++        PLATFORM="powerpc64le-linux-ubuntu-18.04"
+++        SHA256=2d504c4920885c86b306358846178bc2232dfac83b47c3b1d05861a8162980e6
+++    else
+++        PLATFORM="aarch64-linux-gnu"
+++        SHA256=1792badcd44066c79148ffeb1746058422cc9d838462be07e3cb19a4b724a1ee
+++    fi
++ 
++-if [[ `clang --version | head -1 | awk '{print $3}'` != "$VERSION" ]]; then
++-    echo "ERROR: Clang version doesn't match. Expected: ${VERSION}, Got: $(clang --version)"
++-    exit 1
+++    curl -sLO https://github.com/llvm/llvm-project/releases/download/llvmorg-"$VERSION"/clang+llvm-"$VERSION"-"$PLATFORM".tar.xz
+++    tar xf clang+llvm-"$VERSION"-"$PLATFORM".tar.xz
+++    export PATH="$PWD/clang+llvm-$VERSION-$PLATFORM/bin:$PATH"
+++
+++    if [[ `clang --version | head -1 | awk '{print $3}'` != "$VERSION" ]]; then
+++        echo "ERROR: Clang version doesn't match. Expected: ${VERSION}, Got: $(clang --version)"
+++        exit 1
+++    fi
++ fi
++ 
++ # Go
++-VERSION=1.18.1
++-if [[ "$ARCH" == "x86_64" ]]; then
++-    PLATFORM="linux-amd64"
++-    SHA256=b3b815f47ababac13810fc6021eb73d65478e0b2db4b09d348eefad9581a2334
++-elif [[ "$ARCH" == "ppc64le" ]]; then
++-    PLATFORM="linux-ppc64le"
++-    SHA256=33db623d1eecf362fe365107c12efc90eff0b9609e0b3345e258388019cb552a
+++if [[ "$USE_LOCAL_TOOLCHAIN" == "1" ]]; then
+++    export PATH="/usr/local/go/bin:$PATH"
+++    if ! command -v go >/dev/null 2>&1; then
+++        echo "ERROR: go is required for local s390x AWS-LC build."
+++        exit 1
+++    fi
+++    echo "Using local go: $(go version)"
++ else
++-    PLATFORM="linux-arm64"
++-    SHA256=56a91851c97fb4697077abbca38860f735c32b38993ff79b088dac46e4735633
++-fi
+++    VERSION=1.18.1
+++    if [[ "$ARCH" == "x86_64" ]]; then
+++        PLATFORM="linux-amd64"
+++        SHA256=b3b815f47ababac13810fc6021eb73d65478e0b2db4b09d348eefad9581a2334
+++    elif [[ "$ARCH" == "ppc64le" ]]; then
+++        PLATFORM="linux-ppc64le"
+++        SHA256=33db623d1eecf362fe365107c12efc90eff0b9609e0b3345e258388019cb552a
+++    else
+++        PLATFORM="linux-arm64"
+++        SHA256=56a91851c97fb4697077abbca38860f735c32b38993ff79b088dac46e4735633
+++    fi
++ 
++-curl -sLO https://dl.google.com/go/go"$VERSION"."$PLATFORM".tar.gz \
++-  && echo "$SHA256" go"$VERSION"."$PLATFORM".tar.gz | sha256sum --check
++-tar xf go"$VERSION"."$PLATFORM".tar.gz
+++    curl -sLO https://dl.google.com/go/go"$VERSION"."$PLATFORM".tar.gz \
+++      && echo "$SHA256" go"$VERSION"."$PLATFORM".tar.gz | sha256sum --check
+++    tar xf go"$VERSION"."$PLATFORM".tar.gz
++ 
++-export GOPATH="$PWD/gopath"
++-export GOROOT="$PWD/go"
++-export PATH="$GOPATH/bin:$GOROOT/bin:$PATH"
+++    export GOPATH="$PWD/gopath"
+++    export GOROOT="$PWD/go"
+++    export PATH="$GOPATH/bin:$GOROOT/bin:$PATH"
++ 
++-if [[ `go version | awk '{print $3}'` != "go$VERSION" ]]; then
++-    echo "ERROR: Go version doesn't match."
++-    exit 1
+++    if [[ `go version | awk '{print $3}'` != "go$VERSION" ]]; then
+++        echo "ERROR: Go version doesn't match."
+++        exit 1
+++    fi
++ fi
++ 
++ # Ninja
++-VERSION=1.10.2
++-SHA256=ce35865411f0490368a8fc383f29071de6690cbadc27704734978221f25e2bed
++-curl -sLO https://github.com/ninja-build/ninja/archive/refs/tags/v"$VERSION".tar.gz \
++-  && echo "$SHA256" v"$VERSION".tar.gz | sha256sum --check
++-tar -xvf v"$VERSION".tar.gz
++-cd ninja-"$VERSION"
++-python3 ./configure.py --bootstrap
++-
++-export PATH="$PWD:$PATH"
++-
++-if [[ `ninja --version` != "$VERSION" ]]; then
++-    echo "ERROR: Ninja version doesn't match."
++-    exit 1
+++if [[ "$USE_LOCAL_TOOLCHAIN" == "1" ]]; then
+++    if ! command -v ninja >/dev/null 2>&1; then
+++        echo "ERROR: ninja is required for local s390x AWS-LC build."
+++        exit 1
+++    fi
+++    echo "Using local ninja: $(ninja --version)"
+++else
+++    VERSION=1.10.2
+++    SHA256=ce35865411f0490368a8fc383f29071de6690cbadc27704734978221f25e2bed
+++    curl -sLO https://github.com/ninja-build/ninja/archive/refs/tags/v"$VERSION".tar.gz \
+++      && echo "$SHA256" v"$VERSION".tar.gz | sha256sum --check
+++    tar -xvf v"$VERSION".tar.gz
+++    cd ninja-"$VERSION"
+++    python3 ./configure.py --bootstrap
+++
+++    export PATH="$PWD:$PATH"
+++
+++    if [[ `ninja --version` != "$VERSION" ]]; then
+++        echo "ERROR: Ninja version doesn't match."
+++        exit 1
+++    fi
+++    cd ..
++ fi
++-cd ..
++ 
++ # CMake
++-VERSION=3.22.1
++-if [[ "$ARCH" != "ppc64le" ]]; then
++-    if [[ "$ARCH" == "x86_64" ]]; then
++-        PLATFORM="linux-x86_64"
++-        SHA256=73565c72355c6652e9db149249af36bcab44d9d478c5546fd926e69ad6b43640
++-    else
++-        PLATFORM="linux-aarch64"
++-        SHA256=601443375aa1a48a1a076bda7e3cca73af88400463e166fffc3e1da3ce03540b
+++if [[ "$USE_LOCAL_TOOLCHAIN" == "1" ]]; then
+++    if ! command -v cmake >/dev/null 2>&1; then
+++        echo "ERROR: cmake is required for local s390x AWS-LC build."
+++        exit 1
++     fi
++-
++-    curl -sLO https://github.com/Kitware/CMake/releases/download/v"$VERSION"/cmake-"$VERSION"-"$PLATFORM".tar.gz \
++-        && echo "$SHA256" cmake-"$VERSION"-"$PLATFORM".tar.gz | sha256sum --check
++-    tar xf cmake-"$VERSION"-"$PLATFORM".tar.gz
++-    export PATH="$PWD/cmake-$VERSION-$PLATFORM/bin:$PATH"
+++    echo "Using local cmake: $(cmake --version | head -n1)"
++ else
++-    PLATFORM="linux-ppc64le"
++-    echo "Building cmake for ppc64le"
+++    VERSION=3.22.1
+++    if [[ "$ARCH" != "ppc64le" ]]; then
+++        if [[ "$ARCH" == "x86_64" ]]; then
+++            PLATFORM="linux-x86_64"
+++            SHA256=73565c72355c6652e9db149249af36bcab44d9d478c5546fd926e69ad6b43640
+++        else
+++            PLATFORM="linux-aarch64"
+++            SHA256=601443375aa1a48a1a076bda7e3cca73af88400463e166fffc3e1da3ce03540b
+++        fi
+++
+++        curl -sLO https://github.com/Kitware/CMake/releases/download/v"$VERSION"/cmake-"$VERSION"-"$PLATFORM".tar.gz \
+++            && echo "$SHA256" cmake-"$VERSION"-"$PLATFORM".tar.gz | sha256sum --check
+++        tar xf cmake-"$VERSION"-"$PLATFORM".tar.gz
+++        export PATH="$PWD/cmake-$VERSION-$PLATFORM/bin:$PATH"
+++    else
+++        PLATFORM="linux-ppc64le"
+++        echo "Building cmake for ppc64le"
++ 
++-    curl -sL -o cmake-$VERSION-$PLATFORM.tar.gz https://github.com/Kitware/CMake/releases/download/v"$VERSION"/cmake-"$VERSION".tar.gz
++-    tar xf cmake-"$VERSION"-"$PLATFORM".tar.gz
+++        curl -sL -o cmake-$VERSION-$PLATFORM.tar.gz https://github.com/Kitware/CMake/releases/download/v"$VERSION"/cmake-"$VERSION".tar.gz
+++        tar xf cmake-"$VERSION"-"$PLATFORM".tar.gz
++ 
++-    cd cmake-"$VERSION"
++-    ./bootstrap && make
++-    export PATH="$PWD/bin:$PATH"
++-    cd ..
++-fi
+++        cd cmake-"$VERSION"
+++        ./bootstrap && make
+++        export PATH="$PWD/bin:$PATH"
+++        cd ..
+++    fi
++ 
++-if [[ `cmake --version | head -n1` != "cmake version $VERSION" ]]; then
++-    echo "PATH: $PATH"
++-    echo "PLATFORM: $PLATFORM"
++-    echo "ERROR: CMake version doesn't match. Expected: ${VERSION}, Got: $(cmake --version | head -n1)"
++-    exit 1
+++    if [[ `cmake --version | head -n1` != "cmake version $VERSION" ]]; then
+++        echo "PATH: $PATH"
+++        echo "PLATFORM: $PLATFORM"
+++        echo "ERROR: CMake version doesn't match. Expected: ${VERSION}, Got: $(cmake --version | head -n1)"
+++        exit 1
+++    fi
+++
+++    echo "Cmake installed successfully"
++ fi
++ 
++-echo "Cmake installed successfully"
++ echo "PWD: $PWD"
++ 
++ # Clean after previous build.
++@@ -144,9 +193,9 @@ rm -rf aws_lc/build
++ # Build BoringSSL.
++ cd aws_lc
++ 
++-# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
++-# because the FIPS module itself is already built with -fPIC.
++-mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC" ..
+++# Setting -fPIC only affects the compilation of the non-module code in
+++# libcrypto.a, because the FIPS module itself is already built with -fPIC.
+++mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=${AWS_LC_FIPS} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="${AWS_LC_C_FLAGS}" -DCMAKE_CXX_FLAGS="${AWS_LC_CXX_FLAGS}" ..
++ ninja
++ export GTEST_FILTER="-SSLTest.HostMatching"
++ #ninja run_tests
++@@ -153,11 +202,15 @@ export GTEST_FILTER="-SSLTest.HostMatching"
++-./crypto/crypto_test
+++if [[ -x ./crypto/crypto_test ]]; then ./crypto/crypto_test; fi
++ 
++ echo "created build directory and built aws_lc with ninja"
++ 
++-# Verify correctness of the FIPS build.
++-if [[ `tool/bssl isfips` != "1" ]]; then
++-    echo "ERROR: BoringSSL tool didn't report FIPS build."
++-    exit 1
+++# Verify correctness of the FIPS build when FIPS mode is enabled.
+++if [[ "${AWS_LC_FIPS}" == "1" ]]; then
+++    if [[ `tool/bssl isfips` != "1" ]]; then
+++        echo "ERROR: BoringSSL tool didn't report FIPS build."
+++        exit 1
+++    fi
+++else
+++    echo "Skipping FIPS validation for non-FIPS s390x AWS-LC build."
++ fi
++ 
++ # Move compiled libraries to the expected destinations.
+diff --git a/patches/0012-bazel-route-s390x-fips-to-aws-lc.patch b/patches/0012-bazel-route-s390x-fips-to-aws-lc.patch
+new file mode 100644
+index 00000000..053ef167
+--- /dev/null
++++ b/patches/0012-bazel-route-s390x-fips-to-aws-lc.patch
+@@ -0,0 +1,51 @@
++diff --git a/bazel/BUILD b/bazel/BUILD
++index 17b80cd744..934d115d57 100644
++--- a/bazel/BUILD
+++++ b/bazel/BUILD
++@@ -554,7 +554,8 @@ alias(
++     name = "boringssl",
++     actual = select({
++         "//bazel:boringssl_fips_ppc": "@aws_lc//:ssl",
++-        "//bazel:boringssl_fips_not_ppc": "@boringssl_fips//:ssl",
+++        "//bazel:linux_s390x": "@aws_lc//:ssl",
+++        "//bazel:boringssl_fips_not_ppc_not_s390x": "@boringssl_fips//:ssl",
++         "//conditions:default": "@boringssl//:ssl",
++     }),
++ )
++@@ -563,7 +564,8 @@ alias(
++     name = "boringcrypto",
++     actual = select({
++         "//bazel:boringssl_fips_ppc": "@aws_lc//:crypto",
++-        "//bazel:boringssl_fips_not_ppc": "@boringssl_fips//:crypto",
+++        "//bazel:linux_s390x": "@aws_lc//:crypto",
+++        "//bazel:boringssl_fips_not_ppc_not_s390x": "@boringssl_fips//:crypto",
++         "//conditions:default": "@boringssl//:crypto",
++     }),
++ )
++@@ -849,6 +851,26 @@ selects.config_setting_group(
++     ],
++ )
++ 
+++selects.config_setting_group(
+++    name = "linux_not_s390x",
+++    match_any = [
+++        ":linux_x86_64",
+++        ":linux_aarch64",
+++        ":linux_ppc",
+++        ":linux_ppc64le",
+++        ":linux_mips64",
+++    ],
+++)
+++
+++selects.config_setting_group(
+++    name = "boringssl_fips_not_ppc_not_s390x",
+++    match_all = [
+++        ":boringssl_fips",
+++        ":not_ppc",
+++        ":linux_not_s390x",
+++    ],
+++)
+++
++ selects.config_setting_group(
++     name = "not_x86",
++     match_any = [
+diff --git a/patches/0013-bazel-envoy-guard-fips-compliance-policy-for-nonfips.patch b/patches/0013-bazel-envoy-guard-fips-compliance-policy-for-nonfips.patch
+new file mode 100644
+index 00000000..37bfc8ec
+--- /dev/null
++++ b/patches/0013-bazel-envoy-guard-fips-compliance-policy-for-nonfips.patch
+@@ -0,0 +1,24 @@
++diff --git a/source/common/tls/context_impl.cc b/source/common/tls/context_impl.cc
++index e32186ddb4..95e74ff718 100644
++--- a/source/common/tls/context_impl.cc
+++++ b/source/common/tls/context_impl.cc
++@@ -370,6 +370,7 @@ ContextImpl::ContextImpl(Stats::Scope& scope, const Envoy::Ssl::ContextConfig& c
++       if (!fips_mode) {
++         ENVOY_LOG(warn, "FIPS conformance policy applied on a non-FIPS build");
++       }
+++#if defined(BORINGSSL_FIPS)
++       for (auto& tls_context : tls_contexts_) {
++         int rc = SSL_CTX_set_compliance_policy(tls_context.ssl_ctx_.get(),
++                                                ssl_compliance_policy_fips_202205);
++@@ -380,6 +381,11 @@ ContextImpl::ContextImpl(Stats::Scope& scope, const Envoy::Ssl::ContextConfig& c
++           return;
++         }
++       }
+++#else
+++      creation_status = absl::InvalidArgumentError(
+++          "FIPS_202205 compliance policy requires a FIPS-enabled TLS build");
+++      return;
+++#endif
++       break;
++     default:
++       creation_status = absl::InvalidArgumentError("Unknown compliance policy");
+diff --git a/patches/0014-bazel-aws-lc-s390x-enable-fips-and-pin-local-commit.patch b/patches/0014-bazel-aws-lc-s390x-enable-fips-and-pin-local-commit.patch
+new file mode 100644
+index 00000000..117458db
+--- /dev/null
++++ b/patches/0014-bazel-aws-lc-s390x-enable-fips-and-pin-local-commit.patch
+@@ -0,0 +1,92 @@
++diff --git a/bazel/external/aws_lc.genrule_cmd b/bazel/external/aws_lc.genrule_cmd
++index 95aaf54..bbc14bb 100644
++--- a/bazel/external/aws_lc.genrule_cmd
+++++ b/bazel/external/aws_lc.genrule_cmd
++@@ -12,7 +12,7 @@ OS=`uname`
++ ARCH=`uname -m`
++ # This script supports:
++ # - FIPS mode on Linux-x86_64, Linux-ppc64le, and Linux-aarch64.
++-# - non-FIPS mode on Linux-s390x (uses local toolchains; FIPS delocate currently unsupported).
+++# - FIPS/non-FIPS mode on Linux-s390x (uses local toolchains).
++ 
++ if [[ "$OS" != "Linux" || ("$ARCH" != "x86_64" && "$ARCH" != "aarch64" && "$ARCH" != "ppc64le" && "$ARCH" != "s390x") ]]; then
++     echo "ERROR: AWS-LC build is supported only on Linux-x86_64, Linux-ppc64le, Linux-aarch64, and Linux-s390x."
++@@ -24,19 +24,23 @@ AWS_LC_FIPS=1
++ USE_LOCAL_TOOLCHAIN=0
++ AWS_LC_C_FLAGS="-fPIC"
++ AWS_LC_CXX_FLAGS="-fPIC"
+++AWS_LC_LOCAL_SRC="${AWS_LC_LOCAL_SRC:-}"
+++AWS_LC_LOCAL_COMMIT="${AWS_LC_LOCAL_COMMIT:-}"
++ if [[ "$ARCH" == "s390x" ]]; then
++-    if [[ "${AWS_LC_FIPS_MODE}" == "1" ]]; then
++-        echo "ERROR: AWS-LC FIPS is not yet supported on Linux-s390x."
++-        echo "ERROR: util/fipstools/delocate fails while generating bcm-delocated.S."
++-        echo "ERROR: use AWS_LC_FIPS=0 (or leave unset) on s390x until delocate support lands."
++-        exit 1
+++    if [[ "${AWS_LC_FIPS_MODE}" == "0" ]]; then
+++        AWS_LC_FIPS=0
+++    else
+++        AWS_LC_FIPS=1
++     fi
++-    # s390x currently uses non-FIPS AWS-LC with local clang/go/cmake/ninja.
++-    AWS_LC_FIPS=0
+++    # s390x uses local clang/go/cmake/ninja.
++     USE_LOCAL_TOOLCHAIN=1
++     # aws_lc's jitterentropy sources intentionally use unaligned loads that
++     # trigger -Wcast-align under clang on s390x; keep this local to s390x.
++     AWS_LC_C_FLAGS="${AWS_LC_C_FLAGS} -Wno-error=cast-align -Wno-cast-align"
+++    # Pin to the validated local AWS-LC commit by default when caller provides a local source path.
+++    if [[ -n "${AWS_LC_LOCAL_SRC}" && -z "${AWS_LC_LOCAL_COMMIT}" ]]; then
+++        AWS_LC_LOCAL_COMMIT="921a62548"
+++    fi
++ elif [[ "${AWS_LC_FIPS_MODE}" == "0" ]]; then
++     AWS_LC_FIPS=0
++ fi
++@@ -196,15 +200,46 @@ fi
++ 
++ echo "PWD: $PWD"
++ 
+++# Optional local override for s390x AWS-LC source pinning.
+++if [[ "$ARCH" == "s390x" && -n "${AWS_LC_LOCAL_SRC}" ]]; then
+++    if [[ -z "${AWS_LC_LOCAL_COMMIT}" ]]; then
+++        echo "ERROR: AWS_LC_LOCAL_SRC is set but AWS_LC_LOCAL_COMMIT is empty."
+++        exit 1
+++    fi
+++    rm -rf aws_lc
+++    if [[ -d "${AWS_LC_LOCAL_SRC}/.git" ]] && git -C "${AWS_LC_LOCAL_SRC}" rev-parse --verify "${AWS_LC_LOCAL_COMMIT}^{commit}" >/dev/null 2>&1; then
+++        echo "Using local AWS-LC git source ${AWS_LC_LOCAL_SRC} at commit ${AWS_LC_LOCAL_COMMIT}"
+++        git clone --quiet --no-checkout "file://${AWS_LC_LOCAL_SRC}" aws_lc
+++        git -C aws_lc checkout --quiet --detach "${AWS_LC_LOCAL_COMMIT}"
+++    else
+++        if [[ -d "${AWS_LC_LOCAL_SRC}/.git" ]]; then
+++            echo "WARNING: AWS_LC_LOCAL_COMMIT ${AWS_LC_LOCAL_COMMIT} not found in ${AWS_LC_LOCAL_SRC}; falling back to snapshot copy"
+++        fi
+++        echo "Using local AWS-LC snapshot source ${AWS_LC_LOCAL_SRC}"
+++        mkdir -p aws_lc
+++        cp -a "${AWS_LC_LOCAL_SRC}/." aws_lc/
+++    fi
+++    if [[ ! -f aws_lc/CMakeLists.txt ]]; then
+++        echo "ERROR: local AWS-LC source staging failed; missing aws_lc/CMakeLists.txt"
+++        find aws_lc -maxdepth 2 -name CMakeLists.txt -print || true
+++        exit 1
+++    fi
+++fi
+++
++ # Clean after previous build.
++ rm -rf aws_lc/build
+++echo "AWS-LC root after staging: $(cd aws_lc && pwd)"
+++ls -la aws_lc | sed -n '1,40p'
++ 
++ # Build BoringSSL.
++ cd aws_lc
++ 
++ # Setting -fPIC only affects the compilation of the non-module code in
++ # libcrypto.a, because the FIPS module itself is already built with -fPIC.
++-mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=${AWS_LC_FIPS} -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="${AWS_LC_C_FLAGS}" -DCMAKE_CXX_FLAGS="${AWS_LC_CXX_FLAGS}" ..
+++mkdir build && cd build
+++echo "AWS-LC build directory before cmake: $PWD"
+++ls -la .. | sed -n '1,40p'
+++cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=${AWS_LC_FIPS} -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="${AWS_LC_C_FLAGS}" -DCMAKE_CXX_FLAGS="${AWS_LC_CXX_FLAGS}" ..
++ ninja
++ export GTEST_FILTER="-SSLTest.HostMatching"
++ #ninja run_tests
+diff --git a/patches/0015-bazel-quiche-awslc-server-credential-compat.patch b/patches/0015-bazel-quiche-awslc-server-credential-compat.patch
+new file mode 100644
+index 00000000..e4e6085d
+--- /dev/null
++++ b/patches/0015-bazel-quiche-awslc-server-credential-compat.patch
+@@ -0,0 +1,40 @@
++diff --git a/bazel/quiche_s390x_big_endian.patch b/bazel/quiche_s390x_big_endian.patch
++index 27b5529..4ced9ce 100644
++--- a/bazel/quiche_s390x_big_endian.patch
+++++ b/bazel/quiche_s390x_big_endian.patch
++@@ -40,3 +40,35 @@ diff --git a/quiche/quic/core/quic_stream.cc b/quiche/quic/core/quic_stream.cc
++  }
++ 
++ }  // namespace
+++diff --git a/quiche/quic/core/crypto/tls_server_connection.cc b/quiche/quic/core/crypto/tls_server_connection.cc
+++--- a/quiche/quic/core/crypto/tls_server_connection.cc
++++++ b/quiche/quic/core/crypto/tls_server_connection.cc
+++@@ -76,6 +76,20 @@
+++ void TlsServerConnection::SetCertChain(
+++     const std::vector<CRYPTO_BUFFER*>& cert_chain,
+++     const std::string& trust_anchor_id) {
++++#ifdef OPENSSL_IS_AWSLC
++++  if (!trust_anchor_id.empty()) {
++++    QUICHE_LOG(WARNING)
++++        << "AWS-LC does not yet support trust-anchor IDs in QUIC server "
++++           "credentials";
++++  }
++++  SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
++++                        &TlsServerConnection::kPrivateKeyMethod);
++++  if (ssl_config().signing_algorithm_prefs.has_value()) {
++++    SSL_set_signing_algorithm_prefs(
++++        ssl(), ssl_config().signing_algorithm_prefs->data(),
++++        ssl_config().signing_algorithm_prefs->size());
++++  }
++++#else
+++   if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
+++     QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 1, 2);
+++     bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
+++@@ -100,6 +114,7 @@
+++     SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
+++                           &TlsServerConnection::kPrivateKeyMethod);
+++   }
++++#endif
+++ }
+++
+++ void TlsServerConnection::SetClientCertMode(ClientCertMode client_cert_mode) {
+diff --git a/patches/0016-bazel-quiche-awslc-client-handshaker-compat.patch b/patches/0016-bazel-quiche-awslc-client-handshaker-compat.patch
+new file mode 100644
+index 00000000..6a3388ee
+--- /dev/null
++++ b/patches/0016-bazel-quiche-awslc-client-handshaker-compat.patch
+@@ -0,0 +1,122 @@
++--- a/bazel/quiche_s390x_big_endian.patch
+++++ b/bazel/quiche_s390x_big_endian.patch
++@@ -72,3 +72,119 @@
++  }
++ 
++  void TlsServerConnection::SetClientCertMode(ClientCertMode client_cert_mode) {
+++diff --git a/quiche/quic/core/tls_client_handshaker.cc b/quiche/quic/core/tls_client_handshaker.cc
+++--- a/quiche/quic/core/tls_client_handshaker.cc
++++++ b/quiche/quic/core/tls_client_handshaker.cc
+++@@ -26,7 +26,53 @@
+++ #include "quiche/common/quiche_text_utils.h"
+++
+++ namespace quic {
++++
++++#if defined(OPENSSL_IS_AWSLC)
++++namespace {
++++
++++bool QuicTlsGroupToAwsLcNid(uint16_t group_id, int* group_nid) {
++++  switch (group_id) {
++++    case SSL_GROUP_SECP224R1:
++++      *group_nid = NID_secp224r1;
++++      return true;
++++    case SSL_GROUP_SECP256R1:
++++      *group_nid = NID_X9_62_prime256v1;
++++      return true;
++++    case SSL_GROUP_SECP384R1:
++++      *group_nid = NID_secp384r1;
++++      return true;
++++    case SSL_GROUP_SECP521R1:
++++      *group_nid = NID_secp521r1;
++++      return true;
++++    case SSL_GROUP_X25519:
++++      *group_nid = NID_X25519;
++++      return true;
++++    case SSL_GROUP_MLKEM512:
++++      *group_nid = NID_MLKEM512;
++++      return true;
++++    case SSL_GROUP_MLKEM768:
++++      *group_nid = NID_MLKEM768;
++++      return true;
++++    case SSL_GROUP_MLKEM1024:
++++      *group_nid = NID_MLKEM1024;
++++      return true;
++++    case SSL_GROUP_SECP256R1_MLKEM768:
++++      *group_nid = NID_SecP256r1MLKEM768;
++++      return true;
++++    case SSL_GROUP_X25519_MLKEM768:
++++      *group_nid = NID_X25519MLKEM768;
++++      return true;
++++    case SSL_GROUP_SECP384R1_MLKEM1024:
++++      *group_nid = NID_SecP384r1MLKEM1024;
++++      return true;
++++    default:
++++      return false;
++++  }
++++}
+++
++++}  // namespace
++++#endif
++++
+++ TlsClientHandshaker::TlsClientHandshaker(
+++     const QuicServerId& server_id, QuicCryptoStream* stream,
+++     QuicSession* session, std::unique_ptr<ProofVerifyContext> verify_context,
+++@@ -59,8 +105,27 @@
+++     }
+++   }
+++   if (!crypto_config->preferred_groups().empty()) {
++++#if defined(OPENSSL_IS_AWSLC)
++++    std::vector<int> preferred_group_nids;
++++    preferred_group_nids.reserve(crypto_config->preferred_groups().size());
++++    for (uint16_t group_id : crypto_config->preferred_groups()) {
++++      int group_nid;
++++      if (!QuicTlsGroupToAwsLcNid(group_id, &group_nid)) {
++++        QUICHE_LOG(WARNING)
++++            << "Ignoring unsupported TLS group ID " << group_id
++++            << " in AWS-LC client group preferences";
++++        continue;
++++      }
++++      preferred_group_nids.push_back(group_nid);
++++    }
++++    if (!preferred_group_nids.empty()) {
++++      SSL_set1_groups(ssl(), preferred_group_nids.data(),
++++                      preferred_group_nids.size());
++++    }
++++#else
+++     SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
+++                        crypto_config->preferred_groups().size());
++++#endif
+++   }
+++
+++   // Make sure we use the right ALPS codepoint.
+++@@ -155,6 +220,10 @@
+++   if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
+++     QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 2, 2);
+++     if (tls_connection_.ssl_config().trust_anchor_ids.has_value()) {
++++#if defined(OPENSSL_IS_AWSLC)
++++      QUICHE_LOG(WARNING)
++++          << "AWS-LC does not yet support TLS client trust-anchor IDs";
++++#else
+++       if (!SSL_set1_requested_trust_anchors(
+++               ssl(),
+++               reinterpret_cast<const uint8_t*>(
+++@@ -164,6 +233,7 @@
+++                         "Client failed to set TLS Trust Anchor IDs");
+++         return false;
+++       }
++++#endif
+++     }
+++   }
+++
+++@@ -523,7 +593,11 @@
+++     const std::vector<std::string>& certs, std::string* error_details,
+++     std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
+++     std::unique_ptr<ProofVerifierCallback> callback) {
++++#if defined(OPENSSL_IS_AWSLC)
++++  matched_trust_anchor_id_ = false;
++++#else
+++   matched_trust_anchor_id_ = SSL_peer_matched_trust_anchor(ssl());
++++#endif
+++
+++   const uint8_t* ocsp_response_raw;
+++   size_t ocsp_response_len;
+diff --git a/patches/0017-bazel-quiche-awslc-server-handshaker-groups-compat.patch b/patches/0017-bazel-quiche-awslc-server-handshaker-groups-compat.patch
+new file mode 100644
+index 00000000..cf451a81
+--- /dev/null
++++ b/patches/0017-bazel-quiche-awslc-server-handshaker-groups-compat.patch
+@@ -0,0 +1,89 @@
++diff --git a/bazel/quiche_s390x_big_endian.patch b/bazel/quiche_s390x_big_endian.patch
++index 458ab2f..db423fa 100644
++--- a/bazel/quiche_s390x_big_endian.patch
+++++ b/bazel/quiche_s390x_big_endian.patch
++@@ -188,3 +188,84 @@ diff --git a/quiche/quic/core/tls_client_handshaker.cc b/quiche/quic/core/tls_cl
++
++    const uint8_t* ocsp_response_raw;
++    size_t ocsp_response_len;
+++diff --git a/quiche/quic/core/tls_server_handshaker.cc b/quiche/quic/core/tls_server_handshaker.cc
+++index d667ab8..5e73c05 100644
+++--- a/quiche/quic/core/tls_server_handshaker.cc
++++++ b/quiche/quic/core/tls_server_handshaker.cc
+++@@ -73,6 +73,48 @@ namespace {
+++ // Default port for HTTP/3.
+++ uint16_t kDefaultPort = 443;
+++
++++#if defined(OPENSSL_IS_AWSLC)
++++bool QuicTlsGroupToAwsLcNid(uint16_t group_id, int* group_nid) {
++++  switch (group_id) {
++++    case SSL_GROUP_SECP224R1:
++++      *group_nid = NID_secp224r1;
++++      return true;
++++    case SSL_GROUP_SECP256R1:
++++      *group_nid = NID_X9_62_prime256v1;
++++      return true;
++++    case SSL_GROUP_SECP384R1:
++++      *group_nid = NID_secp384r1;
++++      return true;
++++    case SSL_GROUP_SECP521R1:
++++      *group_nid = NID_secp521r1;
++++      return true;
++++    case SSL_GROUP_X25519:
++++      *group_nid = NID_X25519;
++++      return true;
++++    case SSL_GROUP_MLKEM512:
++++      *group_nid = NID_MLKEM512;
++++      return true;
++++    case SSL_GROUP_MLKEM768:
++++      *group_nid = NID_MLKEM768;
++++      return true;
++++    case SSL_GROUP_MLKEM1024:
++++      *group_nid = NID_MLKEM1024;
++++      return true;
++++    case SSL_GROUP_SECP256R1_MLKEM768:
++++      *group_nid = NID_SecP256r1MLKEM768;
++++      return true;
++++    case SSL_GROUP_X25519_MLKEM768:
++++      *group_nid = NID_X25519MLKEM768;
++++      return true;
++++    case SSL_GROUP_SECP384R1_MLKEM1024:
++++      *group_nid = NID_SecP384r1MLKEM1024;
++++      return true;
++++    default:
++++      return false;
++++  }
++++}
++++#endif
++++
+++ }  // namespace
+++
+++ TlsServerHandshaker::DefaultProofSourceHandle::DefaultProofSourceHandle(
+++@@ -245,8 +287,27 @@ TlsServerHandshaker::TlsServerHandshaker(
+++     tls_connection_.EnableInfoCallback();
+++   }
+++   if (!crypto_config->preferred_groups().empty()) {
++++#if defined(OPENSSL_IS_AWSLC)
++++    std::vector<int> preferred_group_nids;
++++    preferred_group_nids.reserve(crypto_config->preferred_groups().size());
++++    for (uint16_t group_id : crypto_config->preferred_groups()) {
++++      int group_nid;
++++      if (!QuicTlsGroupToAwsLcNid(group_id, &group_nid)) {
++++        QUICHE_LOG(WARNING)
++++            << "Ignoring unsupported TLS group ID " << group_id
++++            << " in AWS-LC server group preferences";
++++        continue;
++++      }
++++      preferred_group_nids.push_back(group_nid);
++++    }
++++    if (!preferred_group_nids.empty()) {
++++      SSL_set1_groups(ssl(), preferred_group_nids.data(),
++++                      preferred_group_nids.size());
++++    }
++++#else
+++     SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
+++                        crypto_config->preferred_groups().size());
++++#endif
+++   }
+++ }
+++
+diff --git a/patches/0018-bazel-quiche-s390x-big-endian-endian-fix.patch b/patches/0018-bazel-quiche-s390x-big-endian-endian-fix.patch
+new file mode 100644
+index 00000000..c2993499
+--- /dev/null
++++ b/patches/0018-bazel-quiche-s390x-big-endian-endian-fix.patch
+@@ -0,0 +1,164 @@
++diff --git a/bazel/quiche-endian-s390x.patch b/bazel/quiche-endian-s390x.patch
++new file mode 100644
++index 0000000..e7cdbde
++--- /dev/null
+++++ b/bazel/quiche-endian-s390x.patch
++@@ -0,0 +1,89 @@
+++--- a/quiche/common/quiche_endian.h
++++++ b/quiche/common/quiche_endian.h
+++@@ -14,29 +14,76 @@
+++ 
+++ namespace quiche {
+++ 
++++namespace {
++++
++++constexpr bool IsLittleEndianHost() {
++++#if defined(_WIN32)
++++  return true;
++++#elif defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
++++    defined(__ORDER_BIG_ENDIAN__)
++++  return __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__;
++++#elif defined(BYTE_ORDER) && defined(LITTLE_ENDIAN) && defined(BIG_ENDIAN)
++++  return BYTE_ORDER == LITTLE_ENDIAN;
++++#else
++++#error "Unsupported host byte order"
++++#endif
++++}
++++
++++}  // namespace
++++
+++ enum Endianness {
+++   NETWORK_BYTE_ORDER,  // big endian
+++-  HOST_BYTE_ORDER      // little endian
++++  HOST_BYTE_ORDER      // native host byte order
+++ };
+++ 
+++ // Provide utility functions that convert from/to network order (big endian)
+++-// to/from host order (little endian).
++++// to/from native host order.
+++ class QUICHE_EXPORT QuicheEndian {
+++  public:
+++-  // Convert |x| from host order (little endian) to network order (big endian).
++++  // Convert |x| from host order to network order (big endian).
+++ #if defined(__clang__) || \
+++     (defined(__GNUC__) && \
+++      ((__GNUC__ == 4 && __GNUC_MINOR__ >= 8) || __GNUC__ >= 5))
+++-  static uint16_t HostToNet16(uint16_t x) { return __builtin_bswap16(x); }
+++-  static uint32_t HostToNet32(uint32_t x) { return __builtin_bswap32(x); }
+++-  static uint64_t HostToNet64(uint64_t x) { return __builtin_bswap64(x); }
++++  static uint16_t HostToNet16(uint16_t x) {
++++    if constexpr (IsLittleEndianHost()) {
++++      return __builtin_bswap16(x);
++++    }
++++    return x;
++++  }
++++  static uint32_t HostToNet32(uint32_t x) {
++++    if constexpr (IsLittleEndianHost()) {
++++      return __builtin_bswap32(x);
++++    }
++++    return x;
++++  }
++++  static uint64_t HostToNet64(uint64_t x) {
++++    if constexpr (IsLittleEndianHost()) {
++++      return __builtin_bswap64(x);
++++    }
++++    return x;
++++  }
+++ #else
+++-  static uint16_t HostToNet16(uint16_t x) { return PortableByteSwap(x); }
+++-  static uint32_t HostToNet32(uint32_t x) { return PortableByteSwap(x); }
+++-  static uint64_t HostToNet64(uint64_t x) { return PortableByteSwap(x); }
++++  static uint16_t HostToNet16(uint16_t x) {
++++    if constexpr (IsLittleEndianHost()) {
++++      return PortableByteSwap(x);
++++    }
++++    return x;
++++  }
++++  static uint32_t HostToNet32(uint32_t x) {
++++    if constexpr (IsLittleEndianHost()) {
++++      return PortableByteSwap(x);
++++    }
++++    return x;
++++  }
++++  static uint64_t HostToNet64(uint64_t x) {
++++    if constexpr (IsLittleEndianHost()) {
++++      return PortableByteSwap(x);
++++    }
++++    return x;
++++  }
+++ #endif
+++ 
+++-  // Convert |x| from network order (big endian) to host order (little endian).
++++  // Convert |x| from network order (big endian) to host order.
+++   static uint16_t NetToHost16(uint16_t x) { return HostToNet16(x); }
+++   static uint32_t NetToHost32(uint32_t x) { return HostToNet32(x); }
+++   static uint64_t NetToHost64(uint64_t x) { return HostToNet64(x); }
++diff --git a/bazel/repositories.bzl b/bazel/repositories.bzl
++index 41d17a5..16490d4 100644
++--- a/bazel/repositories.bzl
+++++ b/bazel/repositories.bzl
++@@ -808,7 +808,10 @@ def _com_github_google_quiche():
++     external_http_archive(
++         name = "com_github_google_quiche",
++         patch_args = ["-p1"],
++-        patches = ["@envoy//bazel:quiche_s390x_big_endian.patch"],
+++        patches = [
+++            "@envoy//bazel:quiche_s390x_big_endian.patch",
+++            "@envoy//bazel:quiche-endian-s390x.patch",
+++        ],
++         patch_cmds = ["find quiche/ -type f -name \"*.bazel\" -delete"],
++         build_file = "@envoy//bazel/external:quiche.BUILD",
++     )
++diff --git a/test/common/http/http2/codec_impl_test.cc b/test/common/http/http2/codec_impl_test.cc
++index a8eecaa..3035f15 100644
++--- a/test/common/http/http2/codec_impl_test.cc
+++++ b/test/common/http/http2/codec_impl_test.cc
++@@ -4793,6 +4793,48 @@ TEST(CodecChoiceTest, ProtocolOptionNotSpecified) {
++   EXPECT_FALSE(client2->useOghttp2Library());
++ }
++ 
+++TEST(CodecChoiceTest, Oghttp2InitialSettingsFrameUsesNetworkByteOrderLength) {
+++  NiceMock<Network::MockConnection> client_connection;
+++  MockConnectionCallbacks client_callbacks;
+++  Stats::TestUtil::TestStore client_stats_store;
+++  NiceMock<Random::MockRandomGenerator> random;
+++  Buffer::OwnedImpl outbound;
+++  TestScopedRuntime scoped_runtime;
+++  scoped_runtime.mergeValues({{"envoy.reloadable_features.http2_use_oghttp2", "false"}});
+++  EXPECT_CALL(client_connection.dispatcher_, createTimer_(_)).Times(0);
+++  ON_CALL(client_connection, write(_, _))
+++      .WillByDefault(Invoke([&](Buffer::Instance& data, bool) -> void { outbound.add(data); }));
+++
+++  envoy::config::core::v3::Http2ProtocolOptions http2_options;
+++  http2_options.mutable_hpack_table_size()->set_value(
+++      CommonUtility::OptionsLimits::DEFAULT_HPACK_TABLE_SIZE);
+++  http2_options.mutable_max_concurrent_streams()->set_value(
+++      CommonUtility::OptionsLimits::DEFAULT_MAX_CONCURRENT_STREAMS);
+++  http2_options.mutable_initial_stream_window_size()->set_value(
+++      CommonUtility::OptionsLimits::DEFAULT_INITIAL_STREAM_WINDOW_SIZE);
+++  http2_options.mutable_initial_connection_window_size()->set_value(
+++      CommonUtility::OptionsLimits::DEFAULT_INITIAL_CONNECTION_WINDOW_SIZE);
+++  http2_options.mutable_use_oghttp2_codec()->set_value(true);
+++
+++  auto client = std::make_unique<TestClientConnectionImpl>(
+++      client_connection, client_callbacks, *client_stats_store.rootScope(), http2_options, random,
+++      Http::DEFAULT_MAX_REQUEST_HEADERS_KB, Http::DEFAULT_MAX_HEADERS_COUNT,
+++      ProdNghttp2SessionFactory::get());
+++
+++  ASSERT_TRUE(client->useOghttp2Library());
+++  ASSERT_TRUE(client->wantsToWrite());
+++  const Status status = client->sendPendingFrames();
+++  ASSERT_TRUE(status.ok()) << status.message();
+++
+++  constexpr absl::string_view preface(Http2Frame::Preamble, sizeof(Http2Frame::Preamble) - 1);
+++  constexpr absl::string_view expected_header("\x00\x00\x1e\x04\x00\x00\x00\x00\x00", 9);
+++  ASSERT_GE(outbound.length(), preface.size() + expected_header.size());
+++  const auto* data = reinterpret_cast<const char*>(outbound.linearize(outbound.length()));
+++  EXPECT_EQ(preface, absl::string_view(data, preface.size()));
+++  EXPECT_EQ(expected_header,
+++            absl::string_view(data + preface.size(), expected_header.size()));
+++}
+++
++ #ifdef NDEBUG
++ // These tests send invalid request and response header names which violate ASSERT while creating
++ // such request/response headers. So they can only be run in NDEBUG mode.
+diff --git a/tools/install_bazelisk.sh b/tools/install_bazelisk.sh
+index 45852dd1..ca12d62a 100755
+--- a/tools/install_bazelisk.sh
++++ b/tools/install_bazelisk.sh
+@@ -8,6 +8,7 @@ fi
+ 
+ # renovate: datasource=github-releases depName=bazelbuild/bazelisk
+ BAZELISK_VERSION=v1.28.1
++BAZEL_VERSION="${BAZEL_VERSION:-$(cat .bazelversion 2>/dev/null || echo 7.7.1)}"
+ 
+ installed_bazelisk_version=""
+ 
+@@ -32,8 +33,55 @@ else
+         ARCH="amd64"
+     elif [ "$ARCH" = "aarch64" ]; then
+         ARCH="arm64"
++    elif [ "$ARCH" = "s390x" ]; then
++        if command -v apt-get >/dev/null; then
++            echo "Bazelisk binary is unavailable on s390x; bootstrapping Bazel ${BAZEL_VERSION} from source."
++            ${SUDO} apt-get update
++            ${SUDO} apt-get install -y --no-install-recommends bazel-bootstrap default-jdk-headless python3 unzip zip
++            TMPDIR=$(mktemp -d)
++            trap 'rm -rf "${TMPDIR}"' EXIT
++            curl -sfL "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-dist.zip" -o "${TMPDIR}/bazel-dist.zip"
++            unzip -q "${TMPDIR}/bazel-dist.zip" -d "${TMPDIR}/bazel-src"
++            (
++                cd "${TMPDIR}/bazel-src"
++                if ! grep -q 'module_name = "apple_support"' MODULE.bazel; then
++                    printf '\nsingle_version_override(\n    module_name = "apple_support",\n    version = "1.8.1",\n)\n' >> MODULE.bazel
++                fi
++                if ! grep -q 'name = "function_transition_allowlist"' tools/allowlists/function_transition_allowlist/BUILD; then
++                    cat >> tools/allowlists/function_transition_allowlist/BUILD <<'EOF'
++
++package_group(
++    name = "function_transition_allowlist",
++    packages = ["public"],
++)
++EOF
++                fi
++                if ! find . -path '*/com/google/protobuf/UnusedPrivateParameter.java' -print -quit | grep -q .; then
++                    pb_dir=$(find . -type d -path '*/com/google/protobuf' | head -n 1 || true)
++                    if [ -n "${pb_dir}" ]; then
++                        cat > "${pb_dir}/UnusedPrivateParameter.java" <<'EOF'
++package com.google.protobuf;
++
++final class UnusedPrivateParameter {
++  static final UnusedPrivateParameter INSTANCE = new UnusedPrivateParameter();
++  private UnusedPrivateParameter() {}
++}
++EOF
++                    fi
++                fi
++                export JAVA_TOOL_OPTIONS="-XX:TieredStopAtLevel=1"
++                export BAZEL_JAVAC_OPTS="-J-Xms512m -J-Xmx4g -J-XX:TieredStopAtLevel=1"
++                export BAZEL_BOOTSTRAP_STARTUP_OPTIONS="--host_jvm_args=-Xmx4g --host_jvm_args=-XX:TieredStopAtLevel=1"
++                EXTRA_BAZEL_ARGS="--lockfile_mode=refresh --java_runtime_version=local_jdk --tool_java_runtime_version=local_jdk --java_language_version=21 --tool_java_language_version=21" ./compile.sh
++            )
++            ${SUDO} install -m 0755 "${TMPDIR}/bazel-src/output/bazel" "${BAZEL}"
++            ${SUDO} ln -sf "${BAZEL}" "/usr/local/bin/bazel-${BAZEL_VERSION}"
++            exit 0
++        fi
++        echo "Bazelisk binary is unavailable on s390x and no apt-based fallback is configured." >&2
++        exit 1
+     fi
+-    echo "Downloading bazel-${BAZEL_VERSION}-${OS}-${ARCH} to ${BAZEL}"
++    echo "Downloading bazelisk-${OS}-${ARCH} to ${BAZEL}"
+     ${SUDO} curl -sfL "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-${OS}-${ARCH}" -o "${BAZEL}"
+     ${SUDO} chmod +x "${BAZEL}"
+ fi
