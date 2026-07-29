@@ -18,6 +18,9 @@ pipeline {
     
     stages {
         stage('Checkout Tensorflow') {
+			options {
+				timeout(time: 5, unit: 'MINUTES')
+			}
             steps {
                 script {
                     dir('tensorflow') {
@@ -36,6 +39,9 @@ pipeline {
         }
         
         stage('Checkout Build files') {
+			options {
+				timeout(time: 5, unit: 'MINUTES')
+			}
             steps {
                 script {
                     // Checkout CI/Tensorflow folder from scripts repository
@@ -54,24 +60,30 @@ pipeline {
             }
         }
         
-        stage('Run Script') {
+        stage('Build Tensorflow') {
             steps {
                 script {
-                    sh '''
-						pwd
-						ls -l
-	                    ls -la scripts-repo/CI/
-	                    ls -l scripts-repo/CI/Tensorflow
-	                    cp scripts-repo/CI/Tensorflow/build_tensorflow.sh .
-						cp -r scripts-repo/CI/Tensorflow/patch .
-						bash build_tensorflow.sh -y
-					'''
+					try {
+						sh '''
+							pwd
+							cp scripts-repo/CI/Tensorflow/build_tensorflow.sh .
+							cp -r scripts-repo/CI/Tensorflow/patch .
+							bash build_tensorflow.sh -y
+						'''
+					} catch (Exception e) {
+                		currentBuild.result = 'FAILURE'
+                		echo "Tensorflow build failed: ${e.message}"
+                		throw e
+				    }
                 }
             }
         }
     }
     
     post {
+		success {
+            archiveArtifacts artifacts: 'tensorflow_whl/*.whl', fingerprint: true
+        }
         always {
             cleanWs()
         }

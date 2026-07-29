@@ -18,13 +18,16 @@ pipeline {
     
     stages {
         stage('Checkout Envoy') {
+			options {
+				timeout(time: 5, unit: 'MINUTES')
+			}
             steps {
                 script {
                     dir('envoy') {
 						// Shallow clone of repository
 						checkout([
 							$class: 'GitSCM',
-							branches: [[name: '*/master']],
+							branches: [[name: '*/main']],
 							extensions: [
 								[$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
 							],
@@ -36,6 +39,9 @@ pipeline {
         }
         
         stage('Checkout Build files') {
+			options {
+				timeout(time: 5, unit: 'MINUTES')
+			}
             steps {
                 script {
                     // Checkout CI/Envoy folder from scripts repository
@@ -54,15 +60,11 @@ pipeline {
             }
         }
         
-        stage('Run Script') {
+        stage('Build Envoy') {
             steps {
                 script {
                     sh '''
-						pwd
-						ls -l
-	                    ls -la scripts-repo/CI/
-	                    ls -l scripts-repo/CI/Envoy
-	                    cp scripts-repo/CI/Envoy/build_envoy.sh .
+						cp scripts-repo/CI/Envoy/build_envoy.sh .
 						cp -r scripts-repo/CI/Envoy/patch .
 						ls -l
 						bash build_envoy.sh -y
