@@ -102,7 +102,7 @@ function configureAndInstall() {
 
         # Install python pacakges
         printf -- "Installing python pacakges\n"
-        if [[ $DISTRO == "ubuntu-24.04" || $DISTRO == "ubuntu-25.10" ]]; then
+        if [[ $DISTRO == "ubuntu-24.04" ]]; then
                 python3 -m pip install --user --break-system-packages timeout_decorator thrift==0.11.0 osquery pexpect==3.3 docker
         else
                 python3 -m pip install --user timeout_decorator thrift==0.11.0 osquery pexpect==3.3 docker
@@ -124,6 +124,9 @@ function configureAndInstall() {
         curl -sSL ${PATCH_URL}/test_cases.patch | git apply -
         if [[ $DISTRO == "rhel"* ]]; then
                 curl -sSL ${PATCH_URL}/linux_test_case_rhel.patch | git apply -
+                if [[ $DISTRO == "rhel-10.2" ]]; then
+                        sed -i '/"appldata",/a\                           "crypto",' tests/integration/tables/system_controls.cpp
+                fi
         fi
 
         printf -- "Building osquery\n"
@@ -214,7 +217,7 @@ logDetails
 prepare #Check Prequisites
 
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo yum install -y git python3 python3-pip python3-setuptools python3-psutil python3-six python3-wheel python3-devel \
         gcc-c++ gcc automake autoconf gettext bison flex unzip help2man libtool ncurses-devel make ninja-build curl\
@@ -223,7 +226,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 python3-pip python3-setuptools python3-psutil \
