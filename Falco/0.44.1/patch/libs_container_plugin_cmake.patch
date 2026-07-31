@@ -1,0 +1,35 @@
+diff --git a/cmake/modules/container_plugin.cmake b/cmake/modules/container_plugin.cmake
+index 006503e23..c76771932 100644
+--- a/cmake/modules/container_plugin.cmake
++++ b/cmake/modules/container_plugin.cmake
+@@ -33,12 +33,22 @@ if(NOT CONTAINER_HASH)
+ endif()
+ if(NOT TARGET container_plugin)
+ 	message(STATUS "Fetching container plugin ${CONTAINER_VERSION} in '${CONTAINER_LIBRARY}'")
+-	ExternalProject_Add(
+-		container_plugin
+-		URL "https://download.falco.org/plugins/stable/container-${CONTAINER_VERSION}-${PLUGINS_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}.tar.gz"
+-		URL_HASH "SHA256=${CONTAINER_HASH}"
+-		CONFIGURE_COMMAND ""
+-		BUILD_COMMAND ""
+-		INSTALL_COMMAND ""
+-	)
++	if(NOT ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "s390x")
++		ExternalProject_Add(
++			container_plugin
++			URL "https://download.falco.org/plugins/stable/container-${CONTAINER_VERSION}-${PLUGINS_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}.tar.gz"
++			URL_HASH "SHA256=${CONTAINER_HASH}"
++			CONFIGURE_COMMAND ""
++			BUILD_COMMAND ""
++			INSTALL_COMMAND ""
++		)
++	else() # s390x
++		ExternalProject_Add(
++			container_plugin
++			URL "file://SOURCE_ROOT_PATH/container-${CONTAINER_VERSION}-${PLUGINS_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}.tar.gz"
++			CONFIGURE_COMMAND ""
++			BUILD_COMMAND ""
++			INSTALL_COMMAND ""
++		)
++	endif()
+ endif()
