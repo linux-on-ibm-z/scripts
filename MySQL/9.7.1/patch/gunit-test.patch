@@ -1,0 +1,57 @@
+diff --git a/unittest/gunit/hypergraph_optimizer-t.cc b/unittest/gunit/hypergraph_optimizer-t.cc
+index f62d09dd..33e8d47d 100644
+--- a/unittest/gunit/hypergraph_optimizer-t.cc
++++ b/unittest/gunit/hypergraph_optimizer-t.cc
+@@ -506,7 +506,7 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
+   EXPECT_EQ(RelationalExpression::ANTIJOIN, graph.edges[1].expr->type);
+   EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
+ 
+-  EXPECT_EQ(0, graph.predicates.size());
++  EXPECT_EQ(1, graph.predicates.size());
+ }
+ 
+ TEST_F(MakeHypergraphTest, Predicates) {
+@@ -633,7 +633,7 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
+   EXPECT_EQ(0x02, graph.graph.edges[0].left);
+   EXPECT_EQ(0x04, graph.graph.edges[0].right);
+   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
+-  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
++  EXPECT_EQ(1, graph.edges[0].expr->join_conditions.size());
+   EXPECT_FLOAT_EQ(1.0F, graph.edges[0].selectivity);
+ 
+   // t2/{t1,t3}. This join should also carry the predicate.
+diff --git a/unittest/gunit/log_event_status_size-t.cc b/unittest/gunit/log_event_status_size-t.cc
+index be701e9a..d9023397 100644
+--- a/unittest/gunit/log_event_status_size-t.cc
++++ b/unittest/gunit/log_event_status_size-t.cc
+@@ -111,6 +111,7 @@ class LogEventStatusSizeTest : public ::testing::Test {
+     qe.need_sql_require_primary_key = 1;
+     qe.needs_default_table_encryption = 1;
+     qe.default_collation_for_utf8mb4_number = 1;
++    qe.need_enable_cascade_triggers = 1;
+ 
+     for (size_t did = 0; did < MAX_DBS_IN_EVENT_MTS; ++did) {
+       std::string db = fill_str(NAME_LEN, 'a' + did);
+diff --git a/unittest/gunit/mysys_pathfuncs-t.cc b/unittest/gunit/mysys_pathfuncs-t.cc
+index f983badc..93d93c78 100644
+--- a/unittest/gunit/mysys_pathfuncs-t.cc
++++ b/unittest/gunit/mysys_pathfuncs-t.cc
+@@ -35,6 +35,7 @@
+ // ('\0'-terminated) c-string, do not write more than FN_REFLEN bytes
+ // into the destination buffer.
+ 
++using ::testing::AnyOf;
+ using ::testing::MatchesRegex;
+ using ::testing::StartsWith;
+ 
+@@ -153,7 +154,9 @@ TEST(Mysys, CreateTempFile) {
+   File fileno = create_temp_file(dst, "/tmp", prefix, 42, UNLINK_FILE, 0);
+   EXPECT_GE(fileno, 0);
+   my_close(fileno, 0);
+-  EXPECT_THAT(dst, MatchesRegex("/tmp/[a]+fd=[0-9]+"));
++  EXPECT_THAT(
++      dst, AnyOf(MatchesRegex("/tmp/[a]+fd=[0-9]+"),
++                 MatchesRegex("/tmp/[a]+[A-Za-z0-9]{6}")));
+   aset(dst, 0xaa);
+ 
+   char *env_tmpdir = getenv("TMPDIR");

@@ -1,0 +1,13 @@
+diff --git a/storage/ndb/src/common/portlib/NdbHW.cpp b/storage/ndb/src/common/portlib/NdbHW.cpp
+index c6458032d83..904d6b4d91a 100644
+--- a/storage/ndb/src/common/portlib/NdbHW.cpp
++++ b/storage/ndb/src/common/portlib/NdbHW.cpp
+@@ -1713,7 +1713,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo) {
+   while (fgets(buf, sizeof(buf), cpuinfo)) {
+     Uint32 val;
+     char *p = nullptr;
+-    if (sscanf(buf, "processor : %u", &val) == 1) {
++    if (sscanf(buf, "cpu number : %u", &val) == 1) {
+       if (val > max_cpu_no) {
+         snprintf(error_buf, sizeof(error_buf), "CPU %u is outside max %u", val,
+                  max_cpu_no);
