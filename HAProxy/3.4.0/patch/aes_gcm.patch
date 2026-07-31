@@ -1,0 +1,54 @@
+--- src/ssl_sample.c
++++ src/ssl_sample.c
+@@ -328,6 +328,10 @@
+ 	EVP_CIPHER_CTX *ctx = NULL;
+ 	int size;
+ 	int ret;
++	int aad_len = 0;
++	int update_len = 0;
++	int final_len = 0;
++	int tag_len = 0;
+ 	size_t blksize;
+ 
+ 	ctx = EVP_CIPHER_CTX_new();
+@@ -388,28 +392,33 @@
+ 		goto err;
+ 
+ 	if (aad && b_data(aad)) {
+-		if (!sample_conv_aes_update(decrypt, ctx, NULL, (int*)&out->data,
++		aad_len = 0;
++		if (!sample_conv_aes_update(decrypt, ctx, NULL, &aad_len,
+ 		                            (unsigned char*)b_orig(aad), (int)b_data(aad)))
+ 			goto err;
+ 	}
+ 
++	update_len = 0;
+ 	if (!sample_conv_aes_update(decrypt, ctx, (unsigned char*)b_orig(out),
+-	                            (int*)&out->data, (unsigned char*)b_orig(data), (int)b_data(data)))
++	                            &update_len, (unsigned char*)b_orig(data), (int)b_data(data)))
+ 		goto err;
+ 
+-	size = out->data;
++	out->data = update_len;
++	size = update_len;
+ 
+ 	if (decrypt && gcm) {
+-		if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, b_data(aead_tag), b_orig(aead_tag)))
++		tag_len = (int)b_data(aead_tag);
++		if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, tag_len, b_orig(aead_tag)))
+ 			goto err;
+ 	}
+ 
+-	ret = sample_conv_aes_final(decrypt, ctx, (unsigned char*)out->area + out->data,
+-	                            (int *)&out->data);
++	final_len = 0;
++	ret = sample_conv_aes_final(decrypt, ctx, (unsigned char*)out->area + size,
++	                            &final_len);
+ 	if (ret <= 0)
+ 		goto err;
+ 
+-	out->data += size;
++	out->data = size + final_len;
+ 
+ 	if (!decrypt && gcm) {
+ 		if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, b_orig(aead_tag)))
