@@ -329,11 +329,11 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
-     # Build Python 3.11 for Ubuntu-24.04 and Ubuntu-24.10
-    if [[ "$DISTRO" == "ubuntu-24.04" || "$DISTRO" == "ubuntu-25.10" ]]; then
+     # Build Python 3.11 for Ubuntu-24.04
+    if [[ "$DISTRO" == "ubuntu-24.04" ]]; then
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ant ant-optional junit git tar g++ make automake autoconf libtool wget patch libx11-dev libxt-dev pkg-config texinfo locales-all unzip maven |& tee -a "$LOG_FILE"
         build_python |& tee -a "$LOG_FILE"
     else
