@@ -220,7 +220,7 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl dpkg-dev wget tar bison cmake gcc g++ git hostname \
-        libncurses-dev libssl-dev make openssl pkg-config gawk procps doxygen python-is-python3 python2 net-tools \
+        libncurses-dev libssl-dev make openssl pkg-config gawk procps doxygen python-is-python3 net-tools \
         libtirpc-dev libarchive-tools xz-utils libjson-perl libexpect-perl mecab-ipadic-utf8 psmisc zip tzdata \
         |& tee -a "$LOG_FILE"
     sudo apt-get install -y libprotoc-dev libprotobuf-c-dev libprotobuf-dev protobuf-c-compiler protobuf-compiler |& tee -a "$LOG_FILE"
