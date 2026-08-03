@@ -13,7 +13,6 @@ PACKAGE_VERSION="9.7.1"
 SOURCE_ROOT="$(pwd)"
 MYSQL_INSTALL="${SOURCE_ROOT}/mysql-install"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/MySQL/9.7.1/patch"
-
 FORCE="false"
 LOG_FILE="$SOURCE_ROOT/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 BUILD_ENV="$HOME/setenv.sh"
@@ -58,7 +57,6 @@ function prepare() {
 function cleanup() {
     # Remove artifacts
     cd $SOURCE_ROOT
-    rm -rf duktape-2.7.0  duktape-2.7.0.tar.xz
     printf -- "Cleaned up the artifacts\n" >>"$LOG_FILE"
 }
 
@@ -118,18 +116,6 @@ function configureAndInstall() {
     fi
   # Cleanup
     cleanup
-}
-
-function buildPython2(){
-    cd $SOURCE_ROOT
-    wget https://www.python.org/ftp/python/2.7.18/Python-2.7.18.tar.xz
-    tar -xvf Python-2.7.18.tar.xz
-    cd $SOURCE_ROOT/Python-2.7.18
-    ./configure --prefix=/usr/local --exec-prefix=/usr/local
-    make
-    sudo make install   
-    sudo ln -sf /usr/local/bin/python /usr/bin/python2
-    python2 -V
 }
 
 function runTest() {
@@ -212,9 +198,7 @@ function runTest() {
         --tmpdir="$SOURCE_ROOT/mysql-test/var/tmp" \
         --suite=main \
         --force \
-        --skip-test=file_contents \
-        --testcase-timeout=3600 \
-        --suite-timeout=600
+        --skip-test=file_contents
 
     integration_test_status=$?
 
@@ -307,7 +291,7 @@ case "$DISTRO" in
         gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils gcc-toolset-14-annobin-plugin-gcc \
         cpan perl-JSON perl-Memoize psmisc zip mecab-ipadic |& tee -a "$LOG_FILE"
     sudo PERL_MM_USE_DEFAULT=1 cpan Expect |& tee -a "$LOG_FILE"
-    sudo yum install -y xz python2 python2-pyyaml |& tee -a "$LOG_FILE"
+    sudo yum install -y xz |& tee -a "$LOG_FILE"
     source /opt/rh/gcc-toolset-14/enable
 
     configureAndInstall |& tee -a "$LOG_FILE"
@@ -315,7 +299,7 @@ case "$DISTRO" in
 "rhel-9.6" | "rhel-9.7" | "rhel-9.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y curl libcurl-devel
+    sudo yum install -y libcurl-devel
         sudo yum install -y wget bison bzip2 bzip2-devel gcc gcc-c++ git xz xz-devel hostname ncurses ncurses-devel openssl procps openssl-devel \
         pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive tk-devel gdb gdbm-devel sqlite-devel \
         readline-devel libdb-devel libffi-devel libuuid-devel libnsl2-devel net-tools \
@@ -325,18 +309,12 @@ case "$DISTRO" in
     sudo PERL_MM_USE_DEFAULT=1 cpan Expect |& tee -a "$LOG_FILE"
     source /opt/rh/gcc-toolset-14/enable
 
-    buildPython2 |& tee -a "$LOG_FILE"
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-    sudo python2 get-pip.py |& tee -a "$LOG_FILE"
-    python2 -m pip install --upgrade pip setuptools --force-reinstall
-    python2 -m pip install PyYAML==3.13 |& tee -a "$LOG_FILE"
-
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
-    sudo yum install -y curl libcurl-devel
+    sudo yum install -y libcurl-devel
         sudo yum install -y wget bison bzip2 bzip2-devel gcc gcc-c++ git xz xz-devel hostname ncurses ncurses-devel openssl procps openssl-devel \
         pkgconfig tar wget zlib-devel doxygen cmake diffutils rpcgen make libtirpc-devel libarchive tk-devel gdb gdbm-devel sqlite-devel \
         readline-devel libdb-devel libffi-devel libuuid-devel libnsl2-devel net-tools \
@@ -363,12 +341,6 @@ case "$DISTRO" in
 		'print "IO::Pty module is available\n"' \
 		|& tee -a "$LOG_FILE"
 
-    buildPython2 |& tee -a "$LOG_FILE"
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-    sudo python2 get-pip.py |& tee -a "$LOG_FILE"
-    python2 -m pip install --upgrade pip setuptools --force-reinstall
-    python2 -m pip install PyYAML==3.13 |& tee -a "$LOG_FILE" # for Duktape
-
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-15.7")
@@ -384,12 +356,6 @@ case "$DISTRO" in
     sudo ln -sf /usr/bin/gcc /usr/bin/s390x-linux-gnu-gcc
     sudo ln -sf /usr/bin/cpp-14 /usr/bin/cpp
 
-    buildPython2 |& tee -a "$LOG_FILE"
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-    sudo python2 get-pip.py |& tee -a "$LOG_FILE"
-    python2 -m pip install --upgrade pip setuptools --force-reinstall
-    python2 -m pip install PyYAML==3.13 |& tee -a "$LOG_FILE" # for Duktape
-
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "ubuntu-22.04")
@@ -397,14 +363,11 @@ case "$DISTRO" in
     printf -- "Installing dependencies... it may take some time.\n"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl libcurl4-openssl-dev dpkg-dev wget tar bison cmake gcc g++ git hostname \
-        libncurses-dev libssl-dev make openssl pkg-config gawk procps doxygen python-is-python3 python2 net-tools \
+        libncurses-dev libssl-dev make openssl pkg-config gawk procps doxygen python-is-python3 net-tools \
         libtirpc-dev libarchive-tools xz-utils libjson-perl libexpect-perl mecab-ipadic-utf8 psmisc zip \
         |& tee -a "$LOG_FILE"
     sudo apt-get install -y libprotoc-dev libprotobuf-c-dev libprotobuf-dev protobuf-c-compiler protobuf-compiler |& tee -a "$LOG_FILE"
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-    sudo python2 get-pip.py |& tee -a "$LOG_FILE"
-    python2 -m pip install --upgrade pip setuptools --force-reinstall
-    python2 -m pip install PyYAML==3.13 |& tee -a "$LOG_FILE" # for Duktape
+
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "ubuntu-24.04")
@@ -416,11 +379,6 @@ case "$DISTRO" in
         libtirpc-dev libarchive-tools xz-utils libjson-perl libexpect-perl mecab-ipadic-utf8 psmisc zip \
         |& tee -a "$LOG_FILE"
     sudo apt-get install -y libprotoc-dev libprotobuf-c-dev libprotobuf-dev protobuf-c-compiler protobuf-compiler |& tee -a "$LOG_FILE"
-    buildPython2 |& tee -a "$LOG_FILE"
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-    sudo python2 get-pip.py |& tee -a "$LOG_FILE"
-    python2 -m pip install --upgrade pip setuptools --force-reinstall
-    python2 -m pip install PyYAML==3.13 |& tee -a "$LOG_FILE"
 
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
@@ -431,5 +389,3 @@ case "$DISTRO" in
 esac
 
 gettingStarted |& tee -a "$LOG_FILE"
-
-
