@@ -21,16 +21,6 @@ BUILD_ENV="$HOME/setenv.sh"
 GOLANG_VERSION='1.19.5'
 GO_URL="https://golang.org/dl/go$GOLANG_VERSION.linux-s390x.tar.gz"
 GO_DEFAULT="$SOURCE_ROOT/go"
-OPENSSL_VERSION='openssl-1.1.1h'
-OPENSSL_URL="https://www.openssl.org/source/$OPENSSL_VERSION.tar.gz"
-PYTHON_VERSION='3.8.8'
-PYTHON_URL="https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz"
-CMAKE_VERSION='3.24.2'
-CMAKE_URL="https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION.tar.gz"
-LLVM_VERSION='8.0.1'
-LLVM_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar.xz"
-CLANG_VERSION=$LLVM_VERSION
-CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-$CLANG_VERSION/cfe-$CLANG_VERSION.src.tar.xz"
 NODEJS_VERSION='v16.17.1'
 NODEJS_URL="https://nodejs.org/dist/$NODEJS_VERSION/node-$NODEJS_VERSION-linux-s390x.tar.xz"
 MAVEN_VERSION='3.8.6'
@@ -116,11 +106,6 @@ function cleanup() {
           "$SOURCE_ROOT/go$GOLANG_VERSION.linux-s390x.tar.gz"* \
           "$SOURCE_ROOT/node-$NODEJS_VERSION-linux-s390x.tar.xz"* \
           "$SOURCE_ROOT/apache-maven-$MAVEN_VERSION-bin.tar.gz"* \
-          "$SOURCE_ROOT/openssl-$OPENSSL_VERSION.tar.gz"* \
-          "$SOURCE_ROOT/llvm-$LLVM_VERSION.src.tar.gz"* \
-          "$SOURCE_ROOT/cfe-$CLANG_VERSION.src.tar.gz"* \
-          "$SOURCE_ROOT/cmake-$CMAKE_VERSION.tar.gz"* \
-          "$SOURCE_ROOT/Python-$PYTHON_VERSION.tgz"* \
           "$SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.24_8.tar.gz"* \
           "$SOURCE_ROOT/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.12_7.tar.gz"* \
           "$SOURCE_ROOT/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.4_7.tar.gz"* \
@@ -291,15 +276,9 @@ function installAdditionalDependencies() {
   case "$DISTRO" in
   "rhel-8.10")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
-    sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python2 python38 cmake \
+    sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python38 cmake \
       libarchive clang
     ;;
-
-  "rhel-9.4" | "rhel-9.5")
-    printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
-    sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python3 cmake libarchive clang
-    ;;
-
 
   "sles-15.6")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
@@ -314,18 +293,11 @@ function installAdditionalDependencies() {
     sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-13 40
     ;;
 
-  "ubuntu-22.04")
+  "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y unzip xz-utils uuid-dev curl wget git \
-    make python2 bzip2 tk-dev libghc-bzlib-dev gcc g++ cmake clang pkg-config
-    ;;
-
-  "ubuntu-24.04" | "ubuntu-24.10")
-    printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
-    sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y unzip xz-utils uuid-dev curl wget git \
-    make bzip2 tk-dev libghc-bzlib-dev gcc g++ cmake clang pkg-config
+    make python3 bzip2 tk-dev libghc-bzlib-dev gcc g++ cmake clang pkg-config
     ;;
 
   *)
@@ -401,9 +373,6 @@ function runFullBuildTests() {
   cd $SOURCE_ROOT
   cd $PACKAGE_NAME-$PACKAGE_VERSION/runtime-testsuite
   mvn -Dtest=java.** test
-  if [[ "$DISTRO" != "rhel-9."* ]] && [[ "$DISTRO" != "sles-15."* ]] && [[ "$DISTRO" != "ubuntu-24.04" ]] && [[ "$DISTRO" != "ubuntu-24.10" ]]; then
-    mvn -Dtest=python2.** test     # except for RHEL 9.x, SLES 15.x and Ubuntu 24.x as Python 2 has been removed from these distros
-  fi
   mvn -Dtest=python3.** test
   sudo env "PATH=$PATH" "GOROOT=$GOROOT" mvn -Dtest=go.** test
   mvn -Dtest=javascript.** test
@@ -506,7 +475,7 @@ logDetails
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.10")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo yum install -y wget tar which curl diffutils --allowerasing |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
@@ -518,7 +487,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-24.10")
+"ubuntu-22.04" | "ubuntu-24.04")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y wget tar curl diffutils |& tee -a "$LOG_FILE"
