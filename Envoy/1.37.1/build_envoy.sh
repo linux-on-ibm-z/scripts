@@ -138,7 +138,7 @@ runTest() {
   if [[ "$TESTS" == "true" ]]; then
     msg "TEST Flag is set, continue with running test "
     cd "$SOURCE_ROOT/envoy"
-	bazel test //test/... -c opt --config=clang --keep_going --test_output=errors
+	bazel test //test/... -c opt --config=clang --test_output=errors
     msg "Test execution completed. "
   fi
   set -e
