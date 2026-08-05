@@ -169,7 +169,7 @@ prepare #Check Prerequisite
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo yum remove -y podman buildah
@@ -188,7 +188,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
     
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo apt-get update
@@ -212,3 +212,4 @@ case "$DISTRO" in
 esac
 
 gettingStarted |& tee -a "${LOG_FILE}"
+
