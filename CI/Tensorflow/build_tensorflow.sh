@@ -113,3 +113,6 @@ rm -rf $work_dir/tensorflow
 df -h 
 ls /tmp | wc -l
 ls $work_dir/Tensorflow_tmp
+ls $work_dir/
+ls bazel-bin/tensorflow/tools/pip_package/wheel_house/
+ls $work_dir/tensorflow_whl

@@ -82,7 +82,7 @@ pipeline {
     
     post {
 		success {
-            archiveArtifacts artifacts: 'tensorflow_whl/*.whl', fingerprint: true
+            archiveArtifacts artifacts: '/home/alfred/jenkins/workspace/TensorFlow_IBMZ_CI_test/tensorflow_whl/*.whl', fingerprint: true
         }
         always {
             cleanWs()
