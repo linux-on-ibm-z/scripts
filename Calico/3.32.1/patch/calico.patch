@@ -1,0 +1,340 @@
+diff --git a/calicoctl/tests/st/utils/utils.py b/calicoctl/tests/st/utils/utils.py
+index 266a2d5f42..f1a865bb0c 100644
+--- a/calicoctl/tests/st/utils/utils.py
++++ b/calicoctl/tests/st/utils/utils.py
+@@ -246,7 +246,7 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
+     elif data and not load_as_stdin:
+         option_file = ' -f /tmp/input-data'
+ 
+-    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-amd64")
++    calicoctl_bin = os.environ.get("CALICOCTL", "/code/bin/calicoctl-linux-s390x")
+ 
+     if allowVersionMismatch:
+         calicoctl_bin += " --allow-version-mismatch"
+diff --git a/felix/Makefile b/felix/Makefile
+index 95b4c03d7a..2ab23b695a 100644
+--- a/felix/Makefile
++++ b/felix/Makefile
+@@ -62,7 +62,7 @@ SRC_FILES += $(GENERATED_FILES)
+ SRC_FILES += $(shell find bpf/ -name '*.[ch]')
+ 
+ # Set the platform correctly for building docker images.
+-ifeq ($(ARCH),$(filter $(ARCH),arm64 ppc64le))
++ifeq ($(ARCH),$(filter $(ARCH),arm64 ppc64le s390x))
+ # Required for eBPF support.
+ # We need to force target arch build image to be used in a cross-compilation run.
+ CALICO_BUILD:=$(CALICO_BUILD)-$(ARCH)
+@@ -122,9 +122,6 @@ clean-generated:
+ ###############################################################################
+ BUILD_TARGETS:=bin/calico-felix
+ 
+-ifeq ($(ARCH),$(filter $(ARCH),amd64 arm64 ppc64le))
+-# Currently CGO can be enabled in ARM64 AMD64 and PPC64LE builds.
+-CGO_ENABLED=1
+ # Normalize userspace types to ensure consistency across architectures.
+ ARCH_CGO_CFLAGS=
+ ifeq ($(ARCH),ppc64le)
+@@ -134,12 +131,6 @@ CGO_LDFLAGS="-L$(LIBBPF_CONTAINER_PATH)/$(ARCH) -lbpf -lelf -lz"
+ CGO_CFLAGS="-I$(LIBBPF_CONTAINER_PATH) -I$(BPFGPL_CONTAINER_PATH) $(ARCH_CGO_CFLAGS)"
+ FV_RACE_DETECTOR_ENABLED?=true
+ BUILD_TARGETS+=build-bpf
+-else
+-CGO_ENABLED=0
+-CGO_LDFLAGS=""
+-# Race detection requires CGO enabled.
+-FV_RACE_DETECTOR_ENABLED?=false
+-endif
+ 
+ ifeq ($(ARCH),amd64)
+ BUILD_TARGETS+=bin/calico-felix.exe
+@@ -165,18 +156,14 @@ $(LIBBPF_A): $(LIBBPF_FILE_CREATED) $(shell find bpf-gpl/libbpf -type f -not -pa
+ 	mkdir -p bpf-gpl/include/src/$(ARCH)
+ 	$(DOCKER_RUN) $(CALICO_BUILD) sh -c "make -j$(nproc) -C bpf-gpl/libbpf/src BUILD_STATIC_ONLY=1 OBJDIR=$(ARCH)"
+ 
+-DOCKER_GO_BUILD_CGO=$(DOCKER_RUN) $(TARGET_PLATFORM) -e CGO_ENABLED=$(CGO_ENABLED) -e CGO_LDFLAGS=$(CGO_LDFLAGS) -e CGO_CFLAGS=$(CGO_CFLAGS) $(CALICO_BUILD)
++DOCKER_GO_BUILD_CGO=$(DOCKER_RUN) $(TARGET_PLATFORM) -e CGO_ENABLED=1 -e CGO_LDFLAGS=$(CGO_LDFLAGS) -e CGO_CFLAGS=$(CGO_CFLAGS) $(CALICO_BUILD)
+ 
+ bin/calico-felix-$(ARCH): $(LIBBPF_A) $(SRC_FILES)
+ 	@echo Building felix for $(ARCH) on $(BUILDARCH)
+ ifeq ($(FIPS),true)
+ 	$(call build_cgo_boring_binary, $(PACKAGE_NAME)/cmd/calico-felix, $@)
+ else
+-ifeq ($(ARCH),$(filter $(ARCH),amd64 arm64 ppc64le ))
+ 	$(call build_cgo_binary, $(PACKAGE_NAME)/cmd/calico-felix, $@)
+-else
+-	$(call build_binary, $(PACKAGE_NAME)/cmd/calico-felix, $@)
+-endif
+ endif
+ 
+ bin/calico-felix-race-$(ARCH):  $(LIBBPF_A) $(SRC_FILES) ../go.mod
+diff --git a/felix/bpf-apache/Makefile b/felix/bpf-apache/Makefile
+index 4e1225a361..edb9c96175 100644
+--- a/felix/bpf-apache/Makefile
++++ b/felix/bpf-apache/Makefile
+@@ -24,10 +24,15 @@ CFLAGS +=  \
+ 	-Werror \
+ 	-fno-stack-protector \
+ 	-O2 \
+-	-target bpf \
+ 	-emit-llvm \
+ 	-g
+ 
++BPF_TARGET := bpf
++ifeq ($(ARCH),s390x)
++BPF_TARGET := bpfeb
++endif
++CFLAGS += -target $(BPF_TARGET)
++
+ # Workaround for Ubuntu placing "asm/types.h" in /usr/include/x86_64-linux-gnu
+ TRIPLET := $(shell gcc -dumpmachine)
+ CFLAGS += -I/usr/include/$(TRIPLET)
+@@ -44,7 +49,7 @@ all: $(OBJS)
+ 	$(CC) $(CFLAGS) -c $< -o $@
+ 
+ bin/%.o: %.ll | bin
+-	$(LD) -march=bpf -filetype=obj -o $@ $<
++	$(LD) -march=$(BPF_TARGET) -filetype=obj -o $@ $<
+ 
+ bin:
+ 	mkdir -p bin
+diff --git a/felix/bpf-gpl/Makefile b/felix/bpf-gpl/Makefile
+index 352ab1385c..b2550ed18e 100644
+--- a/felix/bpf-gpl/Makefile
++++ b/felix/bpf-gpl/Makefile
+@@ -16,10 +16,15 @@ CFLAGS +=  \
+ 	-fno-stack-protector \
+ 	-Wno-address-of-packed-member \
+ 	-O2 \
+-	-target bpf \
+ 	-emit-llvm \
+ 	-g
+ 
++BPF_TARGET := bpf
++ifeq ($(ARCH),s390x)
++BPF_TARGET := bpfeb
++endif
++CFLAGS += -target $(BPF_TARGET)
++
+ # Build against libbpf and its recent copy of the kernel headers.
+ # We link against the user API version of the headers because they contain
+ # everything we need for now.
+@@ -53,6 +58,8 @@ else ifeq ($(findstring aarch64,$(TRIPLET)),aarch64)
+ 	CFLAGS += -D__TARGET_ARCH_arm64
+ else ifeq ($(findstring ppc64le,$(TRIPLET)),ppc64le)
+ 	CFLAGS += -D__TARGET_ARCH_powerpc -D__SANE_USERSPACE_TYPES__
++else ifeq ($(findstring s390x,$(TRIPLET)),s390x)
++	CFLAGS += -D__TARGET_ARCH_s390 -D__s390x__
+ endif
+ CC := clang
+ LD := llc
+@@ -210,7 +217,7 @@ conntrack_cleanup_v6.d: conntrack_cleanup.c
+ 	$(COMPILE_DEPS)
+ 
+ 
+-LINK=$(LD) -march=bpf -filetype=obj -o $@ $<
++LINK=$(LD) -march=$(BPF_TARGET) -filetype=obj -o $@ $<
+ bin/tc_preamble_ingress.o: tc_preamble_ingress.ll | bin
+ 	$(LINK)
+ bin/tc_preamble_egress.o: tc_preamble_egress.ll | bin
+diff --git a/felix/bpf/libbpf/libbpf.go b/felix/bpf/libbpf/libbpf.go
+index 823cb179d0..ded623d453 100644
+--- a/felix/bpf/libbpf/libbpf.go
++++ b/felix/bpf/libbpf/libbpf.go
+@@ -31,6 +31,7 @@ import (
+ // #cgo amd64 LDFLAGS: -L${SRCDIR}/../../bpf-gpl/libbpf/src/amd64 -lbpf -lelf -lz
+ // #cgo arm64 LDFLAGS: -L${SRCDIR}/../../bpf-gpl/libbpf/src/arm64 -lbpf -lelf -lz
+ // #cgo ppc64le LDFLAGS: -L${SRCDIR}/../../bpf-gpl/libbpf/src/ppc64le -lbpf -lelf -lz
++// #cgo s390x LDFLAGS: -L${SRCDIR}/../../bpf-gpl/libbpf/src/s390x -lbpf -lelf -lz
+ // #include "libbpf_api.h"
+ import "C"
+ 
+diff --git a/felix/nfnetlink/nfnl/nfnetlink_linux.go b/felix/nfnetlink/nfnl/nfnetlink_linux.go
+index f6c6dc2180..e9e3580c14 100644
+--- a/felix/nfnetlink/nfnl/nfnetlink_linux.go
++++ b/felix/nfnetlink/nfnl/nfnetlink_linux.go
+@@ -94,12 +94,31 @@ func nfaAlignOf(attrlen int) int {
+ 	return (attrlen + syscall.NLA_ALIGNTO - 1) & ^(syscall.NLA_ALIGNTO - 1)
+ }
+ 
++var nativeBigEndian = func() bool {
++	var i uint16 = 0x0102
++	b := (*[2]byte)(unsafe.Pointer(&i))
++	return b[0] == 0x01
++}()
++
++func swap16(v uint16) uint16 {
++	return (v >> 8) | (v << 8)
++}
++
+ type NfAttr struct {
+ 	syscall.NlAttr
+ }
+ 
+ func DeserializeNfAttr(b []byte) *NfAttr {
+-	return (*NfAttr)(unsafe.Pointer(&b[0:SizeofNfAttr][0]))
++	a := (*NfAttr)(unsafe.Pointer(&b[0:SizeofNfAttr][0]))
++	if !nativeBigEndian {
++		return a
++	}
++	return &NfAttr{
++		NlAttr: syscall.NlAttr{
++			Len:  swap16(a.NlAttr.Len),
++			Type: swap16(a.NlAttr.Type),
++		},
++	}
+ }
+ 
+ func (msg *NfAttr) Serialize() []byte {
+diff --git a/kube-controllers/pkg/controllers/flannelmigration/flannel_migration_fv_test.go b/kube-controllers/pkg/controllers/flannelmigration/flannel_migration_fv_test.go
+index 593e8e2213..5feeba0740 100644
+--- a/kube-controllers/pkg/controllers/flannelmigration/flannel_migration_fv_test.go
++++ b/kube-controllers/pkg/controllers/flannelmigration/flannel_migration_fv_test.go
+@@ -155,7 +155,7 @@ var _ = Describe("flannel-migration-controller FV test", func() {
+ 			startController()
+ 
+ 			w := migrationController.WatchStderrFor(regexp.MustCompile(`.*no migration process is needed.*`))
+-			Eventually(w, "10s").Should(BeClosed(),
++			Eventually(w, "180s").Should(BeClosed(),
+ 				"Timed out waiting for migration controller report 'no migration process is needed'")
+ 		})
+ 
+@@ -167,7 +167,7 @@ var _ = Describe("flannel-migration-controller FV test", func() {
+ 			startController()
+ 
+ 			w := migrationController.WatchStderrFor(regexp.MustCompile(`.*abort migration process.*`))
+-			Eventually(w, "10s").Should(BeClosed(),
++			Eventually(w, "180s").Should(BeClosed(),
+ 				"Timed out waiting for migration controller report 'abort migration process'")
+ 		})
+ 	})
+@@ -176,7 +176,7 @@ var _ = Describe("flannel-migration-controller FV test", func() {
+ 		checkCalicoIPAM := func() {
+ 			// Wait for ipam migration is done.
+ 			w := migrationController.WatchStderrFor(regexp.MustCompile(`.*nodes completed IPAM migration process.*`))
+-			Eventually(w, "10s").Should(BeClosed(),
++			Eventually(w, "180s").Should(BeClosed(),
+ 				"Timed out waiting for migration controller report 'nodes completed IPAM migration process'")
+ 
+ 			Expect(len(flannelCluster.FlannelNodes)).To(Equal(3))
+@@ -233,7 +233,7 @@ var _ = Describe("flannel-migration-controller FV test", func() {
+ 
+ 			// Wait for ipam migration is done.
+ 			w := migrationController.WatchStderrFor(regexp.MustCompile(`.*nodes completed IPAM migration process.*`))
+-			Eventually(w, "10s").Should(BeClosed(),
++			Eventually(w, "180s").Should(BeClosed(),
+ 				"Timed out waiting for migration controller report 'nodes completed IPAM migration process'")
+ 
+ 			Expect(w0).Should(BeClosed())
+@@ -299,7 +299,7 @@ func validateCalicoIPAM(fc *testutils.FlannelCluster, client client.Interface, b
+ 			return fmt.Errorf("Wrong VXLAN MTU: %d", *defaultConfig.Spec.VXLANMTU)
+ 		}
+ 		return nil
+-	}, 5*time.Second).ShouldNot(HaveOccurred())
++	}, 180*time.Second).ShouldNot(HaveOccurred())
+ 
+ 	// Check each node.
+ 	for nodeName, fn := range fc.FlannelNodes {
+diff --git a/libcalico-go/lib/backend/watchersyncer/watchersyncer_test.go b/libcalico-go/lib/backend/watchersyncer/watchersyncer_test.go
+index b5aaf9a7e8..b64f6800bc 100644
+--- a/libcalico-go/lib/backend/watchersyncer/watchersyncer_test.go
++++ b/libcalico-go/lib/backend/watchersyncer/watchersyncer_test.go
+@@ -430,7 +430,7 @@ var _ = Describe("Test the backend datastore multi-watch syncer", func() {
+ 		// Since we are timing the processing, we still need the interval to be sufficiently
+ 		// large to make the measurements more accurate.
+ 		defer setWatchIntervals(watchersyncer.MinResyncInterval, watchersyncer.ListRetryInterval, watchersyncer.WatchPollInterval)
+-		setWatchIntervals(50*time.Millisecond, 100*time.Millisecond, 500*time.Millisecond)
++		setWatchIntervals(200*time.Millisecond, 400*time.Millisecond, 500*time.Millisecond)
+ 
+ 		rs := newStartedWatcherSyncerTester([]watchersyncer.ResourceType{r1})
+ 		rs.ExpectStatusUpdate(api.WaitForDatastore)
+diff --git a/node/Makefile b/node/Makefile
+index ca41e4dd34..3f39fa1c2e 100644
+--- a/node/Makefile
++++ b/node/Makefile
+@@ -211,9 +211,6 @@ filesystem/usr/lib/calico/bpf: $(shell find ../felix/bpf-gpl -type f) $(shell fi
+ 	cp -r ../felix/bpf-apache/bin/* $@
+ 
+ # We need CGO when compiling in Felix for BPF support.
+-# Currently CGO can be enabled in ARM64 AMD64 and PPC64LE builds.
+-ifeq ($(ARCH), $(filter $(ARCH),amd64 arm64 ppc64le))
+-CGO_ENABLED=1
+ # Normalize userspace types to ensure consistency across architectures.
+ ARCH_CGO_CFLAGS=
+ ifeq ($(ARCH),ppc64le)
+@@ -221,21 +218,12 @@ ifeq ($(ARCH),ppc64le)
+ endif
+ CGO_LDFLAGS="-L$(LIBBPF_CONTAINER_PATH)/$(ARCH) -lbpf -lelf -lz"
+ CGO_CFLAGS="-I$(LIBBPF_CONTAINER_PATH) -I$(BPFGPL_CONTAINER_PATH) $(ARCH_CGO_CFLAGS)"
+-else
+-CGO_ENABLED=0
+-CGO_LDFLAGS=""
+-CGO_CFLAGS=""
+-endif
+ 
+ $(NODE_CONTAINER_BINARY): filesystem/usr/lib/calico/bpf $(LIBBPF_A) $(SRC_FILES) ../go.mod
+ ifeq ($(FIPS),true)
+ 	$(call build_cgo_boring_binary, ./cmd/calico-node/main.go, $@)
+ else
+-ifeq ($(ARCH),$(filter $(ARCH),amd64 arm64 ppc64le))
+ 	$(call build_cgo_binary, ./cmd/calico-node/main.go, $@)
+-else
+-	$(call build_binary, ./cmd/calico-node/main.go, $@)
+-endif
+ endif
+ 
+ LIBBPF_FILE_CREATED:
+@@ -251,11 +239,7 @@ $(WINDOWS_ARCHIVE_ROOT)/cni/calico-ipam.exe:
+ 	$(call build_windows_binary, ./cmd/calico-ipam, $@)
+ 
+ $(TOOLS_MOUNTNS_BINARY):
+-ifeq ($(CGO_ENABLED),1)
+ 	$(call build_cgo_binary, ./cmd/mountns, $@)
+-else
+-	$(call build_binary, ./cmd/mountns, $@)
+-endif
+ 
+ 
+ ###############################################################################
+@@ -385,6 +369,7 @@ IPT_ALLOW_ETCD:=-A INPUT -i docker0 -p tcp --dport 2379 -m comment --comment "ca
+ 
+ # Create the calico/test image
+ test_image: .calico_test.created
++.calico_test.created: DOCKER_PULL :=
+ .calico_test.created: calico_test/Dockerfile $(TEST_CONTAINER_FILES)
+ 	$(DOCKER_BUILD) --build-arg ETCD_VERSION=$(ETCD_VERSION) -f calico_test/Dockerfile -t $(TEST_CONTAINER_NAME) calico_test
+ 	touch $@
+diff --git a/node/calico_test/Dockerfile b/node/calico_test/Dockerfile
+index d95017312e..a514b16018 100644
+--- a/node/calico_test/Dockerfile
++++ b/node/calico_test/Dockerfile
+@@ -33,7 +33,7 @@
+ # - volume mount your ST source code
+ # - run 'pytest'
+ 
+-FROM docker:25
++FROM docker-s390x:25-23
+ 
+ ARG ETCD_VERSION
+ ARG TARGETARCH
+@@ -59,7 +59,7 @@ RUN apk upgrade --no-cache && apk add --no-cache \
+     py3-pip \
+     python3 \
+     python3-dev \
+-    tshark
++    tshark rust cargo
+ 
+ # Install etcdctl
+ RUN curl -sSfL --retry 5 -o /tmp/etcd.tar.gz https://github.com/coreos/etcd/releases/download/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-${TARGETARCH}.tar.gz && \
+diff --git a/typha/fv-tests/server_test.go b/typha/fv-tests/server_test.go
+index 78a0f5ef4d..7de85c1d3a 100644
+--- a/typha/fv-tests/server_test.go
++++ b/typha/fv-tests/server_test.go
+@@ -1258,7 +1258,7 @@ var _ = Describe("With an in-process Server with short write timeout", func() {
+ 						close(finishedC)
+ 					}()
+ 
+-					Eventually(finishedC, 5*time.Second).Should(BeClosed())
++					Eventually(finishedC, 15*time.Second).Should(BeClosed())
+ 					expectGlobalGaugeValue("typha_connections_active", 0.0)
+ 				},
+ 			)

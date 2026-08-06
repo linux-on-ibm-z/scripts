@@ -1,0 +1,56 @@
+diff --git a/25/cli/Dockerfile b/25/cli/Dockerfile
+index 978b8925a9..e87e28f29d 100644
+--- a/25/cli/Dockerfile
++++ b/25/cli/Dockerfile
+@@ -4,7 +4,7 @@
+ # PLEASE DO NOT EDIT IT DIRECTLY.
+ #
+ 
+-FROM alpine:3.20
++FROM alpine:3.23
+ 
+ RUN apk add --no-cache \
+ 		ca-certificates \
+@@ -29,6 +29,13 @@ RUN set -eux; \
+ 	\
+ 	apkArch="$(apk --print-arch)"; \
+ 	case "$apkArch" in \
++               's390x') \
++                       apk add --no-cache \
++                               "docker" \
++                               "docker-cli" \
++                               "docker-engine" \
++                       ; \
++                       ;; \
+ 		'x86_64') \
+ 			url='https://download.docker.com/linux/static/stable/x86_64/docker-25.0.5.tgz'; \
+ 			;; \
+@@ -44,16 +51,18 @@ RUN set -eux; \
+ 		*) echo >&2 "error: unsupported 'docker.tgz' architecture ($apkArch)"; exit 1 ;; \
+ 	esac; \
+ 	\
+-	wget -O 'docker.tgz' "$url"; \
+-	\
+-	tar --extract \
+-		--file docker.tgz \
+-		--strip-components 1 \
+-		--directory /usr/local/bin/ \
+-		--no-same-owner \
+-		'docker/docker' \
+-	; \
+-	rm docker.tgz; \
++       if [ "$apkArch" != 's390x' ]; then \
++               wget -O 'docker.tgz' "$url"; \
++               \
++               tar --extract \
++                       --file docker.tgz \
++                       --strip-components 1 \
++                       --directory /usr/local/bin/ \
++                       --no-same-owner \
++                       'docker/docker' \
++               ; \
++               rm docker.tgz; \
++       fi; \
+ 	\
+ 	docker --version
+ 

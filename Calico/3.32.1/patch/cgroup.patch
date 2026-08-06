@@ -1,0 +1,17 @@
+diff --git a/hack/test/kind/kind-single.config b/hack/test/kind/kind-single.config
+index 46d9e3d1e3..cc2ccf1242 100644
+--- a/hack/test/kind/kind-single.config
++++ b/hack/test/kind/kind-single.config
+@@ -38,3 +38,12 @@ kubeadmConfigPatches:
+   mode: ipvs
+   conntrack:
+     maxPerCore: 0
++
++- |
++  apiVersion: kubeadm.k8s.io/v1beta3
++  kind: InitConfiguration
++  metadata:
++    name: config
++  nodeRegistration:
++    kubeletExtraArgs:
++      fail-cgroupv1: "false"
