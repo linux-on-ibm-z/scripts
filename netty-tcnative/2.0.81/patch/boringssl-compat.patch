@@ -1,0 +1,435 @@
+diff --git a/boringssl-static/pom.xml b/boringssl-static/pom.xml
+index ba288de..6670bbf 100644
+--- a/boringssl-static/pom.xml
++++ b/boringssl-static/pom.xml
+@@ -84,15 +84,15 @@
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+     <boringsslHome>${boringsslSourceDir}/build</boringsslHome>
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+-    <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
++    <boringsslRepository>https://github.com/linux-on-ibm-z/boringssl</boringsslRepository>
+     <linkStatic>true</linkStatic>
+     <compileLibrary>true</compileLibrary>
+     <msvcSslIncludeDirs>${boringsslSourceDir}/include</msvcSslIncludeDirs>
+-    <msvcSslLibDirs>${boringsslHome}</msvcSslLibDirs>
+-    <msvcSslLibs>ssl.lib;crypto.lib</msvcSslLibs>
++    <msvcSslLibDirs>${boringsslBuildDir}/ssl;${boringsslBuildDir}/crypto;${boringsslBuildDir}/decrepit</msvcSslLibDirs>
++    <msvcSslLibs>ssl.lib;crypto.lib;decrepit.lib</msvcSslLibs>
+     <cflags>-Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3</cflags>
+     <cppflags>-DHAVE_OPENSSL -I${boringsslSourceDir}/include</cppflags>
+-    <ldflags>-L${boringsslHome} -lssl -lcrypto</ldflags>
++    <ldflags>-L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto</ldflags>
+     <skipJapicmp>true</skipJapicmp>
+     <!-- We need to use the same module name for all our "native" impls as only one should be loaded -->
+     <javaModuleName>${javaDefaultModuleName}</javaModuleName>
+@@ -378,7 +378,7 @@
+                     <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+                     <configureArg>CFLAGS=-O3 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value</configureArg>
+                     <configureArg>CPPFLAGS=-DHAVE_OPENSSL -I${boringsslCheckoutDir}/include</configureArg>
+-                    <configureArg>LDFLAGS=-L${boringsslBuildDir} -lssl -lcrypto -ldecrepit -lstdc++</configureArg>
++                    <configureArg>LDFLAGS=-L${boringsslBuildDir}/ssl -L${boringsslBuildDir}/crypto -L${boringsslBuildDir}/decrepit -ldecrepit -lssl -lcrypto</configureArg>
+                   </configureArgs>
+                 </configuration>
+               </execution>
+@@ -582,7 +582,7 @@
+                     <if>
+                       <equals arg1="${os.detected.name}" arg2="linux" />
+                       <then>
+-                        <property name="hawtjniLdflags" value="-L${boringsslHome} -lssl -lcrypto -static-libstdc++ -l:libstdc++.a" />
++                        <property name="hawtjniLdflags" value="-L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto -static-libstdc++ -l:libstdc++.a" />
+                       </then>
+                       <else>
+                         <property name="hawtjniLdflags" value="${ldflags}" />
+@@ -705,7 +705,7 @@
+         <boringsslHome>${boringsslSourceDir}/build</boringsslHome>
+         <linkStatic>true</linkStatic>
+         <msvcSslIncludeDirs>${boringsslSourceDir}/include</msvcSslIncludeDirs>
+-        <msvcSslLibDirs>${boringsslHome}</msvcSslLibDirs>
++        <msvcSslLibDirs>${boringsslHome}/ssl;${boringsslHome}/crypto</msvcSslLibDirs>
+         <msvcSslLibs>ssl.lib;crypto.lib</msvcSslLibs>
+         <!-- use aarch_64 as this is also what os.detected.arch will use on an aarch64 system -->
+         <nativeJarFile>${project.build.directory}/${project.build.finalName}-${os.detected.name}-aarch_64.jar</nativeJarFile>
+@@ -992,7 +992,7 @@
+                     <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+                     <configureArg>CFLAGS=-O3 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value</configureArg>
+                     <configureArg>CPPFLAGS=-DHAVE_OPENSSL -I${boringsslSourceDir}/include</configureArg>
+-                    <configureArg>LDFLAGS=-L${boringsslHome} -lssl -lcrypto -static-libstdc++ -l:libstdc++.a</configureArg>
++                    <configureArg>LDFLAGS=-L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto -static-libstdc++ -l:libstdc++.a</configureArg>
+                     <configureArg>--host=aarch64-linux-gnu</configureArg>
+                     <configureArg>CC=aarch64-none-linux-gnu-gcc</configureArg>
+                   </configureArgs>
+@@ -1442,7 +1442,7 @@
+         <cmakeCxxFlags>-O3 -fno-omit-frame-pointer -target ${target} -Wno-error=range-loop-analysis</cmakeCxxFlags>
+         <cflags>-target ${target} -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3</cflags>
+         <cppflags>-target ${target} -DHAVE_OPENSSL -I${boringsslSourceDir}/include</cppflags>
+-        <ldflags>-arch x86_64 -L${boringsslHome} -lssl -lcrypto</ldflags>
++        <ldflags>-arch x86_64 -L${boringsslHome}/ssl -L${boringsslHome}/crypto -lssl -lcrypto</ldflags>
+         <!-- use aarch_64 as this is also what os.detected.arch will use on an aarch64 system -->
+         <nativeJarFile>${project.build.directory}/${project.build.finalName}-${os.detected.name}-x86_64.jar</nativeJarFile>
+         <nativeLibOsParts>${os.detected.name}_x86_64</nativeLibOsParts>
+diff --git a/openssl-dynamic/src/main/c/ssl.c b/openssl-dynamic/src/main/c/ssl.c
+index 45860af..b8aa962 100644
+--- a/openssl-dynamic/src/main/c/ssl.c
++++ b/openssl-dynamic/src/main/c/ssl.c
+@@ -2700,9 +2700,11 @@ TCN_IMPLEMENT_CALL(void, SSL, setRenegotiateMode)(TCN_STDARGS, jlong ssl, jint m
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSL, addCredential)(TCN_STDARGS, jlong ssl, jlong cred) {
+-#ifdef OPENSSL_IS_BORINGSSL
++    if (!check_credential_api(e)) return;
+     SSL *ssl_ = J2P(ssl, SSL *);
+     TCN_CHECK_NULL(ssl_, ssl, /* void */);
++
++#ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* credential = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(credential, credential, /* void */);
+ 
+@@ -2710,23 +2712,22 @@ TCN_IMPLEMENT_CALL(void, SSL, addCredential)(TCN_STDARGS, jlong ssl, jlong cred)
+     if (result == 0) {
+         tcn_Throw(e, "Failed to add credential to SSL");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(jlong, SSL, getSelectedCredential)(TCN_STDARGS, jlong ssl) {
+-#ifdef OPENSSL_IS_BORINGSSL
++    if (!check_credential_api(e)) return 0;
+     SSL *ssl_ = J2P(ssl, SSL *);
+     TCN_CHECK_NULL(ssl_, ssl, 0);
++
++#ifdef OPENSSL_IS_BORINGSSL
+     const SSL_CREDENTIAL* credential = SSL_get0_selected_credential(ssl_);
+     if (credential == NULL) {
+         return 0;
+     }
+     return (jlong)(intptr_t)credential;
+ #else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+-    return 0;
++    return 0;  // Unreachable - check_credential_api throws
+ #endif
+ }
+ 
+diff --git a/openssl-dynamic/src/main/c/ssl_private.h b/openssl-dynamic/src/main/c/ssl_private.h
+index 99eb72c..3ff32e1 100644
+--- a/openssl-dynamic/src/main/c/ssl_private.h
++++ b/openssl-dynamic/src/main/c/ssl_private.h
+@@ -521,4 +521,42 @@ enum ssl_verify_result_t tcn_SSL_cert_custom_verify(SSL* ssl, uint8_t *out_alert
+ #define tcn_SSL_set1_curves(s, glist, glistlen) SSL_ctrl(s, SSL_CTRL_SET_GROUPS, glistlen,(char *)(glist))
+ #endif // defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_IS_AWSLC)
+ 
++// SSL_CREDENTIAL API runtime detection for FIPS compatibility
++#ifdef OPENSSL_IS_BORINGSSL
++// Use weak symbols to detect if SSL_CREDENTIAL API is available at runtime
++// FIPS BoringSSL builds (fips-20230428 and earlier) don't have these symbols
++__attribute__((weak)) extern SSL_CREDENTIAL* SSL_CREDENTIAL_new_x509(void);
++__attribute__((weak)) extern SSL_CREDENTIAL* SSL_CREDENTIAL_new_delegated(void);
++__attribute__((weak)) extern void SSL_CREDENTIAL_free(SSL_CREDENTIAL*);
++__attribute__((weak)) extern void SSL_CREDENTIAL_up_ref(SSL_CREDENTIAL*);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_private_key(SSL_CREDENTIAL*, EVP_PKEY*);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_cert_chain(SSL_CREDENTIAL*, CRYPTO_BUFFER *const*, size_t);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_trust_anchor_id(SSL_CREDENTIAL*, const uint8_t*, size_t);
++__attribute__((weak)) extern void SSL_CREDENTIAL_set_must_match_issuer(SSL_CREDENTIAL*, int);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_ocsp_response(SSL_CREDENTIAL*, CRYPTO_BUFFER*);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_signed_cert_timestamp_list(SSL_CREDENTIAL*, CRYPTO_BUFFER*);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_certificate_properties(SSL_CREDENTIAL*, CRYPTO_BUFFER*);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_signing_algorithm_prefs(SSL_CREDENTIAL*, const uint16_t*, size_t);
++__attribute__((weak)) extern int SSL_CREDENTIAL_set1_delegated_credential(SSL_CREDENTIAL*, CRYPTO_BUFFER*);
++__attribute__((weak)) extern int SSL_add1_credential(SSL*, SSL_CREDENTIAL*);
++__attribute__((weak)) extern int SSL_CTX_add1_credential(SSL_CTX*, SSL_CREDENTIAL*);
++__attribute__((weak)) extern const SSL_CREDENTIAL* SSL_get0_selected_credential(const SSL*);
++
++// Check if credential API is available and throw if not
++// Returns 1 if available, 0 if not (with exception thrown)
++static inline int check_credential_api(JNIEnv* e) {
++    if (SSL_CREDENTIAL_new_x509 == NULL) {
++        tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
++        return 0;
++    }
++    return 1;
++}
++
++#else
++__attribute__((unused)) static inline int check_credential_api(JNIEnv* e) {
++    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
++    return 0;
++}
++#endif // OPENSSL_IS_BORINGSSL
++
+ #endif /* SSL_PRIVATE_H */
+diff --git a/openssl-dynamic/src/main/c/sslcontext.c b/openssl-dynamic/src/main/c/sslcontext.c
+index 882a052..0f577d9 100644
+--- a/openssl-dynamic/src/main/c/sslcontext.c
++++ b/openssl-dynamic/src/main/c/sslcontext.c
+@@ -30,6 +30,7 @@
+  */
+ 
+ #include "tcn.h"
++#include "boringssl_compat.h"
+ 
+ #include "apr_thread_rwlock.h"
+ #include "apr_atomic.h"
+@@ -2983,10 +2984,11 @@ TCN_IMPLEMENT_CALL(jint, SSLContext, addCertificateCompressionAlgorithm0)(TCN_ST
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLContext, addCredential)(TCN_STDARGS, jlong ctx, jlong cred) {
+-#ifdef OPENSSL_IS_BORINGSSL
++    if (!check_credential_api(e)) return;
+     tcn_ssl_ctxt_t *c = J2P(ctx, tcn_ssl_ctxt_t *);
+     TCN_CHECK_NULL(c, ctx, /* void */);
+ 
++#ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* credential = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(credential, credential, /* void */);
+ 
+@@ -2994,8 +2996,6 @@ TCN_IMPLEMENT_CALL(void, SSLContext, addCredential)(TCN_STDARGS, jlong ctx, jlon
+     if (result == 0) {
+         tcn_Throw(e, "Failed to add credential to SSL_CTX");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+diff --git a/openssl-dynamic/src/main/c/sslcredential.c b/openssl-dynamic/src/main/c/sslcredential.c
+index 18f2570..f535240 100644
+--- a/openssl-dynamic/src/main/c/sslcredential.c
++++ b/openssl-dynamic/src/main/c/sslcredential.c
+@@ -23,6 +23,7 @@
+ #include <openssl/err.h>
+ 
+ 
++#include "boringssl_compat.h"
+ #include "tcn.h"
+ #include "ssl_private.h"
+ #include "sslcredential.h"
+@@ -43,39 +44,38 @@ static void throw_openssl_error(JNIEnv* env, const char* msg) {
+ 
+ // Core SSL_CREDENTIAL functions
+ TCN_IMPLEMENT_CALL(jlong, SSLCredential, newX509)(TCN_STDARGS) {
++    if (!check_credential_api(e)) return 0;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* cred = SSL_CREDENTIAL_new_x509();
+     TCN_CHECK_NULL(cred, credential, 0);
+     return (jlong)(intptr_t)cred;
+ #else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+-    return 0;
++    return 0;  // Unreachable - check_credential_api throws
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, upRef)(TCN_STDARGS, jlong cred) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+     SSL_CREDENTIAL_up_ref(c);
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, free)(TCN_STDARGS, jlong cred) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     if (c != NULL) {
+         SSL_CREDENTIAL_free(c);
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ // SSL_CREDENTIAL configuration methods
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setPrivateKey)(TCN_STDARGS, jlong cred, jlong key) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     EVP_PKEY* pkey = (EVP_PKEY*)(intptr_t)key;
+@@ -86,12 +86,11 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setPrivateKey)(TCN_STDARGS, jlong cred,
+     if (SSL_CREDENTIAL_set1_private_key(c, pkey) == 0) {
+         throw_openssl_error(e, "Failed to set private key");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setCertChain)(TCN_STDARGS, jlong cred, jlong certChainStack) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -119,12 +118,11 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setCertChain)(TCN_STDARGS, jlong cred, j
+     if (result == 0) {
+         throw_openssl_error(e, "Failed to set certificate chain");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setOcspResponse)(TCN_STDARGS, jlong cred, jbyteArray ocsp) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -150,12 +148,11 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setOcspResponse)(TCN_STDARGS, jlong cred
+     if (result == 0) {
+         throw_openssl_error(e, "Failed to set OCSP response");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setSigningAlgorithmPrefs)(TCN_STDARGS, jlong cred, jintArray prefs) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -188,12 +185,11 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setSigningAlgorithmPrefs)(TCN_STDARGS, j
+     if (result == 0) {
+         throw_openssl_error(e, "Failed to set signing algorithm preferences");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setCertificateProperties)(TCN_STDARGS, jlong cred, jbyteArray cert_props) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -219,12 +215,11 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setCertificateProperties)(TCN_STDARGS, j
+     if (result == 0) {
+         throw_openssl_error(e, "Failed to set certificate properties");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setSignedCertTimestampList)(TCN_STDARGS, jlong cred, jbyteArray sct_list) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -250,23 +245,21 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setSignedCertTimestampList)(TCN_STDARGS,
+     if (result == 0) {
+         throw_openssl_error(e, "Failed to set signed certificate timestamp list");
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setMustMatchIssuer)(TCN_STDARGS, jlong cred, jboolean match) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+     SSL_CREDENTIAL_set_must_match_issuer(c, match == JNI_TRUE ? 1 : 0);
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ // Trust anchor configuration
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setTrustAnchorId)(TCN_STDARGS, jlong cred, jbyteArray id) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -288,13 +281,12 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setTrustAnchorId)(TCN_STDARGS, jlong cre
+         throw_openssl_error(e, "Failed to set trust anchor ID");
+         return;
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+ // Delegated credentials
+ TCN_IMPLEMENT_CALL(jlong, SSLCredential, newDelegated)(TCN_STDARGS) {
++    if (!check_credential_api(e)) return 0;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* credential = SSL_CREDENTIAL_new_delegated();
+     if (credential == NULL) {
+@@ -303,12 +295,12 @@ TCN_IMPLEMENT_CALL(jlong, SSLCredential, newDelegated)(TCN_STDARGS) {
+     }
+     return (jlong)(intptr_t)credential;
+ #else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+-    return 0;
++    return 0;  // Unreachable - check_credential_api throws
+ #endif
+ }
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setDelegatedCredential)(TCN_STDARGS, jlong cred, jbyteArray dc) {
++    if (!check_credential_api(e)) return;
+ #ifdef OPENSSL_IS_BORINGSSL
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+@@ -335,8 +327,6 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setDelegatedCredential)(TCN_STDARGS, jlo
+         throw_openssl_error(e, "Failed to set delegated credential");
+         return;
+     }
+-#else
+-    tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL API not available.");
+ #endif
+ }
+ 
+diff --git a/pom.xml b/pom.xml
+index 8c233a9..226ad66 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -93,11 +93,11 @@
+     <nativeLibOsParts>${os.detected.name}_${os.detected.arch}</nativeLibOsParts>
+     <aprVersion>1.7.5</aprVersion>
+     <aprSha256>3375fa365d67bcf945e52b52cba07abea57ef530f40b281ffbe977a9251361db</aprSha256>
+-    <boringsslBranch>main</boringsslBranch>
++    <boringsslBranch>patch-s390x-Sep2024</boringsslBranch>
+     <!--
+       See https://boringssl.googlesource.com/boringssl/+/refs/heads/main for the latest commit
+     -->
+-    <boringsslCommitSha>0226f30467f540a3f62ef48d453f93927da199b6</boringsslCommitSha>
++    <boringsslCommitSha>d40d43c5e00d8adfbaa88d5cf521d52f0549464c</boringsslCommitSha>
+     <libresslVersion>3.4.3</libresslVersion>
+     <!--
+       See https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/SHA256 for the SHA256 signature
+diff --git a/openssl-dynamic/src/main/c/boringssl_compat.h b/openssl-dynamic/src/main/c/boringssl_compat.h
+new file mode 100644
+index 0000000..bb1e34a
+--- /dev/null
++++ b/openssl-dynamic/src/main/c/boringssl_compat.h
+@@ -0,0 +1,24 @@
++#ifndef NETTY_TCNATIVE_BORINGSSL_COMPAT_H
++#define NETTY_TCNATIVE_BORINGSSL_COMPAT_H
++
++#include <openssl/ssl.h>
++#include <openssl/x509.h>
++#include <stdint.h>
++#include <stddef.h>
++
++/*
++ * Compatibility shim for older BoringSSL headers.
++ *
++ * NOTE: Do NOT define SSL_CREDENTIAL_* functions here.
++ * netty-tcnative declares these APIs as weak externs in ssl_private.h.
++ * Defining them (even as static inline) causes symbol/type conflicts.
++ */
++
++#ifndef SSL_CREDENTIAL
++typedef struct ssl_credential_st {
++    int unused;
++} SSL_CREDENTIAL;
++#endif
++
++#endif /* NETTY_TCNATIVE_BORINGSSL_COMPAT_H */
++
