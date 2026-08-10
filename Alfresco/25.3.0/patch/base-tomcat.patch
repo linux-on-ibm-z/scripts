@@ -1,8 +1,8 @@
 diff --git a/Dockerfile b/Dockerfile
-index 73fe0e6..8fdeac0 100644
+index 73fe0e6..3782ef5 100644
 --- a/Dockerfile
 +++ b/Dockerfile
-@@ -4,7 +4,7 @@
+@@ -4,12 +4,12 @@
  ARG JAVA_MAJOR
  ARG DISTRIB_NAME=rockylinux
  ARG DISTRIB_MAJOR
@@ -10,11 +10,17 @@ index 73fe0e6..8fdeac0 100644
 +ARG IMAGE_JAVA_REPO=alfresco
  ARG IMAGE_JAVA_NAME=alfresco-base-java
  ARG IMAGE_JAVA_TAG=jre${JAVA_MAJOR}-${DISTRIB_NAME}${DISTRIB_MAJOR}
- 
+
+ # Tomcat is downloaded and configured on debian as its a binary dist anyway
+-FROM debian:12-slim AS tomcat_dist
++FROM debian:trixie-slim AS tomcat_dist
+
+ ARG TOMCAT_MAJOR
+ ARG TOMCAT_VERSION
 @@ -108,45 +108,35 @@ COPY --from=tomcat_dist /build/apr $BUILD_DIR/apr
- 
+
  SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
- 
+
 -RUN <<EOT
 -  dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-${DISTRIB_MAJOR}.noarch.rpm
 -  dnf install -y gcc make expat-devel java-${JAVA_MAJOR}-openjdk-devel redhat-rpm-config
@@ -22,7 +28,7 @@ index 73fe0e6..8fdeac0 100644
 +  dnf install -y gcc make expat-devel java-${JAVA_MAJOR}-openjdk-devel redhat-rpm-config && \
    dnf clean all
 -EOT
- 
+
  WORKDIR ${BUILD_DIR}/apr
 -RUN <<EOT
 -  ./configure --prefix=${INSTALL_DIR}/apr
@@ -31,7 +37,7 @@ index 73fe0e6..8fdeac0 100644
 +  make -j "$(nproc)" && \
    make install
 -EOT
- 
+
  WORKDIR ${BUILD_DIR}/tcnative/native
 -RUN <<EOT
 -  if [ $DISTRIB_MAJOR -eq 8 ]; then
@@ -71,22 +77,22 @@ index 73fe0e6..8fdeac0 100644
 +  make -j "$(nproc)" && \
    make install
 -EOT
- 
+
  # hadolint ignore=DL3006
  FROM tcnative_build-${DISTRIB_NAME} AS tcnative_build
 @@ -192,31 +182,27 @@ WORKDIR $CATALINA_HOME
  RUN groupadd --system tomcat && \
    useradd -M -s /bin/false --home $CATALINA_HOME --system --gid tomcat tomcat
- 
+
 -COPY --chown=:tomcat --chmod=640 --from=tomcat_dist /build/tomcat $CATALINA_HOME
 -COPY --chown=:tomcat --chmod=640 --from=tcnative_build /usr/local/tcnative $TOMCAT_NATIVE_LIBDIR
 -COPY --chown=:tomcat --chmod=640 --from=tcnative_build /usr/local/apr/lib/libapr-1.so* $APR_LIBDIR/
 +COPY --from=tomcat_dist /build/tomcat $CATALINA_HOME
 +COPY --from=tcnative_build /usr/local/tcnative $TOMCAT_NATIVE_LIBDIR
 +COPY --from=tcnative_build /usr/local/apr/lib/libapr-1.so* $APR_LIBDIR/
- 
+
  SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
- 
+
 -RUN <<EOT
 -  if [ $DISTRIB_MAJOR -eq 8 ]; then
 +RUN if [ $DISTRIB_MAJOR -eq 8 ]; then \
@@ -115,6 +121,6 @@ index 73fe0e6..8fdeac0 100644
 +  nativeLines="$(catalina.sh configtest 2>&1 | grep -c 'Loaded Apache Tomcat Native library')" && \
    test $nativeLines -ge 1 || { echo "Tomcat Native library not found or not working properly"; exit 1; }
 -EOT
- 
+
  USER tomcat
  EXPOSE 8080
