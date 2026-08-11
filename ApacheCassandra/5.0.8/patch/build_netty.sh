@@ -237,7 +237,7 @@ fi
                 sed -i '/native-build\/target\/lib/a \                <configureArg>--with-apr=/usr<\/configureArg>' openssl-dynamic/pom.xml
         fi
 
-        if [[ "${DISTRO}" == ubuntu* || "${DISTRO}" == rhel-9* || "${DISTRO}" == rhel-8* || "${DISTRO}" == sles* || "${DISTRO}" == "debian-12" ]] ;then
+        if [[ "${DISTRO}" == ubuntu* || "${DISTRO}" == rhel-9* || "${DISTRO}" == rhel-8* || "${DISTRO}" == sles* || "${DISTRO}" == "debian-12" || "${DISTRO}" == "debian-13" ]] ;then
             curl -o gcc_patch.diff $PATCH_URL/gcc_patch.diff
             sudo cp gcc_patch.diff /tmp/gcc_patch.diff
 
@@ -320,7 +320,7 @@ case "$DISTRO" in
     sudo zypper install -y awk ninja cmake perl libopenssl-devel apr-devel autoconf automake libtool make tar git wget gcc gcc-c++ gzip maven go |& tee -a "${LOG_FILE}"
     configureAndInstall |& tee -a "${LOG_FILE}"
     ;;
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.04" | "ubuntu-25.10" | "debian-12")
+"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.04" | "ubuntu-25.10" | "debian-12" | "debian-13")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update -y
