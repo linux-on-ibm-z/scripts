@@ -1,0 +1,19 @@
+diff --git a/src/Makefile b/src/Makefile
+index 99642be7..caee07ef 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -52,12 +52,13 @@ CCOPT_arm=
+ CCOPT_arm64=
+ CCOPT_ppc=
+ CCOPT_mips=
++CCOPT_s390x= -fno-integrated-as
+ #
+ CCDEBUG=
+ # Uncomment the next line to generate debug information:
+ #CCDEBUG= -g
+ #
+-CCWARN= -Wall
++CCWARN= -Wall -Wno-error=implicit-function-declaration
+ # Uncomment the next line to enable more warnings:
+ #CCWARN+= -Wextra -Wdeclaration-after-statement -Wredundant-decls -Wshadow -Wpointer-arith
+ #

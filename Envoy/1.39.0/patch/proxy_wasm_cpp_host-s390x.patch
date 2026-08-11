@@ -1,0 +1,30 @@
+diff --git a/src/pairs_util.cc b/src/pairs_util.cc
+--- a/src/pairs_util.cc
++++ b/src/pairs_util.cc
+@@ -65,9 +65,9 @@ bool PairsUtil::marshalPairs(const Pairs &pairs, char *buffer, size_t size) {
+ 
+   // Write number of pairs.
+   uint32_t num_pairs =
+-      htowasm(pairs.size(), contextOrEffectiveContext() != nullptr
++      htowasm(static_cast<uint32_t>(pairs.size()), contextOrEffectiveContext() != nullptr
+                                 ? contextOrEffectiveContext()->wasmVm()->usesWasmByteOrder()
+                                 : false);
+   if (pos + sizeof(uint32_t) > end) {
+@@ -77,7 +77,7 @@ bool PairsUtil::marshalPairs(const Pairs &pairs, char *buffer, size_t size) {
+   for (const auto &p : pairs) {
+     // Write name length.
+     uint32_t name_len =
+-        htowasm(p.first.size(), contextOrEffectiveContext() != nullptr
++        htowasm(static_cast<uint32_t>(p.first.size()), contextOrEffectiveContext() != nullptr
+                                     ? contextOrEffectiveContext()->wasmVm()->usesWasmByteOrder()
+                                     : false);
+     if (pos + sizeof(uint32_t) > end) {
+@@ -88,7 +88,7 @@ bool PairsUtil::marshalPairs(const Pairs &pairs, char *buffer, size_t size) {
+ 
+     // Write value length.
+     uint32_t value_len =
+-        htowasm(p.second.size(), contextOrEffectiveContext() != nullptr
++        htowasm(static_cast<uint32_t>(p.second.size()), contextOrEffectiveContext() != nullptr
+                                      ? contextOrEffectiveContext()->wasmVm()->usesWasmByteOrder()
+                                      : false);
+     if (pos + sizeof(uint32_t) > end) {

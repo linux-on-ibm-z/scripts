@@ -1,0 +1,43 @@
+diff --git a/toolchain/cc_toolchain_config.bzl b/toolchain/cc_toolchain_config.bzl
+index 8279221..703a4d2 100644
+--- a/toolchain/cc_toolchain_config.bzl
++++ b/toolchain/cc_toolchain_config.bzl
+@@ -100,6 +100,14 @@ def cc_toolchain_config(
+             "clang",
+             "glibc_unknown",
+         ),
++        "linux-s390x": (
++            "clang-s390x-linux",
++            "s390x",
++            "glibc_unknown",
++            "clang",
++            "clang",
++            "glibc_unknown",
++        ),
+         "linux-x86_64": (
+             "clang-x86_64-linux",
+             "k8",
+diff --git a/toolchain/internal/common.bzl b/toolchain/internal/common.bzl
+index 5355d90..2233a8f 100644
+--- a/toolchain/internal/common.bzl
++++ b/toolchain/internal/common.bzl
+@@ -16,6 +16,7 @@ SUPPORTED_TARGETS = [
+     ("linux", "x86_64"),
+     ("linux", "aarch64"),
+     ("linux", "armv7"),
++    ("linux", "s390x"),
+     ("linux", "riscv64"),
+     ("darwin", "x86_64"),
+     ("darwin", "aarch64"),
+diff --git a/toolchain/internal/configure.bzl b/toolchain/internal/configure.bzl
+index e0ad59e..44721d8 100644
+--- a/toolchain/internal/configure.bzl
++++ b/toolchain/internal/configure.bzl
+@@ -349,6 +349,7 @@ def _cc_toolchain_str(
+         "darwin-aarch64": "aarch64-apple-macosx",
+         "linux-aarch64": "aarch64-unknown-linux-gnu",
+         "linux-armv7": "armv7-unknown-linux-gnueabihf",
++       "linux-s390x": "s390x-ibm-linux",
+         "linux-x86_64": "x86_64-unknown-linux-gnu",
+         "linux-riscv64": "riscv64-unknown-linux-gnu",
+         "none-riscv32": "riscv32-unknown-none-elf",

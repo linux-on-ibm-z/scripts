@@ -1,0 +1,12 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 85f31b7a31f..9c057f38d5b 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -3821,6 +3821,7 @@ filegroup(
+             "src/maglev/maglev-truncation.h",
+             "src/maglev/maglev-post-hoc-optimizations-processors.h",
+             "src/maglev/maglev-pre-regalloc-codegen-processors.h",
++	    "src/maglev/maglev-regalloc-node-info.h",
+         ],
+     }),
+ )
