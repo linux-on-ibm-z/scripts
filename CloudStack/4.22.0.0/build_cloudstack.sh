@@ -142,15 +142,11 @@ function configureAndInstallUb() {
     sed -i 's#Depends: ${misc:Depends}, python3-pip, python3-dev, libffi-dev#Depends: ${misc:Depends}, libffi-dev#' debian/control
     sed -i 's#^\tcd ui && npm install && npm run build && cd \.\.#\tcd ui \&\& npm install --force \&\& NODE_OPTIONS="--max-old-space-size=4096" npm run build \&\& cd ..#' debian/rules
     
-    if [[ $DISTRO == ubuntu-24.10 ]]; then
-        sed -i '/mkdir -p $(DESTDIR)\/usr\/share\/$(PACKAGE)-marvin/s/$/ \&\& cp tools\/marvin\/dist\/marvin-\*.tar.gz tools\/marvin\/dist\/Marvin-\*.tar.gz/' debian/rules
-    fi
-    
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
     # Build deb
-    nvm exec 10 sudo -E dpkg-buildpackage -d
+    nvm exec 10 sudo env "PATH=$PATH" dpkg-buildpackage -d
 
     # Install deb
     cd $SOURCE_ROOT
