@@ -18,9 +18,6 @@ FORCE="false"
 TESTS='false'
 LOG_FILE="$CURDIR/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 
-OPENSSL_VERSION='openssl-1.1.1w'
-OPENSSL_URL="https://www.openssl.org/source/${OPENSSL_VERSION}.tar.gz"
-
 #trap cleanup 0 1 2 ERR
 
 #Check if directory exists
@@ -67,17 +64,6 @@ function cleanup() {
     printf -- "Cleaned up the artifacts\n" >> "$LOG_FILE"
 }
 
-function buildAndInstallOpenSSL() {
-
-  cd $SOURCE_ROOT
-  wget $OPENSSL_URL
-  tar -xzf "${OPENSSL_VERSION}.tar.gz"
-  cd $OPENSSL_VERSION
-  ./config --prefix=/usr --openssldir=/usr
-  make
-  sudo make install
-}
-
 function buildAndInstallLua() {
   printf -- 'Building lua\n'
   cd $SOURCE_ROOT
@@ -107,9 +93,16 @@ function installAdditionalDependencies() {
     sudo yum install -y socat curl python2 python38
     ;;
 
-  "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
+  "rhel-9.6" | "rhel-9.7" | "rhel-10.0" | "rhel-10.1")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo yum install -y --allowerasing socat curl python3
+    ;;
+
+   "rhel-9.8" | "rhel-10.2")
+    printf -- "Installing additional dependencies for %s %s on %s \n" \
+        "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
+    sudo yum install -y --allowerasing \
+        socat curl python3 crypto-policies-scripts
     ;;
 
   "sles-15.7" | "sles-16.0")
@@ -166,12 +159,40 @@ function runRegressionTests() {
   sudo make install
 	ulimit -n 65536
 	export VTEST_TIMEOUT="${VTEST_TIMEOUT:-60}"
+
+    ORIGINAL_CRYPTO_POLICY=""
+		
+	if [[ "$DISTRO" == "rhel-9.8" || "$DISTRO" == "rhel-10.2" ]]; then
+
+		ORIGINAL_CRYPTO_POLICY="$(update-crypto-policies --show)"
+
+		printf -- "Current crypto policy on %s: %s\n" \
+			"$DISTRO" "$ORIGINAL_CRYPTO_POLICY" |& tee -a "$LOG_FILE"
+
+		sudo update-crypto-policies --set LEGACY
+
+	fi
+
+	set +e
     if [[ "$DISTRO" == "sles-15.7" ]]; then
         printf -- "Running regression tests with taskset -c 0 on %s to make http_reuse_always deterministic\n" "$DISTRO" |& tee -a "$LOG_FILE"
         taskset -c 0 make reg-tests VTEST_PROGRAM=../vtest/vtest REGTESTS_TYPES=default,bug,devel
     else
         make reg-tests VTEST_PROGRAM=../vtest/vtest REGTESTS_TYPES=default,bug,devel
     fi
+
+    TEST_RC=$?
+	set -e
+
+	if [[ "$DISTRO" == "rhel-9.8" || "$DISTRO" == "rhel-10.2" ]]; then
+
+		sudo update-crypto-policies --set "$ORIGINAL_CRYPTO_POLICY"
+
+		printf -- "Restored crypto policy on %s to %s\n" \
+			"$DISTRO" "$ORIGINAL_CRYPTO_POLICY" |& tee -a "$LOG_FILE"
+	fi
+
+	return "$TEST_RC"
 }
 
 function configureAndInstall() {
@@ -268,15 +289,11 @@ case "$DISTRO" in
     "rhel-8.10" | "rhel-9.6" | "rhel-9.8"  | "rhel-9.7" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         printf -- "Installing dependencies... it may take some time.\n"
-        sudo yum install -y gcc gcc-c++ gzip make tar wget xz zlib-devel lua-devel patch pcre2 pcre2-devel systemd-devel openssl-devel diffutils perl |& tee -a "$LOG_FILE"
+        sudo yum install -y gcc gcc-c++ git gzip make tar wget xz zlib-devel lua-devel patch pcre2 pcre2-devel systemd-devel openssl-devel diffutils perl |& tee -a "$LOG_FILE"
         if [[ "$DISTRO" == "rhel-8.10" ]]; then
             buildAndInstallLua |& tee -a "$LOG_FILE"
         fi
-		if [[ "$DISTRO" == "rhel-9.8" || "$DISTRO" == "rhel-10.2" ]]; then
 		printf -- "Using system OpenSSL on %s\n" "$DISTRO" |& tee -a "$LOG_FILE"
-        elif [[ $DISTRO == rhel-9.* || $DISTRO == rhel-10.* ]]; then
-            buildAndInstallOpenSSL |& tee -a "$LOG_FILE"
-        fi
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
     "sles-15.7")
