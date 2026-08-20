@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2026
+# Â© Copyright IBM Corporation 2026
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 # Instructions:
 # Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/OPA/1.19.0/build_opa.sh

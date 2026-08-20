@@ -1,7 +1,16 @@
 diff --git a/Makefile b/Makefile
-index 807516366e..162c25458d 100644
+index 807516366e..c7c872f821 100644
 --- a/Makefile
 +++ b/Makefile
+@@ -224,7 +224,7 @@ wasm-test: wasm-lib-test wasm-rego-test
+ .PHONY: wasm-lib-build
+ wasm-lib-build:
+ ifeq ($(DOCKER_RUNNING), 1)
+-	@$(MAKE) -C wasm ensure-builder build
++	@$(MAKE) -C wasm builder build
+ 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+ 	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
+ else
 @@ -336,6 +336,13 @@ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-bui
  .PHONY: image-quick
  image-quick: image-quick-$(GOARCH)
@@ -42,4 +51,3 @@ index 7d5959d07e..10f04a07db 100644
  WASM_OBJ_DIR := _obj
  
  # Set compilers for local builds when not using Docker
-
