@@ -148,6 +148,19 @@ index 823cb179d0..ded623d453 100644
  // #include "libbpf_api.h"
  import "C"
  
+diff --git a/felix/docker-image/Dockerfile b/felix/docker-image/Dockerfile
+index ff5648e983..8e5b747e29 100644
+--- a/felix/docker-image/Dockerfile
++++ b/felix/docker-image/Dockerfile
+@@ -18,7 +18,7 @@ ARG BPFTOOL_IMAGE
+ 
+ FROM ${BPFTOOL_IMAGE} AS bpftool
+ 
+-FROM debian:12-slim AS source
++FROM debian:stable-20260112-slim AS source
+ 
+ # Install remaining runtime deps required for felix from the global repository
+ RUN apt-get update && apt-get install -y \
 diff --git a/felix/nfnetlink/nfnl/nfnetlink_linux.go b/felix/nfnetlink/nfnl/nfnetlink_linux.go
 index f6c6dc2180..e9e3580c14 100644
 --- a/felix/nfnetlink/nfnl/nfnetlink_linux.go

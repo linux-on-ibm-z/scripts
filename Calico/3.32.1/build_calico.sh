@@ -81,7 +81,7 @@ function prepare() {
 }
 
 function cleanup() {
-    rm -rf "$SOURCE_ROOT/$GOLANG_VERSION" "$SOURCE_ROOT/go"$GOLANG_VERSION".linux-s390x.tar.gz" $SOURCE_ROOT/release $SOURCE_ROOT/kind $SOURCE_ROOT/build_kind.sh $SOURCE_ROOT/docker
+    rm -rf "$SOURCE_ROOT/go"$GOLANG_VERSION".linux-s390x.tar.gz" $SOURCE_ROOT/release $SOURCE_ROOT/kind $SOURCE_ROOT/build_kind.sh $SOURCE_ROOT/docker
     printf -- '\nCleaned up the artifacts.\n' >>"$LOG_FILE"
 }
 
@@ -93,7 +93,7 @@ function buildDockerImage() {
     cd $SOURCE_ROOT
     git clone https://github.com/docker-library/docker.git
     cd docker && git checkout ad85990
-    git apply --ignore-whitespace $PATCH_URL/docker.patch
+    curl -s $PATCH_URL/docker.patch | git apply --ignore-whitespace -
     cd 25/cli/
     docker build -t docker-s390x:25-23 .
 }
@@ -104,14 +104,7 @@ function buildKind() {
 
     # Install kind
     cd $SOURCE_ROOT
-    wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kind/0.31.0/build_kind.sh
-    if [[ $DISTRO == "ubuntu-24.04" ]]; then
-        sed -i '204s/clang/libclang1-18/' build_kind.sh
-    elif [[ $DISTRO == "rhel-9.8" ]]; then
-        sed -i '172s/9.7/9.8/' build_kind.sh
-    elif [[ $DISTRO == "rhel-10."* ]]; then
-        sed -i '172s/9.7/$VERSION_ID/' build_kind.sh
-    fi
+    wget -O build_kind.sh https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kind/0.32.0/build_kind.sh
 
     if [[ $DISTRO == "sles-15.7" ]]; then
         export GOFLAGS="-buildvcs=false"
@@ -128,7 +121,7 @@ function buildKind() {
     cd $SOURCE_ROOT
     git clone -b v0.19.0 --depth 1 https://github.com/kubernetes/release.git
     cd release
-    curl -s https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kind/0.31.0/patch/release.patch | git apply --ignore-whitespace -
+    curl -s https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Kind/0.32.0/patch/release.patch | git apply --ignore-whitespace -
     export REGISTRY=local
     docker buildx inspect
     cd images/build/cross/
@@ -137,9 +130,9 @@ function buildKind() {
     printf -- '\Installing kindest/node image\n'  
     # Build kindest/node image
     cd $SOURCE_ROOT
-    git clone -b v1.35.1 --depth 1 https://github.com/kubernetes/kubernetes.git
+    git clone -b v1.36.1 --depth 1 https://github.com/kubernetes/kubernetes.git
     cd kubernetes
-    sed -i 's,v1.35.0-go1.25.6-bullseye.0,v1.35.0-go1.25.6-bookworm.0,g' build/build-image/cross/VERSION
+    sed -i 's,v1.36.0-go1.26.2-bullseye.0,v1.36.0-go1.26.2-trixie.0,g' build/build-image/cross/VERSION
     docker buildx use default
     KUBE_CROSS_IMAGE=${REGISTRY}/kube-cross-s390x kind build node-image --image kindest/node:v1.35.0
     KUBE_CROSS_IMAGE=${REGISTRY}/kube-cross-s390x kind build node-image --image kindest/node:v1.35.1
