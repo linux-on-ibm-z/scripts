@@ -133,7 +133,7 @@ function prepareUB22() {
     sudo DEBIAN_FRONTEND=noninteractive TZ=America/Toronto apt-get install -y \
         autoconf automake autotools-dev binutils-dev bison ccache cmake curl flex \
         git libssl-dev libcurl4-openssl-dev ncurses-dev ninja-build python3 locales locales-all libpsl-dev \
-        python3-httplib2 python3-six pkg-config re2c texinfo tzdata unzip wget libglib2.0-dev libtool
+        python3-httplib2 python3-six pkg-config re2c texinfo tzdata unzip wget libglib2.0-dev libtool software-properties-common
         sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
         sudo apt-get install -y g++-13 gcc-13 gcc-13-multilib g++-13-multilib
 
@@ -202,7 +202,7 @@ function installCmake() {
 
     cd $SOURCE_ROOT
     rm -rdf cmake-3.27.4
-    wget --no-check-certificate https://cmake.org/files/v3.27/cmake-3.27.4.tar.gz
+    wget https://cmake.org/files/v3.27/cmake-3.27.4.tar.gz
     tar -xzf cmake-3.27.4.tar.gz
     cd cmake-3.27.4
     ./bootstrap --prefix=/usr
@@ -247,7 +247,7 @@ function installGflags() {
     
     # Check if directory exists, otherwise download and extract
     if [ ! -d "gflags-$VERSION_GFLAGS" ]; then
-        wget --no-check-certificate https://github.com/gflags/gflags/archive/refs/tags/v$VERSION_GFLAGS.tar.gz
+        wget https://github.com/gflags/gflags/archive/refs/tags/v$VERSION_GFLAGS.tar.gz
         tar xzf v$VERSION_GFLAGS.tar.gz
     else
         printf -- "gflags source directory already exists, skipping download\n"
@@ -370,7 +370,7 @@ function buildCbpy() {
     source $HOME/.cargo/env
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-py311_23.5.0-3-Linux-s390x.sh
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py311_23.5.0-3-Linux-s390x.sh
     chmod a+x Miniconda3-py311_23.5.0-3-Linux-s390x.sh
 
     ./Miniconda3-py311_23.5.0-3-Linux-s390x.sh -b -p ./cbpy
@@ -592,7 +592,7 @@ function buildSnappy() {
     cd $SOURCE_ROOT
     git clone -b $VERSION_SNAPPY --depth 1 https://github.com/google/snappy.git
     cd snappy
-    wget --no-check-certificate https://raw.githubusercontent.com/couchbase/tlm/8.0.0/deps/packages/snappy/snappy.patch
+    wget https://raw.githubusercontent.com/couchbase/tlm/8.0.0/deps/packages/snappy/snappy.patch
     git apply snappy.patch
     cmake -D CMAKE_INSTALL_PREFIX=$(pwd)/_build \
         -D SNAPPY_BUILD_TESTS=OFF \
@@ -632,7 +632,7 @@ function buildOssl() {
 
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://github.com/openssl/openssl/releases/download/openssl-$VERSION_OSSL/openssl-$VERSION_OSSL.tar.gz
+    wget https://github.com/openssl/openssl/releases/download/openssl-$VERSION_OSSL/openssl-$VERSION_OSSL.tar.gz
     tar -xzf openssl-$VERSION_OSSL.tar.gz
     cd openssl-$VERSION_OSSL
 
@@ -765,7 +765,7 @@ function buildZstd() {
 
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://github.com/facebook/zstd/archive/refs/tags/v$VERSION_ZSTD.tar.gz
+    wget https://github.com/facebook/zstd/archive/refs/tags/v$VERSION_ZSTD.tar.gz
     tar -xzvf v$VERSION_ZSTD.tar.gz
     cd zstd-$VERSION_ZSTD
     make DESTDIR=$(pwd)/_build install
@@ -1274,7 +1274,7 @@ function buildLz4() {
     fi
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://github.com/lz4/lz4/archive/refs/tags/v$VERSION_LZ4.tar.gz
+    wget https://github.com/lz4/lz4/archive/refs/tags/v$VERSION_LZ4.tar.gz
     tar -xzf v$VERSION_LZ4.tar.gz
     cd lz4-$VERSION_LZ4
     make -j$(nproc)
@@ -1347,7 +1347,7 @@ function buildPcre() {
 
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://sourceforge.net/projects/pcre/files/pcre/$VERSION_PCRE/pcre-$VERSION_PCRE.tar.gz
+    wget https://sourceforge.net/projects/pcre/files/pcre/$VERSION_PCRE/pcre-$VERSION_PCRE.tar.gz
     tar -xzf pcre-$VERSION_PCRE.tar.gz
     cd pcre-$VERSION_PCRE
     ./configure --prefix=$(pwd)/_build --libdir=$(pwd)/_build/lib
@@ -1383,7 +1383,7 @@ function buildPrometheus() {
     fi
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://nodejs.org/dist/v20.15.0/node-v20.15.0-linux-s390x.tar.xz
+    wget https://nodejs.org/dist/v20.15.0/node-v20.15.0-linux-s390x.tar.xz
     tar xf node-v20.15.0-linux-s390x.tar.xz
     export PATH=$SOURCE_ROOT/node-v20.15.0-linux-s390x/bin:$PATH
     echo "export PATH=$SOURCE_ROOT/node-v20.15.0-linux-s390x/bin:$PATH" >> $PRESERVE_ENVARS
@@ -1499,7 +1499,7 @@ function buildSpdlog() {
     FMT_BUILD_DIR=$SOURCE_ROOT/fmt/_build
     git clone -b $VERSION_SPDLOG --depth 1 https://github.com/gabime/spdlog.git
     cd spdlog
-    wget --no-check-certificate https://raw.githubusercontent.com/couchbase/tlm/8.0.0/deps/packages/spdlog/custom_level_names.patch
+    wget https://raw.githubusercontent.com/couchbase/tlm/8.0.0/deps/packages/spdlog/custom_level_names.patch
     git apply custom_level_names.patch
     mkdir build && cd build
     cmake \
@@ -1839,7 +1839,7 @@ function buildSSH() {
     fi
 
     cd $SOURCE_ROOT
-    wget --no-check-certificate https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.1p1.tar.gz
+    wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.1p1.tar.gz
     tar -xzf openssh-10.1p1.tar.gz
     cd openssh-10.1p1
     ./configure --prefix=/usr/local --with-ssl-dir=$OPENSSL_ROOT_DIR
@@ -2035,7 +2035,9 @@ function buildCouchbase() {
     mkdir -p $SOURCE_ROOT/couchbase
     cd $SOURCE_ROOT/couchbase
     repo init -u https://github.com/couchbase/manifest -m released/couchbase-server/$PACKAGE_VERSION.xml
-    repo sync
+    sed -i '47s|.*|<!-- & -->|' $SOURCE_ROOT/couchbase/.repo/manifests/released/couchbase-server/8.0.0.xml
+    sed -i '81s|.*|<!-- & -->|' $SOURCE_ROOT/couchbase/.repo/manifests/released/couchbase-server/8.0.0.xml
+	repo sync
 
     sudo git config --system --add safe.directory '*'
 
@@ -2066,7 +2068,9 @@ function buildCouchbase() {
 
     cd $SOURCE_ROOT/couchbase/
     sudo ldconfig /usr/local/lib64 /usr/local/lib
-    sudo cp tlm/CMakeLists.txt CMakeLists.txt
+    sed -i '519s/^/#/' $SOURCE_ROOT/couchbase/tlm/CMakeLists.txt
+    sed -i '520s/^/#/' $SOURCE_ROOT/couchbase/tlm/CMakeLists.txt
+	sudo cp tlm/CMakeLists.txt CMakeLists.txt
     if [[ $DISTRO == ubuntu* ]]; then
         LD_LIBRARY_PATH=$CB_PREFIX/lib:$LD_LIBRARY_PATH CC=$CC CXX=$CXX EXTRA_CMAKE_OPTIONS="$OPTIONS" ./Build.sh everything
     else
