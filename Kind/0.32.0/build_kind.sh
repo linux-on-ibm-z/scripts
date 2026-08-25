@@ -173,7 +173,7 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"sles-15.7" | "sles-16")
+"sles-15.7" | "sles-16.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" | tee -a "$LOG_FILE"
     printf -- "Installing dependencies ... it may take some time.\n"
     sudo zypper install -y curl git make wget tar gcc glibc-devel-static make which patch iproute2 2>&1 | tee -a "$LOG_FILE"
