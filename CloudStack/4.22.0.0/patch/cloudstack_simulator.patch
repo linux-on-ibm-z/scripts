@@ -10,7 +10,7 @@ index 6c68bf3e61..0d032413c0 100644
 +    python3-cryptography \
 +    python3-cffi \
      supervisor
-
+ 
  RUN apt-get install -qqy mysql-server && \
 @@ -62,13 +65,22 @@ RUN find /var/lib/mysql -type f -exec touch {} \; && \
      mvn -Pdeveloper -pl developer -Ddeploydb; \
@@ -18,14 +18,16 @@ index 6c68bf3e61..0d032413c0 100644
      MARVIN_FILE=`find /root/tools/marvin/dist/ -name "Marvin*.tar.gz"`; \
 -    rm -rf /usr/bin/x86_64-linux-gnu-gcc && \
 -    ln -s /usr/bin/gcc-10 /usr/bin/x86_64-linux-gnu-gcc; \
-+    rm -rf /usr/bin/s390x-linux-gnu-gcc && \
-+    ln -s /usr/bin/gcc-10 /usr/bin/s390x-linux-gnu-gcc; \
-     pip3 install $MARVIN_FILE
-
+-    pip3 install $MARVIN_FILE
+-
 -RUN curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -; \
 -    apt-get install -y nodejs; \
 -    cd ui && npm rebuild node-sass && npm install
-+RUN apt-get install -y nodejs npm build-essential python3 g++ make && \
++    rm -rf /usr/bin/s390x-linux-gnu-gcc && \
++    ln -s /usr/bin/gcc-10 /usr/bin/s390x-linux-gnu-gcc; \
++    pip3 install 'pbr>=5.8.0,<7.0.0' && pip3 install $MARVIN_FILE
++
++RUN apt-get update && apt-get install -y nodejs npm build-essential python3 g++ make && \
 +    bash 
 +
 +RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash && \
@@ -37,6 +39,5 @@ index 6c68bf3e61..0d032413c0 100644
 +    ln -sf "$NVM_BIN/npm" /usr/local/bin/npm && \
 +    cd ui && npm install && npm rebuild node-sass
 +
-
+ 
  VOLUME /var/lib/mysql
-
