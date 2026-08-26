@@ -253,10 +253,8 @@ case "$DISTRO" in
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
     sudo yum install --allowerasing -y openssl-devel libstdc++-static libstdc++-devel c-ares-devel gcc gcc-c++ git make cmake autoconf automake pkg-config patch perl-IPC-Cmd perl-bignum perl-core perl-FindBin libtool elfutils-libelf-devel diffutils which createrepo libarchive wget curl rpm-build kmod kernel-devel-$(uname -r) bpftool |& tee -a "${LOG_FILE}"
-    if [[ $DISTRO == "rhel-9.6" ]]; then
-        sudo yum install -y clang |& tee -a "${LOG_FILE}"
-        installCMakeFromSource |& tee -a "$LOG_FILE"
-    elif [[ $DISTRO == "rhel-9.8" ]]; then
+
+    if [[ $DISTRO == "rhel-9."* ]]; then
         sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm |& tee -a "${LOG_FILE}"
         sudo yum install -y clang19 |& tee -a "${LOG_FILE}"
         sudo alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100 --slave /usr/bin/clang++ clang++ /usr/bin/clang++-19 |& tee -a "${LOG_FILE}"
