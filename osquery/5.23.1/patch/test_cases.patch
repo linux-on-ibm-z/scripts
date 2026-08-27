@@ -1,0 +1,656 @@
+diff --git a/osquery/events/linux/bpf/systemstatetracker.cpp b/osquery/events/linux/bpf/systemstatetracker.cpp
+index d01e8fbee..1fb776745 100644
+--- a/osquery/events/linux/bpf/systemstatetracker.cpp
++++ b/osquery/events/linux/bpf/systemstatetracker.cpp
+@@ -1213,7 +1213,7 @@ bool SystemStateTracker::parseNetlinkSockaddr(
+     return false;
+   }
+ 
+-  auto size = std::min(sizeof(sockaddr_in), sockaddr.size());
++  auto size = std::min(sizeof(sockaddr_nl), sockaddr.size());
+ 
+   sockaddr_nl addr{};
+   std::memcpy(&addr, sockaddr.data(), size);
+diff --git a/osquery/events/tests/linux/bpf/systemstatetracker.cpp b/osquery/events/tests/linux/bpf/systemstatetracker.cpp
+index 223fc2a24..a17f075c5 100644
+--- a/osquery/events/tests/linux/bpf/systemstatetracker.cpp
++++ b/osquery/events/tests/linux/bpf/systemstatetracker.cpp
+@@ -21,6 +21,11 @@
+ #include <sys/socket.h>
+ #include <sys/un.h>
+ 
++#include <array>
++#include <cstdint>
++#include <cstring>
++#include <stdexcept>
++
+ namespace osquery {
+ 
+ namespace {
+@@ -53,42 +58,80 @@ const tob::ebpfpub::IFunctionTracer::Event::Header kBaseBPFEventHeader {
+ };
+ // clang-format on
+ 
+-const std::vector<std::uint8_t> kTestUnixSocketAddress = {
+-    0x01, 0x00, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x2f, 0x70, 0x61, 0x74,
+-    0x68, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+-
+-const std::vector<std::uint8_t> kTestIPv4Address = {0x02,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x50,
+-                                                    0xc0,
+-                                                    0xa8,
+-                                                    0x01,
+-                                                    0x02,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x00,
+-                                                    0x00};
+-
+-const std::vector<std::uint8_t> kTestIPv6Address = {
+-    0x0a, 0x00, 0x1f, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+-    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+-    0x0c, 0x0d, 0x0e, 0x0f, 0x00, 0x00, 0x00, 0x00};
+-
+-const std::vector<std::uint8_t> kTestNetlinkSockaddr = {
+-    0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00};
++using IPv6AddressBytes = std::array<std::uint8_t, 16U>;
++
++template <typename Sockaddr>
++std::vector<std::uint8_t> sockaddrToBuffer(const Sockaddr& addr) {
++  const auto* begin = reinterpret_cast<const std::uint8_t*>(&addr);
++  return {begin, begin + sizeof(Sockaddr)};
++}
++
++std::vector<std::uint8_t> makeUnixSockaddr(const char* path) {
++  sockaddr_un addr{};
++  addr.sun_family = AF_UNIX;
++
++  std::strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1U);
++
++  return sockaddrToBuffer(addr);
++}
++
++std::vector<std::uint8_t> makeIPv4Sockaddr(const char* address,
++                                           std::uint16_t port) {
++  sockaddr_in addr{};
++  addr.sin_family = AF_INET;
++  addr.sin_port = htons(port);
++
++  if (inet_pton(AF_INET, address, &addr.sin_addr) != 1) {
++    throw std::logic_error("Invalid IPv4 test address");
++  }
++
++  return sockaddrToBuffer(addr);
++}
++
++std::vector<std::uint8_t> makeIPv6Sockaddr(const IPv6AddressBytes& address,
++                                           std::uint16_t port) {
++  sockaddr_in6 addr{};
++  addr.sin6_family = AF_INET6;
++  addr.sin6_port = htons(port);
++  std::memcpy(addr.sin6_addr.s6_addr, address.data(), address.size());
++
++  return sockaddrToBuffer(addr);
++}
++
++std::vector<std::uint8_t> makeNetlinkSockaddr(std::uint32_t groups,
++                                              std::uint32_t pid) {
++  sockaddr_nl addr{};
++  addr.nl_family = AF_NETLINK;
++  addr.nl_pid = pid;
++  addr.nl_groups = groups;
++
++  return sockaddrToBuffer(addr);
++}
++
++const auto kTestUnixSocketAddress = makeUnixSockaddr("/test/path");
++
++const auto kTestIPv4Address = makeIPv4Sockaddr("192.168.1.2", 80U);
++
++const auto kTestIPv6Address = makeIPv6Sockaddr(
++    IPv6AddressBytes{0x00,
++                     0x01,
++                     0x02,
++                     0x03,
++                     0x04,
++                     0x05,
++                     0x06,
++                     0x07,
++                     0x08,
++                     0x09,
++                     0x0a,
++                     0x0b,
++                     0x0c,
++                     0x0d,
++                     0x0e,
++                     0x0f},
++    8080U);
++
++const auto kTestNetlinkSockaddr = makeNetlinkSockaddr(1U, 2U);
+ 
+ } // namespace
+ 
+@@ -1257,65 +1300,60 @@ TEST_F(SystemStateTrackerTests, parse_ipv6_sockaddr) {
+ 
+   // clang-format off
+   static const std::vector<TestCase> kTestCaseList = {
+-    {
+-      kTestIPv6Address,
+-      "1:203:405:607:809:a0b:c0d:e0f"
+-    },
+-
+-    {
+       {
+-        0x0a, 0x00, 0x1f, 0x90, 0x00, 0x00, 0x00, 0x00,
+-        0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-        0xfc, 0x54, 0x00, 0x00, 0x00, 0x00, 0xd4, 0xf4,
+-        0x00, 0x00, 0x00, 0x00
++          kTestIPv6Address,
++          "1:203:405:607:809:a0b:c0d:e0f",
+       },
+ 
+-      "fe80::fc54:0:0:d4f4"
+-    },
+-
+-    {
+       {
+-        0x0a, 0x00, 0x1f, 0x90, 0x00, 0x00, 0x00, 0x00,
+-        0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x54,
+-        0xfc, 0x54, 0x00, 0x00, 0x00, 0x00, 0xd4, 0xf4,
+-        0x00, 0x00, 0x00, 0x00
++          makeIPv6Sockaddr(
++              IPv6AddressBytes{0xfe, 0x80, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00,
++                               0xfc, 0x54, 0x00, 0x00,
++                               0x00, 0x00, 0xd4, 0xf4},
++              8080U),
++          "fe80::fc54:0:0:d4f4",
+       },
+ 
+-      "fe80::fc54:fc54:0:0:d4f4"
+-    },
+-
+-    {
+       {
+-        0x0a, 0x00, 0x1f, 0x90, 0x00, 0x00, 0x00, 0x00,
+-        0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0xfc, 0x54,
+-        0xfc, 0x54, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-        0x00, 0x00, 0x00, 0x00
++          makeIPv6Sockaddr(
++              IPv6AddressBytes{0xfe, 0x80, 0x00, 0x00,
++                               0x00, 0x00, 0xfc, 0x54,
++                               0xfc, 0x54, 0x00, 0x00,
++                               0x00, 0x00, 0xd4, 0xf4},
++              8080U),
++          "fe80::fc54:fc54:0:0:d4f4",
+       },
+ 
+-      "fe80:0:0:fc54:fc54::"
+-    },
+-
+-    {
+       {
+-        0x0a, 0x00, 0x1f, 0x90, 0x00, 0x00, 0x00, 0x00,
+-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+-        0x00, 0x00, 0x00, 0x00
++          makeIPv6Sockaddr(
++              IPv6AddressBytes{0xfe, 0x80, 0x00, 0x00,
++                               0x00, 0x00, 0xfc, 0x54,
++                               0xfc, 0x54, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00},
++              8080U),
++          "fe80:0:0:fc54:fc54::",
+       },
+ 
+-      "::1"
+-    },
+-
+-    {
+       {
+-        0x0a, 0x00, 0x1f, 0x90, 0x00, 0x00, 0x00, 0x00,
+-        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-        0x00, 0x00, 0x00, 0x00
++          makeIPv6Sockaddr(
++              IPv6AddressBytes{0x00, 0x00, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x01},
++              8080U),
++          "::1",
+       },
+ 
+-      "1::"
+-    },
++      {
++          makeIPv6Sockaddr(
++              IPv6AddressBytes{0x00, 0x01, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00,
++                               0x00, 0x00, 0x00, 0x00},
++              8080U),
++          "1::",
++      },
+   };
+   // clang-format on
+ 
+diff --git a/osquery/events/tests/linux/socket_events.cpp b/osquery/events/tests/linux/socket_events.cpp
+index 67913a0f3..e0014d0d9 100644
+--- a/osquery/events/tests/linux/socket_events.cpp
++++ b/osquery/events/tests/linux/socket_events.cpp
+@@ -205,7 +205,13 @@ TEST_F(SocketEventsTableTests, succeeded_accept_syscall) {
+   auto audit_event = kSucceededAccept4Event;
+   auto& syscall_data = boost::get<SyscallAuditEventData>(audit_event.data);
+ 
+-  for (const auto& syscall_number : {__NR_accept, __NR_accept4}) {
++  // On some architectures like s390x, __NR_accept doesn't exist, only accept4
++  std::vector<long> syscall_numbers = {__NR_accept4};
++#ifdef __NR_accept
++  syscall_numbers.insert(syscall_numbers.begin(), __NR_accept);
++#endif
++
++  for (const auto& syscall_number : syscall_numbers) {
+     for (const auto& allow_accept_events : {false, true}) {
+       audit_event.record_list.at(0).fields["syscall"] =
+           std::to_string(syscall_number);
+@@ -247,7 +253,13 @@ TEST_F(SocketEventsTableTests, failed_accept_syscall) {
+   audit_event.record_list.at(0).fields["success"] = "no";
+   audit_event.record_list.at(0).fields["exit"] = std::to_string(-EBADF);
+ 
+-  for (const auto& syscall_number : {__NR_accept, __NR_accept4}) {
++  // On some architectures like s390x, __NR_accept doesn't exist, only accept4
++  std::vector<long> syscall_numbers = {__NR_accept4};
++#ifdef __NR_accept
++  syscall_numbers.insert(syscall_numbers.begin(), __NR_accept);
++#endif
++
++  for (const auto& syscall_number : syscall_numbers) {
+     for (const auto& allow_failed_events : {false, true}) {
+       audit_event.record_list.at(0).fields["syscall"] =
+           std::to_string(syscall_number);
+@@ -285,7 +297,13 @@ TEST_F(SocketEventsTableTests, succeeded_non_blocking_accept_syscall) {
+   auto audit_event = kSucceededConnectEvent;
+   auto& syscall_data = boost::get<SyscallAuditEventData>(audit_event.data);
+ 
+-  for (const auto& syscall_number : {__NR_accept, __NR_accept4}) {
++  // On some architectures like s390x, __NR_accept doesn't exist, only accept4
++  std::vector<long> syscall_numbers = {__NR_accept4};
++#ifdef __NR_accept
++  syscall_numbers.insert(syscall_numbers.begin(), __NR_accept);
++#endif
++
++  for (const auto& syscall_number : syscall_numbers) {
+     for (const auto& no_incoming_connection : {true, false}) {
+       for (const auto& allow_null_accept_events : {true, false}) {
+         audit_event.record_list.at(0).fields["syscall"] =
+diff --git a/osquery/hashing/tests/hashing.cpp b/osquery/hashing/tests/hashing.cpp
+index 691847525..51ce58853 100644
+--- a/osquery/hashing/tests/hashing.cpp
++++ b/osquery/hashing/tests/hashing.cpp
+@@ -7,6 +7,9 @@
+  * SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
+  */
+ 
++#include <cstddef>
++#include <cstdint>
++
+ #include <fstream>
+ #include <vector>
+ 
+@@ -79,12 +82,17 @@ TEST_F(HashingFilesystemTests, test_multi_hashing_file_big) {
+   std::ofstream test_file(file_path.string(), std::ofstream::binary);
+ 
+   // Prepare a 4KB block to use to create a 10MB file with known content
+-  std::vector<int> values(1024);
+-  std::fill(values.begin(), values.end(), 0xDEADBEEF);
++  std::vector<std::uint8_t> values(4096);
++  for (std::size_t i = 0U; i < values.size(); i += 4U) {
++    values[i] = 0xef;
++    values[i + 1U] = 0xbe;
++    values[i + 2U] = 0xad;
++    values[i + 3U] = 0xde;
++  }
+ 
+   for (int i = 0; i < 2560; ++i) {
+     test_file.write(reinterpret_cast<const char*>(values.data()),
+-                    values.size() * sizeof(int));
++                    values.size());
+   }
+ 
+   test_file.close();
+diff --git a/osquery/tables/events/linux/seccomp_events.cpp b/osquery/tables/events/linux/seccomp_events.cpp
+index d252e78bd..903f7dc2e 100644
+--- a/osquery/tables/events/linux/seccomp_events.cpp
++++ b/osquery/tables/events/linux/seccomp_events.cpp
+@@ -73,6 +73,11 @@ void SeccompEventSubscriber::parseEvent(const AuditEvent& event,
+   std::uint64_t arch = 0;
+   std::uint64_t value = 0;
+ 
++  const auto arch_it = event_data.fields.find("arch");
++  if (arch_it != event_data.fields.end() && arch_it->second.which() == 1) {
++    arch = boost::get<const std::uint64_t>(arch_it->second);
++  }
++
+   for (const auto& field : event_data.fields) {
+     switch (field.second.which()) {
+     case 0:
+diff --git a/osquery/tables/events/tests/linux/process_events_tests.cpp b/osquery/tables/events/tests/linux/process_events_tests.cpp
+index 4aae20e9c..9270f8827 100644
+--- a/osquery/tables/events/tests/linux/process_events_tests.cpp
++++ b/osquery/tables/events/tests/linux/process_events_tests.cpp
+@@ -22,6 +22,16 @@ namespace osquery {
+ namespace {
+ using RawAuditEvent = const std::vector<std::pair<int, std::string>>;
+ 
++#if defined(__x86_64__)
++const std::string kAuditArch{"c000003e"};
++#elif defined(__aarch64__)
++const std::string kAuditArch{"c00000b7"};
++#elif defined(__s390x__)
++const std::string kAuditArch{"80000016"};
++#else
++#error Unsupported architecture
++#endif
++
+ bool GenerateAuditEventRecord(AuditEventRecord& event_record,
+                               int type,
+                               std::string contents) {
+@@ -116,15 +126,9 @@ TEST_F(ProcessEventsTests, syscall_name_label) {
+ 
+ TEST_F(ProcessEventsTests, exec_event_processing) {
+   // clang-format off
+-#if defined(__x86_64__)
+-  const std::string kExecSyscall{"59"};
+-#elif defined(__aarch64__)
+-  const std::string kExecSyscall{"221"};
+-#else
+-  #error Unsupported architecture
+-#endif
++  const std::string kExecSyscall{std::to_string(__NR_execve)};
+   const RawAuditEvent kSampleExecveEvent = {
+-   { 1300, "audit(1502125323.756:6): arch=c000003e syscall=" + kExecSyscall +
++    { 1300, "audit(1502125323.756:6): arch=" + kAuditArch + " syscall=" + kExecSyscall +
+       "success=yes exit=0 a0=23eb8e0 a1=23ebbc0 a2=23c9860 a3=7ffe18d32ed0 "
+       "items=2 ppid=6882 pid=7841 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 "
+       "fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts1 ses=2 "
+@@ -187,14 +191,10 @@ TEST_F(ProcessEventsTests, exec_event_processing) {
+ 
+ TEST_F(ProcessEventsTests, kill_syscall_event_processing) {
+   // clang-format off
++  const std::string kKillSyscall{std::to_string(__NR_kill)};
+   const RawAuditEvent kSampleKillEvent = {
+-#if defined(__x86_64__)
+-    { 1300, "audit(1588703361.452:26860): arch=c000003e syscall=62 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+-#elif defined(__aarch64__)
+-    { 1300, "audit(1588703361.452:26860): arch=c00000b7 syscall=129 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+-#else
+-    #error Unsupported architecture
+-#endif
++    { 1300, "audit(1588703361.452:26860): arch=" + kAuditArch + " syscall=" + kKillSyscall +
++      " success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+     { 1318, "audit(1588703361.452:26860): opid=25396 oauid=1000 ouid=1000 oses=5 ocomm=\"python3\"" },
+     { 1307, "audit(1588703361.452:26860): proctitle=\"-bash\"" },
+     { 1320, "audit(1588703361.452:26860): " }
+@@ -246,14 +246,10 @@ TEST_F(ProcessEventsTests, kill_syscall_event_processing) {
+ 
+ TEST_F(ProcessEventsTests, kill_syscall_without_obj_pid_record) {
+   // clang-format off
++  const std::string kKillSyscall{std::to_string(__NR_kill)};
+   const RawAuditEvent kSampleKillEvent = {
+-#if defined(__x86_64__)
+-    { 1300, "audit(1588703361.452:26860): arch=c000003e syscall=62 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+-#elif defined(__aarch64__)
+-    { 1300, "audit(1588703361.452:26860): arch=c00000b7 syscall=129 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+-#else
+-    #error Unsupported architecture
+-#endif
++    { 1300, "audit(1588703361.452:26860): arch=" + kAuditArch + " syscall=" + kKillSyscall +
++      " success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+     { 1307, "audit(1588703361.452:26860): proctitle=\"-bash\"" },
+     { 1320, "audit(1588703361.452:26860): " }
+   };
+@@ -266,8 +262,9 @@ TEST_F(ProcessEventsTests, kill_syscall_without_obj_pid_record) {
+ }
+ 
+ TEST_F(ProcessEventsTests, thread_detection) {
++  const std::string kCloneSyscall{std::to_string(__NR_clone)};
+   const std::string kThreadCreationSyscallRecord =
+-      "audit(1565632189.127:261722): arch=c000003e syscall=56 success=yes "
++      "audit(1565632189.127:261722): arch=" + kAuditArch + " syscall=" + kCloneSyscall + " success=yes "
+       "exit=33 a0=3d0f00 a1=7f1b92ffcbf0 a2=7f1b92ffd9d0 a3=7f1b92ffd9d0 "
+       "items=0 ppid=14790 pid=15929 auid=4294967295 uid=1000 gid=1000 "
+       "euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 "
+@@ -275,7 +272,7 @@ TEST_F(ProcessEventsTests, thread_detection) {
+       "exe=\"/usr/lib/chromium-browser/chromium-browser\" key=(null)";
+ 
+   const std::string kProcessCreationSyscallRecord =
+-      "audit(1565632189.127:261722): arch=c000003e syscall=56 success=yes "
++      "audit(1565632189.127:261722): arch=" + kAuditArch + " syscall=" + kCloneSyscall + " success=yes "
+       "exit=33 a0=1200000 a1=7f1b92ffcbf0 a2=7f1b92ffd9d0 a3=7f1b92ffd9d0 "
+       "items=0 ppid=14790 pid=15929 auid=4294967295 uid=1000 gid=1000 "
+       "euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 "
+@@ -322,8 +319,9 @@ TEST_F(ProcessEventsTests, thread_detection) {
+ }
+ 
+ TEST_F(ProcessEventsTests, process_id_acquisition) {
++  const std::string kCloneSyscall{std::to_string(__NR_clone)};
+   const std::string kNormalProcessCreation =
+-      "audit(1565632189.127:261722): arch=c000003e syscall=56 success=yes "
++      "audit(1565632189.127:261722): arch=" + kAuditArch + " syscall=" + kCloneSyscall + " success=yes "
+       "exit=33 a0=1200000 a1=7f1b92ffcbf0 a2=7f1b92ffd9d0 a3=7f1b92ffd9d0 "
+       "items=0 ppid=14790 pid=15929 auid=4294967295 uid=1000 gid=1000 "
+       "euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 "
+@@ -331,7 +329,7 @@ TEST_F(ProcessEventsTests, process_id_acquisition) {
+       "exe=\"/usr/lib/chromium-browser/chromium-browser\" key=(null)";
+ 
+   const std::string kSamePpidProcessCreation =
+-      "audit(1565632189.127:261722): arch=c000003e syscall=56 success=yes "
++      "audit(1565632189.127:261722): arch=" + kAuditArch + " syscall=" + kCloneSyscall + " success=yes "
+       "exit=33 a0=8000 a1=7f1b92ffcbf0 a2=7f1b92ffd9d0 a3=7f1b92ffd9d0 "
+       "items=0 ppid=14790 pid=15929 auid=4294967295 uid=1000 gid=1000 "
+       "euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 "
+diff --git a/osquery/tables/system/linux/process_open_pipes.cpp b/osquery/tables/system/linux/process_open_pipes.cpp
+index a0b0882c0..ff95ec4e0 100644
+--- a/osquery/tables/system/linux/process_open_pipes.cpp
++++ b/osquery/tables/system/linux/process_open_pipes.cpp
+@@ -54,10 +54,10 @@ bool isUnconnectedPipe(ino_t inode, const InodeToPipesMap& pipe_partners) {
+   return (it->second.size() == 1);
+ }
+ 
+-int parseInode(const std::string& pipe_str) {
++ino_t parseInode(const std::string& pipe_str) {
+   std::smatch match;
+   if (std::regex_search(pipe_str, match, std::regex("\\d+"))) {
+-    return std::stoul(match[0]);
++    return static_cast<ino_t>(std::stoull(match[0].str()));
+   } else {
+     return 0;
+   }
+diff --git a/tests/integration/tables/process_open_pipes.cpp b/tests/integration/tables/process_open_pipes.cpp
+index ad41663e7..727292099 100644
+--- a/tests/integration/tables/process_open_pipes.cpp
++++ b/tests/integration/tables/process_open_pipes.cpp
+@@ -57,6 +57,7 @@ class ProcessOpenPipesTest : public testing::Test {
+ 
+   void runForever() {
+     while (true) {
++      pause();
+     }
+   }
+ 
+@@ -140,7 +141,7 @@ class ProcessOpenPipesTest : public testing::Test {
+       } else {
+         do_writer();
+       }
+-      break;
++      _exit(1);
+     default: // parent
+       break;
+     }
+@@ -153,10 +154,19 @@ class ProcessOpenPipesTest : public testing::Test {
+   }
+ 
+   void do_query(int writer_pid, int reader_pid) {
+-    QueryData data =
+-        execute_query("select * from process_open_pipes where pid = " +
+-                      std::to_string(writer_pid) +
+-                      " and partner_pid = " + std::to_string(reader_pid));
++    const auto query = "select * from process_open_pipes where pid = " +
++                       std::to_string(writer_pid) +
++                       " and partner_pid = " + std::to_string(reader_pid);
++
++    QueryData data;
++    for (size_t retry = 0; retry < 50; ++retry) {
++      data = execute_query(query);
++      if (!data.empty()) {
++        break;
++      }
++      usleep(100000);
++    }
++
+     ASSERT_GT(data.size(), 0ul);
+     ValidationMap row_map = {
+         {"pid", NonNegativeInt},
+diff --git a/tests/integration/tables/rpm_packages.cpp b/tests/integration/tables/rpm_packages.cpp
+index ed3db8f98..d31c4f3f9 100644
+--- a/tests/integration/tables/rpm_packages.cpp
++++ b/tests/integration/tables/rpm_packages.cpp
+@@ -38,10 +38,10 @@ TEST_F(rpmPackages, test_sanity) {
+                            {"source", NormalType},
+                            {"size", IntType},
+                            {"sha1", NonEmptyString},
+-                           {"arch", NonEmptyString},
++                           {"arch", NormalType},
+                            {"epoch", IntOrEmpty},
+                            {"install_time", IntType},
+-                           {"vendor", NonEmptyString},
++                           {"vendor", NormalType},
+                            {"package_group", NonEmptyString}};
+ 
+   validate_rows(rows, row_map);
+diff --git a/tests/integration/tables/system_controls.cpp b/tests/integration/tables/system_controls.cpp
+index 544c8ed94..f31e2df09 100644
+--- a/tests/integration/tables/system_controls.cpp
++++ b/tests/integration/tables/system_controls.cpp
+@@ -31,6 +31,7 @@ TEST_F(SystemControlsTest, test_sanity) {
+       {"subsystem",
+        SpecificValuesCheck{"",
+                            "abi",
++                           "appldata",
+                            "debug",
+                            "dev",
+                            "fs",
+@@ -40,6 +41,8 @@ TEST_F(SystemControlsTest, test_sanity) {
+                            "kernel",
+                            "machdep",
+                            "net",
++                           "s390",
++                           "s390dbf",
+                            "sunrpc",
+                            "user",
+                            "vfs",
+diff --git a/tools/tests/test_release.py b/tools/tests/test_release.py
+index bcc398aaf..ebc3be2f6 100755
+--- a/tools/tests/test_release.py
++++ b/tools/tests/test_release.py
+@@ -16,15 +16,31 @@ import utils
+ 
+ 
+ linux_expected_libraries = [
+-    "linux-vdso.so",
+-    "libdl.so",
++    "linux-vdso",
+     "libresolv.so",
+-    "librt.so",
+     "libm.so",
+-    "libpthread.so",
+     "libc.so",
+ ]
+ 
++
++linux_optional_libraries = [
++    "libdl.so",
++    "librt.so",
++    "libpthread.so",
++    "libstdc++.so",
++    "libgcc_s.so",
++    "libz.so",
++    "libtinfo.so",
++]
++
++
++linux_expected_loaders = {
++    "aarch64": "ld-linux-aarch64.so",
++    "ppc64le": "ld64.so",
++    "s390x": "ld64.so",
++    "x86_64": "ld-linux-x86-64.so",
++}
++
+ windows_expected_libraries = [
+     "SHLWAPI.dll",
+     "RPCRT4.dll",
+@@ -63,7 +79,7 @@ class ReleaseTests(unittest.TestCase):
+ 
+         if utils.platform() == "linux":
+             proc = subprocess.call(
+-                "ldd %s | awk '{ print $1\" \"$3 }' | grep -Ev '^/lib64|^/lib| /lib|linux-vdso.so.1'"
++                "ldd %s | awk '{ print $1\" \"$3 }' | grep -Ev '^/lib64|^/lib| /lib|^linux-vdso[[:alnum:]_]*\\.so\\.[0-9]+'"
+                 % (BUILD_DIR + "/osquery/osqueryd"),
+                 shell=True,
+             )
+@@ -97,12 +113,18 @@ class ReleaseTests(unittest.TestCase):
+ 
+             self.assertGreaterEqual(len(libraries), 0)
+ 
+-            if platform.processor() == "x86_64":
+-                linux_expected_libraries.append("ld-linux-x86-64.so")
+-            else:
+-                linux_expected_libraries.append("ld-linux-aarch64.so")
++            processor = platform.machine() or platform.processor()
++            expected_loader = linux_expected_loaders.get(processor)
++
++            self.assertIsNotNone(
++                expected_loader,
++                msg="Missing expected Linux loader for processor %s" % processor,
++            )
+ 
+-            for expected_library in linux_expected_libraries:
++            expected_libraries = list(linux_expected_libraries)
++            expected_libraries.append(expected_loader)
++
++            for expected_library in expected_libraries:
+                 found_index = -1
+ 
+                 for i, library in enumerate(libraries):
+@@ -116,6 +138,16 @@ class ReleaseTests(unittest.TestCase):
+                 )
+                 libraries.pop(found_index)
+ 
++            for optional_library in linux_optional_libraries:
++                found_index = -1
++
++                for i, library in enumerate(libraries):
++                    if optional_library in library:
++                        found_index = i
++
++                if found_index >= 0:
++                    libraries.pop(found_index)
++
+             if len(libraries) > 0:
+                 self.fail(
+                     "Found these additional unwanted libraries linked:\n%s"

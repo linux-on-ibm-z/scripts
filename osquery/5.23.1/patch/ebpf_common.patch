@@ -1,0 +1,121 @@
+diff --git a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/bpfsyscallinterface.cpp b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/bpfsyscallinterface.cpp
+index 66b33c3..302ff1d 100644
+--- a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/bpfsyscallinterface.cpp
++++ b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/bpfsyscallinterface.cpp
+@@ -237,8 +237,12 @@ llvm::Value *BPFSyscallInterface::pseudoMapFd(int fd) {
+   // clang-format on
+ 
+   auto &context = d->builder.getContext();
++  #if LLVM_VERSION_MAJOR >= 15
++      auto int64_ptr_type = llvm::Type::getInt64Ty(context);
++  #else
++      auto int64_ptr_type = llvm::Type::getInt64PtrTy(context);
++  #endif
+ 
+-  return d->builder.CreateIntToPtr(map_integer_address_value,
+-                                   llvm::Type::getInt64PtrTy(context));
++  return d->builder.CreateIntToPtr(map_integer_address_value, int64_ptr_type);
+ }
+ } // namespace tob::ebpf
+diff --git a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/clangcompiler.cpp b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/clangcompiler.cpp
+index 8222601..9d61724 100644
+--- a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/clangcompiler.cpp
++++ b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/clangcompiler.cpp
+@@ -11,8 +11,13 @@
+ #include "ebpf_common_helpers.h"
+ 
+ #include <llvm/ADT/ArrayRef.h>
++#include <llvm/Config/llvm-config.h>
+ #include <llvm/IR/Module.h>
++#if LLVM_VERSION_MAJOR >= 18
++#include <llvm/TargetParser/Host.h>
++#else
+ #include <llvm/Support/Host.h>
++#endif
+ #include <llvm/Support/TargetSelect.h>
+ 
+ #include <llvm/IR/IRBuilder.h>
+diff --git a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/ebpf_utils.cpp b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/ebpf_utils.cpp
+index a26df35..1b6d4c8 100644
+--- a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/ebpf_utils.cpp
++++ b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/ebpf_utils.cpp
+@@ -24,6 +24,7 @@
+ #include <sys/auxv.h>
+ #endif
+ 
++#include <llvm/Config/llvm-config.h>
+ #include <llvm/ExecutionEngine/MCJIT.h>
+ #include <llvm/Transforms/Utils/Cloning.h>
+ 
+@@ -228,7 +229,11 @@ StringErrorOr<BPFProgramMap> compileModule(llvm::Module &module) {
+       std::make_unique<llvm::EngineBuilder>(std::move(module_copy));
+ 
+   exec_engine_builder->setMArch("bpf");
+-  exec_engine_builder->setOptLevel(llvm::CodeGenOpt::Default);
++  #if LLVM_VERSION_MAJOR >= 18
++      exec_engine_builder->setOptLevel(llvm::CodeGenOptLevel::Default);
++  #else
++      exec_engine_builder->setOptLevel(llvm::CodeGenOpt::Default);
++  #endif
+ 
+   std::string builder_err_output;
+   exec_engine_builder->setErrorStr(&builder_err_output);
+diff --git a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/llvmbridge.cpp b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/llvmbridge.cpp
+index 3cb7bb5..a068f79 100644
+--- a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/llvmbridge.cpp
++++ b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/ebpf/src/llvmbridge.cpp
+@@ -1102,8 +1102,6 @@ LLVMBridge::importStructType(Context &context, llvm::Module &module,
+   std::vector<llvm::Type *> member_type_list;
+   std::uint32_t current_offset{};
+ 
+-  std::size_t index{};
+-
+   for (const auto &struct_member : struct_type.member_list) {
+     if (struct_member.offset != current_offset) {
+       return LLVMBridgeError(LLVMBridgeErrorCode::InvalidStructureMemberOffset);
+@@ -1141,8 +1139,6 @@ LLVMBridge::importStructType(Context &context, llvm::Module &module,
+         static_cast<std::uint32_t>(getTypeSize(module, member_type));
+ 
+     current_offset += byte_size * 8;
+-
+-    ++index;
+   }
+ 
+   llvm_struct_type->setBody(member_type_list, true);
+diff --git a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/Clang/CMakeLists.txt b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/Clang/CMakeLists.txt
+index 06134c4..32f4d4c 100644
+--- a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/Clang/CMakeLists.txt
++++ b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/Clang/CMakeLists.txt
+@@ -24,6 +24,8 @@ set(clang_library_name_list
+   clangCodeGen
+ )
+ 
++list(APPEND clang_library_name_list clangAPINotes clangSupport)
++
+ foreach(clang_library_name ${clang_library_name_list})
+   set(variable_name "${clang_library_name}_path")
+ 
+diff --git a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/LLVM/CMakeLists.txt b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/LLVM/CMakeLists.txt
+index 8d15104..75fbf83 100644
+--- a/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/LLVM/CMakeLists.txt
++++ b/libraries/cmake/source/ebpfpub/src/libraries/ebpf-common/src/libraries/LLVM/CMakeLists.txt
+@@ -22,12 +22,19 @@ set(llvm_component_list
+   "coroutines"
+ )
+ 
++if(LLVM_VERSION_MAJOR VERSION_GREATER_EQUAL "18")
++  list(APPEND llvm_component_list frontenddriver frontendhlsl windowsdriver)
++endif()
++
+ if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
+   list(APPEND llvm_component_list x86codegen)
+ 
+ elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64")
+   list(APPEND llvm_component_list aarch64codegen)
+ 
++elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "s390x")
++  list(APPEND llvm_component_list systemzcodegen)
++
+ else()
+   message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+ endif()
