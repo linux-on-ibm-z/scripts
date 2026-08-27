@@ -146,7 +146,7 @@ function buildCurl() {
     printf -- '\n Installing Curl \n'
 
     cd $SOURCE_ROOT
-    sudo yum install -y libpsl-devel openssl-devel
+    sudo yum install -y libpsl-devel openssl-devel autoconf automake libtool
     git clone -b curl-8_6_0 --depth 1 https://github.com/curl/curl.git
     cd curl
     autoreconf -fi
