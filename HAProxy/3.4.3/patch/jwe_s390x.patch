@@ -1,0 +1,42 @@
+--- src/jwe.c.orig
++++ src/jwe.c
+@@ -377,6 +377,7 @@
+ 	int iv_size = 0;
+ 	int retval = 0;
+ 	int length = 0;
++	int final_length = 0;
+ 
+ 	ctx = EVP_CIPHER_CTX_new();
+ 
+@@ -421,10 +422,10 @@
+ 			      (unsigned char*)b_orig(cek), b_data(cek)) <= 0)
+ 		goto end;
+ 
+-	if (EVP_DecryptFinal_ex(ctx, (unsigned char*)decrypted_cek->area + length, (int*)&decrypted_cek->data) <= 0)
++	if (EVP_DecryptFinal_ex(ctx, (unsigned char*)decrypted_cek->area + length, &final_length) <= 0)
+ 		goto end;
+ 
+-	decrypted_cek->data += length;
++	decrypted_cek->data = length + final_length;
+ 
+ 	retval = 1;
+ 
+@@ -454,6 +455,7 @@
+ 
+ 	struct buffer *tag_data = alloc_trash_chunk();
+ 	struct buffer *hmac = alloc_trash_chunk();
++	unsigned int hmac_len = 0;
+ 
+ 	if (!tag_data || !hmac)
+ 		goto end;
+@@ -482,8 +484,9 @@
+ 	/* Compute the HMAC SHA-XXX of the concatenated value above */
+ 	if (!HMAC(hash, b_orig(decrypted_cek), mac_key_len,
+ 	          (unsigned char*)b_orig(tag_data), b_data(tag_data),
+-	          (unsigned char*)b_orig(hmac), (unsigned int*)&hmac->data))
++	          (unsigned char*)b_orig(hmac), &hmac_len))
+ 		goto end;
++	hmac->data = hmac_len;
+ 
+ 	/* Double check that buffer lengths line up before the comparison */
+ 	if (unlikely(b_data(decoded_items[JWE_ELT_TAG]) != b_data(hmac) >> 1))
