@@ -168,7 +168,7 @@ echo "export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> $PRESERVE_ENVAR
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1", | "rhel-10.2")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
 	sudo yum install -y git make openssl-devel cyrus-sasl-devel python3 gcc gcc-c++ zlib-devel binutils diffutils patch |& tee -a "${LOG_FILE}"
