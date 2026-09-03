@@ -1,0 +1,19 @@
+diff --git a/storage/innobase/include/ut0rnd.h b/storage/innobase/include/ut0rnd.h
+index e8c1fe832eb..52420f48fb2 100644
+--- a/storage/innobase/include/ut0rnd.h
++++ b/storage/innobase/include/ut0rnd.h
+@@ -205,7 +205,13 @@ static inline uint64_t hash_uint64(uint64_t value) {
+ }
+
+ static inline uint64_t hash_uint64_pair(uint64_t n1, uint64_t n2) {
+-  return hash_uint64(hash_uint64(n1) ^ n2);
++  #ifdef CRC32_DEFAULT
++    uint64_t hash_n1= hash_uint64(n1);
++    uint64_t hash_n2= hash_uint64(n2);
++    return hash_uint64(((hash_n1 + n1) ^ (hash_n2 + n2)) + hash_n1 + hash_n2);
++  #else
++    return hash_uint64(hash_uint64(n1) ^ n2);
++  #endif
+ }
+
+ static inline uint64_t hash_string(const char *str) {
