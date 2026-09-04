@@ -186,7 +186,7 @@ case "$DISTRO" in
 "rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- "Installing dependencies... it may take some time.\n"
-	sudo yum install -y git wget tar unzip hostname make gcc-c++ xz gzip python3 nmap procps netcat |& tee -a "${LOG_FILE}"
+	sudo yum install -y git wget tar unzip hostname make gcc-c++ xz gzip python3 nmap procps |& tee -a "${LOG_FILE}"
 	configureAndInstall |& tee -a "${LOG_FILE}"
 	;;
 
