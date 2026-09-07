@@ -1,0 +1,71 @@
+diff --git a/docker-compose/community-compose.yaml b/docker-compose/community-compose.yaml
+index d2498ef..c03e537 100644
+--- a/docker-compose/community-compose.yaml
++++ b/docker-compose/community-compose.yaml
+@@ -19,6 +19,7 @@
+ services:
+   alfresco:
+     image: docker.io/alfresco/alfresco-content-repository-community:26.2.0
++    command: ["catalina.sh", "run"]
+     mem_limit: 1900m
+     environment:
+       JAVA_TOOL_OPTIONS: >-
+@@ -66,7 +67,7 @@ services:
+       file: commons/base.yaml
+       service: alfresco
+   transform-core-aio:
+-    image: alfresco/alfresco-transform-core-aio:5.4.3
++    image: alfresco/alfresco-transform-misc:latest
+     mem_limit: 1536m
+     environment:
+       JAVA_OPTS: >-
+@@ -127,7 +128,7 @@ services:
+       retries: 3
+       start_period: 5s
+   elasticsearch:
+-    image: elasticsearch:8.17.10
++    image: elasticsearch:9.3.0
+     environment:
+       - xpack.security.enabled=false
+       - discovery.type=single-node
+@@ -150,7 +151,7 @@ services:
+       retries: 5
+       start_period: 30s
+   kibana:
+-    image: kibana:8.17.10
++    image: kibana:9.3.0
+     mem_limit: 1g
+     environment:
+       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+@@ -189,7 +190,7 @@ services:
+       ALFRESCO_REINDEX_CONTINUOUS_MAXWINDOW: 30m
+       ALFRESCO_REINDEX_CONTINUOUS_OVERLAP: 10m
+   activemq:
+-    image: docker.io/alfresco/alfresco-activemq:6.2.6-jre17-rockylinux8
++    image: docker.io/alfresco/alfresco-activemq:5.18.7-jre21-rockylinux9
+     mem_limit: 1g
+     environment:
+       - ACTIVEMQ_ADMIN_LOGIN=admin
+@@ -219,22 +220,6 @@ services:
+     extends:
+       file: commons/base.yaml
+       service: content-app
+-  control-center:
+-    image: quay.io/alfresco/alfresco-control-center:11.0.0
+-    mem_limit: 128m
+-    environment:
+-      APP_CONFIG_PROVIDER: "ECM"
+-      APP_CONFIG_AUTH_TYPE: "BASIC"
+-      BASE_PATH: ./
+-    healthcheck:
+-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+-      interval: 10s
+-      timeout: 1s
+-      retries: 3
+-      start_period: 1s
+-    extends:
+-      file: commons/base.yaml
+-      service: control-center
+   proxy:
+     extends:
+       file: commons/base.yaml

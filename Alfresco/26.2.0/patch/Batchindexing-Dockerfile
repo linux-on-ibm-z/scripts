@@ -1,0 +1,15 @@
+ARG JAVA_MAJOR
+
+FROM alfresco/alfresco-base-java:jre${JAVA_MAJOR}-rockylinux9
+
+ARG JAR_FILE=app.jar
+
+WORKDIR /opt
+
+COPY app.jar app.jar
+
+RUN mkdir -p /opt/db-drivers
+
+VOLUME [/opt/db-drivers]
+
+ENTRYPOINT ["/bin/sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
