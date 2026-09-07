@@ -190,7 +190,7 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"ubuntu-20.04" | "ubuntu-22.04" | "ubuntu-24.04")
+"ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
     sudo apt-get install -y wget automake libtool
