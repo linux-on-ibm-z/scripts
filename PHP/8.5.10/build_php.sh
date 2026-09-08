@@ -238,7 +238,6 @@ case "$DISTRO" in
         wget glibc-langpack-en |& tee -a "$LOG_FILE"
 
     source /opt/rh/gcc-toolset-13/enable
-    export LANG=en_US.UTF-8
     ;;
 
 "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
@@ -255,10 +254,6 @@ case "$DISTRO" in
     if [[ "$DISTRO" == rhel-10.* ]]; then
         sudo yum swap libcurl-minimal libcurl --allowerasing
     fi
-
-    sudo localedef -i en_US -f UTF-8 en_US.UTF-8 || true
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
     ;;
 
 "sles-15.7" | "sles-16.0")
