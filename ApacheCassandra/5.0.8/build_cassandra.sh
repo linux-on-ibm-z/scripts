@@ -174,9 +174,10 @@ function configureAndInstall() {
     # Build and install AmazonCorrettoCryptoProvider 2.4.1
     printf -- "Cloning Amazon Corretto Crypto Provider v2.4.1\n" >>"$LOG_FILE"
     cd "$CURDIR"
-    git clone --recurse-submodules https://github.com/corretto/amazon-corretto-crypto-provider.git
+    git clone https://github.com/corretto/amazon-corretto-crypto-provider.git
     cd amazon-corretto-crypto-provider
     git checkout 2.4.1
+    git submodule update --init --recursive
     echo ">> Building aws-lc native library"
     cd aws-lc
     mkdir -p build
@@ -189,8 +190,8 @@ function configureAndInstall() {
             -DBUILD_TESTING=OFF \
             -DAWSLC_ENABLE_TESTING=OFF \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,noexecstack"
-    elif [[ "$DISTRO" == "ubuntu-25.10" || "$DISTRO" == "sles-16.0" ]]; then
-        # GCC 14 on Ubuntu 25.10 and SLES 16.0 has false positive stringop-overflow and array-bounds warnings
+    elif [[ "$DISTRO" == "sles-16.0" ]]; then
+        # GCC 14 on SLES 16.0 has false positive stringop-overflow and array-bounds warnings
         cmake .. \
             -DCMAKE_BUILD_TYPE=Release \
             -DTARGET_ARCH=s390x \
@@ -251,14 +252,6 @@ function configureAndInstall() {
     if [[ "$DISTRO" != "ubuntu-22.04" ]]; then
         printf -- "Install python\n" >>"$LOG_FILE"
         wget -q https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Python3/3.11.0/build_python3.sh
-        sed -i 's/sles-15.4/sles-15.7/g' build_python3.sh
-        sed -i 's/sles-15\.6/sles-16.0/g' build_python3.sh
-        sed -i 's/rhel-9.2/rhel-9.6/g' build_python3.sh
-        sed -i 's/rhel-9.5/rhel-9.7/g' build_python3.sh
-        sed -i 's/"ubuntu-24\.10"/"ubuntu-25.10"/g' build_python3.sh
-        if [[ "$DISTRO" == "sles-16.0" ]]; then
-            sed -i "s/libnsl-devel/libtirpc-devel/g" build_python3.sh
-        fi
         bash build_python3.sh -y
     fi
 
@@ -279,8 +272,6 @@ function configureAndInstall() {
         mvn install -DskipTests -Dmaven.javadoc.skip=true -Dos.detected.classifier=linux-s390_64-suse
     elif [[ "$DISTRO" == "ubuntu-22.04" || "$DISTRO" == "ubuntu-24.04" ]]; then
         mvn install -DskipTests -Dmaven.javadoc.skip=true
-    elif [[ "$DISTRO" == "ubuntu-25"* ]]; then
-        mvn install -Pfast -DskipTests -Dmaven.javadoc.skip=true -Dmaven.resolver.transport=native
     fi
     if [[ "$DISTRO" == "rhel-8"* || "$ID" == "sles" ]]; then
         printf -- "Installing ant\n" >>"$LOG_FILE"
@@ -470,17 +461,10 @@ case "$DISTRO" in
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
-"ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ant ant-optional junit git tar g++ make automake autoconf libtool wget patch libx11-dev libxt-dev pkg-config texinfo locales-all unzip maven cmake golang |& tee -a "$LOG_FILE"
-    if [[ "$DISTRO" == "ubuntu-25.10" ]]; then
-        sudo apt-get install -y gcc-14 g++-14
-        sudo ln -sf /usr/bin/gcc-14 /usr/bin/gcc
-        sudo ln -sf /usr/bin/g++-14 /usr/bin/g++
-        export CC=/usr/bin/gcc
-        export CXX=/usr/bin/g++
-    fi
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
