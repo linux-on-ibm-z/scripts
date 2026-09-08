@@ -1,5 +1,5 @@
 #!/bin/bash
-# © Copyright IBM Corporation 2022, 2025.
+# © Copyright IBM Corporation 2022.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 #Instructions
@@ -210,7 +210,7 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-8.7" | "rhel-8.8"| "rhel-8.10" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-7.8" | "rhel-7.9" | "rhel-8.4" | "rhel-8.6" | "rhel-8.7" | "rhel-8.8"| "rhel-8.10" | "rhel-9.0" | "rhel-9.1" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5" | "rhel-9.6" | "rhel-9.7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         if [[ "$DISTRO" == "rhel-7."* ]]; then
                 sudo yum install -y bzip2-devel gcc gcc-c++ gdbm-devel libdb-devel libffi-devel libuuid-devel make ncurses-devel readline-devel sqlite-devel tar tk-devel wget xz xz-devel zlib-devel patch
@@ -229,9 +229,15 @@ case "$DISTRO" in
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
-"sles-15.3" | "sles-15.4" | "sles-15.6")
+"sles-15.3" | "sles-15.4" | "sles-15.6" | "sles-15.7")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         sudo zypper install -y gawk gcc gcc-c++ gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libnsl-devel libopenssl-devel libuuid-devel make ncurses-devel readline-devel sqlite3-devel tar tk-devel wget xz-devel zlib-devel gzip timezone patch
+        configureAndInstall |& tee -a "${LOG_FILE}"
+        ;;
+
+"sles-16.0")
+        printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
+        sudo zypper install -y gawk gcc gcc-c++ gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libtirpc-devel libopenssl-devel libuuid-devel make ncurses-devel readline-devel sqlite3-devel tar tk-devel wget xz-devel zlib-devel gzip timezone patch
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
