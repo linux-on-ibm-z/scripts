@@ -189,6 +189,7 @@ function configureAndInstall() {
             -DTARGET_ARCH=s390x \
             -DBUILD_TESTING=OFF \
             -DAWSLC_ENABLE_TESTING=OFF \
+            -DCMAKE_C_FLAGS="-Wno-stringop-overflow" \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,noexecstack"
     elif [[ "$DISTRO" == "sles-16.0" ]]; then
         # GCC 14 on SLES 16.0 has false positive stringop-overflow and array-bounds warnings
