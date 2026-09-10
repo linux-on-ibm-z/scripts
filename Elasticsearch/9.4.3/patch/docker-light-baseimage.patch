@@ -1,0 +1,88 @@
+diff --git a/Makefile b/Makefile
+index ac8390e..66bea9d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,12 +1,16 @@
+ NAME = osixia/light-baseimage
+ VERSION = 1.2.0
++BASE_IMAGE = debian:bookworm-slim
++ifeq ($(shell uname -m),s390x)
++BASE_IMAGE = s390x/debian:bookworm-slim
++endif
+
+ .PHONY: build build-nocache test tag-latest push push-latest release git-tag-version
+
+ build:
+-	docker build -f image/Dockerfile -t $(NAME):$(VERSION) --rm image
++	docker build --network=host --build-arg BASE_IMAGE=$(BASE_IMAGE) -f image/Dockerfile -t $(NAME):$(VERSION) --rm image
+
+ build-nocache:
+-	docker build -f image/Dockerfile -t $(NAME):$(VERSION) --no-cache --rm image
++	docker build --network=host --build-arg BASE_IMAGE=$(BASE_IMAGE) -f image/Dockerfile -t $(NAME):$(VERSION) --no-cache --rm image
+
+ test:
+diff --git a/image/Dockerfile b/image/Dockerfile
+index be4b87b..22d72b2 100644
+--- a/image/Dockerfile
++++ b/image/Dockerfile
+@@ -1,4 +1,5 @@
+-FROM debian:buster-slim
++ARG BASE_IMAGE=debian:bookworm-slim
++FROM ${BASE_IMAGE}
+
+ COPY . /container
+ RUN /container/build.sh
+diff --git a/image/service-available/:ssl-tools/download.sh b/image/service-available/:ssl-tools/download.sh
+index 985b1bb..77592c4 100755
+--- a/image/service-available/:ssl-tools/download.sh
++++ b/image/service-available/:ssl-tools/download.sh
+@@ -21,6 +21,10 @@ case "${UARCH}" in
+         HOST_ARCH="386"
+     ;;
+     
++    "s390x")
++        HOST_ARCH="s390x"
++    ;;
++
+     *)
+         echo "Architecture not supported. Exiting."
+         exit 1
+@@ -52,13 +56,21 @@ if [[ "${HOST_ARCH}" == 'arm' ]]; then
+ fi
+ 
++if [[ "${HOST_ARCH}" == 's390x' ]]; then
++    CFSSL_URL="https://github.com/cloudflare/cfssl/releases/download/v1.6.4/cfssl_1.6.4_linux_${HOST_ARCH}"
++    CFSSLJSON_URL="https://github.com/cloudflare/cfssl/releases/download/v1.6.4/cfssljson_1.6.4_linux_${HOST_ARCH}"
++else
++    CFSSL_URL="https://github.com/osixia/cfssl/releases/download/1.4.1/cfssl_linux-${HOST_ARCH}"
++    CFSSLJSON_URL="https://github.com/osixia/cfssl/releases/download/1.4.1/cfssljson_linux-${HOST_ARCH}"
++fi
++
+ echo "Download cfssl ..."
+-echo "curl -o /usr/sbin/cfssl -SL https://github.com/osixia/cfssl/releases/download/1.4.1/cfssl_linux-${HOST_ARCH}"
+-curl -o /usr/sbin/cfssl -SL "https://github.com/osixia/cfssl/releases/download/1.4.1/cfssl_linux-${HOST_ARCH}"
++echo "curl -o /usr/sbin/cfssl -SL ${CFSSL_URL}"
++curl -o /usr/sbin/cfssl -SL "${CFSSL_URL}"
+ chmod 700 /usr/sbin/cfssl
+ 
+ echo "Download cfssljson ..."
+-echo "curl -o /usr/sbin/cfssljson -SL https://github.com/osixia/cfssl/releases/download/1.4.1/cfssljson_linux-${HOST_ARCH}"
+-curl -o /usr/sbin/cfssljson -SL "https://github.com/osixia/cfssl/releases/download/1.4.1/cfssljson_linux-${HOST_ARCH}"
++echo "curl -o /usr/sbin/cfssljson -SL ${CFSSLJSON_URL}"
++curl -o /usr/sbin/cfssljson -SL "${CFSSLJSON_URL}"
+ chmod 700 /usr/sbin/cfssljson
+ 
+ echo "Project sources: https://github.com/cloudflare/cfssl"
+diff --git a/image/tool/run b/image/tool/run
+index d254485..a95c93f 100755
+--- a/image/tool/run
++++ b/image/tool/run
+@@ -291,7 +291,7 @@ def import_env_files():
+ 						debug("--- process file : " + filepath+ " ---")
+ 
+ 						if file.endswith(ENV_FILES_YAML_EXTENSIONS):
+-							env_vars = yaml.load(f)
++							env_vars = yaml.safe_load(f)
+ 
+ 						elif file.endswith(ENV_FILES_JSON_EXTENSIONS):
+ 							env_vars = json.load(f)
