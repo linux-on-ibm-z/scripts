@@ -73,7 +73,6 @@ function configureAndInstall() {
     curl -sSL "${PATCH_URL}/ut0rnd.patch" | git apply -
     curl -sSL "${PATCH_URL}/type-vector.patch" | git apply -
 	curl -sSL "${PATCH_URL}/loaddata.patch" | git apply -
-	curl -sSL "${PATCH_URL}/gunit-test.patch" | git apply -
     
     # Create a clean build and user-owned installation directory.
     rm -rf build "$MYSQL_INSTALL"
