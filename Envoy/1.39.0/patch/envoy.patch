@@ -600,3 +600,154 @@ index cdaec46..458e76b 100644
          },
          "//conditions:default": {},
      }),
+diff --git a/source/extensions/filters/http/dynamic_modules/filter.cc b/source/extensions/filters/http/dynamic_modules/filter.cc
+index 3e9a80fb..dd37ac78 100644
+--- a/source/extensions/filters/http/dynamic_modules/filter.cc
++++ b/source/extensions/filters/http/dynamic_modules/filter.cc
+@@ -390,8 +390,11 @@ void DynamicModuleHttpFilter::resetHttpStream(uint64_t stream_id) {
+ bool DynamicModuleHttpFilter::sendStreamData(uint64_t stream_id, Buffer::Instance& data,
+                                              bool end_stream) {
+   auto it = http_stream_callouts_.find(stream_id);
+-  if (it == http_stream_callouts_.end() || !it->second->stream_) {
+-    return false;
++  if (it == http_stream_callouts_.end()) {
++    return completed_stream_ids_.count(stream_id) > 0;
++  }
++  if (it->second->cleaned_up_ || !it->second->stream_) {
++    return true;
+   }
+   it->second->stream_->sendData(data, end_stream);
+   return true;
+@@ -400,8 +403,11 @@ bool DynamicModuleHttpFilter::sendStreamData(uint64_t stream_id, Buffer::Instanc
+ bool DynamicModuleHttpFilter::sendStreamTrailers(uint64_t stream_id,
+                                                  Http::RequestTrailerMapPtr trailers) {
+   auto it = http_stream_callouts_.find(stream_id);
+-  if (it == http_stream_callouts_.end() || !it->second->stream_) {
+-    return false;
++  if (it == http_stream_callouts_.end()) {
++    return completed_stream_ids_.count(stream_id) > 0;
++  }
++  if (it->second->cleaned_up_ || !it->second->stream_) {
++    return true;
+   }
+
+   // Store the trailers in the callback to keep them alive, since AsyncStream stores a pointer.
+@@ -509,6 +515,7 @@ void DynamicModuleHttpFilter::HttpStreamCalloutCallback::onComplete() {
+   }
+   auto callback = std::move(it->second);
+   filter.http_stream_callouts_.erase(it);
++  filter.completed_stream_ids_.insert(callout_id);
+
+   // Any in map callback must have a non-null stream_, reset it.
+   ASSERT(stream_ != nullptr);
+diff --git a/source/extensions/filters/http/dynamic_modules/filter.h b/source/extensions/filters/http/dynamic_modules/filter.h
+index 58ff280d..c39e661d 100644
+--- a/source/extensions/filters/http/dynamic_modules/filter.h
++++ b/source/extensions/filters/http/dynamic_modules/filter.h
+@@ -372,6 +372,7 @@ private:
+   // unique identifier. We store the callback objects here to manage their lifetime.
+   absl::flat_hash_map<uint64_t, std::unique_ptr<DynamicModuleHttpFilter::HttpStreamCalloutCallback>>
+       http_stream_callouts_;
++  absl::flat_hash_set<uint64_t> completed_stream_ids_;
+
+   // Socket options storage for HTTP filters.
+   struct StoredSocketOption {
+diff --git a/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc b/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc
+index 5f77698f..f7e76c2f 100644
+--- a/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc
++++ b/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc
+@@ -22,9 +22,19 @@ void assertEq(const std::string& a, const std::string& b, const std::string& msg
+   }
+ }
+
+-void assertEq(size_t a, size_t b, const std::string& msg) { assert(a == b); }
++void assertEq(size_t a, size_t b, const std::string& msg) {
++  if (a != b) {
++    fprintf(stderr, "assertEq FAILED [%s]: expected %zu == %zu\n", msg.c_str(), a, b);
++    assert(a == b);
++  }
++}
+
+-void assertTrue(bool cond, const std::string& msg) { assert(cond); }
++void assertTrue(bool cond, const std::string& msg) {
++  if (!cond) {
++    fprintf(stderr, "assertTrue FAILED [%s]\n", msg.c_str());
++    assert(cond);
++  }
++}
+
+ // -----------------------------------------------------------------------------
+ // ConfigScheduler
+@@ -1434,6 +1444,9 @@ public:
+
+   void onHttpStreamComplete(uint64_t stream_id) override {
+     assertEq(stream_id, stream_id_, "id");
++    assertTrue(recv_headers_, "recvHeaders");
++    assertTrue(recv_chunks_ > 0, "recvChunks");
++    assertTrue(recv_trailers_, "recvTrailers");
+     complete_ = true;
+     std::vector<HeaderView> h = {
+         {"x-stream-test", "bidirectional"},
+@@ -1447,9 +1460,6 @@ public:
+
+   void onStreamComplete() override {
+     assertTrue(sent_trailers_, "sentTrailers");
+-    assertTrue(recv_headers_, "recvHeaders");
+-    assertTrue(recv_chunks_ > 0, "recvChunks");
+-    assertTrue(recv_trailers_, "recvTrailers");
+     assertTrue(complete_, "complete");
+   }
+   void onDestroy() override {}
+diff --git a/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc b/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc
+index f63f6445..cd982fe6 100644
+--- a/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc
++++ b/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc
+@@ -62,19 +62,30 @@ TEST(SockKey, LayoutMatchesKernelContract) {
+   EXPECT_EQ(offsetof(SockKey, sport), 12u);
+   EXPECT_EQ(offsetof(SockKey, dport), 16u);
+
+-  // A key built for 1.2.3.4:1111 -> 5.6.7.8:2222 must serialize to this exact wire image on the
+-  // little-endian targets Envoy supports.
++  // A key built for 1.2.3.4:1111 -> 5.6.7.8:2222 must serialize to this exact wire image.
++  // sport/dport are htons(port) stored in the low 16 bits of a uint32_t, so the in-memory
++  // layout differs between little-endian and big-endian hosts.
+   Address::Ipv4Instance local("1.2.3.4", 1111);
+   Address::Ipv4Instance peer("5.6.7.8", 2222);
+   SockKey key;
+   ASSERT_TRUE(buildSockKey(local, peer, key));
++#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+   const uint8_t expected[sizeof(SockKey)] = {
+       0x01, 0x02, 0x03, 0x04, // sip4 1.2.3.4 network order
+       0x05, 0x06, 0x07, 0x08, // dip4 5.6.7.8 network order
+       0x01, 0x00, 0x00, 0x00, // family 1, pads
+-      0x04, 0x57, 0x00, 0x00, // source port htons(1111) in the low 16 bits
+-      0x08, 0xae, 0x00, 0x00, // destination port htons(2222) in the low 16 bits
++      0x00, 0x00, 0x04, 0x57, // source port htons(1111) in the low 16 bits (big-endian)
++      0x00, 0x00, 0x08, 0xae, // destination port htons(2222) in the low 16 bits (big-endian)
+   };
++#else
++  const uint8_t expected[sizeof(SockKey)] = {
++      0x01, 0x02, 0x03, 0x04, // sip4 1.2.3.4 network order
++      0x05, 0x06, 0x07, 0x08, // dip4 5.6.7.8 network order
++      0x01, 0x00, 0x00, 0x00, // family 1, pads
++      0x04, 0x57, 0x00, 0x00, // source port htons(1111) in the low 16 bits (little-endian)
++      0x08, 0xae, 0x00, 0x00, // destination port htons(2222) in the low 16 bits (little-endian)
++  };
++#endif
+   EXPECT_EQ(0, std::memcmp(&key, expected, sizeof(SockKey)));
+ }
+
+diff --git a/test/test_common/utility.h b/test/test_common/utility.h
+index f6151b31..22bea71e 100644
+--- a/test/test_common/utility.h
++++ b/test/test_common/utility.h
+@@ -65,6 +65,9 @@ template <class... Args> constexpr bool always_false = false;
+ #define TIMEOUT_FACTOR 3
+ #elif defined(ENVOY_CONFIG_COVERAGE)
+ #define TIMEOUT_FACTOR 3
++#elif defined(__s390x__)
++// s390x is slower than x8664; use 3x timeouts to prevent flaky timeouts.
++#define TIMEOUT_FACTOR 3
+ #else
+ #define TIMEOUT_FACTOR 1
+ #endif

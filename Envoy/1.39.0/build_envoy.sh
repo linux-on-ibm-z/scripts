@@ -193,6 +193,8 @@ buildAndInstallClang() {
   cd "$SOURCE_ROOT"
   local z_default_arch="z13"
   local os_version_major=${VERSION_ID%%.*}
+  local gpp_pkg="g++"
+  local gcc_version=""
   case "$DISTRO" in
   rhel*)
       sudo dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${os_version_major}.noarch.rpm"
@@ -205,13 +207,16 @@ buildAndInstallClang() {
       fi
       ;;
   sles*)
-      sudo zypper install -y cmake ninja chrpath libelf-devel libffi-devel patchutils xz xz-devel python3 \
-        libedit-devel ncurses-devel binutils-devel libxml2-devel jsoncpp-devel pkg-config procps zlib-devel libzstd-devel libpfm-devel
+      gpp_pkg="gcc-c++"
       if [[ $os_version_major == "16" ]]; then
         z_default_arch="z14"
+        gcc_version="13"
+        gpp_pkg="gcc${gcc_version}-c++"
       else
         z_default_arch="zEC12"
       fi
+      sudo zypper install -y ${gpp_pkg} curl git cmake ninja chrpath libelf-devel libffi-devel patchutils xz xz-devel python3 \
+        libedit-devel ncurses-devel binutils-devel libxml2-devel jsoncpp-devel pkg-config procps zlib-devel libzstd-devel libpfm-devel
       ;;
   ubuntu*)
       sudo apt-get update
