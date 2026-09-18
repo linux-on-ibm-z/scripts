@@ -1,5 +1,5 @@
 #!/bin/bash
-# ©  Copyright IBM Corporation 2024.
+# ©  Copyright IBM Corporation 2024,2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
 # Instructions:
@@ -106,12 +106,8 @@ function cleanup() {
           "$SOURCE_ROOT/go$GOLANG_VERSION.linux-s390x.tar.gz"* \
           "$SOURCE_ROOT/node-$NODEJS_VERSION-linux-s390x.tar.xz"* \
           "$SOURCE_ROOT/apache-maven-$MAVEN_VERSION-bin.tar.gz"* \
-          "$SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.24_8.tar.gz"* \
-          "$SOURCE_ROOT/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.12_7.tar.gz"* \
-          "$SOURCE_ROOT/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.4_7.tar.gz"* \
-          "$SOURCE_ROOT/ibm-semeru-open-jdk_s390x_linux_11.0.24_8_openj9-0.46.0.tar.gz"* \
-          "$SOURCE_ROOT/ibm-semeru-open-jdk_s390x_linux_17.0.12_7_openj9-0.46.0.tar.gz"* \
-          "$SOURCE_ROOT/ibm-semeru-open-jdk_s390x_linux_21.0.4_7_openj9-0.46.0.tar.gz"*
+          "$SOURCE_ROOT/OpenJDK11U-jdk_s390x_linux_hotspot"* \
+          "$SOURCE_ROOT/ibm-semeru-open-jdk_s390x_linux_"* \
 
         printf -- 'Cleaned up the artifacts\n' >>"$LOG_FILE"
 }
@@ -123,60 +119,60 @@ function configureAndInstallJava() {
         # Install Temurin 11
         printf -- "\nInstalling Temurin 11 . . . \n"
         cd $SOURCE_ROOT
-        wget https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.24%2B8/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.24_8.tar.gz
-        tar -xzf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.24_8.tar.gz
-        export ANT_JAVA_HOME=$PWD/jdk-11.0.24+8
-        export JAVA_HOME=$PWD/jdk-11.0.24+8
+        wget https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.32%2B9/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.32_9.tar.gz
+        tar -xzf OpenJDK11U-jdk_s390x_linux_hotspot_11.0.32_9.tar.gz
+        export ANT_JAVA_HOME=$PWD/jdk-11.0.32+9
+        export JAVA_HOME=$PWD/jdk-11.0.32+9
         printf -- "Installation of Temurin 11 is successful\n" >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "Temurin17" ]]; then
         # Install Temurin 17
         printf -- "\nInstalling Temurin 17 . . . \n"
         cd $SOURCE_ROOT
-        wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.12%2B7/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.12_7.tar.gz
-        tar -xzf OpenJDK17U-jdk_s390x_linux_hotspot_17.0.12_7.tar.gz
-        export ANT_JAVA_HOME=$PWD/jdk-17.0.12+7
-        export JAVA_HOME=$PWD/jdk-17.0.12+7
+        wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.20_8.tar.gz
+        tar -xzf OpenJDK17U-jdk_s390x_linux_hotspot_17.0.20_8.tar.gz
+        export ANT_JAVA_HOME=$PWD/jdk-17.0.20+8
+        export JAVA_HOME=$PWD/jdk-17.0.20+8
         printf -- "Installation of Temurin17 is successful\n" >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "Temurin21" ]]; then
         # Install Temurin 21
         printf -- "\nInstalling Temurin 21 . . . \n"
         cd $SOURCE_ROOT
-        wget https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.4_7.tar.gz
-        tar -xzf OpenJDK21U-jdk_s390x_linux_hotspot_21.0.4_7.tar.gz
-        export ANT_JAVA_HOME=$PWD/jdk-21.0.4+7
-        export JAVA_HOME=$PWD/jdk-21.0.4+7
+        wget https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12%2B8/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.12_8.tar.gz
+        tar -xzf OpenJDK21U-jdk_s390x_linux_hotspot_21.0.12_8.tar.gz
+        export ANT_JAVA_HOME=$PWD/jdk-21.0.12+8
+        export JAVA_HOME=$PWD/jdk-21.0.12+8
         printf -- "Installation of Temurin21 is successful\n" >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "Semeru11" ]]; then
         # Install Semeru 11
         printf -- "\nInstalling Semeru 11 . . . \n"
         cd $SOURCE_ROOT
-        wget https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.24%2B8_openj9-0.46.0/ibm-semeru-open-jdk_s390x_linux_11.0.24_8_openj9-0.46.0.tar.gz
-        tar -xzf ibm-semeru-open-jdk_s390x_linux_11.0.24_8_openj9-0.46.0.tar.gz
-        export ANT_JAVA_HOME=$PWD/jdk-11.0.24+8
-        export JAVA_HOME=$PWD/jdk-11.0.24+8
+        wget https://github.com/ibmruntimes/semeru11-binaries/releases/download/jdk-11.0.32.0/ibm-semeru-open-jdk_s390x_linux_11.0.32.0.tar.gz
+        tar -xzf ibm-semeru-open-jdk_s390x_linux_11.0.32.0.tar.gz
+        export ANT_JAVA_HOME=$PWD/jdk-11.0.32+9
+        export JAVA_HOME=$PWD/jdk-11.0.32+9
         printf -- "Installation of Semeru 11 is successful\n" >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "Semeru17" ]]; then
         # Install Semeru 17
         printf -- "\nInstalling Semeru 17 . . . \n"
         cd $SOURCE_ROOT
-        wget https://github.com/ibmruntimes/semeru17-binaries/releases/download/jdk-17.0.12%2B7_openj9-0.46.0/ibm-semeru-open-jdk_s390x_linux_17.0.12_7_openj9-0.46.0.tar.gz
-        tar -xzf ibm-semeru-open-jdk_s390x_linux_17.0.12_7_openj9-0.46.0.tar.gz
-        export ANT_JAVA_HOME=$PWD/jdk-17.0.12+7
-        export JAVA_HOME=$PWD/jdk-17.0.12+7
+        wget https://github.com/ibmruntimes/semeru17-binaries/releases/download/jdk-17.0.20.0/ibm-semeru-open-jdk_s390x_linux_17.0.20.0.tar.gz        
+        tar -xzf ibm-semeru-open-jdk_s390x_linux_17.0.20.0.tar.gz 
+        export ANT_JAVA_HOME=$PWD/jdk-17.0.20+8
+        export JAVA_HOME=$PWD/jdk-17.0.20+8
         printf -- "Installation of Semeru 17 is successful\n" >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "Semeru21" ]]; then
         # Install Semeru 21
         printf -- "\nInstalling Semeru 21 . . . \n"
         cd $SOURCE_ROOT
-        wget https://github.com/ibmruntimes/semeru21-binaries/releases/download/jdk-21.0.4%2B7_openj9-0.46.0/ibm-semeru-open-jdk_s390x_linux_21.0.4_7_openj9-0.46.0.tar.gz
-        tar -xzf ibm-semeru-open-jdk_s390x_linux_21.0.4_7_openj9-0.46.0.tar.gz
-        export ANT_JAVA_HOME=$PWD/jdk-21.0.4+7
-        export JAVA_HOME=$PWD/jdk-21.0.4+7
+        wget https://github.com/ibmruntimes/semeru21-binaries/releases/download/jdk-21.0.12.0/ibm-semeru-open-jdk_s390x_linux_21.0.12.0.tar.gz
+        tar -xzf ibm-semeru-open-jdk_s390x_linux_21.0.12.0.tar.gz
+        export ANT_JAVA_HOME=$PWD/jdk-21.0.12+8
+        export JAVA_HOME=$PWD/jdk-21.0.12+8
         printf -- "Installation of Semeru 21 is successful\n" >> "$LOG_FILE"
 
     elif [[ "$JAVA_PROVIDED" == "OpenJDK21" ]]; then
@@ -274,13 +270,13 @@ EOF
 
 function installAdditionalDependencies() {
   case "$DISTRO" in
-  "rhel-8.10")
+  "rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
-    sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python38 cmake \
+    sudo yum install -y unzip xz libuuid-devel curl wget git make diffutils gcc gcc-c++ python3 cmake \
       libarchive clang
     ;;
 
-  "sles-15.6")
+  "sles-15.7" | "sles-16.0")
     printf -- "Installing additional dependencies for %s %s on %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO"
     sudo zypper install -y unzip xz xz-devel libuuid-devel curl wget git make diffutils gcc13 gcc13-c++ \
     python cmake clang13 gawk gdbm-devel libbz2-devel libdb-4_8-devel libffi-devel libnsl-devel libopenssl-devel \
@@ -475,13 +471,13 @@ logDetails
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8" | "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-        sudo yum install -y wget tar which curl diffutils --allowerasing |& tee -a "$LOG_FILE"
+        sudo yum install -y wget tar which curl diffutils |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
         ;;
 
-"sles-15.6")
+"sles-15.7" | "sles-16.0")
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
         sudo zypper install -y wget gzip tar curl xz diffutils |& tee -a "$LOG_FILE"
         configureAndInstall |& tee -a "$LOG_FILE"
