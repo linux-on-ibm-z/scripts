@@ -457,7 +457,7 @@ index c9933d81..4f3f7da9 100644
 -          artifact()
 +      if (isS390xBuild) {
 +        flatDir {
-+          dirs '/home/test/scripts/9.4.3/zstd-native-dep'
++          dirs '%S390X_ZSTD_DEP_DIR%'
 +        }
 +      } else {
 +        maven {
