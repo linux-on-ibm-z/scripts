@@ -83,6 +83,7 @@ EOF_RHEL810_CGROUP_FIX
     export PATH=${SOURCE_ROOT}/kind/bin:$PATH
     kind version
     make -C images/base quick REGISTRY=kindest TAG=v20260601-995e8fa5
+	make -C images/base quick REGISTRY=kindest TAG=v20260820-69b56db7 # for node-exporter
     make -C images/kindnetd REGISTRY=kindest TAG=v20260528-9350166c quick
     make -C images/local-path-provisioner REGISTRY=kindest TAG=v20260521-9fb22683 quick
     make -C images/local-path-helper REGISTRY=kindest TAG=v20260131-7181c60a quick
