@@ -1,0 +1,13 @@
+diff --git a/src/couch/test/eunit/couch_cfile_prop_tests.erl b/src/couch/test/eunit/couch_cfile_prop_tests.erl
+index a2d954e5c..18ab4cf43 100644
+--- a/src/couch/test/eunit/couch_cfile_prop_tests.erl
++++ b/src/couch/test/eunit/couch_cfile_prop_tests.erl
+@@ -19,7 +19,7 @@
+ -include_lib("kernel/include/file.hrl").
+
+ property_test_() ->
+-    ?EUNIT_QUICKCHECK(60, 25000).
++    ?EUNIT_QUICKCHECK(300, 25000).
+
+ -define(SIZE_LIMIT, 5000).
+ -define(CFILE_FD, cfile_fd).

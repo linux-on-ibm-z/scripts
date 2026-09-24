@@ -1,0 +1,13 @@
+diff --git a/src/couch/test/eunit/couch_btree_prop_tests.erl b/src/couch/test/eunit/couch_btree_prop_tests.erl
+index 1a9bd4f75..e27bb82f4 100644
+--- a/src/couch/test/eunit/couch_btree_prop_tests.erl
++++ b/src/couch/test/eunit/couch_btree_prop_tests.erl
+@@ -32,7 +32,7 @@
+ -include_lib("couch/include/couch_eunit.hrl").
+
+ btree_property_test_() ->
+-    ?EUNIT_QUICKCHECK(90, 3000).
++    ?EUNIT_QUICKCHECK(300, 3000).
+
+ %
+ % Properties

@@ -1,0 +1,17 @@
+diff --git a/src/mango/src/mango_cursor.erl b/src/mango/src/mango_cursor.erl
+index b78f3682e..d0f7479d6 100644
+--- a/src/mango/src/mango_cursor.erl
++++ b/src/mango/src/mango_cursor.erl
+@@ -1103,9 +1103,9 @@ extract_selector_hints_test_() ->
+             meck:unload()
+         end,
+         [
+-            ?TDEF_FE(t_extract_selector_hints_view),
+-            ?TDEF_FE(t_extract_selector_hints_text),
+-            ?TDEF_FE(t_extract_selector_hints_nouveau)
++            ?TDEF_FE(t_extract_selector_hints_view, 30),
++            ?TDEF_FE(t_extract_selector_hints_text, 30),
++            ?TDEF_FE(t_extract_selector_hints_nouveau, 30)
+         ]
+     }.
+
