@@ -1,0 +1,13 @@
+diff --git a/pom.xml b/pom.xml
+index 2418e334ce..0ad11f174f 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -390,7 +390,7 @@
+     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
+     <logging.config>${project.basedir}/../common/src/test/resources/logback-test.xml</logging.config>
+     <logging.logLevel>debug</logging.logLevel>
+-    <log4j2.version>2.6.2</log4j2.version>
++    <log4j2.version>2.17.1</log4j2.version>
+     <enforcer.plugin.version>1.4.1</enforcer.plugin.version>
+     <junit.version>5.7.0</junit.version>
+     <testJavaHome>${java.home}</testJavaHome>
