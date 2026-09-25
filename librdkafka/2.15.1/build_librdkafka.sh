@@ -71,7 +71,7 @@ function buildOssl() {
 	fi
 
 	cd $SOURCE_ROOT
-	wget --no-check-certificate https://github.com/openssl/openssl/releases/download/openssl-$VERSION_OSSL/openssl-$VERSION_OSSL.tar.gz
+	wget https://github.com/openssl/openssl/releases/download/openssl-$VERSION_OSSL/openssl-$VERSION_OSSL.tar.gz
 	tar -xzf openssl-$VERSION_OSSL.tar.gz
 	cd openssl-$VERSION_OSSL
 	./config --libdir=/usr/local/lib
