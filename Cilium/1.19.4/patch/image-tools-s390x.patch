@@ -1,0 +1,205 @@
+diff --git a/Makefile b/Makefile
+index 5f2b94f..de7ecda 100644
+--- a/Makefile
++++ b/Makefile
+@@ -5,7 +5,7 @@ REGISTRIES ?= quay.io/cilium
+ 
+ PUSH ?= false
+ EXPORT ?= false
+-PLATFORMS ?= linux/amd64,linux/arm64
++PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
+ 
+ all-images: lint maker-image tester-image compilers-image bpftool-image llvm-image network-perf-image startup-script-image checkpatch-image iptables-image
+ 
+diff --git a/images/compilers/install-deps.sh b/images/compilers/install-deps.sh
+index 35854f4..038d745 100755
+--- a/images/compilers/install-deps.sh
++++ b/images/compilers/install-deps.sh
+@@ -71,6 +71,20 @@ Suites: noble-security
+ Components: main universe restricted multiverse
+ Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+ Architectures: arm64
++
++Types: deb
++URIs: http://ports.ubuntu.com/
++Suites: noble noble-updates noble-backports
++Components: main restricted universe multiverse
++Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
++Architectures: s390x
++
++Types: deb
++URIs: http://ports.ubuntu.com/ubuntu-ports/
++Suites: noble-security
++Components: main universe restricted multiverse
++Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
++Architectures: s390x
+ EOF
+ 
+ if [ "$(uname -m)" == "x86_64" ] ; then
+diff --git a/images/compilers/test/s390x/spec.yaml b/images/compilers/test/s390x/spec.yaml
+new file mode 100644
+index 0000000..c150cae
+--- /dev/null
++++ b/images/compilers/test/s390x/spec.yaml
+@@ -0,0 +1,13 @@
++schemaVersion: "2.0.0"
++
++commandTests:
++- name: "gcc command is in path"
++  command: "which"
++  args: ["gcc"]
++  expectedOutput: ["/usr/bin/gcc"]
++- name: "gcc version"
++  command: "gcc"
++  args: ["-v"]
++  expectedError:
++  - 'Target:\ s390x-linux-gnu'
++  - 'gcc\ version\ 9\.5\.0'
+diff --git a/images/maker/Dockerfile b/images/maker/Dockerfile
+index d910c17..2ff995d 100644
+--- a/images/maker/Dockerfile
++++ b/images/maker/Dockerfile
+@@ -1,13 +1,12 @@
+ # Copyright Authors of Cilium
+ # SPDX-License-Identifier: Apache-2.0
+ 
+-ARG DOCKER_IMAGE=docker.io/library/docker:29.4.1-dind@sha256:c77e5d7912f9b137cc67051fdc2991d8f5ae22c55ddf532bb836dcb693a04940
+-ARG CRANE_IMAGE=gcr.io/go-containerregistry/crane:latest@sha256:d3a706262093746258f20107ab4e95536f9d6d45c8c3f3acf6b02b1801b440d6
+-ARG ALPINE_BASE_IMAGE=docker.io/library/alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+-ARG GOLANG_IMAGE=docker.io/library/golang:1.26.2@sha256:b54cbf583d390341599d7bcbc062425c081105cc5ef6d170ced98ef9d047c716
++ARG DOCKER_IMAGE=docker.io/library/alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
++ARG ALPINE_BASE_IMAGE=docker.io/library/alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
++ARG GOLANG_IMAGE=docker.io/library/golang:1.26.0@sha256:c83e68f3ebb6943a2904fa66348867d108119890a2c6a2e6f07b38d0eb6c25c5
+ 
+ FROM ${DOCKER_IMAGE} AS docker-dist
+-FROM ${CRANE_IMAGE} AS crane-dist
++RUN apk add --no-cache docker-cli
+ 
+ FROM ${GOLANG_IMAGE} AS go-builder
+ 
+@@ -26,20 +25,27 @@ RUN apk add --no-cache \
+ 
+ RUN mkdir -p /out/etc/apk && cp -r /etc/apk/* /out/etc/apk/
+ 
+-RUN apk add --initdb --no-cache --root /out \
+-    alpine-baselayout \
+-    bash \
+-    ca-certificates \
+-    coreutils \
+-    git \
+-    make \
+-    shellcheck \
+-    jq \
+-    yq \
+-    && true
++RUN if [ "${TARGETARCH}" = "s390x" ]; then \
++      echo "Skipping shellcheck install for TARGETARCH=${TARGETARCH} (package unavailable)."; \
++      extra_pkgs=""; \
++      apk_root_opts="--initdb --no-cache --root /out --no-scripts"; \
++    else \
++      extra_pkgs="shellcheck"; \
++      apk_root_opts="--initdb --no-cache --root /out"; \
++    fi && \
++    apk add ${apk_root_opts} \
++      alpine-baselayout \
++      bash \
++      ca-certificates \
++      coreutils \
++      git \
++      make \
++      jq \
++      yq \
++      ${extra_pkgs} \
++      && true
+ 
+-COPY --from=docker-dist /usr/local/bin /out/usr/local/bin
+-COPY --from=crane-dist /ko-app/crane /out/usr/local/bin/crane
++COPY --from=docker-dist /usr/bin/docker /out/usr/local/bin/docker
+ COPY --from=go-builder /out /out
+ 
+ ARG HADOLINT_VERSION=2.12.0
+@@ -47,11 +53,17 @@ ARG HADOLINT_VERSION=2.12.0
+ RUN case "${TARGETARCH}" in \
+     'amd64') export ARCH='x86_64' ;; \
+     'arm64') export ARCH='arm64' ;; \
++    's390x') export ARCH='' ;; \
++    *) echo "Unsupported TARGETARCH for hadolint: ${TARGETARCH}" >&2; exit 1 ;; \
+     esac && \
+-    curl --fail --show-error --silent --location \
+-    "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-${ARCH}" \
+-    --output /out/usr/local/bin/hadolint \
+-    && chmod +x /out/usr/local/bin/hadolint
++    if [ -n "${ARCH}" ]; then \
++      curl --fail --show-error --silent --location \
++      "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-${ARCH}" \
++      --output /out/usr/local/bin/hadolint \
++      && chmod +x /out/usr/local/bin/hadolint; \
++    else \
++      echo "Skipping hadolint install for TARGETARCH=${TARGETARCH} (no upstream binary available)."; \
++    fi
+ 
+ RUN mkdir -p /out/etc/docker/cli-plugins \
+     && echo '{ "experimental": "enabled", "credsStore" : "env" }' > /out/etc/docker/config.json \
+diff --git a/images/maker/build-go-deps.sh b/images/maker/build-go-deps.sh
+index d1d4c91..93dd4a4 100755
+--- a/images/maker/build-go-deps.sh
++++ b/images/maker/build-go-deps.sh
+@@ -17,4 +17,5 @@ mkdir -p $GOBIN
+ 
+ go install -ldflags '-s -w' github.com/errordeveloper/docker-credential-env@v0.1.5
+ go install -ldflags '-s -w' github.com/docker/buildx/cmd/buildx@v0.13.1
++go install -ldflags '-s -w' github.com/google/go-containerregistry/cmd/crane@v0.20.8
+ mv $GOBIN/buildx $GOBIN/docker-buildx
+diff --git a/images/tester/test/spec.yaml b/images/tester/test/spec.yaml
+index faea2e0..8a40a12 100644
+--- a/images/tester/test/spec.yaml
++++ b/images/tester/test/spec.yaml
+@@ -23,4 +23,4 @@ commandTests:
+   command: '/test/bin/cst'
+   args: ['-V']
+   expectedOutput:
+-  - 'go1\..*\ linux/(amd64|arm64)'
++  - 'go1\..*\ linux/(amd64|arm64|s390x)'
+diff --git a/scripts/build-image.sh b/scripts/build-image.sh
+index e93dbbf..250f47f 100755
+--- a/scripts/build-image.sh
++++ b/scripts/build-image.sh
+@@ -118,11 +118,29 @@ fi
+ do_test="${TEST:-false}"
+ 
+ run_buildx() {
++  local build_arg_name
++  local build_arg_value
+   build_args=(
+     "--platform=${platform}"
+     "--builder=${builder}"
+     "--file=${image_dir}/Dockerfile"
+   )
++  for build_arg_name in \
++    MAKER_IMAGE \
++    TESTER_IMAGE \
++    COMPILERS_IMAGE \
++    UBUNTU_IMAGE \
++    GOLANG_IMAGE \
++    ALPINE_BASE_IMAGE \
++    BASE_IMAGE \
++    DOCKER_IMAGE \
++    CRANE_IMAGE
++  do
++    build_arg_value="${!build_arg_name:-}"
++    if [ -n "${build_arg_value}" ] ; then
++      build_args+=("--build-arg=${build_arg_name}=${build_arg_value}")
++    fi
++  done
+   if [ "${with_root_context}" = "false" ] ; then
+     build_args+=("${image_dir}")
+   else
+@@ -133,7 +151,7 @@ run_buildx() {
+       exit 1
+     fi
+   fi
+-  docker buildx build --output="${output}" "${tag_args[@]}" "${build_args[@]}"
++  docker buildx build --output="${output}" "${tag_args[@]}" "${build_args[@]}" --load
+ }
+ 
+ if [ "${do_build}" = "true" ] ; then
