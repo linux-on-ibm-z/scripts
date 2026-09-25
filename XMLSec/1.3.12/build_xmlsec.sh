@@ -105,7 +105,7 @@ function installLibxml2(){
 }
 function installOpenssl(){
     cd $SOURCE_ROOT
-    wget https://www.openssl.org/source/openssl-1.1.1h.tar.gz --no-check-certificate
+    wget https://www.openssl.org/source/openssl-1.1.1h.tar.gz
     tar -xzvf openssl-1.1.1h.tar.gz
     cd openssl-1.1.1h
     ./config --prefix=/usr/local --openssldir=/usr/local
