@@ -63,11 +63,12 @@ function cleanup() {
 function configureAndInstall() {
 	printf -- 'Configuration and Installation started \n'
 
-	#Creating daemon user for sles 15.7
+	#Creating daemon user for sles 15.7 and sles 16.0
 	if [[ "$ID" == "sles"* ]]; then
-         sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-	       sudo groupadd daemon
-	       sudo useradd -g daemon daemon
+		sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+		
+		getent group daemon >/dev/null || sudo groupadd daemon
+		id daemon >/dev/null 2>&1 || sudo useradd -g daemon daemon
 	fi
 
 	#Download the source code
@@ -140,13 +141,13 @@ logDetails
 checkPrequisites #Check Prequisites
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.6" | "rhel-9.7")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.7" | "rhel-9.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
     sudo yum install -y git openssl openssl-devel python3 gcc libtool autoconf make pcre pcre-devel libxml2 libxml2-devel expat-devel diffutils file which procps wget tar |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"rhel-10.0" | "rhel-10.1")
+"rhel-10.0" | "rhel-10.1" | "rhel-10.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
     sudo yum install -y git openssl openssl-devel python3 gcc libtool autoconf make pcre2 pcre2-devel libxml2 libxml2-devel expat-devel diffutils file which procps wget tar |& tee -a "$LOG_FILE"
@@ -155,10 +156,10 @@ case "$DISTRO" in
 "sles-15.7" | "sles-16.0")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- 'Installing the dependencies for HTTP server from repository \n' |& tee -a "$LOG_FILE"
-    sudo zypper install -y git openssl libopenssl-devel python3 gcc libtool autoconf make libpcre1 pcre-devel libxml2-tools libxml2-devel libexpat-devel which procps wget tar awk |& tee -a "$LOG_FILE"
+    sudo zypper install -y git openssl libopenssl-devel python3 gcc libtool autoconf make libpcre1 pcre-devel libxml2-tools libxml2-devel libexpat-devel which wget tar awk |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-22.04" | "ubuntu-24.04" | "ubuntu-25.10")
+"ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update >/dev/null
     sudo apt-get install -y git python3 openssl gcc autoconf2.69 make libtool-bin libpcre3-dev libxml2-dev libexpat1 libexpat1-dev wget tar |& tee -a "$LOG_FILE"
