@@ -81,6 +81,7 @@ function configureAndInstall() {
     git clone -b "${PACKAGE_VERSION}" https://github.com/kubernetes-sigs/kind.git
     cd kind
     printf -- "\nBuilding kind binary ... \n"
+	sed -i 's,debian:bookworm-slim,debian:trixie-slim,g' images/base/Dockerfile
     make build
     printf -- 'Build kind success \n'
     export PATH=${SOURCE_ROOT}/kind/bin:$PATH
