@@ -21,7 +21,7 @@ ML_CPP_PATCH_URL_BASE="${ML_CPP_PATCH_URL_BASE:-https://raw.githubusercontent.co
 ML_CPP_PATCH_URL="${ML_CPP_PATCH_URL:-${ML_CPP_PATCH_URL_BASE}/ml-cpp.patch}"
 ML_CPP_PATCH_DIR="${ML_CPP_PATCH_DIR:-$SOURCE_ROOT/ml-cpp-patches}"
 PATCH_DIR="$ML_CPP_PATCH_DIR"
-DEBIAN_DOCKER_IMAGE="${DEBIAN_DOCKER_IMAGE:-s390x/debian:bookworm-slim}"
+DEBIAN_DOCKER_IMAGE="${DEBIAN_DOCKER_IMAGE:-debian:trixie-slim}"
 UBUNTU_DOCKER_IMAGE="${UBUNTU_DOCKER_IMAGE:-public.ecr.aws/docker/library/ubuntu:24.04}"
 GOLANG_DOCKER_IMAGE="${GOLANG_DOCKER_IMAGE:-public.ecr.aws/docker/library/golang:1.24-alpine}"
 DOCKER_BUILD_NETWORK_OPTS="${DOCKER_BUILD_NETWORK_OPTS:---network=host}"

@@ -5,9 +5,9 @@ index ac8390e..66bea9d 100644
 @@ -1,12 +1,16 @@
  NAME = osixia/light-baseimage
  VERSION = 1.2.0
-+BASE_IMAGE = debian:bookworm-slim
++BASE_IMAGE = debian:trixie-slim
 +ifeq ($(shell uname -m),s390x)
-+BASE_IMAGE = s390x/debian:bookworm-slim
++BASE_IMAGE = debian:trixie-slim
 +endif
 
  .PHONY: build build-nocache test tag-latest push push-latest release git-tag-version
@@ -27,7 +27,7 @@ index be4b87b..22d72b2 100644
 +++ b/image/Dockerfile
 @@ -1,4 +1,5 @@
 -FROM debian:buster-slim
-+ARG BASE_IMAGE=debian:bookworm-slim
++ARG BASE_IMAGE=debian:trixie-slim
 +FROM ${BASE_IMAGE}
 
  COPY . /container
