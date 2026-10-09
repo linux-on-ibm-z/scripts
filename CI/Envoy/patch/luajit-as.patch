@@ -1,19 +1,32 @@
 diff --git a/src/Makefile b/src/Makefile
-index 99642be7..caee07ef 100644
 --- a/src/Makefile
 +++ b/src/Makefile
-@@ -52,12 +52,13 @@ CCOPT_arm=
+@@ -50,6 +50,7 @@ CCOPT_x64=
+ CCOPT_x64=
+ CCOPT_arm=
  CCOPT_arm64=
  CCOPT_ppc=
  CCOPT_mips=
-+CCOPT_s390x= -fno-integrated-as
++CCOPT_s390x=
  #
- CCDEBUG=
- # Uncomment the next line to generate debug information:
+ @@ -58,5 +59,5 @@ CCDEBUG=
  #CCDEBUG= -g
  #
 -CCWARN= -Wall
-+CCWARN= -Wall -Wno-error=implicit-function-declaration
++CCWARN= -Wall -Wno-error
  # Uncomment the next line to enable more warnings:
  #CCWARN+= -Wextra -Wdeclaration-after-statement -Wredundant-decls -Wshadow -Wpointer-arith
- #
+diff --git a/src/lj_mcode.c b/src/lj_mcode.c
+--- a/src/lj_mcode.c
++++ b/src/lj_mcode.c
+@@ -37,6 +37,10 @@
+ #if LJ_TARGET_IOS
+ void sys_icache_invalidate(void *start, size_t len);
+ #endif
++/* Clang on s390x does not implicitly declare __clear_cache; provide proto. */
++#if (defined(__GNUC__) || defined(__clang__)) && !defined(__x86_64__) && !defined(__i386__)
++void __clear_cache(void *start, void *end);
++#endif
+ 
+ /* Synchronize data/instruction cache. */
+ void lj_mcode_sync(void *start, void *end)

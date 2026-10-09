@@ -1,0 +1,31 @@
+diff --git a/crate_universe/private/generate_utils.bzl b/crate_universe/private/generate_utils.bzl
+--- a/crate_universe/private/generate_utils.bzl
++++ b/crate_universe/private/generate_utils.bzl
+@@ -21,6 +21,7 @@ CRATES_REPOSITORY_ENVIRON = GENERATOR_ENV_VARS + REPIN_ENV_VARS + [
+ CRATES_REPOSITORY_ENVIRON = GENERATOR_ENV_VARS + REPIN_ENV_VARS + [
+     REPIN_ALLOWLIST_ENV_VAR,
+     CARGO_BAZEL_ISOLATED,
+     CARGO_BAZEL_DEBUG,
+     CARGO_BAZEL_TIMEOUT,
++    "CARGO_HOME",
+ ]
+diff --git a/crate_universe/private/common_utils.bzl b/crate_universe/private/common_utils.bzl
+--- a/crate_universe/private/common_utils.bzl
++++ b/crate_universe/private/common_utils.bzl
+@@ -173,9 +173,16 @@ def cargo_environ(repository_ctx, isolated = True):
+     if CARGO_BAZEL_ISOLATED in repository_ctx.os.environ:
+         if repository_ctx.os.environ[CARGO_BAZEL_ISOLATED].lower() in ["true", "1", "yes", "on"]:
+             env.update({
+                 "CARGO_HOME": str(_cargo_home_path(repository_ctx)),
+             })
++        else:
++            # isolated=False: pass CARGO_HOME explicitly so cargo-bazel can
++            # locate the registry index (repository_ctx.execute replaces env).
++            cargo_home = repository_ctx.os.environ.get("CARGO_HOME")
++            if cargo_home:
++                env.update({"CARGO_HOME": cargo_home})
++            return env
+     elif isolated:
+         env.update({
+             "CARGO_HOME": str(_cargo_home_path(repository_ctx)),
+         })

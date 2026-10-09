@@ -28,6 +28,8 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x/
 export PATH=$JAVA_HOME/bin:/usr/local/lib:$PATH
 sudo DEBIAN_FRONTEND=noninteractive apt-get install lsb-release wget software-properties-common gnupg -y
 
+PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CI/Tensorflow/patch"
+
 mkdir $work_dir/.ccachetmp
 export CCACHE_DIR=$work_dir/.ccachetmp
 
@@ -56,12 +58,12 @@ python -V
 
 cd $work_dir
 wget https://apt.llvm.org/llvm.sh
-sed -i 's,add-apt-repository "${REPO_NAME}",add-apt-repository "${REPO_NAME}" -y,g' llvm.sh
 chmod +x llvm.sh
-sudo ./llvm.sh 19
+sudo ./llvm.sh 21
 rm ./llvm.sh
-sudo ln -sf /usr/bin/clang-19 /usr/bin/clang
-sudo ln -sf /usr/bin/clang++-19 /usr/bin/clang++
+sudo ln -sf /usr/bin/clang-21 /usr/bin/clang
+sudo ln -sf /usr/bin/clang++-21 /usr/bin/clang++
+clang --version
 
 export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True
 pip3 install wheel==0.41.3 setuptools==70.0.0 numpy==2.1.3 ml-dtypes==0.5.1 grpcio==1.71.0 h5py==3.13.0
@@ -88,6 +90,14 @@ cd $work_dir/tensorflow/
 
 sed -i '/name *= *"XNNPACK"/a\
         patch_file = ["//third_party:xnn.patch"],' tensorflow/workspace2.bzl
+
+mkdir $work_dir/patch
+curl -sSL "${PATCH_URL}/patch_file1.txt" -o $work_dir/patch/patch_file1.txt
+curl -sSL "${PATCH_URL}/patch_xnnpack.txt" -o $work_dir/patch/patch_xnnpack.txt
+curl -sSL "${PATCH_URL}/patch_file2.txt" -o $work_dir/patch/patch_file2.txt
+curl -sSL "${PATCH_URL}/patch_BUILD_llvm.txt" -o $work_dir/patch/patch_BUILD_llvm.txt
+curl -sSL "${PATCH_URL}/patch_builtin_fp16.txt" -o $work_dir/patch/patch_builtin_fp16.txt
+curl -sSL "${PATCH_URL}/patch_vector_ops.txt" -o $work_dir/patch/patch_vector_ops.txt
 
 patch -p1 < $work_dir/patch/patch_file1.txt
 patch -p1 < $work_dir/patch/patch_xnnpack.txt
