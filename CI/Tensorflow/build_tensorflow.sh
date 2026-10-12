@@ -33,8 +33,8 @@ PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CI/Te
 mkdir $work_dir/.ccachetmp
 export CCACHE_DIR=$work_dir/.ccachetmp
 
-export HOME=/home/alfred/jenkins/workspace/TensorFlow_IBMZ_CI_test
-export XDG_CACHE_HOME=/home/alfred/jenkins/workspace/TensorFlow_IBMZ_CI_test
+export HOME=$work_dir
+export XDG_CACHE_HOME=$work_dir
 
 cd $work_dir/bazel
 rm -rf *

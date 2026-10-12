@@ -50,8 +50,8 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x
 export PATH=$JAVA_HOME/bin:$PATH
 
 if [[ $LOZ_ENVOY_CI_LOCAL_TEST != "true" ]]; then
-  export HOME=/home/alfred/jenkins/workspace/Envoy_IBMZ_CI_test
-  export XDG_CACHE_HOME=/home/alfred/jenkins/workspace/Envoy_IBMZ_CI_test
+  export HOME=${SOURCE_ROOT}
+  export XDG_CACHE_HOME=${SOURCE_ROOT}
 fi
 
 msg()    { echo "${*}"; }

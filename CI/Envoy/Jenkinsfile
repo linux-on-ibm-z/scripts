@@ -46,7 +46,9 @@ pipeline {
 	                    sh '''
 							wget -O build_envoy.sh https://raw.githubusercontent.com/linux-on-ibm-z/scripts/refs/heads/master/CI/Envoy/build_envoy.sh
 							ls -l
-							bash build_envoy.sh -y
+							bash build_envoy.sh -y 2>&1 | tee envoy.log
+	   						grep "Build completed successfully" envoy.log
+		                    if [ $? -eq 0 ]; then exit 0; else exit 1; fi
 						'''
 					} catch (Exception e) {
                 		currentBuild.result = 'FAILURE'
@@ -61,6 +63,24 @@ pipeline {
     post {
         always {
             cleanWs()
+        }
+        failure {
+            emailext(
+                to: 'aborkar@us.ibm.com,Namrata.Bhave@ibm.com,Sangita.Nalkar@ibm.com',
+                subject: "Jenkins Build FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+The Jenkins pipeline job has failed.
+
+Job:        ${env.JOB_NAME}
+Build:      #${env.BUILD_NUMBER}
+Status:     ${currentBuild.currentResult}
+Duration:   ${currentBuild.durationString}
+Build URL:  ${env.BUILD_URL}
+
+Please check the console output for details.
+""",
+                mimeType: 'text/plain'
+            )
         }
     }
 }
