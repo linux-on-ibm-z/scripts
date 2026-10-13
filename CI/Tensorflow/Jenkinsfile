@@ -46,9 +46,7 @@ pipeline {
 							pwd
 							ls
 							wget -O build_tensorflow.sh https://raw.githubusercontent.com/linux-on-ibm-z/scripts/refs/heads/master/CI/Tensorflow/build_tensorflow.sh
-							bash build_tensorflow.sh -y 2>&1 | tee tf.log
-							grep "Build completed successfully" tf.log
-		                    if [ $? -eq 0 ]; then exit 0; else exit 1; fi
+							bash build_tensorflow.sh -y
 						'''
 					} catch (Exception e) {
                 		currentBuild.result = 'FAILURE'

@@ -13,38 +13,29 @@ set -ex
 : ${LOZ_ENVOY_CI_LOCAL_TEST:="false"}
 
 cat /etc/os-release
-gcc -v
+gcc -v 2>&1 | head -3 || true
 ls
 
-export SOURCE_ROOT=$(pwd)
 sudo rm -rf "$SOURCE_ROOT/build_bazel.sh"* "$SOURCE_ROOT/logs"
 sudo rm -rf .cache "$SOURCE_ROOT/.cache" /root/.cache
 sudo rm -rf "$SOURCE_ROOT/gcc_build" "$SOURCE_ROOT/gcc-11.4.0"
 sudo rm -rf "$SOURCE_ROOT/rules_foreign_cc"
 sudo rm -rf "$SOURCE_ROOT/rules_rust"
-sudo rm -rf "$SOURCE_ROOT/envoy-main"*
-sudo rm -rf "$SOURCE_ROOT/llvm.sh"*
-# Wipe any leftover Rust/Cargo state from a previous CI run.
-# On CI, HOME is set to the workspace so .rustup/.cargo accumulate there.
-# A partial or version-mismatched toolchain causes "missing manifest" errors.
 sudo rm -rf "$SOURCE_ROOT/.rustup" "$SOURCE_ROOT/.cargo"
 sudo rm -rf /root/.rustup /root/.cargo
-
-#sudo rm -rf "$SOURCE_ROOT/clang"
-sudo rm -rf "$SOURCE_ROOT/bazel"
-
+sudo rm -rf "$SOURCE_ROOT/bazel/"
 ls
 
 SOURCE_ROOT="$(pwd)"
 CLANG_VERSION="22.1.8"
-BAZEL_VERSION="8.8.0"
+BAZEL_VERSION="8.8.1"
 GO_VERSION="1.25.0"
 LLVM_HOME_DIR="${SOURCE_ROOT}/clang/LLVM-${CLANG_VERSION}-Linux"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CI/Envoy/patch"
 
 # Pinned bazel-registry commit that matches the dependency versions used below.
 # Do not update this commit independently of the dep versions — they must stay in sync.
-ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/b565623d89166dd153aee61ba421ec1638bf7a3e"
+ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/20dc7c2578669f36e7c18510e65c7178cf5bb304"
 
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x
 export PATH=$JAVA_HOME/bin:$PATH
@@ -448,7 +439,8 @@ runCargoBazelLockPatch() {
 import json, copy, sys, os
 
 os.chdir(os.environ.get("ENVOY_DIR", "."))
-lock_path = "Cargo.Bazel.lock"
+# Upstream renamed Cargo.Bazel.lock -> Cargo.Bazel.envoy.lock in commit a07d1c4f
+lock_path = "Cargo.Bazel.envoy.lock" if os.path.exists("Cargo.Bazel.envoy.lock") else "Cargo.Bazel.lock"
 with open(lock_path) as fh:
     data = json.load(fh)
 
@@ -488,9 +480,9 @@ if modified:
     with open(lock_path, "w") as fh:
         json.dump(data, fh, indent=2)
         fh.write("\n")
-    print("Cargo.Bazel.lock: injected s390x entries")
+    print(lock_path + ": injected s390x entries")
 else:
-    print("Cargo.Bazel.lock: s390x already present")
+    print(lock_path + ": s390x already present")
 CARGO_LOCK_PY_EOF
 }
 
@@ -585,9 +577,9 @@ ER = envoy_reg
 deps = [
     {
         "name": "boringssl",
-        "url": "https://github.com/google/boringssl/releases/download/0.20260813.0/boringssl-0.20260813.0.tar.gz",
-        "integrity": "sha256-N+I8uaX6VPAbB8rdZTzrwdGyNZRUOabDNP6ljqR7Wwo=",
-        "strip": "boringssl-0.20260813.0/",
+        "url": "https://github.com/google/boringssl/releases/download/0.20260929.0/boringssl-0.20260929.0.tar.gz",
+        "integrity": "sha256-BNqboGZOCn8CjpYcONYE8sxtrIUqhMoOUdwfoFHUyP4=",
+        "strip": "boringssl-0.20260929.0/",
         "pstrip": 1,
         "patches": [],
         "overlays": [],
@@ -595,46 +587,46 @@ deps = [
     },
     {
         "name": "boringssl-source",
-        "url": "https://github.com/google/boringssl/releases/download/0.20260813.0/boringssl-0.20260813.0.tar.gz",
-        "integrity": "sha256-N+I8uaX6VPAbB8rdZTzrwdGyNZRUOabDNP6ljqR7Wwo=",
-        "strip": "boringssl-0.20260813.0/",
+        "url": "https://github.com/google/boringssl/releases/download/0.20260929.0/boringssl-0.20260929.0.tar.gz",
+        "integrity": "sha256-BNqboGZOCn8CjpYcONYE8sxtrIUqhMoOUdwfoFHUyP4=",
+        "strip": "boringssl-0.20260929.0/",
         "pstrip": 1,
         "patches": [],
         "overlays": [
-            (ER + "/modules/boringssl-source/0.20260813.0.envoy/overlay/BUILD.bazel",
+            (ER + "/modules/boringssl-source/0.20260929.0.envoy/overlay/BUILD.bazel",
              bdir + "/boringssl-source-overlay-BUILD.patch", "BUILD.bazel", None),
-            (ER + "/modules/boringssl-source/0.20260813.0.envoy/MODULE.bazel",
+            (ER + "/modules/boringssl-source/0.20260929.0.envoy/MODULE.bazel",
              bdir + "/boringssl-source-overlay-MODULE.patch", "MODULE.bazel",
-             "https://raw.githubusercontent.com/google/boringssl/refs/tags/0.20260813.0/MODULE.bazel"),
+             "https://raw.githubusercontent.com/google/boringssl/refs/tags/0.20260929.0/MODULE.bazel"),
         ],
         "s390x": None,
     },
     {
         "name": "quiche",
-        "url": "https://github.com/google/quiche/archive/7f07dc4d14c5702607a0dee9c7e4ab07f63f9883.tar.gz",
-        "integrity": "sha256-YI8/Lnv4lmm/77LsbsV/BfSFy/TpGI7Z5gDeAGYqo8Q=",
-        "strip": "quiche-7f07dc4d14c5702607a0dee9c7e4ab07f63f9883",
+        "url": "https://github.com/google/quiche/archive/9e60ac2b905a435555e071f403e9418ce11c773f.tar.gz",
+        "integrity": "sha256-9Ujel1YkhgDjGdsrLxxZBj9HHohAecBNEIF8K4+u3XM=",
+        "strip": "quiche-9e60ac2b905a435555e071f403e9418ce11c773f",
         "pstrip": 1,
         "patches": [
-            (ER, "modules/quiche/0.0.0-260922-7f07dc4.envoy/patches/delete-bazel-files.patch",
+            (ER, "modules/quiche/0.0.0-261006-9e60ac2.envoy/patches/delete-bazel-files.patch",
              bdir + "/external/delete-bazel-files.patch"),
-            (ER, "modules/quiche/0.0.0-260922-7f07dc4.envoy/patches/balsa_frame_unused_variable.patch",
+            (ER, "modules/quiche/0.0.0-261006-9e60ac2.envoy/patches/balsa_frame_unused_variable.patch",
              bdir + "/external/balsa_frame_unused_variable.patch"),
         ],
         "overlays": [
-            (ER + "/modules/quiche/0.0.0-260922-7f07dc4.envoy/overlay/BUILD.bazel",
+            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/BUILD.bazel",
              bdir + "/external/quiche-overlay-BUILD.patch", "BUILD.bazel", None),
-            (ER + "/modules/quiche/0.0.0-260922-7f07dc4.envoy/overlay/quiche_overlay.bzl",
+            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/quiche_overlay.bzl",
              bdir + "/external/quiche-overlay-quiche_overlay_bzl.patch", "quiche_overlay.bzl", None),
-            (ER + "/modules/quiche/0.0.0-260922-7f07dc4.envoy/overlay/extensions.bzl",
+            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/extensions.bzl",
              bdir + "/external/quiche-overlay-extensions_bzl.patch", "extensions.bzl", None),
-            (ER + "/modules/quiche/0.0.0-260922-7f07dc4.envoy/overlay/envoy_deps.bzl",
+            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/envoy_deps.bzl",
              bdir + "/external/quiche-overlay-envoy_deps_bzl.patch", "envoy_deps.bzl", None),
             # Replace upstream MODULE.bazel (missing @platforms dep and
             # extensions.bzl use_extension) with the registry overlay.
-            (ER + "/modules/quiche/0.0.0-260922-7f07dc4.envoy/MODULE.bazel",
+            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/MODULE.bazel",
              bdir + "/external/quiche-overlay-MODULE.patch", "MODULE.bazel",
-             "https://raw.githubusercontent.com/google/quiche/7f07dc4d14c5702607a0dee9c7e4ab07f63f9883/MODULE.bazel"),
+             "https://raw.githubusercontent.com/google/quiche/9e60ac2b905a435555e071f403e9418ce11c773f/MODULE.bazel"),
         ],
         "s390x": bdir + "/external/quiche-s390x.patch",
     },

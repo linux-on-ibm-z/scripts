@@ -46,9 +46,7 @@ pipeline {
 	                    sh '''
 							wget -O build_envoy.sh https://raw.githubusercontent.com/linux-on-ibm-z/scripts/refs/heads/master/CI/Envoy/build_envoy.sh
 							ls -l
-							bash build_envoy.sh -y 2>&1 | tee envoy.log
-	   						grep "Build completed successfully" envoy.log
-		                    if [ $? -eq 0 ]; then exit 0; else exit 1; fi
+							bash build_envoy.sh -y 
 						'''
 					} catch (Exception e) {
                 		currentBuild.result = 'FAILURE'
