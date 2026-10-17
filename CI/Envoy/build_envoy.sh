@@ -35,7 +35,7 @@ PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CI/En
 
 # Pinned bazel-registry commit that matches the dependency versions used below.
 # Do not update this commit independently of the dep versions — they must stay in sync.
-ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/20dc7c2578669f36e7c18510e65c7178cf5bb304"
+ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/ee78b234a48e3aecb194d3fe5fe93a44334e8486"
 
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x
 export PATH=$JAVA_HOME/bin:$PATH
@@ -603,30 +603,30 @@ deps = [
     },
     {
         "name": "quiche",
-        "url": "https://github.com/google/quiche/archive/9e60ac2b905a435555e071f403e9418ce11c773f.tar.gz",
-        "integrity": "sha256-9Ujel1YkhgDjGdsrLxxZBj9HHohAecBNEIF8K4+u3XM=",
-        "strip": "quiche-9e60ac2b905a435555e071f403e9418ce11c773f",
+        "url": "https://github.com/google/quiche/archive/132bfd90ea370faeacee616c70d10210bb12ba66.tar.gz",
+        "integrity": "sha256-k8+eNsRUUeYnTa3GMRTRUl4BZN7mzrFOx0fkY/H6l+o=",
+        "strip": "quiche-132bfd90ea370faeacee616c70d10210bb12ba66",
         "pstrip": 1,
         "patches": [
-            (ER, "modules/quiche/0.0.0-261006-9e60ac2.envoy/patches/delete-bazel-files.patch",
+            (ER, "modules/quiche/0.0.0-261013-132bfd9.envoy/patches/delete-bazel-files.patch",
              bdir + "/external/delete-bazel-files.patch"),
-            (ER, "modules/quiche/0.0.0-261006-9e60ac2.envoy/patches/balsa_frame_unused_variable.patch",
+            (ER, "modules/quiche/0.0.0-261013-132bfd9.envoy/patches/balsa_frame_unused_variable.patch",
              bdir + "/external/balsa_frame_unused_variable.patch"),
         ],
         "overlays": [
-            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/BUILD.bazel",
+            (ER + "/modules/quiche/0.0.0-261013-132bfd9.envoy/overlay/BUILD.bazel",
              bdir + "/external/quiche-overlay-BUILD.patch", "BUILD.bazel", None),
-            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/quiche_overlay.bzl",
+            (ER + "/modules/quiche/0.0.0-261013-132bfd9.envoy/overlay/quiche_overlay.bzl",
              bdir + "/external/quiche-overlay-quiche_overlay_bzl.patch", "quiche_overlay.bzl", None),
-            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/extensions.bzl",
+            (ER + "/modules/quiche/0.0.0-261013-132bfd9.envoy/overlay/extensions.bzl",
              bdir + "/external/quiche-overlay-extensions_bzl.patch", "extensions.bzl", None),
-            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/overlay/envoy_deps.bzl",
+            (ER + "/modules/quiche/0.0.0-261013-132bfd9.envoy/overlay/envoy_deps.bzl",
              bdir + "/external/quiche-overlay-envoy_deps_bzl.patch", "envoy_deps.bzl", None),
             # Replace upstream MODULE.bazel (missing @platforms dep and
             # extensions.bzl use_extension) with the registry overlay.
-            (ER + "/modules/quiche/0.0.0-261006-9e60ac2.envoy/MODULE.bazel",
+             (ER + "/modules/quiche/0.0.0-261013-132bfd9.envoy/MODULE.bazel",
              bdir + "/external/quiche-overlay-MODULE.patch", "MODULE.bazel",
-             "https://raw.githubusercontent.com/google/quiche/9e60ac2b905a435555e071f403e9418ce11c773f/MODULE.bazel"),
+             "https://raw.githubusercontent.com/google/quiche/132bfd90ea370faeacee616c70d10210bb12ba66/MODULE.bazel"),
         ],
         "s390x": bdir + "/external/quiche-s390x.patch",
     },
