@@ -154,8 +154,12 @@ configureAndInstall() {
 
   #----------------------------------------------------------
 
-  sudo wget https://dl.minio.io/server/minio/release/linux-s390x/minio -P ${PREFIX}/bin
-  sudo wget https://dl.min.io/client/mc/release/linux-s390x/mc -P ${PREFIX}/bin
+  cd "$SOURCE_ROOT"
+	mkdir -p bin
+	cd bin
+  wget https://github.com/linuxonzapps/minio/releases/download/v2025-09-07T16-13-09Z/minio-2025-09-07T16-13-09Z-linux-s390x.tar.gz
+  tar -xvf minio-2025-09-07T16-13-09Z-linux-s390x.tar.gz
+  sudo cp $SOURCE_ROOT/bin/* ${PREFIX}/bin/
   sudo chmod +x ${PREFIX}/bin/mc ${PREFIX}/bin/minio
 
   ver=${PACKAGE_VERSION}
@@ -372,51 +376,6 @@ buildGdb() {
 }
 
 #==============================================================================
-buildCmake() {
-  local ver=3.27.9
-  msg "Building cmake $ver"
-
-  cd "$SOURCE_ROOT"
-  URL=https://github.com/Kitware/CMake/releases/download/v${ver}/cmake-${ver}.tar.gz
-  curl -sSL $URL | tar xzf - || error "cmake $ver"
-  cd cmake-${ver}
-  CC=/usr/bin/gcc CXX=/usr/bin/g++ ./bootstrap --parallel=$(nproc)
-  make -j$(nproc)
-  sudo make install
-  cmake --version
-}
-
-#==============================================================================
-buildCryptopp() {
-  msg "Building cryptopp820"
-
-  cd "$SOURCE_ROOT"
-  mkdir cryptopp
-  cd cryptopp
-  curl -ksSLO https://github.com/weidai11/cryptopp/archive/refs/tags/CRYPTOPP_8_2_0.zip
-  unzip CRYPTOPP_8_2_0.zip
-  cd cryptopp-CRYPTOPP_8_2_0
-  CXXFLAGS="-std=c++11 -g -O2" make
-  sudo make install
-}
-
-#==============================================================================
-buildJsonCpp() {
-  local ver=1.9.5
-  msg "Building jsoncpp $ver"
-
-  cd "$SOURCE_ROOT"
-  URL=https://github.com/open-source-parsers/jsoncpp/archive/${ver}.tar.gz
-  curl -sSL $URL | tar xzf - || error "jsoncpp $ver"
-  cd jsoncpp-${ver}
-  mkdir -p build/release
-  cd build/release
-  cmake ../..
-  make -j$(nproc)
-  sudo make install
-}
-
-#==============================================================================
 buildXxHash() {
   ver=0.8.0
   msg "Building xxHash $ver"
@@ -443,20 +402,6 @@ buildZstd() {
 }
 
 #==============================================================================
-buildValgrind() {
-  local ver=3.19.0
-  msg "Building Valgrind $ver"
-
-  cd "$SOURCE_ROOT"
-  URL=https://sourceware.org/pub/valgrind/valgrind-${ver}.tar.bz2
-  curl -sSL $URL | tar -xj || error "Valgrind $ver"
-  cd valgrind-${ver}
-  ./configure
-  make -j$(nproc)
-  sudo make install
-}
-
-#==============================================================================
 function installRust() {
   local ver=1.0.188
   cd "$SOURCE_ROOT"
@@ -476,103 +421,7 @@ msglog "Installing the dependencies for ScyllaDB from repository"
 
 case "$DISTRO" in
 #----------------------------------------------------------
-"ubuntu-20.04")
-  sudo apt-get update >/dev/null
-  sudo apt-get install -y software-properties-common
-  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  sudo apt-get update >/dev/null
-  sudo apt-get install -y openjdk-8-jdk libaio-dev systemtap-sdt-dev lksctp-tools xfsprogs \
-  libyaml-dev openssl libevent-dev libmpfr-dev libmpcdec-dev libssl-dev libsystemd-dev \
-  libsctp-dev libsnappy-dev libpciaccess-dev libxml2-dev xfslibs-dev libgnutls28-dev \
-  libiconv-hook-dev liblzma-dev libbz2-dev libxslt-dev libc-ares-dev libprotobuf-dev \
-  protobuf-compiler libtool perl ant libffi-dev rapidjson-dev automake \
-  make git maven ninja-build unzip bzip2 wget curl xz-utils texinfo diffutils liblua5.3-dev \
-  libnuma-dev libunistring-dev pigz ragel stow patch locales \
-  libudev-dev libdeflate-dev zlib1g-dev doxygen librapidxml-dev \
-  libzstd-dev libxxhash-dev \
-  liblz4-dev libhwloc-dev libyaml-cpp-dev antlr3 net-tools |& tee -a "$LOG_FILE"
-
-  buildGcc |& tee -a "$LOG_FILE"
-  #For clang to find this gcc version
-  sudo ln -s ${PREFIX}/lib/gcc/s390x-linux-gnu/${GCC_VERSION} /usr/lib/gcc/s390x-linux-gnu/${GCC_VERSION}
-  #Build python 3.12
-  buildPython
-  buildCmake |& tee -a "$LOG_FILE"
-  buildWabt |& tee -a "LOG_FILE"
-  buildValgrind |& tee -a "$LOG_FILE"
-  buildCryptopp |& tee -a "$LOG_FILE"
-  buildJsonCpp |& tee -a "$LOG_FILE"
-  buildGdb |& tee -a "$LOG_FILE"
-
-  installRust
-  # C/C++ environment settings
-  sudo locale-gen en_US.UTF-8
-  export LC_ALL=C
-  unset LANGUAGE
-  python3 --version |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-
-  ;;
-
-"ubuntu-22.04" | "ubuntu-24.04")
-  sudo apt-get update >/dev/null
-  sudo apt-get install -y software-properties-common
-  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  sudo apt-get update >/dev/null
-  sudo apt-get install -y openjdk-8-jdk libaio-dev systemtap-sdt-dev lksctp-tools xfsprogs \
-  libyaml-dev openssl libevent-dev libmpfr-dev libmpcdec-dev libssl-dev libsystemd-dev \
-  libsctp-dev libsnappy-dev libpciaccess-dev libxml2-dev xfslibs-dev libgnutls28-dev \
-  libiconv-hook-dev liblzma-dev libbz2-dev libxslt-dev libc-ares-dev libprotobuf-dev \
-  protobuf-compiler libcrypto++-dev libtool perl ant libffi-dev rapidjson-dev automake \
-  make git maven ninja-build unzip bzip2 wget curl xz-utils texinfo diffutils liblua5.3-dev \
-  libnuma-dev libunistring-dev pigz ragel stow patch locales valgrind \
-  libudev-dev libdeflate-dev zlib1g-dev doxygen librapidxml-dev \
-  libjsoncpp-dev libzstd-dev libxxhash-dev \
-  liblz4-dev cmake libhwloc-dev libyaml-cpp-dev wabt antlr3 net-tools |& tee -a "$LOG_FILE"
-
-  if [ $DISTRO = "ubuntu-22.04" ]; then
-    # Install GCC 12 from repo
-    sudo apt-get install -y gcc-12 g++-12
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
-    buildPython
-    buildGdb |& tee -a "$LOG_FILE"
-  fi
-
-  if [ $DISTRO = "ubuntu-24.04" ]; then
-    sudo apt install -y gcc-12 g++-12 libboost-all-dev python3 python3-pip python3-aiohttp python3-magic \
-      python3-colorama python3-tabulate python3-boto3 python3-pytest python3-pytest-asyncio \
-      python3-redis python3-unidiff python3-humanfriendly python3-jinja2 python3-geomet python3-treelib gdb
-    pip3 install --user --break-system-packages scylla-driver traceback-with-variables scylla-api-client allure-pytest
-    export PATH="$HOME/.local/bin:$PATH"
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
-    export EXTRA_CFLAGS="--gcc-install-dir=/usr/bin/../lib/gcc/s390x-linux-gnu/12 "
-  fi
-
-  installRust
-
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # C/C++ environment settings
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-  # C/C++ environment settings
-  sudo locale-gen en_US.UTF-8
-  export LC_ALL=C
-  unset LANGUAGE
-
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-  python3 --version |& tee -a "$LOG_FILE"
-  configureAndInstall |& tee -a "$LOG_FILE"
-  ;;
-
-#----------------------------------------------------------
-"rhel-8.8" | "rhel-8.10" | "rhel-9.2" | "rhel-9.4" | "rhel-9.5")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.8")
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if [[ $DISTRO =~ "rhel-8" ]]; then
@@ -635,6 +484,64 @@ case "$DISTRO" in
   configureAndInstall |& tee -a "$LOG_FILE"
   ;;
 
+#----------------------------------------------------------
+"ubuntu-22.04" | "ubuntu-24.04")
+  sudo apt-get update >/dev/null
+  sudo apt-get install -y software-properties-common
+  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  sudo apt-get update >/dev/null
+  sudo apt-get install -y openjdk-8-jdk libaio-dev systemtap-sdt-dev lksctp-tools xfsprogs \
+  libyaml-dev openssl libevent-dev libmpfr-dev libmpcdec-dev libssl-dev libsystemd-dev \
+  libsctp-dev libsnappy-dev libpciaccess-dev libxml2-dev xfslibs-dev libgnutls28-dev \
+  libiconv-hook-dev liblzma-dev libbz2-dev libxslt-dev libc-ares-dev libprotobuf-dev \
+  protobuf-compiler libcrypto++-dev libtool perl ant libffi-dev rapidjson-dev automake \
+  make git maven ninja-build unzip bzip2 wget curl xz-utils texinfo diffutils liblua5.3-dev \
+  libnuma-dev libunistring-dev pigz ragel stow patch locales valgrind \
+  libudev-dev libdeflate-dev zlib1g-dev doxygen librapidxml-dev \
+  libjsoncpp-dev libzstd-dev libxxhash-dev \
+  liblz4-dev cmake libhwloc-dev libyaml-cpp-dev wabt antlr3 net-tools |& tee -a "$LOG_FILE"
+
+  if [ $DISTRO = "ubuntu-22.04" ]; then
+    # Install GCC 12 from repo
+    sudo apt-get install -y gcc-12 g++-12
+    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
+    buildPython
+    buildGdb |& tee -a "$LOG_FILE"
+  fi
+
+  if [ $DISTRO = "ubuntu-24.04" ]; then
+    sudo apt install -y gcc-12 g++-12 libboost-all-dev python3 python3-pip python3-aiohttp python3-magic \
+      python3-colorama python3-tabulate python3-boto3 python3-pytest python3-pytest-asyncio \
+      python3-redis python3-unidiff python3-humanfriendly python3-jinja2 python3-geomet python3-treelib gdb
+    pip3 install --user --break-system-packages scylla-driver traceback-with-variables scylla-api-client allure-pytest
+    export PATH="$HOME/.local/bin:$PATH"
+    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-12 12
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-12 12
+    export EXTRA_CFLAGS="--gcc-install-dir=/usr/bin/../lib/gcc/s390x-linux-gnu/12 "
+  fi
+
+  installRust
+
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # C/C++ environment settings
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  # C/C++ environment settings
+  sudo locale-gen en_US.UTF-8
+  export LC_ALL=C
+  unset LANGUAGE
+
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  python3 --version |& tee -a "$LOG_FILE"
+  configureAndInstall |& tee -a "$LOG_FILE"
+  ;;
+  
 #----------------------------------------------------------
 *)
   errlog "$DISTRO not supported"
