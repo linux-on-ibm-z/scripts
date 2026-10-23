@@ -200,6 +200,8 @@ p.write_text(t)
 "
         # Pin protobuf<6 (protobuf 6.x C extension segfaults on s390x)
         find requirements/static -name '*.lock' -exec sed -i 's/^protobuf==.*/protobuf==5.29.5/' {} +
+        # Fix pyzmq 27.1.0 Cython build failure on s390x (redeclared variables)
+        find requirements/static -name '*.lock' -exec sed -i 's/^pyzmq==27.1.0/pyzmq==27.2.0/' {} +
         echo 'protobuf>=5.29,<6' >> requirements/base.txt
         # Pin cryptography<43 in pkg lock files on RHEL 8 (cryptography>=43 requires OpenSSL 3.0+,
         # RHEL 8 has 1.1).  Only pkg/ locks are affected — ci/ locks use pre-built wheels.
