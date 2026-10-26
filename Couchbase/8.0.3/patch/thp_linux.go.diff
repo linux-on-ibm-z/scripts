@@ -1,0 +1,21 @@
+diff --git a/secondary/platform/thp_linux.go b/secondary/platform/thp_linux.go
+index d89d585d..e87c589e 100644
+--- a/secondary/platform/thp_linux.go
++++ b/secondary/platform/thp_linux.go
+@@ -12,6 +12,7 @@
+ package platform
+ 
+ import (
++	"unsafe"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+@@ -74,7 +75,7 @@ func getKernelVersion() (int, int) {
+ 		return 0, 0
+ 	}
+ 
+-	releaseStr := int8ToStr(uts.Release[:])
++	releaseStr := int8ToStr(*(*[]int8)(unsafe.Pointer(&uts.Release)))
+ 
+ 	if len(releaseStr) == 0 {
+ 		logging.Warnf("failed to convert kernel release to string")

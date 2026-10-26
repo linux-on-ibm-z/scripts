@@ -1,0 +1,16 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 15bbd8e..8c7255c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -191,3 +191,11 @@ if (NOT CMAKE_CROSSCOMPILING AND NOT BYO_CRYPTO)
+         add_subdirectory(tests)
+     endif()
+ endif()
++
++# Force inject correct path for SLES/RHEL 9 OpenSSL bug
++if(TARGET OpenSSL::Crypto)
++    set_target_properties(OpenSSL::Crypto PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "/usr/include")
++endif()
++if(TARGET OpenSSL::SSL)
++    set_target_properties(OpenSSL::SSL PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "/usr/include")
++endif()

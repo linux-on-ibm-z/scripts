@@ -1,0 +1,27 @@
+--- couchbase/Build.sh
++++ couchbase/Build.sh
+@@ -31,2 +31,24 @@
+ threads_ninja_option=
+ loadavg_ninja_option=
++# ==========================================
++# [s390x Build Patch] Fix Build Order Bug
++# ==========================================
++echo "== [s390x Patch] Pre-creating goxdcr audit descriptor to prevent build order race..."
++
++# find path of Build.sh
++SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE}" )" && pwd )"
++TARGET_AUDIT_DIR="${SCRIPT_DIR}/goproj/src/github.com"
++echo "== $TARGET_AUDIT_DIR..."
++
++# create a dir
++mkdir -p "${TARGET_AUDIT_DIR}"
++
++# copy the exist audit_descriptor.json if it exists, otherwise generate a new dummy JSON {}
++if [ -f "${SCRIPT_DIR}/goxdcr/etc/audit_descriptor.json" ]; then
++    cp "${SCRIPT_DIR}/goxdcr/etc/audit_descriptor.json" "${TARGET_AUDIT_DIR}/audit_descriptor.json"
++    echo "== [s390x Patch] Successfully copied original audit_descriptor.json =="
++else
++    echo '{"version": 2, "module": "xdcr", "events": []}' > "${TARGET_AUDIT_DIR}/audit_descriptor.json"
++    echo "== [s390x Patch] Created fallback dummy audit_descriptor.json =="
++fi
++# ==========================================
