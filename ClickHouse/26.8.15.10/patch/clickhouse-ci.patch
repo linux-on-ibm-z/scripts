@@ -1,0 +1,1186 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 68b194ad629..f7cdeb46ff6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -664,6 +664,8 @@ endfunction (add_native_target)
+ 
+ add_subdirectory (contrib EXCLUDE_FROM_ALL)
+ 
++include (cmake/apply-contrib-patches.cmake)
++
+ # We can only include XRay flags and defines once we know that we're building LLVM
+ if (ENABLE_XRAY)
+     include (cmake/xray_instrumentation.cmake)
+diff --git a/ci/defs/defs.py b/ci/defs/defs.py
+index 953d7143e05..c2541ac66f4 100644
+--- a/ci/defs/defs.py
++++ b/ci/defs/defs.py
+@@ -19,6 +19,7 @@ class RunnerLabels:
+     CI_SERVICES_EBS = "ci_services_ebs"
+     FUNC_TESTER_AMD = ["self-hosted", "amd-medium"]
+     FUNC_TESTER_ARM = ["self-hosted", "arm-medium"]
++    FUNC_TESTER_S390X = ["self-hosted", "s390x-medium"]
+     AMD_LARGE = ["self-hosted", "amd-large"]
+     ARM_LARGE = ["self-hosted", "arm-large"]
+     ARM_LARGE_STORAGE = ["self-hosted", "arm-large-storage"]
+@@ -34,8 +35,12 @@ class RunnerLabels:
+     ARM_SMALL_MEM = ["self-hosted", "arm-small-mem"]
+     MACOS_ARM_SMALL = ["self-hosted", "macos_m2"]
+     MACOS_AMD_SMALL = ["self-hosted", "amd_macos_m1"]
++    S390X_LARGE = ["self-hosted", "s390x-large"]
++    S390X_MEDIUM = ["self-hosted", "s390x-medium"]
++    S390X_SMALL = ["self-hosted", "s390x-small"]
+     STYLE_CHECK_AMD = ["self-hosted", "style-checker"]
+     STYLE_CHECK_ARM = ["self-hosted", "style-checker-aarch64"]
++    STYLE_CHECK_S390X = ["self-hosted", "style-checker-s390x"]
+     RELEASE_RUNNER = ["self-hosted", "release-runner"]
+ 
+ 
+@@ -365,6 +370,8 @@ class BuildTypes(metaclass=MetaClasses.WithIter):
+     LLVM_COVERAGE_BUILD = "llvm_coverage_build"
+     PER_TEST_COVERAGE = "amd_llvm_coverage_per_test"
+     AMD_COVERAGE = "amd_coverage"
++    S390X_DEBUG = "s390x_debug"
++    S390X_RELEASE = "s390x_release"
+     ARM_BINARY = "arm_binary"
+     AMD_TIDY = "amd_tidy"
+     ARM_TIDY = "arm_tidy"
+@@ -377,6 +384,7 @@ class BuildTypes(metaclass=MetaClasses.WithIter):
+     AMD_MUSL = "amd_musl"
+     RISCV64 = "riscv64"
+     S390X = "s390x"
++    S390X_BINARY = "s390x_binary"
+     LOONGARCH64 = "loongarch64"
+     # WebAssembly (wasm64, through Emscripten). Experimental: the multicall `clickhouse`
+     # binary builds, and `clickhouse local` runs under Node.js >= 24 and in browsers.
+@@ -490,6 +498,8 @@ class ArtifactNames:
+     CH_ARM_ASAN_UBSAN = "CH_ARM_ASAN_UBSAN"
+     CH_ARM_TSAN = "CH_ARM_TSAN"
+     CH_ARM_MSAN = "CH_ARM_MSAN"
++    CH_S390X_DEBUG = "CH_S390X_DEBUG"
++    CH_S390X_RELEASE = "CH_S390X_RELEASE"
+ 
+     CH_COV_BIN = "CH_COV_BIN"
+     CH_ARM_BINARY = "CH_ARM_BIN"
+@@ -522,12 +532,15 @@ class ArtifactNames:
+     # everything else in CI runs from the `CH_*` binary.
+     DEB_AMD_RELEASE = "DEB_AMD_RELEASE"
+     DEB_ARM_RELEASE = "DEB_ARM_RELEASE"
++    DEB_S390X_RELEASE = "DEB_S390X_RELEASE"
+ 
+     RPM_AMD_RELEASE = "RPM_AMD_RELEASE"
+     RPM_ARM_RELEASE = "RPM_ARM_RELEASE"
++    RPM_S390X_RELEASE = "RPM_S390X_RELEASE"
+ 
+     TGZ_AMD_RELEASE = "TGZ_AMD_RELEASE"
+     TGZ_ARM_RELEASE = "TGZ_ARM_RELEASE"
++    TGZ_S390X_RELEASE = "TGZ_S390X_RELEASE"
+ 
+     ARM_FUZZERS = "ARM_FUZZERS"
+     FUZZERS_CORPUS = "FUZZERS_CORPUS"
+@@ -713,6 +726,7 @@ class ArtifactConfigs:
+         names=[
+             ArtifactNames.DEB_AMD_RELEASE,
+             ArtifactNames.DEB_ARM_RELEASE,
++            ArtifactNames.DEB_S390X_RELEASE,
+         ]
+     )
+     clickhouse_rpms = Artifact.Config(
+@@ -723,6 +737,7 @@ class ArtifactConfigs:
+         names=[
+             ArtifactNames.RPM_AMD_RELEASE,
+             ArtifactNames.RPM_ARM_RELEASE,
++            ArtifactNames.RPM_S390X_RELEASE,
+         ]
+     )
+     clickhouse_tgzs = Artifact.Config(
+@@ -733,6 +748,7 @@ class ArtifactConfigs:
+         names=[
+             ArtifactNames.TGZ_AMD_RELEASE,
+             ArtifactNames.TGZ_ARM_RELEASE,
++            ArtifactNames.TGZ_S390X_RELEASE,
+         ]
+     )
+     unittests_binaries = Artifact.Config(
+diff --git a/ci/defs/job_configs.py b/ci/defs/job_configs.py
+index 0a450ccb78f..0aa3d82b3ee 100644
+--- a/ci/defs/job_configs.py
++++ b/ci/defs/job_configs.py
+@@ -289,6 +289,23 @@ class JobConfigs:
+             provides=[ArtifactNames.CH_AMD_DEBUG],
+             runs_on=RunnerLabels.ARM_LARGE,
+         ),
++        Job.ParamSet(
++            parameter=BuildTypes.S390X_DEBUG,
++            provides=[ArtifactNames.CH_S390X_DEBUG],
++            runs_on=RunnerLabels.S390X_LARGE,
++            timeout=3600 * 6,
++        ),
++        Job.ParamSet(
++            parameter=BuildTypes.S390X_RELEASE,
++            provides=[
++                ArtifactNames.CH_S390X_RELEASE,
++                ArtifactNames.DEB_S390X_RELEASE,
++                ArtifactNames.RPM_S390X_RELEASE,
++                ArtifactNames.TGZ_S390X_RELEASE,
++            ],
++            runs_on=RunnerLabels.S390X_LARGE,
++            timeout=3600 * 6,
++        ),
+         Job.ParamSet(
+             parameter=BuildTypes.AMD_ASAN_UBSAN,
+             provides=[
+@@ -523,6 +540,11 @@ class JobConfigs:
+             provides=[ArtifactNames.CH_S390X],
+             runs_on=RunnerLabels.ARM_LARGE,
+         ),
++        Job.ParamSet(
++            parameter=BuildTypes.S390X_BINARY,
++            provides=[ArtifactNames.CH_S390X],
++            runs_on=RunnerLabels.S390X_LARGE,
++        ),
+         Job.ParamSet(
+             parameter=BuildTypes.LOONGARCH64,
+             provides=[ArtifactNames.CH_LOONGARCH64],
+@@ -651,6 +673,16 @@ class JobConfigs:
+                 ArtifactNames.CH_ARM_RELEASE,
+             ],
+         ),
++        Job.ParamSet(
++            parameter="s390x_release",
++            runs_on=RunnerLabels.STYLE_CHECK_S390X,
++            requires=[
++                ArtifactNames.DEB_S390X_RELEASE,
++                ArtifactNames.RPM_S390X_RELEASE,
++                ArtifactNames.TGZ_S390X_RELEASE,
++                ArtifactNames.CH_S390X_RELEASE,
++            ],
++        ),
+     )
+     stateless_tests_flaky_pr_jobs = common_ft_job_config.parametrize(
+         Job.ParamSet(
+@@ -965,6 +997,16 @@ class JobConfigs:
+             runs_on=RunnerLabels.ARM_SMALL,
+             requires=[ArtifactNames.CH_ARM_BINARY],
+         ),
++        Job.ParamSet(
++            parameter="s390x_binary, parallel",
++            runs_on=RunnerLabels.S390X_MEDIUM,
++            requires=[ArtifactNames.CH_S390X],
++        ),
++        Job.ParamSet(
++            parameter="s390x_binary, sequential",
++            runs_on=RunnerLabels.S390X_SMALL,
++            requires=[ArtifactNames.CH_S390X],
++        ),
+     )
+     functional_tests_jobs_coverage = common_ft_job_config.parametrize(
+         *[
+diff --git a/ci/docker/binary-builder/Dockerfile b/ci/docker/binary-builder/Dockerfile
+index e085b9c4c2d..1c7aaa8da02 100644
+--- a/ci/docker/binary-builder/Dockerfile
++++ b/ci/docker/binary-builder/Dockerfile
+@@ -1,5 +1,9 @@
+ # docker build -t clickhouse/binary-builder .
+ ARG FROM_TAG
++ARG CCTOOLS_TAG=${CCTOOLS_TAG-"859fb360308eb8ac47ad"}
++
++FROM clickhouse/cctools:${CCTOOLS_TAG} AS cctools
++
+ FROM clickhouse/fasttest:$FROM_TAG
+ ARG TARGETARCH
+ ENV CC=clang-${LLVM_VERSION}
+@@ -8,10 +12,10 @@ ENV CXX=clang++-${LLVM_VERSION}
+ #non-functional change
+ 
+ # If the cctools is updated, then first build it in the CI, then update here in a different commit
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad /cctools /cctools
++COPY --from=cctools /cctools /cctools
+ 
+ # We need OpenSSL FIPS in permissive mode for build on MasterCI
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad \
++COPY --from=cctools \
+   /opt/openssl-fips/openssl.cnf \
+   /opt/openssl-fips/fipsmodule.cnf \
+   /opt/openssl-fips/fips.so \
+@@ -23,7 +27,13 @@ RUN curl -s https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dear
+     && apt-get update \
+     && apt-get install software-properties-common --yes --no-install-recommends --verbose-versions
+ 
+-RUN add-apt-repository ppa:ubuntu-toolchain-r/test --yes \
++RUN ARCH=$(uname -m) \
++    && arch=${TARGETARCH:-amd64} \
++    && case $arch in \
++        amd64|arm64) bolt_pkgs="bolt-${LLVM_VERSION}" ;; \
++        *) bolt_pkgs="" ;; \
++    esac \
++    && add-apt-repository ppa:ubuntu-toolchain-r/test --yes \
+     && apt-get update \
+     && apt-get -o Dpkg::Options::="--force-overwrite" upgrade --yes \
+     && apt-get -o Dpkg::Options::="--force-overwrite" install --yes \
+@@ -36,11 +46,13 @@ RUN add-apt-repository ppa:ubuntu-toolchain-r/test --yes \
+         zip \
+         clang-tidy-${LLVM_VERSION} \
+         llvm-${LLVM_VERSION} \
+-        bolt-${LLVM_VERSION} \
++        $bolt_pkgs \
+     && ln -sf /usr/bin/llvm-profdata-${LLVM_VERSION} /usr/bin/llvm-profdata \
+     && ln -sf /usr/bin/llvm-cov-${LLVM_VERSION} /usr/bin/llvm-cov \
+-    && ln -sf /usr/bin/llvm-bolt-${LLVM_VERSION} /usr/bin/llvm-bolt \
+-    && ln -sf /usr/bin/merge-fdata-${LLVM_VERSION} /usr/bin/merge-fdata \
++    && if [ -n "$bolt_pkgs" ]; then \
++        ln -sf /usr/bin/llvm-bolt-${LLVM_VERSION} /usr/bin/llvm-bolt \
++        && ln -sf /usr/bin/merge-fdata-${LLVM_VERSION} /usr/bin/merge-fdata ; \
++    fi \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*
+ 
+@@ -79,24 +91,11 @@ RUN if [ "$CLICKHOUSE_PROFILES_COMMIT" != "none" ]; then \
+     done \
+     ; fi
+ 
+-# Download and install mold for s390x build
+-ARG MOLD_VERSION=2.40.4
+-RUN arch=${TARGETARCH:-amd64} \
+-    && case $arch in \
+-        amd64) rarch=x86_64 ;; \
+-        arm64) rarch=aarch64 ;; \
+-    esac \
+-    && curl -Lo /tmp/mold.tar.gz "https://github.com/rui314/mold/releases/download/v${MOLD_VERSION}/mold-${MOLD_VERSION}-${rarch}-linux.tar.gz" \
+-    && mkdir /tmp/mold \
+-    && tar -xzf /tmp/mold.tar.gz -C /tmp/mold \
+-    && cp -r /tmp/mold/mold*/* /usr \
+-    && rm -rf /tmp/mold \
+-    && rm /tmp/mold.tar.gz
+-
+ # Architecture of the image when BuildKit/buildx is used
+-ARG NFPM_VERSION=2.20.0
++ARG NFPM_VERSION=2.44.1
++
+ RUN arch=${TARGETARCH:-amd64} \
+-    && curl -Lo /tmp/nfpm.deb "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${arch}.deb" \
++    && curl -Lo /tmp/nfpm.deb "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_${arch}.deb" \
+     && dpkg -i /tmp/nfpm.deb \
+     && rm /tmp/nfpm.deb
+ 
+@@ -111,35 +110,45 @@ ENV PATH="$PATH:/usr/local/go/bin"
+ ENV GOPATH=/workdir/go
+ ENV GOCACHE=/workdir/
+ 
+-# toolchain and SDK for Darwin
+-RUN curl -sL -O https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.0.sdk.tar.xz \
+-  && mkdir -p /build/cmake/toolchain/darwin-x86_64 \
+-  && tar xJf /MacOSX11.0.sdk.tar.xz -C /build/cmake/toolchain/darwin-x86_64 --strip-components=1 \
+-  && ln -sf darwin-x86_64 /build/cmake/toolchain/darwin-aarch64 \
+-  && rm /MacOSX11.0.sdk.tar.xz
++# toolchain and SDK for Darwin; not applicable on s390x
++RUN arch=${TARGETARCH:-amd64} \
++  && if [ "$arch" != "s390x" ]; then \
++    curl -sL -O https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.0.sdk.tar.xz \
++    && mkdir -p /build/cmake/toolchain/darwin-x86_64 \
++    && tar xJf /MacOSX11.0.sdk.tar.xz -C /build/cmake/toolchain/darwin-x86_64 --strip-components=1 \
++    && ln -sf darwin-x86_64 /build/cmake/toolchain/darwin-aarch64 \
++    && rm /MacOSX11.0.sdk.tar.xz ; \
++  fi
+ 
+ # Emscripten SDK for the experimental WebAssembly build (see the `OS_WASM` arms in cmake/).
+ # The version has to match the one the wasm64 target is verified with.
++# Not applicable on s390x.
+ ARG EMSDK_VERSION=6.0.5
+-RUN curl -fsSL "https://github.com/emscripten-core/emsdk/archive/refs/tags/${EMSDK_VERSION}.tar.gz" | tar -xzf - -C /opt \
+-  && mv "/opt/emsdk-${EMSDK_VERSION}" /opt/emsdk \
+-  && /opt/emsdk/emsdk install "${EMSDK_VERSION}" \
+-  && /opt/emsdk/emsdk activate "${EMSDK_VERSION}" \
+-  && rm -rf /opt/emsdk/downloads
++RUN arch=${TARGETARCH:-amd64} \
++  && if [ "$arch" != "s390x" ]; then \
++    curl -fsSL "https://github.com/emscripten-core/emsdk/archive/refs/tags/${EMSDK_VERSION}.tar.gz" | tar -xzf - -C /opt \
++    && mv "/opt/emsdk-${EMSDK_VERSION}" /opt/emsdk \
++    && /opt/emsdk/emsdk install "${EMSDK_VERSION}" \
++    && /opt/emsdk/emsdk activate "${EMSDK_VERSION}" \
++    && rm -rf /opt/emsdk/downloads ; \
++  fi
+ 
+ ENV EMSDK=/opt/emsdk
+ ENV PATH="$PATH:/opt/emsdk/upstream/emscripten"
+ 
+ # Node.js for the wasm64 smoke test (see build_clickhouse.py). Emscripten 6 emits
+ # Memory64 code, and its generated startup script refuses engines older than Node.js 24.
++# Not applicable on s390x.
+ ARG NODE_VERSION=24.19.0
+-RUN case "${TARGETARCH}" in \
++RUN arch=${TARGETARCH:-amd64} \
++  && if [ "$arch" != "s390x" ]; then \
++    case "$arch" in \
+       amd64) NODE_ARCH=x64 ;; \
+       arm64) NODE_ARCH=arm64 ;; \
+-      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" && exit 1 ;; \
+     esac \
+-  && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" | tar -xJf - -C /opt \
+-  && ln -sf "/opt/node-v${NODE_VERSION}-linux-${NODE_ARCH}/bin/node" /usr/local/bin/node
++    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" | tar -xJf - -C /opt \
++    && ln -sf "/opt/node-v${NODE_VERSION}-linux-${NODE_ARCH}/bin/node" /usr/local/bin/node ; \
++  fi
+ 
+ # Pre-generate the wasm64 variant of the Emscripten system libraries. `-sMEMORY64`,
+ # `-fwasm-exceptions` and `-pthread` are ABI flags applied to every translation unit,
+@@ -152,12 +161,16 @@ RUN case "${TARGETARCH}" in \
+ # cost the CI link several minutes - so the link flags here mirror the `clickhouse`
+ # link. Keep them in sync with the `add_link_options` in the `OS_WASM` branch of
+ # cmake/target.cmake plus the RelWithDebInfo optimization flags.
+-RUN echo 'int main() { return 0; }' > /tmp/em_prewarm.cpp \
+-  && em++ -O3 -sMEMORY64=1 -fwasm-exceptions -pthread \
+-      -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=17179869184 \
+-      -g0 -sPROXY_TO_PTHREAD=1 -sEXIT_RUNTIME=1 \
+-      /tmp/em_prewarm.cpp -o /tmp/em_prewarm.js \
+-  && rm -f /tmp/em_prewarm.*
++# Not applicable on s390x.
++RUN arch=${TARGETARCH:-amd64} \
++  && if [ "$arch" != "s390x" ]; then \
++    echo 'int main() { return 0; }' > /tmp/em_prewarm.cpp \
++    && em++ -O3 -sMEMORY64=1 -fwasm-exceptions -pthread \
++        -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=17179869184 \
++        -g0 -sPROXY_TO_PTHREAD=1 -sEXIT_RUNTIME=1 \
++        /tmp/em_prewarm.cpp -o /tmp/em_prewarm.js \
++    && rm -f /tmp/em_prewarm.* ; \
++  fi
+ 
+ # Pre-warming cannot cover everything: the link also writes `symbol_lists/<hash>.json`
+ # cache entries whose hash covers the resolved settings, and some settings are derived
+@@ -165,7 +178,11 @@ RUN echo 'int main() { return 0; }' > /tmp/em_prewarm.cpp \
+ # so the real `clickhouse` link misses the entry the trivial program above cached and
+ # generates its own. The build in CI runs as an unprivileged user, hence the cache has
+ # to be writable for it.
+-RUN chmod -R a+rwX /opt/emsdk/upstream/emscripten/cache
++# Not applicable on s390x.
++RUN arch=${TARGETARCH:-amd64} \
++  && if [ "$arch" != "s390x" ]; then \
++    chmod -R a+rwX /opt/emsdk/upstream/emscripten/cache ; \
++  fi
+ 
+ ARG CLANG_TIDY_SHA1=3880541496c7ce0d2e2830d2f525375078fe0b1f
+ RUN curl -Lo /usr/bin/clang-tidy-cache.py \
+diff --git a/ci/docker/cctools/Dockerfile b/ci/docker/cctools/Dockerfile
+index b4e83d7466b..bef3ae7c4e8 100644
+--- a/ci/docker/cctools/Dockerfile
++++ b/ci/docker/cctools/Dockerfile
+@@ -3,9 +3,10 @@
+ # This is a hack to significantly reduce the build time of the clickhouse/binary-builder
+ # It's based on the assumption that we don't care of the cctools version so much
+ # It even does not depend on the clickhouse/fasttest in the `docker/images.json`
+-ARG FROM_TAG=latest
+-FROM clickhouse/fasttest:$FROM_TAG AS builder
++ARG FASTTEST_TAG=latest
++ARG CCTOOLS_AVAILABLE="with-cctools"
+ 
++FROM clickhouse/fasttest:$FASTTEST_TAG AS builder-with-cctools
+ ENV CC=clang-${LLVM_VERSION}
+ ENV CXX=clang++-${LLVM_VERSION}
+ 
+@@ -34,6 +35,13 @@ RUN git clone https://github.com/tpoechtrager/cctools-port.git --branch 986-ld64
+     && cd ../.. \
+     && rm -rf cctools-port
+ 
++FROM clickhouse/fasttest:$FASTTEST_TAG AS builder-without-cctools
++ENV CC=clang-${LLVM_VERSION}
++ENV CXX=clang++-${LLVM_VERSION}
++RUN mkdir /cctools
++
++FROM builder-${CCTOOLS_AVAILABLE} AS builder
++
+ #
+ # GDB
+ #
+@@ -47,6 +55,7 @@ RUN apt-get update \
+     && apt-get install --yes \
+         libgmp-dev \
+         libmpfr-dev \
++	make \
+     && wget --waitretry 5 --retry-connrefused --retry-on-host-error --retry-on-http-error 403 --tries 10 https://ftp.gnu.org/gnu/gdb/gdb-$GDB_VERSION.tar.gz \
+     && tar -xvf gdb-$GDB_VERSION.tar.gz \
+     && cd gdb-$GDB_VERSION \
+@@ -86,7 +95,8 @@ RUN apt-get update && apt-get install -y \
+     python3 \
+     make \
+     git \
+-    ca-certificates
++    ca-certificates \
++    libssl-dev
+ 
+ WORKDIR /tmp
+ RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz && \
+diff --git a/ci/docker/fasttest/Dockerfile b/ci/docker/fasttest/Dockerfile
+index 4021c1a7cc4..288c51176e7 100644
+--- a/ci/docker/fasttest/Dockerfile
++++ b/ci/docker/fasttest/Dockerfile
+@@ -1,6 +1,19 @@
+ # docker build -t clickhouse/fasttest .
+-FROM ubuntu:24.04
++ARG CCTOOLS_AVAILABLE="with-cctools"
++ARG CCTOOLS_TAG="859fb360308eb8ac47ad"
+ 
++FROM clickhouse/cctools:${CCTOOLS_TAG} AS cctools
++
++FROM ubuntu:24.04 AS base-with-cctools
++# Note, libmpfr6 is also a requirement for gdb
++COPY --from=cctools /opt/gdb /opt/gdb
++# Give suid to gdb to grant it attach permissions
++RUN chmod u+s /opt/gdb/bin/gdb
++ENV PATH="/opt/gdb/bin:${PATH}"
++
++FROM ubuntu:24.04 AS base-without-cctools
++
++FROM base-${CCTOOLS_AVAILABLE} AS final
+ # ARG for quick switch to a given ubuntu mirror. Defaults stay canonical so local
+ # builds are unchanged; CI passes the in-region AWS mirror on the command line
+ # (see ci/praktika/docker.py). amd64 base images use archive.ubuntu.com, arm64
+@@ -49,11 +62,6 @@ RUN apt-get update \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*
+ 
+-# Install cmake 3.20+ for Rust support
+-# Used https://askubuntu.com/a/1157132 as reference
+-RUN curl -s https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor - > /etc/apt/trusted.gpg.d/kitware.gpg && \
+-    echo "deb [signed-by=/etc/apt/trusted.gpg.d/kitware.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" >> /etc/apt/sources.list.d/kitware.list
+-
+ # moreutils - provides ts fo FT
+ # expect, bzip2, less - requried by FT
+ # bsdmainutils - provides hexdump for FT
+@@ -101,6 +109,8 @@ RUN ARCH=$(uname -m) && \
+         RUSTUP_ARCH="x86_64-unknown-linux-gnu"; \
+     elif [ "$ARCH" = "aarch64" ]; then \
+         RUSTUP_ARCH="aarch64-unknown-linux-gnu"; \
++    elif [ "$ARCH" = "s390x" ]; then \
++        RUSTUP_ARCH="s390x-unknown-linux-gnu"; \
+     else \
+         echo "Unsupported architecture: $ARCH"; exit 1; \
+     fi && \
+@@ -121,13 +131,8 @@ RUN ARCH=$(uname -m) && \
+     rustup target add powerpc64le-unknown-linux-gnu && \
+     rustup target add x86_64-unknown-linux-musl && \
+     rustup target add aarch64-unknown-linux-musl && \
+-    rustup target add riscv64gc-unknown-linux-gnu
+-
+-# Note, libmpfr6 is also a requirement for gdb
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad /opt/gdb /opt/gdb
+-# Give suid to gdb to grant it attach permissions
+-RUN chmod u+s /opt/gdb/bin/gdb
+-ENV PATH="/opt/gdb/bin:${PATH}"
++    rustup target add riscv64gc-unknown-linux-gnu && \
++    rustup target add s390x-unknown-linux-gnu
+ 
+ # lldb (installed with clang above) is the native debugger used by
+ # clickhouse-test's `print_c_stacktraces` to dump server backtraces.
+@@ -145,26 +150,42 @@ RUN ln -s /usr/bin/lld-${LLVM_VERSION} /usr/bin/ld.lld
+ RUN sed -i '/_IMPORT_CHECK_FILES_FOR_\(mlir-\|llvm-bolt\|merge-fdata\|MLIR\)/ {s|^|#|}' /usr/lib/llvm-${LLVM_VERSION}/lib/cmake/llvm/LLVMExports-*.cmake
+ 
+ ARG TARGETARCH
+-ARG SCCACHE_VERSION=v0.10.0
++ARG SCCACHE_VERSION=v0.14.0
+ ENV SCCACHE_IGNORE_SERVER_IO_ERROR=1
+ # sccache requires a value for the region. So by default we use The Default Region
+ ENV SCCACHE_REGION=us-east-1
+-RUN arch=${TARGETARCH} \
++RUN arch=${TARGETARCH} && rlib=musl \
+   && case $arch in \
+     amd64) rarch=x86_64 ;; \
+     arm64) rarch=aarch64 ;; \
++    *)     rarch=${TARGETARCH} && rlib=gnu ;; \
+   esac \
+-  && curl -Ls "https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-$rarch-unknown-linux-musl.tar.gz" | \
++  && curl -Ls "https://github.com/mozilla/sccache/releases/download/$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-$rarch-unknown-linux-$rlib.tar.gz" | \
+     tar xz -C /tmp \
+-  && mv "/tmp/sccache-$SCCACHE_VERSION-$rarch-unknown-linux-musl/sccache" /usr/bin \
+-  && rm "/tmp/sccache-$SCCACHE_VERSION-$rarch-unknown-linux-musl" -r
++  && mv "/tmp/sccache-$SCCACHE_VERSION-$rarch-unknown-linux-$rlib/sccache" /usr/bin \
++  && rm "/tmp/sccache-$SCCACHE_VERSION-$rarch-unknown-linux-$rlib" -r;
+ 
+ COPY requirements.txt /
+-RUN pip3 install --break-system-packages --no-cache-dir -r /requirements.txt
+-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" \
++RUN if [ "${TARGETARCH}" = "s390x" ]; then \
++    apt-get update \
++    && apt-get install libopenblas-dev pkg-config build-essential python3-dev gfortran \
++      python3-pkg-resources python3-setuptools --yes --no-install-recommends \
++    && pip3 install --break-system-packages --no-cache-dir meson \
++    && pip3 install --break-system-packages --no-cache-dir pybind11 \
++    && pip3 install --break-system-packages --no-cache-dir Cython \
++    && pip3 install --break-system-packages --no-cache-dir pythran \
++    && apt-get clean \
++    && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*; \
++  fi \
++  && pip3 install --break-system-packages --no-cache-dir -r /requirements.txt
++RUN if [ "${TARGETARCH}" = "s390x" ]; then \
++    pip3 install --upgrade --break-system-packages --no-cache-dir awscli; \
++  else \
++    curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" \
+     && unzip -q awscliv2.zip \
+     && ./aws/install \
+-    && rm -rf awscliv2.zip aws
++    && rm -rf awscliv2.zip aws; \
++  fi
+ 
+ # chmod 777 to make the container user independent
+ RUN mkdir -p /var/lib/clickhouse \
+@@ -181,9 +202,9 @@ RUN (userdel -r ubuntu 2>/dev/null || true) && (groupdel ubuntu 2>/dev/null || t
+ 
+ # TODO move nfpm to docker that will do packaging
+ ARG TARGETARCH
+-ARG NFPM_VERSION=2.20.0
++ARG NFPM_VERSION=2.44.1
+ RUN arch=${TARGETARCH:-amd64} \
+-    && curl -Lo /tmp/nfpm.deb "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${arch}.deb" \
++    && curl -Lo /tmp/nfpm.deb "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_${arch}.deb" \
+     && dpkg -i /tmp/nfpm.deb \
+     && rm /tmp/nfpm.deb
+ 
+diff --git a/ci/docker/stateless-test/Dockerfile b/ci/docker/stateless-test/Dockerfile
+index 023ac447c6d..d96c8d7333f 100644
+--- a/ci/docker/stateless-test/Dockerfile
++++ b/ci/docker/stateless-test/Dockerfile
+@@ -1,8 +1,94 @@
+ # docker build -t clickhouse/stateless-test .
+ ARG FROM_TAG=latest
+ ARG REDPANDA_VERSION=v25.1.3
++ARG CCTOOLS_TAG=${CCTOOLS_TAG-"859fb360308eb8ac47ad"}
++ARG MINIO_SOURCE=download
++
+ FROM redpandadata/redpanda:${REDPANDA_VERSION} AS redpanda
+ 
++FROM clickhouse/cctools:${CCTOOLS_TAG} AS cctools
++
++FROM ubuntu:22.04 AS minio-download
++
++ARG TARGETARCH
++
++RUN apt-get update -y \
++    && apt-get install --yes --no-install-recommends \
++        curl ca-certificates \
++    && apt-get clean \
++    && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*
++
++# Keep SEAWEEDFS_VERSION in sync with the default in setup_seaweedfs.sh
++# to have the same binaries for local running scenario
++ARG SEAWEEDFS_VERSION=4.42
++
++# Download SeaweedFS (the S3 server for stateless tests); the weed binary is a
++# static Go executable. Provisioning (identities, bucket, data upload) is done
++# with the weed binary itself plus curl, so no S3 client is needed.
++# Fetch with --fail (never write an error body as a "binary") and retry with
++# backoff on transient errors/timeouts; otherwise one blip fails the build and
++# the image is never pushed, breaking every downstream stateless job with
++# "image not found".
++RUN arch=${TARGETARCH:-amd64} \
++    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
++        "https://github.com/seaweedfs/seaweedfs/releases/download/${SEAWEEDFS_VERSION}/linux_${arch}.tar.gz" -o /tmp/seaweedfs.tar.gz \
++    && tar -xzf /tmp/seaweedfs.tar.gz -C / weed \
++    && rm /tmp/seaweedfs.tar.gz \
++    && chmod +x /weed
++
++# Pre-bundle the AIStor (licensed MinIO) binaries so AIStor jobs do not each
++# re-fetch them from dl.min.io at runtime: ~22 stateless AIStor jobs start at
++# once, and that per-job download was a thundering herd on the external endpoint
++# that throttled/stalled the fetch. setup_minio.sh copies these into place instead
++# of downloading when present (community jobs keep using the /minio above).
++#
++# Pin explicit versions and fetch the versioned RELEASE archives rather than the
++# moving `edge` channel: an unpinned URL makes clickhouse/stateless-test
++# non-reproducible - rebuilding the same source could silently change the AIStor
++# version under CI with no Dockerfile diff. Keep AISTOR_SERVER_VERSION /
++# AISTOR_CLIENT_VERSION in sync with the minio_server_version / minio_client_version
++# defaults in setup_minio.sh, which fetches these same RELEASE archives for
++# non-docker runs.
++#
++# Use -f so a failed fetch fails the build rather than shipping a truncated binary,
++# and retry with backoff so a transient dl.min.io throttle during the concurrent
++# multi-arch build does not fail the build and leave the image unpushed.
++ARG AISTOR_SERVER_VERSION=2026-03-20T23-11-32Z
++ARG AISTOR_CLIENT_VERSION=2026-03-12T04-18-55Z
++RUN arch=${TARGETARCH:-amd64} \
++    && mkdir -p /opt/aistor \
++    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
++        "https://dl.min.io/aistor/minio/release/linux-${arch}/archive/minio.RELEASE.${AISTOR_SERVER_VERSION}" -o /opt/aistor/minio \
++    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
++        "https://dl.min.io/aistor/mc/release/linux-${arch}/archive/mc.RELEASE.${AISTOR_CLIENT_VERSION}" -o /opt/aistor/mc \
++    && chmod +x /opt/aistor/minio /opt/aistor/mc
++
++FROM ubuntu:22.04 AS minio-local
++
++# Keep SEAWEEDFS_VERSION in sync with the default in setup_seaweedfs.sh
++# to have the same binaries for local running scenario
++ARG SEAWEEDFS_VERSION=4.42
++
++RUN apt-get update -y \
++    && apt-get install --yes --no-install-recommends \
++        curl ca-certificates git make \
++    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
++        https://go.dev/dl/go1.27.1.linux-s390x.tar.gz -o go1.27.1.linux-s390x.tar.gz \
++    && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.27.1.linux-s390x.tar.gz \
++    && export PATH=$PATH:/usr/local/go/bin \
++    && git clone -b ${SEAWEEDFS_VERSION} --depth 1 https://github.com/seaweedfs/seaweedfs.git \
++    && cd seaweedfs/weed \
++    && make install \
++    && mv $(go env GOPATH)/bin/weed / \
++    && apt-get clean \
++    && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*
++
++RUN mkdir -p /opt/aistor \
++    && echo "No minio or mc binaries for this platform available from aistor" > /opt/aistor/minio \
++    && cp /opt/aistor/minio /opt/aistor/mc
++
++FROM minio-${MINIO_SOURCE} AS minio
++
+ FROM clickhouse/test-base:$FROM_TAG
+ 
+ ARG odbc_driver_url="https://github.com/ClickHouse/clickhouse-odbc/releases/download/v1.1.6.20200320/clickhouse-odbc-1.1.6-Linux.tar.gz"
+@@ -56,18 +142,53 @@ RUN apt-get update -y \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*
+ 
+-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" \
+-    && unzip -q awscliv2.zip \
+-    && ./aws/install \
+-    && rm awscliv2.zip
++ARG TARGETARCH
++
++RUN arch=${TARGETARCH:-amd64} \
++    && case $arch in \
++        amd64|arm64) \
++            curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "awscliv2.zip" \
++            && unzip -q awscliv2.zip \
++            && ./aws/install \
++            && rm -rf awscliv2.zip aws ;; \
++        *) ;; \
++    esac
+ 
+ ARG PROTOC_VERSION=25.1
+-RUN curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
+-    && unzip protoc-${PROTOC_VERSION}-linux-x86_64.zip -d /usr/local \
+-    && rm protoc-${PROTOC_VERSION}-linux-x86_64.zip
++RUN PROTOC_ARCH=$([ "${TARGETARCH}" = "s390x" ] && echo "s390_64" || echo "x86_64") \
++    && curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip \
++    && unzip protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip -d /usr/local \
++    && rm protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip
+ 
+ COPY requirements.txt /
+-RUN python3.13 -m pip install --no-cache-dir -r /requirements.txt
++RUN if [ "${TARGETARCH}" = "s390x" ]; then \
++    apt-get update -y \
++    && apt-get install libopenblas-dev pkg-config build-essential gfortran \
++      cmake ninja-build libssl-dev --yes --no-install-recommends \
++    && python3.13 -m pip install wheel \
++    && python3.13 -m pip install setuptools \
++    && python3.13 -m pip install meson \
++    && python3.13 -m pip install pybind11 \
++    && python3.13 -m pip install Cython \
++    && python3.13 -m pip install pythran \
++    && git clone https://github.com/apache/arrow.git \
++    && cd arrow/ \
++    && git checkout apache-arrow-22.0.0 \
++    && git submodule update --init \
++    && export PARQUET_TEST_DATA="${PWD}/cpp/submodules/parquet-testing/data" \
++    && export ARROW_TEST_DATA="${PWD}/testing/data" \
++    && cd ../ \
++    && pip3 install -r arrow/python/requirements-build.txt \
++    && export ARROW_HOME=/usr \
++    && export CMAKE_PREFIX_PATH=$ARROW_HOME:$CMAKE_PREFIX_PATH \
++    && cmake -S arrow/cpp -B arrow/cpp/build -DCMAKE_INSTALL_PREFIX=$ARROW_HOME --preset ninja-release-python \
++    && cmake --build arrow/cpp/build --target install \
++    && export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=true \
++    && apt-get clean \
++    && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*; \
++  fi \
++  && echo "cython<3.3.0" > constraints.txt \
++  && python3.13 -m pip install --no-cache-dir --build-constraint "constraints.txt" -r /requirements.txt
+ 
+ RUN mkdir -p /tmp/clickhouse-odbc-tmp \
+   && cd /tmp/clickhouse-odbc-tmp \
+@@ -81,50 +202,11 @@ RUN mkdir -p /tmp/clickhouse-odbc-tmp \
+ 
+ ENV NUM_TRIES=1
+ 
+-# Keep SEAWEEDFS_VERSION in sync with the default in setup_seaweedfs.sh
+-# to have the same binaries for local running scenario
+-ARG SEAWEEDFS_VERSION=4.42
+-ARG TARGETARCH
+-
+-# Download SeaweedFS (the S3 server for stateless tests); the weed binary is a
+-# static Go executable. Provisioning (identities, bucket, data upload) is done
+-# with the weed binary itself plus curl, so no S3 client is needed.
+-# Fetch with --fail (never write an error body as a "binary") and retry with
+-# backoff on transient errors/timeouts; otherwise one blip fails the build and
+-# the image is never pushed, breaking every downstream stateless job with
+-# "image not found".
+-RUN arch=${TARGETARCH:-amd64} \
+-    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
+-        "https://github.com/seaweedfs/seaweedfs/releases/download/${SEAWEEDFS_VERSION}/linux_${arch}.tar.gz" -o /tmp/seaweedfs.tar.gz \
+-    && tar -xzf /tmp/seaweedfs.tar.gz -C / weed \
+-    && rm /tmp/seaweedfs.tar.gz \
+-    && chmod +x /weed
+-
+-# Pre-bundle the AIStor (licensed MinIO) binaries so AIStor jobs do not each
+-# re-fetch them from dl.min.io at runtime: ~22 stateless AIStor jobs start at
+-# once, and that per-job download was a thundering herd on the external endpoint
+-# that throttled/stalled the fetch. AIStor jobs copy these into place instead of
+-# downloading (community jobs use the /weed above).
+-#
+-# Pin explicit versions and fetch the versioned RELEASE archives rather than the
+-# moving `edge` channel: an unpinned URL makes clickhouse/stateless-test
+-# non-reproducible - rebuilding the same source could silently change the AIStor
+-# version under CI with no Dockerfile diff.
+-#
+-# Use -f so a failed fetch fails the build rather than shipping a truncated binary,
+-# and retry with backoff so a transient dl.min.io throttle during the concurrent
+-# multi-arch build does not fail the build and leave the image unpushed.
+-ARG AISTOR_SERVER_VERSION=2026-03-20T23-11-32Z
+-ARG AISTOR_CLIENT_VERSION=2026-03-12T04-18-55Z
+-RUN arch=${TARGETARCH:-amd64} \
+-    && mkdir -p /opt/aistor \
+-    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
+-        "https://dl.min.io/aistor/minio/release/linux-${arch}/archive/minio.RELEASE.${AISTOR_SERVER_VERSION}" -o /opt/aistor/minio \
+-    && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 60 --max-time 600 \
+-        "https://dl.min.io/aistor/mc/release/linux-${arch}/archive/mc.RELEASE.${AISTOR_CLIENT_VERSION}" -o /opt/aistor/mc \
+-    && chmod +x /opt/aistor/minio /opt/aistor/mc
+-
+-# root credentials for the AIStor bundle above
++# Download Minio-related binaries
++RUN mkdir -p /opt/aistor
++COPY --from=minio /opt/aistor/mc /opt/aistor/minio /opt/aistor/
++COPY --from=minio /weed /
++RUN chmod +x /opt/aistor/mc /opt/aistor/minio /weed
+ ENV MINIO_ROOT_USER="clickhouse"
+ ENV MINIO_ROOT_PASSWORD="clickhouse"
+ 
+@@ -136,13 +218,13 @@ ENV HOME="/home"
+ # https://github.com/ClickHouse/azurite-rs
+ ARG AZURITE_RS_VERSION=v0.1.0-1bc0ba9
+ RUN arch=${TARGETARCH:-amd64} \
+-    && curl -fsSL "https://github.com/ClickHouse/azurite-rs/releases/download/${AZURITE_RS_VERSION}/azurite-rs-linux-${arch}.tar.gz" | tar -xz -C /usr/local/bin/ \
+-    && mv /usr/local/bin/azurite-rs-linux-${arch} /usr/local/bin/azurite-rs \
+-    && chmod +x /usr/local/bin/azurite-rs
+-
+-# Install Redpanda (Kafka-compatible broker, no JVM required)
+-COPY --from=redpanda /opt/redpanda /opt/redpanda
+-ENV PATH="/opt/redpanda/bin:${PATH}"
++    && case "${arch}" in \
++        amd64|arm64) \
++            curl -fsSL "https://github.com/ClickHouse/azurite-rs/releases/download/${AZURITE_RS_VERSION}/azurite-rs-linux-${arch}.tar.gz" | tar -xz -C /usr/local/bin/ \
++            && mv /usr/local/bin/azurite-rs-linux-${arch} /usr/local/bin/azurite-rs \
++            && chmod +x /usr/local/bin/azurite-rs ;; \
++        *) ;; \
++    esac
+ 
+ ENV PYTHONPATH=".:./ci"
+ 
+@@ -151,10 +233,12 @@ ENV PYTHONPATH=".:./ci"
+ # A directory for cache
+ RUN mkdir /dev/shm/clickhouse
+ 
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad /opt/gdb /opt/gdb
++COPY --from=cctools /opt/gdb /opt/gdb
++# Give suid to gdb to grant it attach permissions
++RUN chmod u+s /opt/gdb/bin/gdb
+ ENV PATH="/opt/gdb/bin:${PATH}"
+ 
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad \
++COPY --from=cctools \
+   /opt/openssl-fips/openssl.cnf \
+   /opt/openssl-fips/fipsmodule.cnf \
+   /opt/openssl-fips/fips.so \
+diff --git a/ci/docker/test-base/Dockerfile b/ci/docker/test-base/Dockerfile
+index 5419b01d4f0..e66d3701682 100644
+--- a/ci/docker/test-base/Dockerfile
++++ b/ci/docker/test-base/Dockerfile
+@@ -1,4 +1,38 @@
+ # docker build -t clickhouse/test-base .
++ARG CCTOOLS_TAG=${CCTOOLS_TAG-"859fb360308eb8ac47ad"}
++
++FROM clickhouse/cctools:${CCTOOLS_TAG} AS cctools
++
++FROM ubuntu:22.04 as cmake-build
++
++RUN apt-get update && apt-get install -y \
++    build-essential \
++    wget \
++    perl \
++    python3 \
++    make \
++    git \
++    ca-certificates \
++    libssl-dev \
++    cmake \
++    ninja-build
++
++#
++# cmake
++#
++# The KitWare cmake apt repos only have packages for amd64 and arm64.
++# This build depends on libssl.
++RUN wget https://github.com/Kitware/CMake/releases/download/v3.31.10/cmake-3.31.10.tar.gz \
++    && tar xf cmake-3.31.10.tar.gz \
++    && cd cmake-3.31.10/ \
++    && mkdir build \
++    && cmake -B build -G Ninja \
++    && cd build/ \
++    && ninja \
++    && mkdir -p /opt/cmake \
++    && chmod 777 /opt/cmake \
++    && cmake --install . --prefix /opt/cmake
++
+ FROM ubuntu:22.04
+ 
+ # ARG for quick switch to a given ubuntu mirror. Defaults stay canonical so local
+@@ -86,11 +120,6 @@ RUN cd /tmp \
+     && cd /tmp \
+     && rm -rf lcov-2.4 lcov-2.4.tar.gz
+ 
+-# Install cmake 3.20+ for Rust support
+-# Used https://askubuntu.com/a/1157132 as reference
+-RUN curl -s https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor - > /etc/apt/trusted.gpg.d/kitware.gpg && \
+-    echo "deb [signed-by=/etc/apt/trusted.gpg.d/kitware.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" >> /etc/apt/sources.list.d/kitware.list
+-
+ RUN apt-get update \
+     && apt-get install \
+         bash \
+@@ -114,13 +143,17 @@ RUN apt-get update \
+         zstd \
+         locales \
+         libmpfr6 \
++        ninja-build \
+         --yes --no-install-recommends \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/* /var/cache/debconf /tmp/*
+ 
+ # Note, libmpfr6 is also a requirement for gdb
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad /opt/gdb /opt/gdb
+-ENV PATH="/opt/gdb/bin:${PATH}"
++COPY --from=cctools /opt/gdb /opt/gdb
++COPY --from=cmake-build /opt/cmake /opt/cmake
++# Give suid to gdb to grant it attach permissions
++RUN chmod u+s /opt/gdb/bin/gdb
++ENV PATH="/opt/cmake/bin:/opt/gdb/bin:${PATH}"
+ 
+ # lldb (installed with llvm above) is the native debugger used by
+ # clickhouse-test's `print_c_stacktraces` to dump server backtraces.
+@@ -131,7 +164,7 @@ ENV PATH="/opt/gdb/bin:${PATH}"
+ RUN ln -sf /usr/lib/llvm-${LLVM_VERSION}/bin/lldb /usr/bin/lldb \
+     && chmod u+s /usr/lib/llvm-${LLVM_VERSION}/bin/lldb
+ 
+-COPY --from=clickhouse/cctools:859fb360308eb8ac47ad \
++COPY --from=cctools \
+   /opt/openssl-fips/openssl.cnf \
+   /opt/openssl-fips/fipsmodule.cnf \
+   /opt/openssl-fips/fips.so \
+@@ -139,13 +172,19 @@ COPY --from=clickhouse/cctools:859fb360308eb8ac47ad \
+   /etc/ssl/
+ 
+ # Install ODBC Bridge and Library Bridge, which are separately built components.
+-RUN BRIDGE_VERSION='25.1.5.31' \
+-    && ARCH=$(dpkg --print-architecture) \
+-    && cd /tmp \
+-    && wget "https://packages.clickhouse.com/deb/pool/main/c/clickhouse/clickhouse-odbc-bridge_${BRIDGE_VERSION}_${ARCH}.deb" \
+-    && wget "https://packages.clickhouse.com/deb/pool/main/c/clickhouse/clickhouse-library-bridge_${BRIDGE_VERSION}_${ARCH}.deb" \
+-    && dpkg -i clickhouse-odbc-bridge_${BRIDGE_VERSION}_${ARCH}.deb clickhouse-library-bridge_${BRIDGE_VERSION}_${ARCH}.deb \
+-    && rm clickhouse-odbc-bridge_${BRIDGE_VERSION}_${ARCH}.deb clickhouse-library-bridge_${BRIDGE_VERSION}_${ARCH}.deb
++ARG TARGETARCH
++RUN arch=${TARGETARCH:-amd64} \
++    && case $arch in \
++        amd64|arm64) \
++            BRIDGE_VERSION='25.1.5.31' \
++            && ARCH=$(dpkg --print-architecture) \
++            && cd /tmp \
++            && wget "https://packages.clickhouse.com/deb/pool/main/c/clickhouse/clickhouse-odbc-bridge_${BRIDGE_VERSION}_${ARCH}.deb" \
++            && wget "https://packages.clickhouse.com/deb/pool/main/c/clickhouse/clickhouse-library-bridge_${BRIDGE_VERSION}_${ARCH}.deb" \
++            && dpkg -i clickhouse-odbc-bridge_${BRIDGE_VERSION}_${ARCH}.deb clickhouse-library-bridge_${BRIDGE_VERSION}_${ARCH}.deb \
++            && rm clickhouse-odbc-bridge_${BRIDGE_VERSION}_${ARCH}.deb clickhouse-library-bridge_${BRIDGE_VERSION}_${ARCH}.deb ;; \
++        *) ;; \
++    esac
+ 
+ COPY jeprof /usr/bin/jeprof
+ RUN wget -q -O /usr/bin/jeprof.orig https://raw.githubusercontent.com/jemalloc/jemalloc/41a859ef7325569c6c25f92d294d45123bb81355/bin/jeprof.in &&  \
+diff --git a/ci/jobs/build_clickhouse.py b/ci/jobs/build_clickhouse.py
+index 7838ce4cb46..5f0956c001d 100644
+--- a/ci/jobs/build_clickhouse.py
++++ b/ci/jobs/build_clickhouse.py
+@@ -18,6 +18,8 @@ build_dir_normalized = f"{repo_path_normalized}/ci/tmp/build"
+ BUILD_TYPE_TO_CMAKE = {
+     BuildTypes.AMD_DEBUG: f"    cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=Debug -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-x86_64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=1 -DENABLE_LEXER_TEST=1 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_LOCALSTATEDIR=/var -DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON -DENABLE_BUZZHOUSE=1",
+     BuildTypes.AMD_RELEASE: f"  cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=1 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-x86_64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_LOCALSTATEDIR=/var -DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON -DSPLIT_DEBUG_SYMBOLS=ON -DBUILD_STANDALONE_KEEPER=1",
++    BuildTypes.S390X_DEBUG: f"    cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=Debug -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-s390x.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=1 -DENABLE_LEXER_TEST=1 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_LOCALSTATEDIR=/var -DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON -DENABLE_BUZZHOUSE=1 -DENABLE_AZURE_BLOB_STORAGE=OFF",
++    BuildTypes.S390X_RELEASE: f"  cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=1 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-s390x.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_LOCALSTATEDIR=/var -DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON -DSPLIT_DEBUG_SYMBOLS=ON -DBUILD_STANDALONE_KEEPER=1 -DENABLE_GRPC=OFF -DENABLE_PARQUET=OFF -DENABLE_ORC=OFF -DENABLE_HDFS=OFF -DENABLE_HIVE=OFF -DENABLE_AZURE_BLOB_STORAGE=OFF -DENABLE_SZ3=OFF -DENABLE_ARROW_FLIGHT=OFF -DENABLE_VECTORSCAN=OFF -DENABLE_MYSQL=OFF -DENABLE_NLP=OFF -DENABLE_DATASKETCHES=OFF",
+     BuildTypes.AMD_BINARY: f"   cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-x86_64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON",
+     BuildTypes.AMD_ASAN_UBSAN: f"  cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=address,undefined -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-x86_64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=1 -DENABLE_LEXER_TEST=1 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_LOCALSTATEDIR=/var -DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON -DENABLE_BUZZHOUSE=1",
+     BuildTypes.AMD_TSAN: f"     cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=thread    -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-x86_64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=1 -DENABLE_LEXER_TEST=1 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_LOCALSTATEDIR=/var -DCMAKE_SKIP_INSTALL_ALL_DEPENDENCY=ON -DENABLE_BUZZHOUSE=1",
+@@ -43,6 +45,7 @@ BUILD_TYPE_TO_CMAKE = {
+     BuildTypes.AMD_MUSL: f"     cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-x86_64-musl.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON",
+     BuildTypes.RISCV64: f"      cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE_LEGACY} -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-riscv64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON",
+     BuildTypes.S390X: f"        cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE_LEGACY} -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-s390x.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON",
++    BuildTypes.S390X_BINARY: f"   cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE}        -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-s390x.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_TESTS=0 -DENABLE_LEXER_TEST=0 -DENABLE_UTILS=0 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON",
+     BuildTypes.LOONGARCH64: f"  cmake --debug-trycompile -DCMAKE_VERBOSE_MAKEFILE=1 -LA -DCMAKE_BUILD_TYPE=None  -DENABLE_THINLTO=0 -DSANITIZE=          -DENABLE_CHECK_HEAVY_BUILDS=1 -DBUILD_STRIPPED_BINARY=1 -DENABLE_CLICKHOUSE_SELF_EXTRACTING=1 -DCMAKE_C_COMPILER={ToolSet.COMPILER_C} -DCMAKE_CXX_COMPILER={ToolSet.COMPILER_CPP} -DCOMPILER_CACHE={ToolSet.COMPILER_CACHE_LEGACY} -DCMAKE_TOOLCHAIN_FILE={repo_path_normalized}/cmake/linux/toolchain-loongarch64.cmake -DENABLE_BUILD_PROFILING=1 -DENABLE_BUZZHOUSE=1",
+     # WebAssembly, through the Emscripten toolchain: `emcmake` points CMAKE_TOOLCHAIN_FILE at
+     # Emscripten's own toolchain file, which supplies `emcc`/`em++`, so no compiler is passed
+@@ -71,6 +74,8 @@ for _warmup_type, _release_type in PR_CACHE_WARMUP_TO_RELEASE.items():
+ BUILD_TYPE_TO_DEB_PACKAGE_TYPE = {
+     BuildTypes.AMD_RELEASE: "release",
+     BuildTypes.ARM_RELEASE: "release",
++    BuildTypes.S390X_DEBUG: "debug",
++    BuildTypes.S390X_RELEASE: "release",
+ }
+ 
+ 
+@@ -569,10 +574,11 @@ def main():
+         res
+         and JobStages.PACKAGE in stages
+         and build_type in BUILD_TYPE_TO_DEB_PACKAGE_TYPE
+-        and not info.is_local_run
+     ):
+         if "amd" in build_type:
+             deb_arch = "amd64"
++        elif "s390x" in build_type:
++            deb_arch = "s390x"
+         else:
+             deb_arch = "arm64"
+ 
+diff --git a/ci/jobs/functional_tests.py b/ci/jobs/functional_tests.py
+index dbaacc2df29..50fa6ddb43a 100644
+--- a/ci/jobs/functional_tests.py
++++ b/ci/jobs/functional_tests.py
+@@ -1,6 +1,8 @@
++
+ import argparse
+ import json
+ import os
++import platform
+ import random
+ import subprocess
+ import zlib
+@@ -420,7 +422,7 @@ def main():
+             batch_num, total_batches = map(int, to.split("/"))
+         elif to in OPTIONS_TO_INSTALL_ARGUMENTS:
+             pass
+-        elif to.startswith("amd_") or to.startswith("arm_"):
++        elif to.startswith("amd_") or to.startswith("arm_") or to.startswith("s390x_"):
+             pass
+         elif to in OPTIONS_TO_TEST_RUNNER_ARGUMENTS:
+             pass
+@@ -435,6 +437,9 @@ def main():
+             print(f"NOTE: Enabled config option [{OPTIONS_TO_INSTALL_ARGUMENTS[to]}]")
+             config_installs_args += f" {OPTIONS_TO_INSTALL_ARGUMENTS[to]}"
+ 
++        if to.startswith("s390x_"):
++            config_installs_args += f" --no-azure"
++
+         if to in OPTIONS_TO_TEST_RUNNER_ARGUMENTS:
+             if to in ("parallel", "sequential") and args.test:
+                 # skip setting up parallel/sequential if specific tests are provided
+@@ -964,14 +969,16 @@ def main():
+         setup_notes = []
+ 
+         def start():
++            azurite_supported = Utils.is_amd() or Utils.is_arm()
++            kafka_supported = Utils.is_amd() or Utils.is_arm()
+             # `from_commands_run` captures this closure's stdout into the step
+             # Result.info (hence CIDB test_context_raw) only when it returns a
+             # failing value. Print a concise "SETUP FAILURE: <sub-step>" marker
+             # at each failure point so the opaque "Start ClickHouse Server"
+             # umbrella can be split into measurable sub-causes (seaweedfs /
+             # wait_ready / kafka / stateful) instead of one bucket.
+-            if not (CH.start_seaweedfs(test_type="stateless") and CH.start_azurite()):
+-                print("SETUP FAILURE: seaweedfs/azurite did not start")
++            if not CH.start_seaweedfs(test_type="stateless") or (azurite_supported and not CH.start_azurite()):
++                print("SETUP FAILURE: minio/azurite did not start")
+                 return False
+             if not CH.start():
+                 print("SETUP FAILURE: clickhouse-server process did not start")
+@@ -982,7 +989,7 @@ def main():
+                 print("SETUP FAILURE: clickhouse-server not ready (wait_ready)")
+                 return False
+ 
+-            if not CH.start_kafka():
++            if kafka_supported and not CH.start_kafka():
+                 info.add_workflow_warning("Failed to start Kafka")
+                 print("SETUP FAILURE: kafka did not start")
+                 # Fail fast on infra setup errors so we don't burn time
+@@ -1009,7 +1016,7 @@ def main():
+                     build_type=(
+                         build_types[0] if is_bugfix_validation else args.options
+                     ),
+-                ):
++                ) and platform.processor() != "s390x":
+                     print(
+                         "SETUP FAILURE: "
+                         + (
+diff --git a/ci/jobs/scripts/clickhouse_proc.py b/ci/jobs/scripts/clickhouse_proc.py
+index 106bcc8d0b4..7dfb50f65a1 100644
+--- a/ci/jobs/scripts/clickhouse_proc.py
++++ b/ci/jobs/scripts/clickhouse_proc.py
+@@ -197,7 +197,7 @@ class ClickHouseProc:
+         # instance-role credentials, which SeaweedFS does not know
+         access_key = os.environ.get("SEAWEEDFS_ACCESS_KEY", "clickhouse")
+         secret_key = os.environ.get("SEAWEEDFS_SECRET_KEY", "clickhouse")
+-        if not Shell.check(
++        if platform.processor() != "s390x" and not Shell.check(
+             f"AWS_ACCESS_KEY_ID={access_key} AWS_SECRET_ACCESS_KEY={secret_key} "
+             "AWS_DEFAULT_REGION=us-east-1 "
+             "aws --endpoint-url http://localhost:11111 s3 ls s3://test",
+diff --git a/ci/praktika/runner.py b/ci/praktika/runner.py
+index efab496ae11..c0a29433123 100644
+--- a/ci/praktika/runner.py
++++ b/ci/praktika/runner.py
+@@ -336,24 +336,25 @@ class Runner:
+             )
+             from_root = "root" in docker_settings
+             settings = [s for s in docker_settings if s.startswith("-")]
+-            if ":" in job.run_in_docker:
+-                docker_name, docker_tag = job.run_in_docker.split(":")
+-                print(
+-                    f"WARNING: Job [{job.name}] use custom docker image with a tag - praktika won't control docker version"
+-                )
+-            else:
+-                docker_name, docker_tag = (
+-                    job.run_in_docker,
+-                    RunConfig.from_workflow_data().digest_dockers[job.run_in_docker],
+-                )
+-                if Utils.is_arm():
+-                    docker_tag += "_arm"
+-                elif Utils.is_amd():
+-                    docker_tag += "_amd"
++            if not docker:
++                if ":" in job.run_in_docker:
++                    docker_name, docker_tag = job.run_in_docker.split(":")
++                    print(
++                        f"WARNING: Job [{job.name}] use custom docker image with a tag - praktika won't control docker version"
++                    )
+                 else:
+-                    raise RuntimeError("Unsupported CPU architecture")
++                    docker_name, docker_tag = (
++                        job.run_in_docker,
++                        RunConfig.from_workflow_data().digest_dockers[job.run_in_docker],
++                    )
++                    if Utils.is_arm():
++                        docker_tag += "_arm"
++                    elif Utils.is_amd():
++                        docker_tag += "_amd"
++                    else:
++                        raise RuntimeError("Unsupported CPU architecture")
++                docker = f"{docker_name}:{docker_tag}"
+ 
+-            docker = docker or f"{docker_name}:{docker_tag}"
+             current_dir = os.getcwd()
+             # Derive a stable container name from the worktree path and job name
+             # so that different jobs (or the same job in different worktrees)
+diff --git a/cmake/apply-contrib-patches.cmake b/cmake/apply-contrib-patches.cmake
+new file mode 100644
+index 00000000000..6b2a3260585
+--- /dev/null
++++ b/cmake/apply-contrib-patches.cmake
+@@ -0,0 +1,59 @@
++if (NOT Git_FOUND)
++    message (FATAL_ERROR "git not found; cannot apply contrib patches.")
++endif ()
++
++# Table of patches to apply at configure time.
++# Format: "ARCH|cmake/patches/<name>.patch|contrib/<submodule>"
++# Use ARCH_ANY to apply on all architectures, or a specific arch variable
++# from cmake/arch.cmake (e.g. ARCH_S390X, ARCH_AMD64) to restrict the patch.
++set (CONTRIB_PATCHES
++    "ARCH_S390X|cmake/patches/llvm-project-s390x.patch|contrib/llvm-project"
++)
++
++# Keep in sync with cmake/arch.cmake
++set (KNOWN_ARCHES ARCH_ANY ARCH_AMD64 ARCH_AARCH64 ARCH_PPC64LE ARCH_S390X ARCH_RISCV64 ARCH_LOONGARCH64 ARCH_E2K)
++
++foreach (PATCH_ENTRY ${CONTRIB_PATCHES})
++    string (REPLACE "|" ";" PATCH_PARTS "${PATCH_ENTRY}")
++    list (GET PATCH_PARTS 0 PATCH_ARCH)
++    list (GET PATCH_PARTS 1 PATCH_REL)
++    list (GET PATCH_PARTS 2 CONTRIB_REL)
++
++    if (PATCH_ARCH STREQUAL "ARCH_ANY")
++        # proceed unconditionally
++    elseif (NOT PATCH_ARCH IN_LIST KNOWN_ARCHES)
++        message (FATAL_ERROR "Unknown arch guard '${PATCH_ARCH}' in CONTRIB_PATCHES entry: ${PATCH_ENTRY}")
++    elseif (NOT ${${PATCH_ARCH}})
++        message (VERBOSE "Skipping patch ${PATCH_REL} — only for ${PATCH_ARCH}")
++        continue ()
++    endif ()
++
++    set (PATCH_FILE "${ClickHouse_SOURCE_DIR}/${PATCH_REL}")
++    set (WORK_DIR   "${ClickHouse_SOURCE_DIR}/${CONTRIB_REL}")
++
++    # If the patch is already applied, skip silently.
++    execute_process (
++        COMMAND "${GIT_EXECUTABLE}" apply --reverse --check "${PATCH_FILE}"
++        WORKING_DIRECTORY "${WORK_DIR}"
++        RESULT_VARIABLE ALREADY_APPLIED
++        ERROR_QUIET
++        OUTPUT_QUIET)
++
++    if (ALREADY_APPLIED EQUAL 0)
++        message (STATUS "Patch already applied: ${PATCH_REL} — skipping")
++    else ()
++        execute_process (
++            COMMAND "${GIT_EXECUTABLE}" apply "${PATCH_FILE}"
++            WORKING_DIRECTORY "${WORK_DIR}"
++            RESULT_VARIABLE APPLY_RESULT
++            ERROR_VARIABLE  APPLY_ERROR
++            OUTPUT_QUIET)
++        if (NOT APPLY_RESULT EQUAL 0)
++            message (FATAL_ERROR
++                "Failed to apply patch ${PATCH_REL}:\n${APPLY_ERROR}"
++                "\nTo recover from a partial application:"
++                "\n  cd ${WORK_DIR} && git checkout -- .")
++        endif ()
++        message (STATUS "Applied patch: ${PATCH_REL}")
++    endif ()
++endforeach ()
+diff --git a/cmake/patches/llvm-project-s390x.patch b/cmake/patches/llvm-project-s390x.patch
+new file mode 100644
+index 00000000000..724ef8b855e
+--- /dev/null
++++ b/cmake/patches/llvm-project-s390x.patch
+@@ -0,0 +1,14 @@
++diff --git a/libc/src/__support/big_int.h b/libc/src/__support/big_int.h
++index 85db31d01399..3dcd19cb076c 100644
++--- a/libc/src/__support/big_int.h
+++++ b/libc/src/__support/big_int.h
++@@ -259,7 +259,8 @@ LIBC_INLINE constexpr cpp::array<word, N> shift(cpp::array<word, N> array,
++   constexpr size_t WORD_BITS = cpp::numeric_limits<word>::digits;
++ #ifdef LIBC_TYPES_HAS_INT128
++   constexpr size_t TOTAL_BITS = N * WORD_BITS;
++-  if constexpr (TOTAL_BITS == 128) {
+++  if constexpr (TOTAL_BITS == 128 &&
+++		__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) {
++     using type = cpp::conditional_t<is_signed, __int128_t, __uint128_t>;
++     auto tmp = cpp::bit_cast<type>(array);
++     if constexpr (direction == LEFT)
+diff --git a/utils/self-extracting-executable/compressor.cpp b/utils/self-extracting-executable/compressor.cpp
+index 33701efaf25..ee520f62fb8 100644
+--- a/utils/self-extracting-executable/compressor.cpp
++++ b/utils/self-extracting-executable/compressor.cpp
+@@ -1,4 +1,5 @@
+ #include <cerrno>
++#include <cstdint>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
+@@ -24,6 +25,7 @@
+ #   include <libkern/OSByteOrder.h>
+     // define 64 bit macros
+ #   define htole64(x) OSSwapHostToLittleInt64(x)
++#   define le64toh(x) OSSwapLittleToHostInt64(x)
+ #endif
+ 
+ #include <types.h>
+@@ -232,8 +234,9 @@ static int saveMetaData(const char* filenames[], int count, int output_fd, const
+         pointer += sizeof(FileData);
+ 
+         /// Save file name
+-        memcpy(output + pointer, filenames[i], files_data[i].name_length);
+-        pointer += files_data[i].name_length;
++        uint64_t file_name_length = le64toh(files_data[i].name_length);
++        memcpy(output + pointer, filenames[i], file_name_length);
++        pointer += file_name_length;
+     }
+ 
+     /// Save metadata
