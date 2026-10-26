@@ -97,7 +97,7 @@ function configureAndInstall() {
   
         # Apply patches
 	cd "${SOURCE_ROOT}/glusterfs"
-	if [[ "${DISTRO}" == "rhel-9.6" ]]  ||  [[ "${DISTRO}" == "rhel-9.7" ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]]; then
+	if [[ "${DISTRO}" == "rhel-9.6" ]] || [[ "${DISTRO}" == "ubuntu-22.04" ]]; then
 		curl -sSL $PATCH_URL/UB22RHEL9.patch | git apply
 	elif [[ "${DISTRO}" == "ubuntu-24.04" ]]; then
 		curl -sSL $PATCH_URL/UB24.patch | git apply
@@ -166,19 +166,33 @@ function runTest() {
 	echo "Running Tests: "
 
         case "$DISTRO" in			
-        "rhel-8.10" | "rhel-9.6" | "rhel-9.7")
+        "rhel-8.10" | "rhel-9.6")
             yum install -y dbench perl-Test-Harness yajl net-tools psmisc nfs-utils xfsprogs attr procps-ng gdb python3 iproute
 				pip3 install prettytable
 	    ;;
         "ubuntu-22.04" | "ubuntu-24.04")
             apt install -y dbench yajl-tools net-tools psmisc libnfs-utils xfsprogs attr procps gdb iproute2 nfs-common python3 python3-pip python3-prettytable libxml2-utils bc zfsutils-linux acl xdg-utils uuid-runtime
 
-            cat /proc/sys/kernel/yama/ptrace_scope
-            echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+            # Workaround for missing pstack 
+			mkdir -p /tmp/gluster-test-bin
+  			cat > /tmp/gluster-test-bin/pstack <<'EOF'
+#!/bin/sh
+[ -z "$1" ] && echo "Usage: pstack <pid>" && exit 1
+exec gdb -ex "thread apply all bt" -batch -p "$1" -ex detach
+EOF
 
-            echo -e '#!/bin/sh\n[ -z "$1" ] && echo "Usage: pstack <pid>" && exit 1\ngdb -ex "thread apply all bt" -batch -p "$1" -ex detach' | sudo tee /usr/bin/gstack
-            sudo chmod +x /usr/bin/gstack
-            ln -sf `which gstack` /usr/bin/pstack
+  	        chmod +x /tmp/gluster-test-bin/pstack
+  
+  			# Workaround for missing gstack
+  			cat > /tmp/gluster-test-bin/gstack <<'EOF'
+#!/bin/sh
+[ -z "$1" ] && echo "Usage: gstack <pid>" && exit 1
+exec gdb -ex "thread apply all bt" -batch -p "$1" -ex detach
+EOF
+
+  			chmod +x /tmp/gluster-test-bin/gstack
+
+  			export PATH="/tmp/gluster-test-bin:$PATH"
          ;;
 	 esac
 
@@ -260,11 +274,11 @@ case "$DISTRO" in
 "rhel-8.10")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-	yum install -y autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel |& tee -a "$LOG_FILE"
+	yum install -y curl autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel |& tee -a "$LOG_FILE"
 	configureAndInstall |& tee -a "$LOG_FILE"
 	;;
 
- "rhel-9.6" | "rhel-9.7")
+ "rhel-9.6")
 	printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
 	printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
 	yum install -y curl autoconf automake bison dos2unix flex fuse-devel glib2-devel libacl-devel libaio-devel libattr-devel libcurl-devel libibverbs-devel librdmacm-devel libtirpc-devel libuuid-devel libtool libxml2-devel make openssl-devel pkgconfig xz-devel  python3-devel python3-netifaces readline-devel rpm-build sqlite-devel systemtap-sdt-devel tar git lvm2-devel python3-paste-deploy python3-simplejson python3-sphinx python3-webob python3-pyxattr userspace-rcu-devel rpcgen liburing-devel gperf gperftools-devel iproute |& tee -a "$LOG_FILE"
@@ -274,7 +288,7 @@ case "$DISTRO" in
 "ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- '\nInstalling dependencies \n' |& tee -a "$LOG_FILE"
-    apt-get update && apt-get install -y gcc g++ git make automake autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python3-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev liburing-dev google-perftools libgoogle-perftools-dev libtirpc-dev |& tee -a "$LOG_FILE"
+    apt-get update && apt-get install -y curl gcc g++ git make automake autoconf libtool flex bison pkg-config libssl-dev libxml2-dev python3-dev libaio-dev libibverbs-dev librdmacm-dev libreadline-dev liblvm2-dev libglib2.0-dev liburcu-dev libcmocka-dev libsqlite3-dev libacl1-dev liburing-dev google-perftools libgoogle-perftools-dev libtirpc-dev |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 
