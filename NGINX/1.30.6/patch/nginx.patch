@@ -1,0 +1,40 @@
+diff --git a/src/http/modules/ngx_http_gzip_filter_module.c b/src/http/modules/ngx_http_gzip_filter_module.c
+index dac21bb18..cf39cdccd 100644
+--- a/src/http/modules/ngx_http_gzip_filter_module.c
++++ b/src/http/modules/ngx_http_gzip_filter_module.c
+@@ -515,21 +515,21 @@ ngx_http_gzip_filter_memory(ngx_http_request_t *r, ngx_http_gzip_ctx_t *ctx)
+     } else {
+         /*
+          * Another zlib variant, https://github.com/zlib-ng/zlib-ng.
+-         * It used to force window bits to 13 for fast compression level,
+-         * used (64 + sizeof(void*)) additional space on all allocations
+-         * for alignment and 16-byte padding in one of window-sized buffers,
+-         * uses a single allocation with up to 200 bytes for alignment and
+-         * internal pointers, 5/4 times more memory for the pending buffer,
+-         * and 128K hash.
++         * Extra headroom for recent zlib-ng on s390x / RHEL 10.
+          */
+-
+-        if (conf->level == 1) {
+-            wbits = ngx_max(wbits, 13);
+-        }
+-
+-        ctx->allocated = 8192 + 16 + (1 << (wbits + 2))
+-                         + 131072 + (5 << (memlevel + 6))
+-                         + 4 * (64 + sizeof(void*));
++        ctx->allocated =
++            6144   // state
++          + 65536  // window
++          + 65536  // prev
++          + 131072 // head
++          + 163840 // pending
++          + 56 + 8 // alloc struct + padding
++#if (defined(__s390__) || defined(__s390x__) || defined(__zarch__))
++          + 4096   /// Required to fix allocation alignment
++#else
++          + 64  // Required to fix allocation alignment
++#endif
++          + 256;  // Extra to allow for future changes
+         ctx->zlib_ng = 1;
+     }
+ }
