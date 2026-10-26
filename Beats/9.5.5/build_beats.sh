@@ -321,7 +321,7 @@ prepare #Check Prequisites
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.6" | "rhel-9.8" | "rhel-10.0" | "rhel-10.2")
+"rhel-8.10" | "rhel-9.6" | "rhel-9.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y git curl make wget tar gcc gcc-c++ libpcap-devel openssl openssl-devel which acl zlib-devel patch systemd-devel libjpeg-devel python3-devel bzip2-devel gdbm-devel libdb-devel libffi-devel libuuid-devel ncurses-devel readline-devel sqlite-devel tk-devel xz xz-devel  |& tee -a "${LOG_FILE}"
