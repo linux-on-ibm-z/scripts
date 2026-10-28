@@ -1,0 +1,11 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/ebpf/c/bpf_tracing.h
++++ b/pkg/ebpf/c/bpf_tracing.h
+@@ -137,7 +137,7 @@
+ #define __PT_PARM4_REG gprs[5]
+ #define __PT_PARM5_REG gprs[6]
+-#define __PT_RET_REG grps[14]
++#define __PT_RET_REG gprs[14]
+ #define __PT_FP_REG gprs[11]	/* Works only with CONFIG_FRAME_POINTER */
+ #define __PT_RC_REG gprs[2]
+ #define __PT_SP_REG gprs[15]

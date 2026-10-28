@@ -1,0 +1,12 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/ebpf/telemetry/errors_telemetry.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/ebpf/telemetry/errors_telemetry.go	2026-07-23 08:21:56.253733829 -0700
+@@ -282,7 +282,7 @@
+ 	const symbol = "telemetry_program_id_key"
+ 	newIns := asm.Mov.Reg(asm.R1, asm.R1)
+ 	if enable {
+-		newIns = asm.StoreXAdd(asm.R1, asm.R2, asm.Word)
++		newIns = asm.StoreXAdd(asm.R1, asm.R2, asm.DWord)
+ 	}
+ 	h := keyHash()
+ 

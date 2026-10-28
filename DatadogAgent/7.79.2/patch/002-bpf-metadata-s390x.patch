@@ -1,0 +1,12 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/ebpf/c/bpf_metadata.h
++++ b/pkg/ebpf/c/bpf_metadata.h
+@@ -10,6 +10,8 @@
+ char __dd_metadata_arch[] __attribute__((section("dd_metadata"), used)) = "<arch:x86_64>";
+ #elif defined(__aarch64__) || defined(__TARGET_ARCH_arm64)
+ char __dd_metadata_arch[] __attribute__((section("dd_metadata"), used)) = "<arch:arm64>";
++#elif defined(__s390x__) || defined(__TARGET_ARCH_s390)
++char __dd_metadata_arch[] __attribute__((section("dd_metadata"), used)) = "<arch:s390x>";
+ #else
+ char __dd_metadata_arch[] __attribute__((section("dd_metadata"), used)) = "<arch:unset>";
+ #endif

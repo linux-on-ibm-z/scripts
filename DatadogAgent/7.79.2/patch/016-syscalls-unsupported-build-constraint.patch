@@ -1,0 +1,11 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/security/secl/model/syscalls_unsupported.go
++++ b/pkg/security/secl/model/syscalls_unsupported.go
+@@ -3,7 +3,7 @@
+ // Copyright 2016-present Datadog, Inc.
+
+-//go:build !linux || !(amd64 || arm64)
++//go:build !linux || !(amd64 || arm64 || s390x)
+
+ package model
+

@@ -1,0 +1,12 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/security/utils/mount_linux.go
++++ b/pkg/security/utils/mount_linux.go
+@@ -112,7 +112,7 @@ func GetFSTypeFromFilePath(path string) string {
+ 		return ""
+ 	}
+ 	for _, m := range magic2fs {
+-		if m.magic == s.Type {
++		if m.magic == int64(s.Type) {
+ 			return m.fs
+ 		}
+ 	}

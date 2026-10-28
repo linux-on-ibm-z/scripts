@@ -1,0 +1,262 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+diff -ruN /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/fuzz_test.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/fuzz_test.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/fuzz_test.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/fuzz_test.go	2026-07-23 14:11:17.693394569 -0700
+@@ -7,11 +7,14 @@
+ 
+ package loclist
+ 
+-import "testing"
++import (
++	"encoding/binary"
++	"testing"
++)
+ 
+ func FuzzParseInstructions(f *testing.F) {
+ 	f.Fuzz(func(_ *testing.T, data []byte, ptrSize uint8, totalByteSize uint32) {
+-		_, err := ParseInstructions(data, ptrSize, totalByteSize)
++		_, err := ParseInstructions(data, ptrSize, totalByteSize, binary.LittleEndian)
+ 		if err != nil {
+ 			return
+ 		}
+diff -ruN /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/locations.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/locations.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/locations.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/locations.go	2026-07-23 11:24:32.413536145 -0700
+@@ -10,6 +10,7 @@
+ import (
+ 	"debug/dwarf"
+ 	"errors"
++	"encoding/binary"
+ 	"fmt"
+ 
+ 	"github.com/DataDog/datadog-agent/pkg/dyninst/ir"
+@@ -54,7 +55,7 @@
+ 				"unexpected location field type: %T", locField.Val,
+ 			)
+ 		}
+-		pieces, err := ParseInstructions(instr, pointerSize, typeSize)
++		pieces, err := ParseInstructions(instr, pointerSize, typeSize, binary.LittleEndian)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff -ruN /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/parse.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/parse.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/parse.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/parse.go	2026-07-23 11:24:09.543536145 -0700
+@@ -64,7 +64,7 @@
+ //revive:enable:var-naming
+ 
+ // ParseInstructions parses DWARF loclist instruction bytes.
+-func ParseInstructions(data []byte, ptrSize uint8, totalByteSize uint32) ([]ir.Piece, error) {
++func ParseInstructions(data []byte, ptrSize uint8, totalByteSize uint32, bo binary.ByteOrder) ([]ir.Piece, error) {
+ 	reader := bytes.NewBuffer(data)
+ 	op := ir.PieceOp(nil)
+ 	pieces := []ir.Piece{}
+@@ -102,7 +102,7 @@
+ 
+ 		switch {
+ 		case opcode == dw_op_addr:
+-			offset, err := readFixedSize(reader, ptrSize)
++			offset, err := readFixedSize(reader, ptrSize, bo)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -190,17 +190,17 @@
+ 	return pieces, nil
+ }
+ 
+-func readFixedSize(reader *bytes.Buffer, size uint8) (uint64, error) {
++func readFixedSize(reader *bytes.Buffer, size uint8, bo binary.ByteOrder) (uint64, error) {
+ 	switch size {
+ 	case 1:
+ 		val, err := reader.ReadByte()
+ 		return uint64(val), err
+ 	case 2:
+-		return uint64(binary.LittleEndian.Uint16(reader.Next(2))), nil
++		return uint64(bo.Uint16(reader.Next(2))), nil
+ 	case 4:
+-		return uint64(binary.LittleEndian.Uint32(reader.Next(4))), nil
++		return uint64(bo.Uint32(reader.Next(4))), nil
+ 	case 8:
+-		return binary.LittleEndian.Uint64(reader.Next(8)), nil
++		return bo.Uint64(reader.Next(8)), nil
+ 	default:
+ 		return 0, fmt.Errorf("unsupported reading %d-byte integer", size)
+ 	}
+diff -ruN /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/reader.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/reader.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/reader.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/dwarf/loclist/reader.go	2026-07-23 11:24:46.913536145 -0700
+@@ -25,6 +25,7 @@
+ 	dataLocLists []byte
+ 	debugAddr    []byte
+ 	ptrSize      uint8
++	byteOrder    binary.ByteOrder
+ 	unitHeaders  map[dwarf.Offset]dwarfutil.CompileUnitHeader
+ }
+ 
+@@ -35,11 +36,13 @@
+ 	debugAddr []byte,
+ 	ptrSize uint8,
+ 	unitHeaders []dwarfutil.CompileUnitHeader,
++	bo binary.ByteOrder,
+ ) Reader {
+ 	r := Reader{
+ 		dataLoc:      dataLoc,
+ 		dataLocLists: dataLocLists,
+ 		debugAddr:    debugAddr,
++		byteOrder:    bo,
+ 		ptrSize:      ptrSize,
+ 		unitHeaders:  make(map[dwarf.Offset]dwarfutil.CompileUnitHeader),
+ 	}
+@@ -91,7 +94,7 @@
+ 	var loclist Loclist
+ 	var err error
+ 	if unitVersion < 5 {
+-		loclist, err = readDwarf2(data, r.ptrSize, typeByteSize)
++		loclist, err = readDwarf2(data, r.ptrSize, typeByteSize, r.byteOrder)
+ 	} else {
+ 		if r.debugAddr == nil {
+ 			return Loclist{}, errors.New("missing debug_addr section")
+@@ -103,7 +106,7 @@
+ 		if addrBase > int64(len(r.debugAddr)) {
+ 			return Loclist{}, fmt.Errorf("addr base %d out of bounds for section length %d", addrBase, len(r.debugAddr))
+ 		}
+-		loclist, err = readDwarf5(data, r.ptrSize, typeByteSize, r.debugAddr[addrBase:])
++		loclist, err = readDwarf5(data, r.ptrSize, typeByteSize, r.debugAddr[addrBase:], r.byteOrder)
+ 	}
+ 	if err != nil {
+ 		return Loclist{}, err
+@@ -115,16 +118,16 @@
+ 	return loclist, nil
+ }
+ 
+-func readDwarf2(data []byte, ptrSize uint8, typeByteSize uint32) (Loclist, error) {
++func readDwarf2(data []byte, ptrSize uint8, typeByteSize uint32, bo binary.ByteOrder) (Loclist, error) {
+ 	reader := bytes.NewBuffer(data)
+ 	pcBase := uint64(0)
+ 	var locations []ir.Location
+ 	for {
+-		lo, err := readFixedSize(reader, ptrSize)
++		lo, err := readFixedSize(reader, ptrSize, bo)
+ 		if err != nil {
+ 			return Loclist{}, fmt.Errorf("failed to read low PC: %w", err)
+ 		}
+-		hi, err := readFixedSize(reader, ptrSize)
++		hi, err := readFixedSize(reader, ptrSize, bo)
+ 		if err != nil {
+ 			return Loclist{}, fmt.Errorf("failed to read high PC: %w", err)
+ 		}
+@@ -135,7 +138,7 @@
+ 			pcBase = hi
+ 			continue
+ 		}
+-		instrLen, err := readFixedSize(reader, 2)
++		instrLen, err := readFixedSize(reader, 2, bo)
+ 		if err != nil {
+ 			return Loclist{}, fmt.Errorf("failed to read instruction length: %w", err)
+ 		}
+@@ -143,7 +146,7 @@
+ 		if len(instrBytes) != int(instrLen) {
+ 			return Loclist{}, fmt.Errorf("not enough bytes for instructions: expected %d, got %d", instrLen, len(instrBytes))
+ 		}
+-		pieces, err := ParseInstructions(instrBytes, ptrSize, typeByteSize)
++		pieces, err := ParseInstructions(instrBytes, ptrSize, typeByteSize, bo)
+ 		if err != nil {
+ 			return Loclist{}, fmt.Errorf("failed to parse instructions: %w", err)
+ 		}
+@@ -170,7 +173,7 @@
+ 
+ //revive:enable:var-naming
+ 
+-func readDwarf5(data []byte, ptrSize uint8, typeByteSize uint32, debugAddr []byte) (Loclist, error) {
++func readDwarf5(data []byte, ptrSize uint8, typeByteSize uint32, debugAddr []byte, bo binary.ByteOrder) (Loclist, error) {
+ 	reader := bytes.NewBuffer(data)
+ 	var locations []ir.Location
+ 	var defaultPieces []ir.Piece
+@@ -184,7 +187,7 @@
+ 		if len(instrBytes) != int(instrLen) {
+ 			return nil, fmt.Errorf("not enough bytes for instructions: expected %d, got %d", instrLen, len(instrBytes))
+ 		}
+-		return ParseInstructions(instrBytes, ptrSize, typeByteSize)
++		return ParseInstructions(instrBytes, ptrSize, typeByteSize, bo)
+ 	}
+ 
+ 	readAndAppendInstr := func(reader *bytes.Buffer, lo uint64, hi uint64) error {
+@@ -212,7 +215,7 @@
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read base address: %w", err)
+ 			}
+-			base, err = readDebugAddr(debugAddr, ptrSize, addrIdx)
++			base, err = readDebugAddr(debugAddr, ptrSize, addrIdx, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read base value: %w", err)
+ 			}
+@@ -222,7 +225,7 @@
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read low address: %w", err)
+ 			}
+-			lo, err := readDebugAddr(debugAddr, ptrSize, loAddrIdx)
++			lo, err := readDebugAddr(debugAddr, ptrSize, loAddrIdx, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read low value: %w", err)
+ 			}
+@@ -230,7 +233,7 @@
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read high address: %w", err)
+ 			}
+-			hi, err := readDebugAddr(debugAddr, ptrSize, hiAddrIdx)
++			hi, err := readDebugAddr(debugAddr, ptrSize, hiAddrIdx, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read high value: %w", err)
+ 			}
+@@ -244,7 +247,7 @@
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read low address: %w", err)
+ 			}
+-			lo, err := readDebugAddr(debugAddr, ptrSize, loAddrIdx)
++			lo, err := readDebugAddr(debugAddr, ptrSize, loAddrIdx, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read low value: %w", err)
+ 			}
+@@ -278,17 +281,17 @@
+ 			}
+ 
+ 		case dw_lle_base_address:
+-			base, err = readFixedSize(reader, ptrSize)
++			base, err = readFixedSize(reader, ptrSize, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read base address: %w", err)
+ 			}
+ 
+ 		case dw_lle_start_end:
+-			lo, err := readFixedSize(reader, ptrSize)
++			lo, err := readFixedSize(reader, ptrSize, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read low offset: %w", err)
+ 			}
+-			hi, err := readFixedSize(reader, ptrSize)
++			hi, err := readFixedSize(reader, ptrSize, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read high offset: %w", err)
+ 			}
+@@ -298,7 +301,7 @@
+ 			}
+ 
+ 		case dw_lle_start_length:
+-			lo, err := readFixedSize(reader, ptrSize)
++			lo, err := readFixedSize(reader, ptrSize, bo)
+ 			if err != nil {
+ 				return Loclist{}, fmt.Errorf("failed to read low offset: %w", err)
+ 			}
+@@ -318,10 +321,10 @@
+ 	return Loclist{Locations: locations, Default: defaultPieces}, nil
+ }
+ 
+-func readDebugAddr(data []byte, ptrSize uint8, idx uint64) (uint64, error) {
++func readDebugAddr(data []byte, ptrSize uint8, idx uint64, bo binary.ByteOrder) (uint64, error) {
+ 	offset := idx * uint64(ptrSize)
+ 	if offset+uint64(ptrSize) > uint64(len(data)) {
+ 		return 0, fmt.Errorf("address index %d out of bounds", idx)
+ 	}
+-	return binary.LittleEndian.Uint64(data[offset : offset+uint64(ptrSize)]), nil
++	return bo.Uint64(data[offset : offset+uint64(ptrSize)]), nil
+ }

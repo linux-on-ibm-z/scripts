@@ -1,0 +1,211 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/elf_file_with_dwarf.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/elf_file_with_dwarf.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/elf_file_with_dwarf.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/elf_file_with_dwarf.go	2026-07-23 11:24:32.423536145 -0700
+@@ -9,11 +9,9 @@
+ 
+ import (
+ 	"debug/dwarf"
+-	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+ 
+-	dlvdwarf "github.com/go-delve/delve/pkg/dwarf"
+ 
+ 	"github.com/DataDog/datadog-agent/pkg/dyninst/dwarf/dwarfutil"
+ 	"github.com/DataDog/datadog-agent/pkg/dyninst/dwarf/loclist"
+@@ -199,10 +197,6 @@
+ 		return err
+ 	}
+ 	d.dwarfData = *dwarfData
+-	_, _, _, byteOrder := dlvdwarf.ReadDwarfLengthVersion(info)
+-	if byteOrder != binary.LittleEndian {
+-		return fmt.Errorf("unexpected DWARF byte order: %v", byteOrder)
+-	}
+ 	d.unitHeaders = dwarfutil.ReadCompileUnitHeaders(d.debugSections.Info())
+ 	d.reader = loclist.MakeReader(
+ 		d.debugSections.Loc(),
+@@ -210,6 +204,7 @@
+ 		d.debugSections.Addr(),
+ 		uint8(f.Architecture().PointerSize()),
+ 		d.unitHeaders,
++		f.ByteOrder(),
+ 	)
+ 	return nil
+ }
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/gomoduledata.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/gomoduledata.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/gomoduledata.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/gomoduledata.go	2026-07-22 10:33:14.154297686 -0700
+@@ -155,6 +155,7 @@
+ }
+ 
+ func parseModuleData(obj SectionLoader) (*ModuleData, error) {
++	bo := obj.ByteOrder()
+ 	pclntabSection := obj.Section(".gopclntab")
+ 	if pclntabSection == nil {
+ 		return nil, errors.New("no pclntab section")
+@@ -199,20 +200,20 @@
+ 			return nil, fmt.Errorf("failed to load go.module: %w", err)
+ 		}
+ 		defer goModuleSectionData.Close()
+-		return tryParseModuleDataAt(
++		return tryParseModuleDataAt(bo,
+ 			version126,
+ 			goModuleSectionData.Data(), rodataData, 0, textRange, rodataRange, noptrdataSection, rodataSection, textSection)
+ 	}
+ 
+ 	// Search for the moduledata structure
+ 	addrBytes := make([]byte, 8)
+-	binary.LittleEndian.PutUint64(addrBytes, pclntabSection.Addr)
++	bo.PutUint64(addrBytes, pclntabSection.Addr)
+ 
+ 	noptrdataData := noptrdataSectionData.Data()
+ 	offsets := findAll(noptrdataData, addrBytes)
+ 	for _, offset := range offsets {
+ 		// Try to parse moduledata at this offset
+-		moduleData, err := tryParseModuleDataAt(
++		moduleData, err := tryParseModuleDataAt(bo,
+ 			version125,
+ 			noptrdataData, rodataData, offset, textRange, rodataRange,
+ 			noptrdataSection, rodataSection, textSection,
+@@ -225,7 +226,7 @@
+ 	return nil, errors.New("no valid moduledata found")
+ }
+ 
+-func tryParseModuleDataAt(
++func tryParseModuleDataAt(bo binary.ByteOrder,
+ 	version version,
+ 	noptrdataData, rodataData []byte,
+ 	offset int,
+@@ -238,16 +239,16 @@
+ 	if typesStart+16 > len(noptrdataData) {
+ 		return nil, errors.New("types data out of bounds")
+ 	}
+-	types := binary.LittleEndian.Uint64(noptrdataData[typesStart:])
+-	etypes := binary.LittleEndian.Uint64(noptrdataData[typesStart+8:])
++	types := bo.Uint64(noptrdataData[typesStart:])
++	etypes := bo.Uint64(noptrdataData[typesStart+8:])
+ 
+ 	// Parse text range
+ 	textStart := offset + moduledataTextOffset
+ 	if textStart+16 > len(noptrdataData) {
+ 		return nil, errors.New("text data out of bounds")
+ 	}
+-	text := binary.LittleEndian.Uint64(noptrdataData[textStart:])
+-	etext := binary.LittleEndian.Uint64(noptrdataData[textStart+8:])
++	text := bo.Uint64(noptrdataData[textStart:])
++	etext := bo.Uint64(noptrdataData[textStart+8:])
+ 
+ 	// Validate ranges
+ 	if types > etypes || types < rodataRange[0] || etypes > rodataRange[1] {
+@@ -262,8 +263,8 @@
+ 	if textsectMapOffset+16 > len(noptrdataData) {
+ 		return nil, errors.New("A textsect map data out of bounds")
+ 	}
+-	textsectMapPtr := binary.LittleEndian.Uint64(noptrdataData[textsectMapOffset:])
+-	textsectMapLen := binary.LittleEndian.Uint64(noptrdataData[textsectMapOffset+8:])
++	textsectMapPtr := bo.Uint64(noptrdataData[textsectMapOffset:])
++	textsectMapLen := bo.Uint64(noptrdataData[textsectMapOffset+8:])
+ 
+ 	if textsectMapPtr < rodataSection.Addr {
+ 		return nil, errors.New("textsect map pointer out of range")
+@@ -280,9 +281,9 @@
+ 	textsectMapData := rodataData[textsectMapDataOffset : textsectMapDataOffset+textsectMapDataLen]
+ 	var textsectMap []TextSect
+ 	for i := 0; i < len(textsectMapData); i += int(textsectSize) {
+-		vaddr := binary.LittleEndian.Uint64(textsectMapData[i:])
+-		end := binary.LittleEndian.Uint64(textsectMapData[i+8:])
+-		baseaddr := binary.LittleEndian.Uint64(textsectMapData[i+16:])
++		vaddr := bo.Uint64(textsectMapData[i:])
++		end := bo.Uint64(textsectMapData[i+8:])
++		baseaddr := bo.Uint64(textsectMapData[i+16:])
+ 		textsectMap = append(textsectMap, TextSect{
+ 			VAddr:    vaddr,
+ 			End:      end,
+@@ -295,30 +296,30 @@
+ 	if bssOffset+16 > len(noptrdataData) {
+ 		return nil, errors.New("bss data out of bounds")
+ 	}
+-	bss := binary.LittleEndian.Uint64(noptrdataData[bssOffset:])
+-	ebss := binary.LittleEndian.Uint64(noptrdataData[bssOffset+8:])
++	bss := bo.Uint64(noptrdataData[bssOffset:])
++	ebss := bo.Uint64(noptrdataData[bssOffset+8:])
+ 
+ 	// Parse gofunc offset
+ 	gofuncOffset := offset + moduledataGofuncOffset
+ 	if gofuncOffset+8 > len(noptrdataData) {
+ 		return nil, errors.New("gofunc data out of bounds")
+ 	}
+-	gofunc := binary.LittleEndian.Uint64(noptrdataData[gofuncOffset:])
++	gofunc := bo.Uint64(noptrdataData[gofuncOffset:])
+ 
+ 	// Parse gcdata offset
+ 	gcdataOffset := offset + moduledataGcdataOffset
+ 	if gcdataOffset+8 > len(noptrdataData) {
+ 		return nil, errors.New("gcdata data out of bounds")
+ 	}
+-	gcdata := binary.LittleEndian.Uint64(noptrdataData[gcdataOffset:])
++	gcdata := bo.Uint64(noptrdataData[gcdataOffset:])
+ 
+ 	// Parse min/max PC
+ 	minPCOffset := offset + moduledataMinPCOffset
+ 	if minPCOffset+16 > len(noptrdataData) {
+ 		return nil, errors.New("minPC data out of bounds")
+ 	}
+-	minPC := binary.LittleEndian.Uint64(noptrdataData[minPCOffset:])
+-	maxPC := binary.LittleEndian.Uint64(noptrdataData[minPCOffset+8:])
++	minPC := bo.Uint64(noptrdataData[minPCOffset:])
++	maxPC := bo.Uint64(noptrdataData[minPCOffset+8:])
+ 
+ 	return &ModuleData{
+ 		FirstModuleData: uint64(noptrdataSection.Addr) + uint64(offset),
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/gosym.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/gosym.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/gosym.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/gosym.go	2026-07-23 12:03:43.413519443 -0700
+@@ -74,6 +74,7 @@
+ 		moduledata.EText,
+ 		moduledata.MinPC,
+ 		moduledata.MaxPC,
++		mef.ByteOrder(),
+ 	)
+ 	if err != nil {
+ 		return nil, err
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/in_memory_elf_file.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/in_memory_elf_file.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/in_memory_elf_file.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/in_memory_elf_file.go	2026-07-22 10:21:04.614297686 -0700
+@@ -8,6 +8,7 @@
+ package object
+ 
+ import (
++	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"slices"
+@@ -143,3 +144,8 @@
+ 
+ func (d inMemorySectionData) Close() error { return nil }
+ func (d inMemorySectionData) Data() []byte { return d }
++
++// ByteOrder returns the byte order of the ELF file.
++func (e *InMemoryElfFile) ByteOrder() binary.ByteOrder {
++	return e.File.ByteOrder
++}
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/object.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/object.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/object/object.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/object/object.go	2026-07-22 10:33:14.164297686 -0700
+@@ -10,6 +10,7 @@
+ package object
+ 
+ import (
++	"encoding/binary"
+ 	"debug/dwarf"
+ 	"io"
+ 
+@@ -71,4 +72,7 @@
+ 	// Note that if the section was compressed, this method will return an
+ 	// error.
+ 	SectionDataRange(section *safeelf.SectionHeader, offset, length uint64) (SectionData, error)
++
++	// ByteOrder returns the byte order of the object file.
++	ByteOrder() binary.ByteOrder
+ }

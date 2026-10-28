@@ -1,0 +1,35 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/ebpf/c/bpf_telemetry.h	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/ebpf/c/bpf_telemetry.h	2026-07-22 11:05:19.514254140 -0700
+@@ -33,12 +33,7 @@
+         map_err_telemetry_t *entry =                                           \
+         bpf_map_lookup_elem(&map_err_telemetry_map, &err_telemetry_key);       \
+         if (entry) {                                                           \
+-            errno_slot = errno_ret * -1;                                       \
+-            if (errno_slot >= T_MAX_ERRNO) {                                   \
+-                errno_slot = T_MAX_ERRNO - 1;                                  \
+-                errno_slot &= (T_MAX_ERRNO - 1);                               \
+-            }                                                                  \
+-            errno_slot &= (T_MAX_ERRNO - 1);                                   \
++            errno_slot = (long)(((unsigned long)(-errno_ret)) & (T_MAX_ERRNO - 1)); \
+             long *target = &entry->err_count[errno_slot];                      \
+             unsigned long add = 1;                                             \
+             /* Patched instruction for 4.14+: __sync_fetch_and_add(target, 1);
+@@ -75,16 +70,7 @@
+                 bpf_map_lookup_elem(&helper_err_telemetry_map, &telemetry_program_id);          \
+             if (entry) {                                                                        \
+                 helper_indx = MK_FN_INDX(fn);                                                   \
+-                errno_slot = errno_ret * -1;                                                    \
+-                if (errno_slot >= T_MAX_ERRNO) {                                                \
+-                    errno_slot = T_MAX_ERRNO - 1;                                               \
+-                    /* This is duplicated below because on clang 14.0.6 the compiler
+-                     * concludes that this if-check will always force errno_slot in range
+-                     * (0, T_MAX_ERRNO-1], and removes the bounds check, causing the verifier
+-                     * to trip. Duplicating this check forces clang not to omit the check */    \
+-                    errno_slot &= (T_MAX_ERRNO - 1);                                            \
+-                }                                                                               \
+-                errno_slot &= (T_MAX_ERRNO - 1);                                                \
++                errno_slot = (long)(((unsigned long)(-errno_ret)) & (T_MAX_ERRNO - 1));          \
+                 if (helper_indx >= 0) {                                                         \
+                     long *target = &entry->err_count[(helper_indx * T_MAX_ERRNO) + errno_slot]; \
+                     unsigned long add = 1;                                                      \

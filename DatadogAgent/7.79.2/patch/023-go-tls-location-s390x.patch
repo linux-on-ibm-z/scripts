@@ -1,0 +1,71 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/network/ebpf/c/protocols/tls/go-tls-location.h
++++ b/pkg/network/ebpf/c/protocols/tls/go-tls-location.h
+@@ -5,5 +5,7 @@
+ #define REG_SIZE 8
+ #ifdef __TARGET_ARCH_arm64
+ #define NUM_REGISTERS 31
++#elif defined(__TARGET_ARCH_s390)
++#define NUM_REGISTERS 16
+ #endif
+
+ // This function was adapted from https://github.com/go-delve/delve:
+@@ -131,6 +133,27 @@
+
+         *(u64*)dest = tmp;
+         return 0;
+-    #else
+-        #error "Unsupported platform"
++    #elif defined(__TARGET_ARCH_s390)
++        // s390x has 16 GPRs (gprs[0]-gprs[15]).
++        // DWARF register numbers 0-15 map directly to gprs[0]-gprs[15].
++        if (regnum < 0 || regnum >= NUM_REGISTERS) {
++            return 1;
++        }
++
++        volatile u64 tmp = 0;
++    #pragma unroll
++        for (int i = 0; i < NUM_REGISTERS; i++) {
++            if (i == regnum) {
++                tmp = ctx->gprs[i];
++                // No break: same verifier-friendliness pattern as ARM64.
++                // A break here would cause variable ctx pointer dereference
++                // (ctx access var_off disallowed). Without break, LLVM
++                // generates constant offsets for each iteration.
++            }
++        }
++
++        *(u64*)dest = tmp;
++        return 0;
++    #else
++        #error "Unsupported platform"
+     #endif
+ }
+
+@@ -183,13 +206,20 @@
+             return &ctx->regs[regnum];
+         }
+         return NULL;
+-    #else
+-        #error "Unsupported platform"
++    #elif defined(__TARGET_ARCH_s390)
++        // s390x: 16 GPRs in gprs[] array, DWARF 0-15 map 1:1.
++        if (regnum >= 0 && regnum < NUM_REGISTERS) {
++            return &ctx->gprs[regnum];
++        }
++        return NULL;
++    #else
++        #error "Unsupported platform"
+     #endif
+ }
+
+-static __always_inline int read_stack(struct pt_regs* ctx, int64_t stack_offset, size_t size, void* dest) {
+-    // `ctx->sp` is correct for both x86_64 and ARM64
+-    uintptr_t stack_pointer = (uintptr_t) ctx->sp;
++static __always_inline int read_stack(struct pt_regs *ctx, int64_t stack_offset, size_t size, void *dest) {
++    // Use PT_REGS_SP for portability: ctx->sp exists on x86_64 and ARM64,
++    // but s390x user_pt_regs has gprs[15] instead of a dedicated sp field.
++    uintptr_t stack_pointer = (uintptr_t)PT_REGS_SP(ctx);
+     uintptr_t address = stack_pointer + stack_offset;
+     return bpf_probe_read_user(dest, size, (void*) address);
+ }

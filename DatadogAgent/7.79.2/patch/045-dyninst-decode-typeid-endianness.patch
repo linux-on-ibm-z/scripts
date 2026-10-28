@@ -1,0 +1,30 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/dyninst/decode/template_test.go
++++ b/pkg/dyninst/decode/template_test.go
+@@ -29,7 +29,7 @@
+ 		{
+ 			name: "int64",
+ 			typ: &ir.BaseType{
+-				TypeCommon:       ir.TypeCommon{Name: "int64", ByteSize: 8},
++				TypeCommon:       ir.TypeCommon{ID: 2, Name: "int64", ByteSize: 8},
+ 				GoTypeAttributes: ir.GoTypeAttributes{GoKind: reflect.Int64},
+ 			},
+ 			data:     int64ToBytes(42),
+@@ -102,7 +102,7 @@
+ 				Name:   "ID",
+ 				Offset: 0,
+ 				Type: &ir.BaseType{
+-					TypeCommon:       ir.TypeCommon{Name: "int64", ByteSize: 8},
++					TypeCommon:       ir.TypeCommon{ID: 2, Name: "int64", ByteSize: 8},
+ 					GoTypeAttributes: ir.GoTypeAttributes{GoKind: reflect.Int64},
+ 				},
+ 			},
+@@ -110,7 +110,7 @@
+ 				Name:   "Age",
+ 				Offset: 8,
+ 				Type: &ir.BaseType{
+-					TypeCommon:       ir.TypeCommon{Name: "int32", ByteSize: 4},
++					TypeCommon:       ir.TypeCommon{ID: 3, Name: "int32", ByteSize: 4},
+ 					GoTypeAttributes: ir.GoTypeAttributes{GoKind: reflect.Int32},
+ 				},
+ 			},

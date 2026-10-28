@@ -1,0 +1,71 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+diff --git a/tasks/libs/types/arch.py b/tasks/libs/types/arch.py
+--- a/tasks/libs/types/arch.py
++++ b/tasks/libs/types/arch.py
+@@ -170,4 +170,16 @@
+     spellings={"ppc64", "powerpc64", "powerpc"},
+ )
+
+-ALL_ARCHS = [ARCH_AMD64, ARCH_ARM64, ARCH_PPC64]
++
++ARCH_S390X = Arch(
++    name="s390x",
++    go_arch="s390x",
++    gcc_arch="s390x",
++    kernel_arch="s390",
++    kmt_arch=None,
++    windows_arch="",
++    ci_arch="s390x",
++    spellings={"s390x", "s390"},
++)
++
++ALL_ARCHS = [ARCH_AMD64, ARCH_ARM64, ARCH_PPC64, ARCH_S390X]
+diff --git a/tasks/libs/common/constants.py b/tasks/libs/common/constants.py
+--- a/tasks/libs/common/constants.py
++++ b/tasks/libs/common/constants.py
+@@ -26,4 +26,5 @@
+     "arm64": "arm64",
+     "amd64": "amd64",
+     "x86_64": "amd64",
++    "s390x": "s390x",
+ }
+diff --git a/pkg/util/kernel/platform_test.go b/pkg/util/kernel/platform_test.go
+--- a/pkg/util/kernel/platform_test.go
++++ b/pkg/util/kernel/platform_test.go
+@@ -28,7 +28,16 @@
+
+ 	tmp := t.TempDir()
+ 	t.Setenv("HOST_ETC", tmp)
+-	require.NoError(t, os.Mkdir(filepath.Join(tmp, "redhat-release"), 0755))
++
++	// Copy /etc/redhat-release as a file (not a directory) so that gopsutil's
++	// PathExistsWithContents() recognizes it and uses the redhat-release code
++	// path, which sets platform="redhat" and family="rhel".
++	if rhData, err := os.ReadFile("/etc/redhat-release"); err == nil {
++		require.NoError(t, os.WriteFile(filepath.Join(tmp, "redhat-release"), rhData, 0644))
++	} else {
++		// Fallback: write a synthetic redhat-release file
++		require.NoError(t, os.WriteFile(filepath.Join(tmp, "redhat-release"), []byte("Red Hat Enterprise Linux release 9.0 (Plow)\n"), 0644))
++	}
+
+ 	// copy /etc/os-release to <tmpdir>/os-release
+ 	dosr, err := os.Create(filepath.Join(tmp, "os-release"))
+diff --git a/comp/core/secrets/impl/fetch_secret_test.go b/comp/core/secrets/impl/fetch_secret_test.go
+--- a/comp/core/secrets/impl/fetch_secret_test.go
++++ b/comp/core/secrets/impl/fetch_secret_test.go
+@@ -123,8 +123,14 @@
+
+ %s
+ `
++	// Sanitize runtime.Version() to extract only the base version (e.g., "go1.26.3")
++	// to handle vendor-extended version strings like "go1.26.3 (Red Hat 1.26.3-1.el9_8)".
++	goVer := runtime.Version()
++	if idx := strings.Index(goVer, " "); idx != -1 {
++		goVer = goVer[:idx]
++	}
+ 	os.WriteFile(filepath.Join(builddir, "go.mod"),
+-		[]byte(strings.Replace(fmt.Sprintf(goModContent, runtime.Version()), "go", "go ", -1)),
++		[]byte(strings.Replace(fmt.Sprintf(goModContent, goVer), "go", "go ", -1)),
+ 		0755)
+
+ 	// change to the build directory

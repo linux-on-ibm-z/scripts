@@ -1,0 +1,21 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/dyninst/irgen/irgen.go
++++ b/pkg/dyninst/irgen/irgen.go
+@@ -2470,7 +2470,7 @@
+ 			if err != nil {
+ 				return nil, fmt.Errorf("failed to get location for runtime.firstmoduledata: %w", err)
+ 			}
+-			instructions, err := loclist.ParseInstructions(location, v.root.pointerSize, byteSize)
++			instructions, err := loclist.ParseInstructions(location, v.root.pointerSize, byteSize, binary.LittleEndian)
+ 			if err != nil {
+ 				return nil, fmt.Errorf("failed to parse location for runtime.firstmoduledata: %w", err)
+ 			}
+@@ -2529,7 +2529,7 @@
+ 	}
+ 	// Use pointer size as the byte size — we only need the address, not the
+ 	// data. The loclist parser requires a size but it doesn't affect DW_OP_addr.
+-	instructions, err := loclist.ParseInstructions(location, pointerSize, uint32(pointerSize))
++	instructions, err := loclist.ParseInstructions(location, pointerSize, uint32(pointerSize), binary.LittleEndian)
+ 	if err != nil {
+ 		return 0, fmt.Errorf("failed to parse location for %s: %w", name, err)
+ 	}

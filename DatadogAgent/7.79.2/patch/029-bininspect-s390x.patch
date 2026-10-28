@@ -1,0 +1,47 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/network/go/bininspect/types.go
++++ b/pkg/network/go/bininspect/types.go
+@@ -105,6 +105,8 @@
+ 	GoArchX86_64 GoArch = "amd64"
+ 	// GoArchARM64 corresponds to ARM 64-bit ("arm64")
+ 	GoArchARM64 GoArch = "arm64"
++	// GoArchS390X corresponds to IBM Z 64-bit ("s390x")
++	GoArchS390X GoArch = "s390x"
+ )
+
+ // PointerSize gets the size, in bytes, of pointers on the architecture
+@@ -113,6 +115,8 @@
+ 		return 8
+ 	case GoArchARM64:
+ 		return 8
++	case GoArchS390X:
++		return 8
+ 	default:
+ 		return 0
+ 	}
+--- a/pkg/network/go/bininspect/utils.go
++++ b/pkg/network/go/bininspect/utils.go
+@@ -29,6 +29,8 @@
+ 	case safeelf.EM_X86_64:
+ 		return GoArchX86_64, nil
+ 	case safeelf.EM_AARCH64:
+ 		return GoArchARM64, nil
++	case safeelf.EM_S390:
++		return GoArchS390X, nil
+ 	}
+
+ 	return "", ErrUnsupportedArch
+@@ -82,6 +84,13 @@
+ 		}
+ 		return GoABIStack, nil
+
++	case GoArchS390X:
++		// Go 1.26 introduced register-based ABI for s390x behind
++		// GOEXPERIMENT=regabiargs. It is not enabled by default, so
++		// binaries compiled without the experiment flag use stack ABI.
++		// Conservatively report stack ABI for all Go versions on s390x.
++		return GoABIStack, nil
++
+ 	}
+
+ 	return "", ErrUnsupportedArch

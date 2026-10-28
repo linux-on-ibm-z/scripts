@@ -1,0 +1,22 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/security/secl/model/syscalls_string_linux_s390x.go
++++ b/pkg/security/secl/model/syscalls_string_linux_s390x.go
+@@ -280,8 +280,7 @@
+ 	361: "SysBind",
+ 	362: "SysConnect",
+ 	363: "SysListen",
+-	364: "SysAccept",
+-	364: "SysAccept4",
++	364: "SysAccept4",
+ 	365: "SysGetsockopt",
+ 	366: "SysSetsockopt",
+ 	367: "SysGetsockname",
+@@ -299,8 +298,7 @@
+ 	384: "SysPkeyMprotect",
+ 	385: "SysPkeyAlloc",
+ 	386: "SysPkeyFree",
+-	392: "SysSemop",
+-	392: "SysSemtimedop",
++	392: "SysSemtimedop",
+ 	393: "SysSemget",
+ 	394: "SysSemctl",

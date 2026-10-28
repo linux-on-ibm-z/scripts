@@ -1,0 +1,65 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/ebpf/c/bpf_tracing_custom.h
++++ b/pkg/ebpf/c/bpf_tracing_custom.h
+@@ -97,6 +97,61 @@
+ #define PT_REGS_USER_PARM9(x, ret) PT_REGS_USER_STACK_PARM(__PT_REGS_CAST(x), 0, ret)
+ #define PT_REGS_USER_PARM10(x, ret) PT_REGS_USER_STACK_PARM(__PT_REGS_CAST(x), 1, ret)
+
++#elif defined(bpf_target_s390)
++
++#define __PT_PARM6_REG gprs[7]
++#define PT_REGS_STACK_PARM(x, n)                                                   \
++    ({                                                                             \
++        unsigned long p = 0;                                                       \
++        bpf_probe_read_kernel(&p, sizeof(p), ((unsigned long *)x->gprs[15]) + n);  \
++        p;                                                                         \
++    })
++
++#define PT_REGS_USER_STACK_PARM(x, n, ret)                                             \
++    ({                                                                                 \
++        unsigned long p = 0;                                                           \
++        ret = bpf_probe_read_user(&p, sizeof(p), ((unsigned long *)x->gprs[15]) + n);  \
++        p;                                                                             \
++    })
++
++// s390x DWARF register number mapping: GPR0-GPR15 are DWARF registers 0-15.
++// See ELF ABI for s390x, Section "DWARF Register Number Mapping".
++// The user_pt_regs structure has gprs[16] for general purpose registers,
++// and psw.addr for the instruction pointer.
++#define DWARF_REGISTER_0 gprs[0]
++#define DWARF_REGISTER_1 gprs[1]
++#define DWARF_REGISTER_2 gprs[2]
++#define DWARF_REGISTER_3 gprs[3]
++#define DWARF_REGISTER_4 gprs[4]
++#define DWARF_REGISTER_5 gprs[5]
++#define DWARF_REGISTER_6 gprs[6]
++#define DWARF_REGISTER_7 gprs[7]
++#define DWARF_REGISTER_8 gprs[8]
++#define DWARF_REGISTER_9 gprs[9]
++#define DWARF_REGISTER_10 gprs[10]
++#define DWARF_REGISTER_11 gprs[11]
++#define DWARF_REGISTER_12 gprs[12]
++#define DWARF_REGISTER_13 gprs[13]
++#define DWARF_REGISTER_14 gprs[14]
++#define DWARF_REGISTER_15 gprs[15]
++
++#define DWARF_REGISTER(num) DWARF_REGISTER_##num
++
++#define DWARF_BP_REG gprs[11]     // R11 is the frame pointer register on s390x
++#define DWARF_SP_REG gprs[15]     // R15 is the stack pointer
++#define DWARF_PC_REG psw.addr     // Instruction pointer is in PSW
++
++// s390x uses R2-R6 for first 5 syscall/function args; additional args on stack.
++#define PT_REGS_PARM7(x) PT_REGS_STACK_PARM(__PT_REGS_CAST(x), 0)
++#define PT_REGS_PARM8(x) PT_REGS_STACK_PARM(__PT_REGS_CAST(x), 1)
++#define PT_REGS_PARM9(x) PT_REGS_STACK_PARM(__PT_REGS_CAST(x), 2)
++#define PT_REGS_PARM10(x) PT_REGS_STACK_PARM(__PT_REGS_CAST(x), 3)
++
++#define PT_REGS_USER_PARM7(x, ret) PT_REGS_USER_STACK_PARM(__PT_REGS_CAST(x), 0, ret)
++#define PT_REGS_USER_PARM8(x, ret) PT_REGS_USER_STACK_PARM(__PT_REGS_CAST(x), 1, ret)
++#define PT_REGS_USER_PARM9(x, ret) PT_REGS_USER_STACK_PARM(__PT_REGS_CAST(x), 2, ret)
++#define PT_REGS_USER_PARM10(x, ret) PT_REGS_USER_STACK_PARM(__PT_REGS_CAST(x), 3, ret)
++
+ #endif /* defined(bpf_target_x86) */
+
+ #if defined(bpf_target_defined)

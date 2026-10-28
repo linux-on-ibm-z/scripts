@@ -1,0 +1,52 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/dyninst/irgen/irgen.go
++++ b/pkg/dyninst/irgen/irgen.go
+@@ -5635,6 +5635,32 @@
+ 			pc:          pc,
+ 			topPCOffset: topPCOffset,
+ 		}, nil
++	case "s390x":
++		// s390x prologue: SUB $N, SP followed by MOVD R14, 0(SP).
++		// Go on s390x does not use frame pointers, so there is no frame
++		// pointer setup instruction to skip past. For framed functions,
++		// advance to the next line table entry after prologueEnd (same
++		// approach as arm64) to ensure the frame is fully established.
++		pc := loc.prologueEnd
++		if pc == 0 {
++			pc = addr
++		}
++		var topPCOffset int8
++		if !frameless {
++			idx := slices.IndexFunc(loc.lines, func(line line) bool {
++				return line.pc == loc.prologueEnd
++			})
++			if idx != -1 && idx+1 < len(loc.lines) {
++				nextLine := loc.lines[idx+1]
++				topPCOffset = int8(pc - nextLine.pc)
++				pc = nextLine.pc
++			}
++		}
++		return injectionPoint{
++			frameless:   frameless,
++			pc:          pc,
++			topPCOffset: topPCOffset,
++		}, nil
+ 	default:
+ 		return injectionPoint{}, fmt.Errorf("unsupported architecture: %s", arch)
+ 	}
+@@ -5656,5 +5682,15 @@
+ 	case "arm64":
+ 		return disassembleArm64Function(addr, injectionPC, frameless, body, collectReturnLocations)
++	case "s390x":
++		// s390x: instruction disassembly not yet implemented. Return the
++		// injection point without return location analysis. Return probes
++		// will not be available on s390x until an s390x instruction decoder
++		// is integrated.
++		return []ir.InjectionPoint{{
++			PC:                  injectionPC,
++			Frameless:           frameless,
++			HasAssociatedReturn: false,
++		}}, ir.Issue{}
+ 	default:
+ 		return nil, ir.Issue{
+ 			Kind:    ir.IssueKindDisassemblyFailed,

@@ -1,0 +1,29 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/ebpf/rc_btf.go
++++ b/pkg/ebpf/rc_btf.go
+@@ -28,6 +28,7 @@ import (
+ type btfCatalog struct {
+ 	X64   btfArchCatalog `json:"x86_64"`
+ 	Arm64 btfArchCatalog `json:"arm64"`
++	S390x btfArchCatalog `json:"s390x"`
+ }
+
+ // keyed by distro name
+@@ -54,6 +55,8 @@ func rcArchitecture() string {
+ 		return "x86_64"
+ 	case "arm64":
+ 		return "arm64"
++	case "s390x":
++		return "s390x"
+ 	default:
+ 		return ""
+ 	}
+@@ -196,6 +199,8 @@ func (r *rcBTFLoader) findEntry(config state.RawConfig) (*btfEntry, error) {
+ 		entry = catalog.X64.get(r.platform, r.platformVersion, r.kernelVersion)
+ 	case "arm64":
+ 		entry = catalog.Arm64.get(r.platform, r.platformVersion, r.kernelVersion)
++	case "s390x":
++		entry = catalog.S390x.get(r.platform, r.platformVersion, r.kernelVersion)
+ 	}
+ 	return entry, nil
+ }

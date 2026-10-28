@@ -1,0 +1,16 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/ebpf/probes_test.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/ebpf/probes_test.go	2026-07-22 10:42:16.094287700 -0700
+@@ -53,6 +53,12 @@
+ 		} else {
+ 			assert.Equal(t, "kprobe/sys_bind", tp)
+ 		}
++	case "s390x":
++		if strings.HasPrefix(fnName, indirectSyscallPrefixes[runtime.GOARCH]) {
++			assert.Equal(t, "kprobe/sys_bind/x64", tp)
++		} else {
++			assert.Equal(t, "kprobe/sys_bind", tp)
++		}
+ 	default:
+ 		assert.Equal(t, "kprobe/sys_bind", tp)
+ 	}

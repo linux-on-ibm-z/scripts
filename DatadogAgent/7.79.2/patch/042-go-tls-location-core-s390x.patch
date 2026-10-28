@@ -1,0 +1,56 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/network/ebpf/c/protocols/tls/go-tls-location.h	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/network/ebpf/c/protocols/tls/go-tls-location.h	2026-07-22 10:52:36.144254140 -0700
+@@ -6,6 +6,8 @@
+ #define REG_SIZE 8
+ #ifdef __TARGET_ARCH_arm64
+ #define NUM_REGISTERS 31
++#elif defined(__TARGET_ARCH_s390)
++#define NUM_REGISTERS 16
+ #endif
+ 
+ // This function was adapted from https://github.com/go-delve/delve:
+@@ -131,6 +133,21 @@
+ 
+         *(u64*)dest = tmp;
+         return 0;
++    #elif defined(__TARGET_ARCH_s390)
++        if (regnum < 0 || regnum >= NUM_REGISTERS) {
++            return 1;
++        }
++
++        volatile u64 tmp = 0;
++    #pragma unroll
++        for (int i = 0; i < NUM_REGISTERS; i++) {
++            if (i == regnum) {
++                tmp = ctx->gprs[i];
++            }
++        }
++
++        *(u64*)dest = tmp;
++        return 0;
+     #else
+         #error "Unsupported platform"
+     #endif
+@@ -182,14 +199,19 @@
+             return &ctx->regs[regnum];
+         }
+         return NULL;
++    #elif defined(__TARGET_ARCH_s390)
++        if (regnum >= 0 && regnum < NUM_REGISTERS) {
++            return &ctx->gprs[regnum];
++        }
++        return NULL;
+     #else
+         #error "Unsupported platform"
+     #endif
+ }
+ 
+ static __always_inline int read_stack(struct pt_regs* ctx, int64_t stack_offset, size_t size, void* dest) {
+-    // `ctx->sp` is correct for both x86_64 and ARM64
+-    uintptr_t stack_pointer = (uintptr_t) ctx->sp;
++    // Use PT_REGS_SP for cross-architecture stack pointer access
++    uintptr_t stack_pointer = (uintptr_t) PT_REGS_SP(ctx);
+     uintptr_t address = stack_pointer + stack_offset;
+     return bpf_probe_read_user(dest, size, (void*) address);
+ }

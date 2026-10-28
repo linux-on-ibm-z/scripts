@@ -1,0 +1,34 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/dyninst/ebpf/cfa.h
++++ b/pkg/dyninst/ebpf/cfa.h
+@@ -175,7 +175,29 @@
+   } else {
+     return regs->DWARF_BP_REG + 16;
+   }
+-#else
++#elif defined(bpf_target_s390)
++  // s390x Go ABI: BL stores the return address in R14 (link register)
++  // without modifying SP. The callee allocates the full frame (including
++  // the return PC slot at 0(SP)) by decrementing SP.
++  //
++  // For frameless functions: SP was not modified by the callee, so
++  // CFA = SP (the value of SP at the call site). This is correct because
++  // BL does not push anything on the stack.
++  //
++  // For framed functions: CFA = SP + framesize, where framesize is
++  // the amount the callee subtracted from SP. Go on s390x does NOT
++  // emit frame pointers, so we cannot recover the caller's SP from
++  // registers alone. We return SP + 8 (past the saved return PC at
++  // 0(SP)) as the minimum frame. This is correct for functions whose
++  // frame contains only the return PC slot. For larger frames, full
++  // accuracy requires the DWARF CFA frame offset to be passed as a
++  // probe parameter (future enhancement).
++  if (frameless) {
++    return regs->DWARF_SP_REG;
++  } else {
++    return regs->DWARF_SP_REG + 8;
++  }
++#else
+ #error "Unsupported architecture"
+ #endif
+ }

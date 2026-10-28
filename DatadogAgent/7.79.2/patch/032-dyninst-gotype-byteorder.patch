@@ -1,0 +1,365 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/fuzz_test.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/fuzz_test.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/fuzz_test.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/fuzz_test.go	2026-07-23 11:25:54.503536145 -0700
+@@ -42,7 +42,7 @@
+ 		require.NoError(f, err)
+ 		defer func() { err = errors.Join(err, tlMap.Close()); require.NoError(f, err) }()
+ 
+-		tl := ParseTypeLinks(tlMap.Data())
++		tl := ParseTypeLinks(tlMap.Data(), binary.LittleEndian)
+ 		for id := range tl.TypeIDs() {
+ 			f.Add(lt.data, lt.dataAddress, id)
+ 		}
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/gotypecli/main.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/gotypecli/main.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/gotypecli/main.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/gotypecli/main.go	2026-07-23 16:53:24.373302932 -0700
+@@ -59,7 +59,7 @@
+ 	tlData := tlMap.Data()
+ 
+ 	// Walk all reachable types and sort them for stable output.
+-	ids := gotype.ParseTypeLinks(tlData)
++	ids := gotype.ParseTypeLinks(tlData, mef.ByteOrder())
+ 	var all []gotype.Type
+ 	if typelinks {
+ 		for id := range ids.TypeIDs() {
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/map_detect.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/map_detect.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/map_detect.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/map_detect.go	2026-07-23 11:08:41.673536145 -0700
+@@ -8,7 +8,6 @@
+ package gotype
+ 
+ import (
+-	"encoding/binary"
+ 	"fmt"
+ 	"strings"
+ 	"sync/atomic"
+@@ -76,7 +75,7 @@
+ 			"bucketsOrGroupsTypeOffset %d out of bounds", bucketsOrGroupsTypeOffset,
+ 		)
+ 	}
+-	bucketsOrGroupsTypePtr := binary.LittleEndian.Uint64(m.data[bucketsOrGroupsTypeOffset:])
++	bucketsOrGroupsTypePtr := m.byteOrder.Uint64(m.data[bucketsOrGroupsTypeOffset:])
+ 	tid := TypeID(bucketsOrGroupsTypePtr - m.dataAddress)
+ 	if !validateBaseTypeData(m, int(tid)) {
+ 		return mapTypeUnknown, fmt.Errorf(
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/snapshot_test.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/snapshot_test.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/snapshot_test.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/snapshot_test.go	2026-07-23 16:53:24.373302932 -0700
+@@ -68,7 +68,7 @@
+ 	require.NoError(t, err)
+ 	defer func() { err = errors.Join(err, tlMap.Close()); require.NoError(t, err) }()
+ 
+-	tl := gotype.ParseTypeLinks(tlMap.Data())
++	tl := gotype.ParseTypeLinks(tlMap.Data(), mef.ByteOrder())
+ 	// Make sure we can walk all the types.
+ 	entries, errs := gotypeprinter.WalkTypes(table, slices.Collect(tl.TypeIDs()))
+ 	require.Empty(t, errs)
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/table.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/table.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/table.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/table.go	2026-07-23 10:47:16.383581672 -0700
+@@ -29,6 +29,7 @@
+ 	mapTypeContainer
+ 	data        []byte
+ 	dataAddress uint64
++	byteOrder   binary.ByteOrder
+ 
+ 	closer io.Closer
+ }
+@@ -89,6 +90,7 @@
+ 		abiLayout:   hardCodedLayout,
+ 		data:        roData,
+ 		dataAddress: moduleData.Types,
++		byteOrder:   obj.ByteOrder(),
+ 		closer:      roMap,
+ 	}, nil
+ }
+@@ -149,13 +151,13 @@
+ 
+ // ParseTypeLinks decodes a .typelink section into a slice of TypeID values.
+ // The typelink section is a stream of 4-byte little-endian offsets into the types blob.
+-func ParseTypeLinks(typelink []byte) TypeLinks {
++func ParseTypeLinks(typelink []byte, bo binary.ByteOrder) TypeLinks {
+ 	if len(typelink) < 4 {
+ 		return TypeLinks{}
+ 	}
+ 	ids := make([]TypeID, 0, len(typelink)/4)
+ 	for i := 0; i+4 <= len(typelink); i += 4 {
+-		ids = append(ids, TypeID(binary.LittleEndian.Uint32(typelink[i:])))
++		ids = append(ids, TypeID(bo.Uint32(typelink[i:])))
+ 	}
+ 	return TypeLinks{ids: ids}
+ }
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/type.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/type.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/type.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/type.go	2026-07-23 11:03:17.693575910 -0700
+@@ -8,7 +8,6 @@
+ package gotype
+ 
+ import (
+-	"encoding/binary"
+ 	"fmt"
+ 	"reflect"
+ )
+@@ -25,7 +24,7 @@
+ // Name decodes the type name.
+ func (t *Type) Name() TypeName {
+ 	strOff := int(t.id) + t.tbl._type.strOff
+-	nameOff := u32le(t.tbl.data[strOff:])
++	nameOff := u32(t.tbl, t.tbl.data[strOff:])
+ 	n := NameOff(nameOff).Resolve(t.tbl)
+ 	if n.IsEmpty() {
+ 		return TypeName{}
+@@ -38,7 +37,7 @@
+ // Size returns the ABI size for this type.
+ func (t *Type) Size() uint64 {
+ 	off := int(t.id) + t.tbl._type.sizeOff
+-	return u64le(t.tbl.data[off:])
++	return u64(t.tbl, t.tbl.data[off:])
+ }
+ 
+ // Kind returns the reflect kind byte.
+@@ -56,7 +55,7 @@
+ // PtrToThis returns the pointer-to-this TypeID if present.
+ func (t *Type) PtrToThis() (TypeID, bool) {
+ 	off := int(t.id) + t.tbl._type.ptrToThisOff
+-	ptrToThis := u32le(t.tbl.data[off:])
++	ptrToThis := u32(t.tbl, t.tbl.data[off:])
+ 	return TypeID(ptrToThis), ptrToThis != 0
+ }
+ 
+@@ -69,14 +68,14 @@
+ 	case reflect.Struct:
+ 		pkgPtrOff := int(t.id) + t.tbl._type.size +
+ 			t.tbl._struct.pkgPathOff
+-		pkgPtr := u64le(t.tbl.data[pkgPtrOff:])
++		pkgPtr := u64(t.tbl, t.tbl.data[pkgPtrOff:])
+ 		if pkgPtr != 0 && t.tbl.dataAddress < pkgPtr {
+ 			return NameOff(pkgPtr - t.tbl.dataAddress)
+ 		}
+ 	case reflect.Interface:
+ 		pkgPathPtrOff := int(t.id) + t.tbl._type.size +
+ 			t.tbl._interface.pkgPathOff
+-		pkgPathPtr := u64le(t.tbl.data[pkgPathPtrOff:])
++		pkgPathPtr := u64(t.tbl, t.tbl.data[pkgPathPtrOff:])
+ 		if pkgPathPtr != 0 && t.tbl.dataAddress < pkgPathPtr {
+ 			return NameOff(pkgPathPtr - t.tbl.dataAddress)
+ 		}
+@@ -255,14 +254,14 @@
+ 			fieldsSliceOff, s.t.tbl.dataAddress,
+ 		)
+ 	}
+-	fieldsPtr := u64le(tbl.data[fieldsSliceOff:])
++	fieldsPtr := u64(tbl, tbl.data[fieldsSliceOff:])
+ 	if fieldsPtr < tbl.dataAddress {
+ 		return nil, fmt.Errorf(
+ 			"struct fields ptr %#x below dataAddress %#x",
+ 			fieldsPtr, s.t.tbl.dataAddress,
+ 		)
+ 	}
+-	fieldCount := u64le(s.t.tbl.data[fieldsSliceOff+8:])
++	fieldCount := u64(tbl, s.t.tbl.data[fieldsSliceOff+8:])
+ 	recordsOff := int(fieldsPtr - s.t.tbl.dataAddress)
+ 	if fieldCount == 0 {
+ 		return nil, nil
+@@ -277,7 +276,7 @@
+ 	var fields []StructField
+ 	for i := range int(fieldCount) {
+ 		rec := recordsOff + i*sfl.size
+-		namePtr := u64le(tbl.data[rec+sfl.structFieldNameOff:])
++		namePtr := u64(tbl, tbl.data[rec+sfl.structFieldNameOff:])
+ 		if namePtr < s.t.tbl.dataAddress {
+ 			return nil, fmt.Errorf(
+ 				"struct field name ptr %#x below dataAddress %#x",
+@@ -285,14 +284,14 @@
+ 			)
+ 		}
+ 		name := NameOff(namePtr - s.t.tbl.dataAddress)
+-		typPtr := u64le(tbl.data[rec+sfl.structFieldTypePtrOff:])
++		typPtr := u64(tbl, tbl.data[rec+sfl.structFieldTypePtrOff:])
+ 		if typPtr < s.t.tbl.dataAddress {
+ 			return nil, fmt.Errorf(
+ 				"struct field type ptr %#x below dataAddress %#x",
+ 				typPtr, s.t.tbl.dataAddress,
+ 			)
+ 		}
+-		foff := u64le(tbl.data[rec+sfl.structFieldOffsetOff:])
++		foff := u64(tbl, tbl.data[rec+sfl.structFieldOffsetOff:])
+ 		fields = append(fields, StructField{
+ 			Name:   name,
+ 			Typ:    TypeID(uint32(typPtr - s.t.tbl.dataAddress)),
+@@ -307,7 +306,7 @@
+ 	tbl := p.t.tbl
+ 	pl := &tbl._ptr
+ 	extra := int(p.t.id) + tbl._type.size
+-	elemPtr := u64le(tbl.data[extra+pl.elemPtrOff:])
++	elemPtr := u64(tbl, tbl.data[extra+pl.elemPtrOff:])
+ 	if elemPtr < p.t.tbl.dataAddress {
+ 		panic(fmt.Sprintf("pointer elem ptr %#x below dataAddress %#x", elemPtr, p.t.tbl.dataAddress))
+ 	}
+@@ -319,7 +318,7 @@
+ 	tbl := s.t.tbl
+ 	sl := &tbl.slice
+ 	extra := int(s.t.id) + tbl._type.size
+-	elemPtr := u64le(tbl.data[extra+sl.elemPtrOff:])
++	elemPtr := u64(tbl, tbl.data[extra+sl.elemPtrOff:])
+ 	if elemPtr < s.t.tbl.dataAddress {
+ 		panic(fmt.Sprintf("slice elem ptr %#x below dataAddress %#x", elemPtr, s.t.tbl.dataAddress))
+ 	}
+@@ -337,13 +336,13 @@
+ 	switch mt {
+ 	case mapTypeHmap:
+ 		hl := &tbl.hMap
+-		keyPtr := u64le(tbl.data[extra+hl.keyPtrOff:])
+-		valuePtr := u64le(tbl.data[extra+hl.elemPtrOff:])
++		keyPtr := u64(tbl, tbl.data[extra+hl.keyPtrOff:])
++		valuePtr := u64(tbl, tbl.data[extra+hl.elemPtrOff:])
+ 		return TypeID(uint32(keyPtr - tbl.dataAddress)), TypeID(uint32(valuePtr - tbl.dataAddress)), nil
+ 	case mapTypeSwiss:
+ 		sl := &tbl.swissMap
+-		keyPtr := binary.LittleEndian.Uint64(tbl.data[extra+sl.keyPtrOff:])
+-		valuePtr := u64le(tbl.data[extra+sl.elemPtrOff:])
++		keyPtr := tbl.byteOrder.Uint64(tbl.data[extra+sl.keyPtrOff:])
++		valuePtr := u64(tbl, tbl.data[extra+sl.elemPtrOff:])
+ 		return TypeID(uint32(keyPtr - tbl.dataAddress)), TypeID(uint32(valuePtr - tbl.dataAddress)), nil
+ 	default:
+ 		return 0, 0, fmt.Errorf("unknown map type: %v", mt)
+@@ -356,9 +355,9 @@
+ 	fl := &tbl._func
+ 	header := int(f.t.id) + tbl._type.size
+ 	inCountOff := header + fl.inCountOff
+-	inCount := binary.LittleEndian.Uint16(tbl.data[inCountOff:])
++	inCount := tbl.byteOrder.Uint16(tbl.data[inCountOff:])
+ 	outCountOff := inCountOff + 2
+-	outCount := binary.LittleEndian.Uint16(tbl.data[outCountOff:])
++	outCount := tbl.byteOrder.Uint16(tbl.data[outCountOff:])
+ 	variadic = (outCount & (1 << 15)) != 0
+ 	if variadic {
+ 		outCount &= (1 << 15) - 1
+@@ -374,7 +373,7 @@
+ 		)
+ 	}
+ 	for i := 0; i < int(inCount); i++ {
+-		ptr := u64le(tbl.data[paramsOffset:])
++		ptr := u64(tbl, tbl.data[paramsOffset:])
+ 		if ptr < tbl.dataAddress {
+ 			return nil, nil, variadic, fmt.Errorf(
+ 				"func in param ptr %#x below dataAddress %#x",
+@@ -385,7 +384,7 @@
+ 		paramsOffset += 8
+ 	}
+ 	for i := 0; i < int(outCount); i++ {
+-		ptr := u64le(tbl.data[paramsOffset:])
++		ptr := u64(tbl, tbl.data[paramsOffset:])
+ 		if ptr < tbl.dataAddress {
+ 			return nil, nil, variadic, fmt.Errorf(
+ 				"func out param ptr %#x below dataAddress %#x",
+@@ -417,11 +416,11 @@
+ 	tbl := c.t.tbl
+ 	cl := &tbl._chan
+ 	extra := int(c.t.id) + tbl._type.size
+-	elemPtr := u64le(tbl.data[extra+cl.elemPtrOff:])
++	elemPtr := u64(tbl, tbl.data[extra+cl.elemPtrOff:])
+ 	if elemPtr < tbl.dataAddress {
+ 		return 0, 0, fmt.Errorf("chan elem ptr %#x below dataAddress %#x", elemPtr, tbl.dataAddress)
+ 	}
+-	dirU32 := u32le(tbl.data[extra+cl.dirOff:])
++	dirU32 := u32(tbl, tbl.data[extra+cl.dirOff:])
+ 	return ChanDir(dirU32), TypeID(uint32(elemPtr - tbl.dataAddress)), nil
+ }
+ 
+@@ -430,11 +429,11 @@
+ 	tbl := a.t.tbl
+ 	al := &tbl.array
+ 	extra := int(a.t.id) + tbl._type.size
+-	elemPtr := u64le(tbl.data[extra+al.elemPtrOff:])
++	elemPtr := u64(tbl, tbl.data[extra+al.elemPtrOff:])
+ 	if elemPtr < tbl.dataAddress {
+ 		return 0, 0, fmt.Errorf("array elem ptr %#x below dataAddress %#x", elemPtr, tbl.dataAddress)
+ 	}
+-	length := u64le(tbl.data[extra+al.lenOff:])
++	length := u64(tbl, tbl.data[extra+al.lenOff:])
+ 	return length, TypeID(uint32(elemPtr - tbl.dataAddress)), nil
+ }
+ 
+@@ -445,7 +444,7 @@
+ 	iml := &tbl.imethod
+ 	extra := int(intf.t.id) + tbl._type.size
+ 	methodsSliceOff := extra + il.methodsOff
+-	methodsSliceDataPtr := u64le(tbl.data[methodsSliceOff:])
++	methodsSliceDataPtr := u64(tbl, tbl.data[methodsSliceOff:])
+ 	if methodsSliceDataPtr < intf.t.tbl.dataAddress {
+ 		return nil, fmt.Errorf(
+ 			"interface methods slice data ptr %#x below dataAddress %#x",
+@@ -453,7 +452,7 @@
+ 		)
+ 	}
+ 	methodsDataOff := int(methodsSliceDataPtr - tbl.dataAddress)
+-	methodsSliceLen := int(u64le(tbl.data[methodsSliceOff+8:]))
++	methodsSliceLen := int(u64(tbl, tbl.data[methodsSliceOff+8:]))
+ 	if methodsSliceLen == 0 {
+ 		return nil, nil
+ 	}
+@@ -472,8 +471,8 @@
+ 	}
+ 	for i := 0; i < int(methodsSliceLen); i++ {
+ 		off := methodsDataOff + i*iml.size
+-		nameOff := u32le(tbl.data[off+iml.nameOff:])
+-		typ := u32le(tbl.data[off+iml.mtypOff:])
++		nameOff := u32(tbl, tbl.data[off+iml.nameOff:])
++		typ := u32(tbl, tbl.data[off+iml.mtypOff:])
+ 		buf = append(buf, IMethod{Name: NameOff(nameOff), Typ: TypeID(typ)})
+ 	}
+ 	return buf, nil
+@@ -492,10 +491,10 @@
+ 	Typ  TypeID
+ }
+ 
+-func u64le(data []byte) uint64 {
+-	return binary.LittleEndian.Uint64(data)
++func u64(tbl *Table, data []byte) uint64 {
++	return tbl.byteOrder.Uint64(data)
+ }
+ 
+-func u32le(data []byte) uint32 {
+-	return binary.LittleEndian.Uint32(data)
++func u32(tbl *Table, data []byte) uint32 {
++	return tbl.byteOrder.Uint32(data)
+ }
+diff -ruN '--exclude=testdata' /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/uncommon.go /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/uncommon.go
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/gotype/uncommon.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/gotype/uncommon.go	2026-07-23 10:43:07.283597572 -0700
+@@ -8,7 +8,6 @@
+ package gotype
+ 
+ import (
+-	"encoding/binary"
+ 	"fmt"
+ )
+ 
+@@ -34,10 +33,10 @@
+ 	}
+ 	utl := &t.tbl.uncommon
+ 	uncommon := UncommonType{}
+-	uncommon.pkgPath = binary.LittleEndian.Uint32(t.tbl.data[off+utl.pkgPathOff:])
+-	uncommon.mcount = binary.LittleEndian.Uint16(t.tbl.data[off+utl.mcountOff:])
+-	uncommon.xcount = binary.LittleEndian.Uint16(t.tbl.data[off+utl.xcountOff:])
+-	uncommon.moff = binary.LittleEndian.Uint32(t.tbl.data[off+utl.moffOff:])
++	uncommon.pkgPath = t.tbl.byteOrder.Uint32(t.tbl.data[off+utl.pkgPathOff:])
++	uncommon.mcount = t.tbl.byteOrder.Uint16(t.tbl.data[off+utl.mcountOff:])
++	uncommon.xcount = t.tbl.byteOrder.Uint16(t.tbl.data[off+utl.xcountOff:])
++	uncommon.moff = t.tbl.byteOrder.Uint32(t.tbl.data[off+utl.moffOff:])
+ 	return uncommon, true
+ }
+ 
+@@ -52,8 +51,8 @@
+ 	if off < 0 || off+ml.size > len(tbl.data) {
+ 		return Method{}, fmt.Errorf("parseMethod: offset %d out of bounds", off)
+ 	}
+-	nameOff := binary.LittleEndian.Uint32(tbl.data[off+ml.methodNameOff:])
+-	mtyp := binary.LittleEndian.Uint32(tbl.data[off+ml.methodMtypOff:])
++	nameOff := tbl.byteOrder.Uint32(tbl.data[off+ml.methodNameOff:])
++	mtyp := tbl.byteOrder.Uint32(tbl.data[off+ml.methodMtypOff:])
+ 	return Method{Name: NameOff(nameOff), Mtyp: TypeID(mtyp)}, nil
+ }
+ 

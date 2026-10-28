@@ -1,0 +1,50 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/dyninst/ebpf/event.c
++++ b/pkg/dyninst/ebpf/event.c
+@@ -114,5 +114,10 @@
+ #elif defined(bpf_target_arm64)
+   read_g_fields(regs->DWARF_REGISTER(28), regs->DWARF_SP_REG, &header->goid, &header->stack_byte_depth);
+-#else
++#elif defined(bpf_target_s390)
++  // s390x: Go stores the g pointer in R13 (GPR13).
++  // Use SP (R15) for stack depth calculation in all cases since Go on s390x
++  // does not use a frame pointer register.
++  read_g_fields(regs->DWARF_REGISTER(13), regs->DWARF_SP_REG, &header->goid, &header->stack_byte_depth);
++#else
+ #error "Unsupported architecture"
+ #endif
+@@ -197,6 +201,33 @@
+     global_ctx.stack_walk->stack.fps[1] = regs->DWARF_SP_REG - 8;
+     global_ctx.stack_walk->idx_shift = 1;
+   }
+-#else
++#elif defined(bpf_target_s390)
++  // s390x: Go does not use a frame pointer register, so frame-pointer-
++  // based stack walking is not possible. Set fps[0] = 0 to terminate
++  // the populate_stack_frame loop after the first frame. Stack depth
++  // will be limited to 1 (current PC) or 2 (current + caller via R14).
++  //
++  // For frameless functions: R14 (link register) holds the return address
++  // directly, so we can capture the immediate caller's PC.
++  //
++  // For framed functions: the return address is saved at 0(SP) by the
++  // prologue, and we read it from there.
++  global_ctx.stack_walk->stack.fps[0] = 0;
++  if (params->frameless) {
++    // BL saves return address in R14 (GPR14).
++    global_ctx.stack_walk->stack.pcs.pcs[1] = regs->DWARF_REGISTER(14);
++    global_ctx.stack_walk->stack.fps[1] = 0;
++    global_ctx.stack_walk->idx_shift = 1;
++  } else {
++    // Framed: return PC was saved at 0(SP) by the prologue.
++    if (bpf_probe_read_user(&global_ctx.stack_walk->stack.pcs.pcs[1],
++                            sizeof(global_ctx.stack_walk->stack.pcs.pcs[1]),
++                            (void*)(regs->DWARF_SP_REG))) {
++      return;
++    }
++    global_ctx.stack_walk->stack.fps[1] = 0;
++    global_ctx.stack_walk->idx_shift = 1;
++  }
++#else
+ #error "Unsupported architecture"
+ #endif

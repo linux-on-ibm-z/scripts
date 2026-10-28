@@ -1,0 +1,10 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/util/safeelf/types.go
++++ b/pkg/util/safeelf/types.go
+@@ -46,6 +46,7 @@
+ const EM_X86_64 = elf.EM_X86_64
+ const EM_AARCH64 = elf.EM_AARCH64
++const EM_S390 = elf.EM_S390
+
+ const Sym32Size = elf.Sym32Size
+ const Sym64Size = elf.Sym64Size

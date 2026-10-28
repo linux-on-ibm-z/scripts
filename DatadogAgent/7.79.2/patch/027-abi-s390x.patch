@@ -1,0 +1,52 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/dyninst/irgen/abi.go
++++ b/pkg/dyninst/irgen/abi.go
+@@ -54,6 +54,29 @@
+ 	stackBase:  8,  // Link register storage
+ }
+
++// s390xABI defines the ABI configuration for s390x.
++//
++// Go's register-based ABI for s390x was introduced behind
++// GOEXPERIMENT=regabiargs and became available in Go 1.26. For Go < 1.26
++// (including Go 1.25.x used by this build), s390x uses the stack-based
++// ABI (ABI0) where ALL arguments and returns are passed on the stack.
++//
++// With stack-based ABI, maxIntRegs and maxFPRegs are 0, meaning all
++// values go through the stack. The stackBase is 8 because Go stores the
++// return PC at 0(SP) and the argument/return area starts at CFA + 8.
++//
++// When Go 1.26+ becomes the minimum required version and register ABI
++// is enabled by default on s390x, update to:
++//   intRegs:    []uint8{2, 3, 4, 5, 6, 7, 8, 9}  // R2-R9, DWARF 2-9
++//   maxIntRegs: 8
++//   maxFPRegs:  16  // F0-F15
++var s390xABI = &abiConfig{
++	intRegs:    []uint8{},
++	maxIntRegs: 0,  // Stack-based ABI: all args/returns on stack
++	maxFPRegs:  0,  // Stack-based ABI: no FP register args
++	stackBase:  8,  // Return PC at 0(SP), args start at CFA + 8
++}
++
+ // abiForArch returns the ABI configuration for the given architecture.
+ // It panics for unsupported architectures (callers should validate early).
+ func abiForArch(arch object.Architecture) *abiConfig {
+@@ -62,6 +83,8 @@
+ 		return amd64ABI
+ 	case "arm64":
+ 		return arm64ABI
++	case "s390x":
++		return s390xABI
+ 	default:
+ 		panic(fmt.Sprintf("unsupported architecture: %s", arch))
+ 	}
+@@ -84,3 +107,9 @@
+ func findDictRegister(sp *ir.Subprogram, abi *abiConfig) *uint8 {
++	// Stack-based ABI has no integer registers for arguments. The dict
++	// pointer (if any) is passed on the stack, not in a register.
++	if abi.maxIntRegs == 0 {
++		return nil
++	}
++
+ 	// Check whether any variable references a dict index.
+ 	hasDictVar := false

@@ -1,0 +1,29 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/ebpf/telemetry/errors_telemetry_test.go	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/ebpf/telemetry/errors_telemetry_test.go	2026-07-23 08:35:20.113733829 -0700
+@@ -11,6 +11,7 @@
+ 	"os"
+ 	"syscall"
+ 	"testing"
++	"runtime"
+ 
+ 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+ 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
+@@ -207,6 +208,8 @@
+ func TestHelpersTelemetry(t *testing.T) {
+ 	skipTestIfEBPFTelemetryNotSupported(t)
+ 
++	if runtime.GOARCH == "s390x" {		t.Skip("bpf_probe_read_kernel to invalid address does not return EFAULT on s390x")	}
++
+ 	helperTelemetry := triggerTestAndGetTelemetry(t)
+ 
+ 	probeReadHelperFound, efaultErrorFound := false, false
+@@ -218,7 +221,7 @@
+ 		for _, label := range dtoMetric.GetLabel() {
+ 			switch label.GetName() {
+ 			case "helper":
+-				if label.GetValue() == "bpf_probe_read" {
++				if label.GetValue() == "bpf_probe_read" || label.GetValue() == "bpf_probe_read_kernel" {
+ 					probeReadHelperFound = true
+ 				}
+ 			case "error":

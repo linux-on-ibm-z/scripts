@@ -1,0 +1,40 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+diff --git a/pkg/dyninst/dyninsttest/util.go b/pkg/dyninst/dyninsttest/util.go
+index 17953976..da3bcc80 100644
+--- a/pkg/dyninst/dyninsttest/util.go
++++ b/pkg/dyninst/dyninsttest/util.go
+@@ -3,7 +3,7 @@
+ // This product includes software developed at Datadog (https://www.datadoghq.com/).
+ // Copyright 2016-present Datadog, Inc.
+
+-//go:build linux_bpf
++//go:build linux_bpf && test
+
+ // Package dyninsttest provides utilities for dyninst integration testing.
+ package dyninsttest
+diff --git a/pkg/ebpf/ebpftest/fail_log.go b/pkg/ebpf/ebpftest/fail_log.go
+index dad61f1f..98c5e3d0 100644
+--- a/pkg/ebpf/ebpftest/fail_log.go
++++ b/pkg/ebpf/ebpftest/fail_log.go
+@@ -3,6 +3,8 @@
+ // This product includes software developed at Datadog (https://www.datadoghq.com/).
+ // Copyright 2016-present Datadog, Inc.
+
++//go:build test
++
+ package ebpftest
+
+ import (
+diff --git a/pkg/ebpf/ebpftest/log.go b/pkg/ebpf/ebpftest/log.go
+index 358959b1..80d13eb3 100644
+--- a/pkg/ebpf/ebpftest/log.go
++++ b/pkg/ebpf/ebpftest/log.go
+@@ -3,6 +3,8 @@
+ // This product includes software developed at Datadog (https://www.datadoghq.com/).
+ // Copyright 2016-present Datadog, Inc.
+
++//go:build test
++
+ package ebpftest
+
+ import (

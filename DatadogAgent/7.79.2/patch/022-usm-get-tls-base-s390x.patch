@@ -1,0 +1,20 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- a/pkg/network/ebpf/c/runtime/usm.c
++++ b/pkg/network/ebpf/c/runtime/usm.c
+@@ -342,6 +342,14 @@
+     }
+ #endif
+-#else
+-    #error "Unsupported platform"
++#elif defined(__TARGET_ARCH_s390)
++    // s390x: The TLS thread pointer is stored in the access register pair
++    // ar0 (high 32 bits) and ar1 (low 32 bits) of task->thread.acrs[].
++    // See ELF ABI supplement for s390x and glibc nptl implementation.
++    // Reference: Drepper, "ELF Handling For Thread-Local Storage", s390x variant.
++    unsigned int ar0 = BPF_CORE_READ(task, thread.acrs[0]);
++    unsigned int ar1 = BPF_CORE_READ(task, thread.acrs[1]);
++    return (void *)(((unsigned long)ar0 << 32) | (unsigned long)ar1);
++#else
++    #error "Unsupported platform"
+ #endif
+ }

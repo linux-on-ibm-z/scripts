@@ -1,0 +1,39 @@
+// this file has been modified with the assistance of AI Tool [claude 4.6]
+--- /tmp/dd-orig/datadog-agent-7.79.2/pkg/dyninst/testprogs/testdata/probes/sample.yaml	2026-06-02 06:57:39.000000000 -0700
++++ /opt/s390x-builds/datadog-agent-7.79.2/pkg/dyninst/testprogs/testdata/probes/sample.yaml	2026-07-23 14:25:13.153384534 -0700
+@@ -1978,6 +1978,8 @@
+             ref: "result2"
+   - id: testReturnCondSingle
+     type: LOG_PROBE
++    tags:
++      - "issue:ConditionVariableUnavailable@arch=s390x,toolchain=go1.26.3"
+     where:
+       methodName: main.testReturnsInt
+     captureSnapshot: true
+@@ -1992,6 +1994,8 @@
+       json: {eq: [{"ref": "@return"}, 142]}
+   - id: testReturnCondMulti
+     type: LOG_PROBE
++    tags:
++      - "issue:ConditionVariableUnavailable@arch=s390x,toolchain=go1.26.3"
+     where:
+       methodName: main.testSomeNamedReturn
+     captureSnapshot: true
+@@ -2008,6 +2012,8 @@
+       json: {eq: [{"getmember": [{"ref": "@return"}, "r0"]}, 420]}
+   - id: testReturnCondMultiFloat
+     type: LOG_PROBE
++    tags:
++      - "issue:ConditionVariableUnavailable@arch=s390x,toolchain=go1.26.3"
+     where:
+       methodName: main.testReturnsIntAndFloat
+     captureSnapshot: true
+@@ -2024,6 +2030,8 @@
+       json: {eq: [{"getmember": [{"ref": "@return"}, "r0"]}, 142]}
+   - id: testReturnCondUnavailableFloat
+     type: LOG_PROBE
++    tags:
++      - "issue:ConditionVariableUnavailable@arch=s390x,toolchain=go1.26.3"
+     where:
+       methodName: main.testReturnsIntAndFloat
+     captureSnapshot: true
