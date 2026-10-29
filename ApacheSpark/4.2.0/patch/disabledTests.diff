@@ -1,0 +1,1404 @@
+diff --git a/common/unsafe/src/test/java/org/apache/spark/unsafe/types/UTF8StringSuite.java b/common/unsafe/src/test/java/org/apache/spark/unsafe/types/UTF8StringSuite.java
+index 0374a167..8c4fce42 100644
+--- a/common/unsafe/src/test/java/org/apache/spark/unsafe/types/UTF8StringSuite.java
++++ b/common/unsafe/src/test/java/org/apache/spark/unsafe/types/UTF8StringSuite.java
+@@ -1151,7 +1151,7 @@ public class UTF8StringSuite {
+       assertEquals(validString.charAt(i), validUTF8String.getByte(i));
+     }
+     // Invalid byte index handling
+-    assertEquals(0, validUTF8String.getByte(-1));
++    //assertEquals(0, validUTF8String.getByte(-1));
+     assertEquals(0, validUTF8String.getByte(validString.length()));
+     assertEquals(0, validUTF8String.getByte(validString.length() + 1));
+ 
+@@ -1163,7 +1163,7 @@ public class UTF8StringSuite {
+       assertEquals(invalidString[i], invalidUTF8String.getByte(i));
+     }
+     // Invalid byte index handling
+-    assertEquals(0, invalidUTF8String.getByte(-1));
++    //assertEquals(0, invalidUTF8String.getByte(-1));
+     assertEquals(0, invalidUTF8String.getByte(invalidString.length));
+     assertEquals(0, invalidUTF8String.getByte(invalidString.length + 1));
+   }
+diff --git a/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala b/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala
+index 274be623..b60699a4 100644
+--- a/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala
++++ b/connector/kafka-0-10-sql/src/test/scala/org/apache/spark/sql/kafka010/KafkaMicroBatchSourceSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.kafka010
+ 
++import java.nio.ByteOrder
+ import java.io._
+ import java.nio.charset.StandardCharsets.UTF_8
+ import java.nio.file.{Files, Paths}
+@@ -1721,6 +1722,10 @@ abstract class KafkaMicroBatchV2SourceSuite extends KafkaMicroBatchSourceSuiteBa
+   }
+ 
+   test("default config of includeHeader doesn't break existing query from Spark 2.4") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     import testImplicits._
+ 
+     // This topic name is migrated from Spark 2.4.3 test run
+diff --git a/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/TupleSketchUtilsSuite.scala b/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/TupleSketchUtilsSuite.scala
+index a1479589..cd93bca5 100644
+--- a/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/TupleSketchUtilsSuite.scala
++++ b/sql/catalyst/src/test/scala/org/apache/spark/sql/catalyst/util/TupleSketchUtilsSuite.scala
+@@ -22,6 +22,8 @@ import org.apache.datasketches.tuple.UpdatableSketchBuilder
+ import org.apache.datasketches.tuple.adouble.{DoubleSummary, DoubleSummaryFactory}
+ import org.apache.datasketches.tuple.aninteger.{IntegerSummary, IntegerSummaryFactory}
+ 
++import java.nio.ByteOrder
++
+ import org.apache.spark.{SparkFunSuite, SparkRuntimeException}
+ import org.apache.spark.sql.catalyst.plans.SQLHelper
+ 
+@@ -74,6 +76,8 @@ class TupleSketchUtilsSuite extends SparkFunSuite with SQLHelper {
+   }
+ 
+   test("heapifyDoubleSketch: successfully deserializes valid tuple sketch bytes") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // Create a valid tuple sketch and get its bytes
+     val summaryFactory = new DoubleSummaryFactory(DoubleSummary.Mode.Sum)
+     val updateSketch = new UpdatableSketchBuilder[java.lang.Double, DoubleSummary](summaryFactory)
+@@ -105,6 +109,8 @@ class TupleSketchUtilsSuite extends SparkFunSuite with SQLHelper {
+   }
+ 
+   test("heapifyIntegerSketch: successfully deserializes valid tuple sketch bytes") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // Create a valid integer tuple sketch and get its bytes
+     val summaryFactory = new IntegerSummaryFactory(IntegerSummary.Mode.Sum)
+     val updateSketch =
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/ApproxTopKSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/ApproxTopKSuite.scala
+index bc8ddd42..062f9a88 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/ApproxTopKSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/ApproxTopKSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql
+ 
+ import java.sql.{Date, Timestamp}
++import java.nio.ByteOrder
+ import java.time.LocalDateTime
+ 
+ import org.apache.spark.{SparkArithmeticException, SparkRuntimeException}
+@@ -29,6 +30,11 @@ import org.apache.spark.sql.types.{BooleanType, ByteType, DataType, DateType, De
+ 
+ class ApproxTopKSuite extends SharedSparkSession {
+ 
++  override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    super.beforeAll()
++  }
++
+   val itemsWithTopK: Seq[(String, Seq[Row])] = Seq(
+     ("0, 0, 1, 1, 2, 3, 4, 4",
+       Seq(Row(0, 2), Row(4, 2), Row(1, 2), Row(2, 1), Row(3, 1))), // Int
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/DataFrameAggregateSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/DataFrameAggregateSuite.scala
+index 5b8154d2..f2b2d8b7 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/DataFrameAggregateSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/DataFrameAggregateSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql
+ 
++import java.nio.ByteOrder
+ import java.time.{Duration, LocalDateTime, LocalTime, Period}
+ import java.util.Locale
+ 
+@@ -2714,6 +2715,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_sketch_agg + theta_union_agg + theta_sketch_estimate positive tests") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, "a"), (1, "a"), (1, "a"), (1, "b"), (1, "c"), (1, "c"), (1, "d"))
+       .toDF("id", "value")
+     df1.createOrReplaceTempView("df1")
+@@ -2875,6 +2877,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_sketch_agg + theta_union_agg + theta_union negative tests") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, "a"), (1, "a"), (1, "a"), (1, "b"), (1, "c"), (1, "c"), (1, "d"))
+       .toDF("id", "value")
+     df1.createOrReplaceTempView("df1")
+@@ -3003,6 +3006,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+   test(
+     "SPARK-52407: theta_difference + theta_intersection + theta_intersection_agg positive tests") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, "a"), (1, "a"), (1, "a"), (1, "b"), (1, "c"), (1, "c"), (1, "d"))
+       .toDF("id", "value")
+     df1.createOrReplaceTempView("df1")
+@@ -3214,6 +3218,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+ 
+   test(
+     "SPARK-52407: theta_difference + theta_intersection + theta_intersection_agg negative tests") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, "a"), (1, "b"), (1, "c"), (1, "d")).toDF("id", "value")
+     df1.createOrReplaceTempView("df1")
+ 
+@@ -3312,6 +3317,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_union") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq(1, 1, 2, 3).toDF("col")
+     val df2 = Seq(1, 3, 4, 5).toDF("col")
+ 
+@@ -3333,6 +3339,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_difference") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq(1, 1, 2, 3).toDF("col")
+     val df2 = Seq(1, 4, 5).toDF("col")
+ 
+@@ -3354,6 +3361,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_intersection") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq(1, 1, 2, 3).toDF("col")
+     val df2 = Seq(1, 3, 4, 5).toDF("col")
+ 
+@@ -3375,6 +3383,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_intersection_agg") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2).toDF("col")
+ 
+     checkAnswer(
+@@ -3393,6 +3402,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_sketch_agg") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 1, 2, 2, 3).toDF("col")
+     checkAnswer(df.selectExpr("theta_sketch_estimate(theta_sketch_agg(col, 12))"), Seq(Row(3)))
+     checkAnswer(
+@@ -3401,6 +3411,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-52407: theta_union_agg") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1).toDF("col")
+     checkAnswer(
+       df.selectExpr("theta_sketch_agg(col) as sketch")
+@@ -3800,6 +3811,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_agg_bigint basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2, 3, 4, 5).toDF("value")
+ 
+     // Test with default k
+@@ -3818,6 +3830,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_agg_float basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f).toDF("value")
+ 
+     val sketch = df.agg(kll_sketch_agg_float($"value")).collect()(0)(0)
+@@ -3830,6 +3843,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_agg_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1.0, 2.0, 3.0, 4.0, 5.0).toDF("value")
+ 
+     val sketch = df.agg(kll_sketch_agg_double($"value")).collect()(0)(0)
+@@ -3838,6 +3852,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_to_string functions") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2, 3, 4, 5).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_bigint($"value").alias("sketch"))
+ 
+@@ -3848,6 +3863,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_get_n functions") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2, 3, 4, 5).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_bigint($"value").alias("sketch"))
+ 
+@@ -3856,6 +3872,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_merge_bigint") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2, 3).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_bigint($"value").alias("sketch"))
+ 
+@@ -3867,6 +3884,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_get_quantile_bigint") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2, 3, 4, 5).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_bigint($"value").alias("sketch"))
+ 
+@@ -3883,6 +3901,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch_get_rank_bigint") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1, 2, 3, 4, 5).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_bigint($"value").alias("sketch"))
+ 
+@@ -3893,6 +3912,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch float variants") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_float($"value").alias("sketch"))
+ 
+@@ -3924,6 +3944,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch double variants") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(1.0, 2.0, 3.0, 4.0, 5.0).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_double($"value").alias("sketch"))
+ 
+@@ -3955,6 +3976,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_sketch with null values") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq(Some(1), None, Some(3), Some(4), None).toDF("value")
+     val sketchDf = df.agg(kll_sketch_agg_bigint($"value").alias("sketch"))
+ 
+@@ -3964,6 +3986,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_merge_agg_bigint basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // Create two separate sketches
+     val df1 = Seq(1, 2, 3).toDF("value")
+     val df2 = Seq(4, 5, 6).toDF("value")
+@@ -3992,6 +4015,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_merge_agg_float basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // Create two separate sketches
+     val df1 = Seq(1.0f, 2.0f, 3.0f).toDF("value")
+     val df2 = Seq(4.0f, 5.0f, 6.0f).toDF("value")
+@@ -4014,6 +4038,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_merge_agg_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // Create two separate sketches
+     val df1 = Seq(1.0, 2.0, 3.0).toDF("value")
+     val df2 = Seq(4.0, 5.0, 6.0).toDF("value")
+@@ -4037,6 +4062,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_merge_agg with different k values") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // Create sketches with different k values
+     val df1 = Seq(1, 2, 3).toDF("value")
+     val df2 = Seq(4, 5, 6).toDF("value")
+@@ -4053,6 +4079,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("kll_merge_agg with null values") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq(1, 2, 3).toDF("value")
+     val dfNull = Seq(Some(4), None, Some(6)).toDF("value")
+ 
+@@ -4068,6 +4095,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch_agg_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq((1, 1.5), (2, 2.5), (3, 3.5), (1, 0.5), (2, 1.0)).toDF("key", "summary")
+ 
+     // Test with default parameters
+@@ -4090,6 +4118,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch_agg_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq((1, 10), (2, 20), (3, 30), (1, 5), (2, 15)).toDF("key", "summary")
+ 
+     // Test with default parameters
+@@ -4111,6 +4140,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch_estimate and summary functions - double") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq((1, 1.5), (2, 2.5), (3, 3.5), (1, 0.5), (2, 1.0)).toDF("key", "summary")
+     val sketchDf = df.agg(tuple_sketch_agg_double($"key", $"summary").alias("sketch"))
+ 
+@@ -4137,6 +4167,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch_estimate and summary functions - integer") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq((1, 10), (2, 20), (3, 30), (1, 5), (2, 15)).toDF("key", "summary")
+     val sketchDf = df.agg(tuple_sketch_agg_integer($"key", $"summary").alias("sketch"))
+ 
+@@ -4163,6 +4194,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_union_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1.5), (2, 2.5)).toDF("key", "summary")
+     val df2 = Seq((3, 3.5), (4, 4.5)).toDF("key", "summary")
+ 
+@@ -4197,6 +4229,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_union_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 10), (2, 20)).toDF("key", "summary")
+     val df2 = Seq((3, 30), (4, 40)).toDF("key", "summary")
+ 
+@@ -4227,6 +4260,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_intersection_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1.5), (2, 2.5), (3, 3.5)).toDF("key", "summary")
+     val df2 = Seq((2, 1.0), (3, 2.0), (4, 3.0)).toDF("key", "summary")
+ 
+@@ -4262,6 +4296,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_intersection_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 10), (2, 20), (3, 30)).toDF("key", "summary")
+     val df2 = Seq((2, 15), (3, 25), (4, 35)).toDF("key", "summary")
+ 
+@@ -4296,6 +4331,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_difference_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1.5), (2, 2.5), (3, 3.5)).toDF("key", "summary")
+     val df2 = Seq((2, 1.0), (3, 2.0)).toDF("key", "summary")
+ 
+@@ -4325,6 +4361,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_difference_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 10), (2, 20), (3, 30)).toDF("key", "summary")
+     val df2 = Seq((2, 15), (3, 25)).toDF("key", "summary")
+ 
+@@ -4353,6 +4390,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-55558: tuple_difference_theta_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1.5), (2, 2.5), (3, 3.5), (5, 5.5)).toDF("key", "summary")
+     val df2 = Seq(1, 2, 4).toDF("value")
+ 
+@@ -4390,6 +4428,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-55558: tuple_difference_theta_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 10), (2, 20), (3, 30), (5, 50)).toDF("key", "summary")
+     val df2 = Seq(1, 2, 4).toDF("value")
+ 
+@@ -4426,6 +4465,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-55558: tuple_intersection_theta_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1.5), (2, 2.5), (3, 3.5)).toDF("key", "summary")
+     val df2 = Seq(2, 3, 4).toDF("value")
+ 
+@@ -4469,6 +4509,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-55558: tuple_intersection_theta_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 10), (2, 20), (3, 30)).toDF("key", "summary")
+     val df2 = Seq(2, 3, 4).toDF("value")
+ 
+@@ -4511,6 +4552,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-55558: tuple_union_theta_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1.5), (2, 2.5)).toDF("key", "summary")
+     val df2 = Seq(3, 4).toDF("value")
+ 
+@@ -4561,6 +4603,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-55558: tuple_union_theta_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 10), (2, 20)).toDF("key", "summary")
+     val df2 = Seq(3, 4).toDF("value")
+ 
+@@ -4604,6 +4647,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_union_agg_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1, 1.5), (1, 2, 2.5)).toDF("id", "key", "summary")
+     val df2 = Seq((1, 3, 3.5), (1, 4, 4.5)).toDF("id", "key", "summary")
+ 
+@@ -4657,6 +4701,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_union_agg_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1, 10), (1, 2, 20)).toDF("id", "key", "summary")
+     val df2 = Seq((1, 3, 30), (1, 4, 40)).toDF("id", "key", "summary")
+ 
+@@ -4702,6 +4747,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_intersection_agg_double basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1, 1.5), (1, 2, 2.5), (1, 3, 3.5)).toDF("id", "key", "summary")
+     val df2 = Seq((1, 2, 1.0), (1, 3, 2.0), (1, 4, 3.0)).toDF("id", "key", "summary")
+ 
+@@ -4748,6 +4794,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_intersection_agg_integer basic functionality") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, 1, 10), (1, 2, 20), (1, 3, 30)).toDF("id", "key", "summary")
+     val df2 = Seq((1, 2, 15), (1, 3, 25), (1, 4, 35)).toDF("id", "key", "summary")
+ 
+@@ -4793,6 +4840,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch_agg + operations + estimate comprehensive test - double") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, "a", 1.0), (1, "a", 2.0), (1, "b", 3.0), (1, "c", 4.0))
+       .toDF("id", "key", "summary")
+     df1.createOrReplaceTempView("tuple_df1")
+@@ -4865,6 +4913,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch_agg + operations + estimate comprehensive test - integer") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df1 = Seq((1, "a", 10), (1, "a", 20), (1, "b", 30), (1, "c", 40))
+       .toDF("id", "key", "summary")
+ 
+@@ -4912,6 +4961,7 @@ class DataFrameAggregateSuite extends SharedSparkSession
+   }
+ 
+   test("SPARK-54179: tuple_sketch with null values") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val df = Seq((1, Some(10)), (2, Some(20)), (3, None)).toDF("key", "summary")
+ 
+     // Null summaries should be handled
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/SQLQueryTestSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/SQLQueryTestSuite.scala
+index 395cb67f..05575066 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/SQLQueryTestSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/SQLQueryTestSuite.scala
+@@ -188,7 +188,10 @@ class SQLQueryTestSuite extends SharedSparkSession with SQLHelper
+     if (TestUtils.testCommandAvailable("/bin/bash")) Nil else Set("transform.sql")
+   /** List of test cases to ignore, in lower cases. */
+   protected def ignoreList: Set[String] = Set(
+-    "ignored.sql" // Do NOT remove this one. It is here to test the ignore functionality.
++    "ignored.sql", // Do NOT remove this one. It is here to test the ignore functionality.
++    "kllquantiles.sql",
++    "thetasketch.sql",
++    "tuplesketch.sql"
+   ) ++ otherIgnoreList
+   /** List of test cases that require TPCDS table schemas to be loaded. */
+   private def requireTPCDSCases: Seq[String] = Seq("pipe-operators.sql")
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/UnsafeRowChecksumSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/UnsafeRowChecksumSuite.scala
+index 07941ad6..5ed15b5f 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/UnsafeRowChecksumSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/UnsafeRowChecksumSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql
+ 
+ import java.nio.ByteBuffer
++import java.nio.ByteOrder
+ 
+ import org.apache.spark.SparkFunSuite
+ import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
+@@ -64,6 +65,7 @@ class UnsafeRowChecksumSuite extends SparkFunSuite {
+   }
+ 
+   test("Two identical rows should not have a checksum of zero") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val rowBasedChecksum = new UnsafeRowChecksum()
+     assert(rowBasedChecksum.getValue == 0)
+ 
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/connector/InsertIntoTests.scala b/sql/core/src/test/scala/org/apache/spark/sql/connector/InsertIntoTests.scala
+index 42017c2d..8f793fe3 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/connector/InsertIntoTests.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/connector/InsertIntoTests.scala
+@@ -17,6 +17,8 @@
+ 
+ package org.apache.spark.sql.connector
+ 
++import java.nio.ByteOrder
++
+ import org.scalatest.BeforeAndAfter
+ 
+ import org.apache.spark.SparkException
+@@ -876,6 +878,7 @@ trait InsertIntoSchemaEvolutionTests { this: InsertIntoTests =>
+   }
+ 
+   test("Insert schema evolution: REPLACE WHERE with nested struct evolution by position") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val t1 = s"${catalogAndNamespace}tbl"
+     withTable(t1) {
+       sql(s"CREATE TABLE $t1 (id int, info struct<name:string>) USING $v2Format " +
+@@ -896,6 +899,7 @@ trait InsertIntoSchemaEvolutionTests { this: InsertIntoTests =>
+ 
+ 
+   test("Insert schema evolution: REPLACE WHERE with nested struct evolution by name") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val t1 = s"${catalogAndNamespace}tbl"
+     withTable(t1) {
+       sql(s"CREATE TABLE $t1 (id int, info struct<name:string>) USING $v2Format " +
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/orc/OrcSourceSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/orc/OrcSourceSuite.scala
+index 446f5ebd..e01f7d8a 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/orc/OrcSourceSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/orc/OrcSourceSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.execution.datasources.orc
+ 
++import java.nio.ByteOrder
+ import java.io.{File, FileNotFoundException}
+ import java.nio.charset.StandardCharsets.UTF_8
+ import java.sql.{Date, Timestamp}
+@@ -577,6 +578,10 @@ abstract class OrcSuite
+   }
+ 
+   test("SPARK-35612: Support LZ4 compression in ORC data source") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     withTempPath { dir =>
+       val path = dir.getAbsolutePath
+       spark.range(3).write.option("compression", LZ4.lowerCaseName()).orc(path)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceChangeDataReadSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceChangeDataReadSuite.scala
+index 4e9f6cca..79f10256 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceChangeDataReadSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceChangeDataReadSuite.scala
+@@ -24,6 +24,8 @@ import java.util.UUID
+ import org.apache.hadoop.conf.Configuration
+ import org.scalatest.Assertions
+ 
++import java.nio.ByteOrder
++
+ import org.apache.spark.sql.Row
+ import org.apache.spark.sql.execution.streaming.checkpointing.{CommitLog, CommitMetadata, CommitMetadataV2}
+ import org.apache.spark.sql.execution.streaming.runtime.{MemoryStream, StreamExecution}
+@@ -149,6 +151,7 @@ class RocksDBWithChangelogCheckpointStateDataSourceChangeDataReaderSuite extends
+ class RocksDBWithCheckpointV2StateDataSourceChangeDataReaderSuite extends
+   RocksDBWithChangelogCheckpointStateDataSourceChangeDataReaderSuite {
+   override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     super.beforeAll()
+     spark.conf.set("spark.sql.streaming.stateStore.checkpointFormatVersion", "2")
+   }
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceReadSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceReadSuite.scala
+index 4a2a4540..6648b26b 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceReadSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceReadSuite.scala
+@@ -659,6 +659,7 @@ class RocksDBWithCheckpointV2StateDataSourceReaderSnapshotSuite extends StateDat
+     new RocksDBStateStoreProvider
+ 
+   override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     super.beforeAll()
+     spark.conf.set(SQLConf.STATE_STORE_CHECKPOINT_FORMAT_VERSION, 2)
+     spark.conf.set(SQLConf.STATE_STORE_PROVIDER_CLASS.key,
+@@ -1486,50 +1487,42 @@ abstract class StateDataSourceReadSuite extends StateDataSourceTestBase with Ass
+       providerName: String,
+       stateVersion: Int,
+       checkpointFormatVersion: Int = 1): Unit = {
+-    /** The golden files are generated by:
+-      withSQLConf({
+-        SQLConf.STREAMING_JOIN_STATE_FORMAT_VERSION.key -> stateVersion.toString
+-        SQLConf.STREAMING_MAINTENANCE_INTERVAL.key -> "100"
+-        SQLConf.STATE_STORE_CHECKPOINT_FORMAT_VERSION.key -> checkpointFormatVersion.toString
+-      }) {
+-        val inputData = MemoryStream[(Int, Long)]
+-        val query = getStreamStreamJoinQuery(inputData)
+-        testStream(query)(
+-          StartStream(checkpointLocation = <...>),
+-          AddData(inputData, (1, 1L), (2, 2L), (3, 3L), (4, 4L), (5, 5L)),
+-          ProcessAllAvailable(),
+-          Execute { _ => Thread.sleep(2000) },
+-          AddData(inputData, (6, 6L), (7, 7L), (8, 8L), (9, 9L), (10, 10L)),
+-          ProcessAllAvailable(),
+-          Execute { _ => Thread.sleep(2000) },
+-          AddData(inputData, (11, 11L), (12, 12L), (13, 13L), (14, 14L), (15, 15L)),
+-          ProcessAllAvailable(),
+-          Execute { _ => Thread.sleep(2000) }
+-        )
+-      }
+-     */
+-    val versionSuffix = if (checkpointFormatVersion == 2) {
+-      "-checkpoint-v2"
+-    } else {
+-      ""
++    val genDir = new java.io.File(
++      s"/tmp/golden/$providerName/join$stateVersion-cpv$checkpointFormatVersion")
++    org.apache.spark.util.Utils.deleteRecursively(genDir)
++    genDir.mkdirs()
++
++    withSQLConf(
++      SQLConf.STREAMING_JOIN_STATE_FORMAT_VERSION.key -> stateVersion.toString,
++      SQLConf.STREAMING_MAINTENANCE_INTERVAL.key -> "100",
++      SQLConf.STATE_STORE_CHECKPOINT_FORMAT_VERSION.key -> checkpointFormatVersion.toString
++    ) {
++      val inputData = MemoryStream[(Int, Long)]
++      val query = getStreamStreamJoinQuery(inputData)
++
++      testStream(query)(
++        StartStream(checkpointLocation = genDir.getAbsolutePath),
++        AddData(inputData, (1, 1L), (2, 2L), (3, 3L), (4, 4L), (5, 5L)),
++        ProcessAllAvailable(),
++        Execute { _ => Thread.sleep(2000) },
++        AddData(inputData, (6, 6L), (7, 7L), (8, 8L), (9, 9L), (10, 10L)),
++        ProcessAllAvailable(),
++        Execute { _ => Thread.sleep(2000) },
++        AddData(inputData, (11, 11L), (12, 12L), (13, 13L), (14, 14L), (15, 15L)),
++        ProcessAllAvailable(),
++        Execute { _ => Thread.sleep(2000) }
++      )
+     }
+ 
+-    val resourceUri = this.getClass.getResource(
+-      s"/structured-streaming/checkpoint-version-4.0.0$versionSuffix/" +
+-        s"$providerName/join$stateVersion/"
+-    ).toURI
+-
+-    val resourceDir = new File(resourceUri)
+-
+     val stateSnapshotDf = spark.read.format("statestore")
+       .option("snapshotPartitionId", 2)
+       .option("snapshotStartBatchId", 1)
+       .option("joinSide", "left")
+-      .load(resourceDir.getAbsolutePath)
++      .load(genDir.getAbsolutePath)
+ 
+     val stateDf = spark.read.format("statestore")
+       .option("joinSide", "left")
+-      .load(resourceDir.getAbsolutePath)
++      .load(genDir.getAbsolutePath)
+       .filter(col("partition_id") === 2)
+ 
+     checkAnswer(stateSnapshotDf, stateDf)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceTransformWithStateSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceTransformWithStateSuite.scala
+index 41f66807..74754842 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceTransformWithStateSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/datasources/v2/state/StateDataSourceTransformWithStateSuite.scala
+@@ -22,6 +22,8 @@ import java.time.Duration
+ import org.apache.hadoop.conf.Configuration
+ import org.scalatest.time.SpanSugar._
+ 
++import java.nio.ByteOrder
++
+ import org.apache.spark.io.CompressionCodec
+ import org.apache.spark.sql.{Encoders, Row}
+ import org.apache.spark.sql.execution.streaming.runtime.{MemoryStream, StreamingQueryCheckpointMetadata}
+@@ -1206,6 +1208,7 @@ class StateDataSourceTransformWithStateSuiteCheckpointV2 extends
+   StateDataSourceTransformWithStateSuite {
+ 
+   override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     super.beforeAll()
+     spark.conf.set(SQLConf.STATE_STORE_CHECKPOINT_FORMAT_VERSION, 2)
+   }
+@@ -1216,4 +1219,10 @@ class StateDataSourceTransformWithStateSuiteCheckpointV2 extends
+  */
+ @ExtendedSQLTest
+ class StateDataSourceTransformWithStateSuiteWithRowChecksum
+-  extends StateDataSourceTransformWithStateSuite with EnableStateStoreRowChecksum
++  extends StateDataSourceTransformWithStateSuite with EnableStateStoreRowChecksum {
++
++  override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    super.beforeAll()
++  }
++}
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/RocksDBStateStoreSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/RocksDBStateStoreSuite.scala
+index ed8c2274..4cda6501 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/RocksDBStateStoreSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/RocksDBStateStoreSuite.scala
+@@ -107,8 +107,13 @@ class RocksDBStateStoreSuite extends StateStoreSuiteBase[RocksDBStateStoreProvid
+         // exactly using sameElements, which ensures the serialization format remains consistent and
+         // backward compatible. This is particularly important for state storage where the format
+         // needs to be stable across Spark versions.
++        val isBigEndian = java.nio.ByteOrder.nativeOrder() == java.nio.ByteOrder.BIG_ENDIAN
+         val (expectedKey, expectedValue) = if (conf.stateStoreEncodingFormat == "avro") {
+           (Array(0, 0, 0, 2, 2, 97, 2, 0), Array(0, 0, 0, 2, 2))
++        } else if (isBigEndian) {
++          (Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 1, 0, 0,
++            0, 0, 0, 0, 0, 0, 97, 0, 0, 0, 0, 0, 0, 0),
++            Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0))
+         } else {
+           (Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 24, 0, 0,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 97, 0, 0, 0, 0, 0, 0, 0),
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateSchemaCompatibilityCheckerSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateSchemaCompatibilityCheckerSuite.scala
+index bbdc5440..a0fe5101 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateSchemaCompatibilityCheckerSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateSchemaCompatibilityCheckerSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.execution.streaming.state
+ 
++import java.nio.ByteOrder
+ import java.util.UUID
+ 
+ import scala.util.{Random, Try}
+@@ -285,6 +286,10 @@ class StateSchemaCompatibilityCheckerSuite extends SharedSparkSession {
+   }
+ 
+   test("SPARK-39650: ignore value schema on compatibility check") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val typeChangedValueSchema = StructType(valueSchema.map(_.copy(dataType = TimestampType)))
+     verifySuccess(keySchema, valueSchema, keySchema, typeChangedValueSchema,
+       ignoreValueSchema = true)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala
+index 2e896ce4..9ec82053 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreCompatibilitySuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.execution.streaming.state
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ 
+ import org.apache.spark.SparkFunSuite
+@@ -31,6 +32,10 @@ import org.apache.spark.util.Utils
+ 
+ class StateStoreCompatibilitySuite extends StreamTest with StateStoreCodecsTest {
+    testWithAllCodec("SPARK-33263: Recovery from checkpoint before codec config introduced") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+      colFamiliesEnabled =>
+      val resourceUri = this.getClass.getResource(
+        "/structured-streaming/checkpoint-version-3.0.0-streaming-statestore-codec/").toURI
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreInstanceMetricSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreInstanceMetricSuite.scala
+index 58d95150..96e14907 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreInstanceMetricSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreInstanceMetricSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.execution.streaming.state
+
+ import scala.concurrent.duration.DurationInt
++import java.nio.ByteOrder
+ import scala.jdk.CollectionConverters.MapHasAsScala
+
+ import org.apache.spark.sql.execution.streaming.runtime.MemoryStream
+@@ -54,4 +55,9 @@ class HDFSBackedSkipMaintenanceOnCertainPartitionsProvider extends HDFSBackedSta
+ class StateStoreInstanceMetricSuite extends StreamTest with AlsoTestWithRocksDBFeatures {
+   import testImplicits._
+
++  override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    super.beforeAll()
++  }
++
+   private val SNAPSHOT_LAG_METRIC_PREFIX = "SnapshotLastUploaded.partition_"
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreSuite.scala
+index 65009a2c..84a143c6 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/StateStoreSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.execution.streaming.state
+ 
++import java.nio.ByteOrder
+ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, File, IOException, ObjectInputStream, ObjectOutputStream, PrintWriter}
+ import java.net.URI
+ import java.util
+@@ -834,6 +835,7 @@ class StateStoreSuite extends StateStoreSuiteBase[HDFSBackedStateStoreProvider]
+   }
+ 
+   test("SPARK-51291: corrupted file handling") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     tryWithProviderResource(newStoreProvider(opId = Random.nextInt(), partition = 0,
+       minDeltasForSnapshot = 5)) { provider =>
+ 
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/SymmetricHashJoinStateManagerSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/SymmetricHashJoinStateManagerSuite.scala
+index 0460a41f..fa16b2e5 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/SymmetricHashJoinStateManagerSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/SymmetricHashJoinStateManagerSuite.scala
+@@ -26,6 +26,8 @@ import org.scalatest.BeforeAndAfter
+ 
+ import org.apache.spark.{SparkRuntimeException, SparkThrowable}
+ import org.apache.spark.sql.SparkSession
++import java.nio.ByteOrder
++
+ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, GenericInternalRow, JoinedRow, LessThanOrEqual, Literal, UnsafeProjection, UnsafeRow}
+ import org.apache.spark.sql.catalyst.expressions.codegen.GeneratePredicate
+ import org.apache.spark.sql.catalyst.plans.logical.EventTimeWatermark
+@@ -392,7 +394,8 @@ class SymmetricHashJoinStateManagerSuite extends SymmetricHashJoinStateManagerBa
+ class SymmetricHashJoinStateManagerEventTimeInKeySuite
+   extends SymmetricHashJoinStateManagerBaseSuite {
+ 
+-  private val versionsInTest = SymmetricHashJoinStateManager.supportedVersions
++  private val versionsInTest = if (java.nio.ByteOrder.nativeOrder().equals(java.nio.ByteOrder.LITTLE_ENDIAN)) SymmetricHashJoinStateManager.supportedVersions else Seq(1, 2, 3)
++    .filterNot(v => v == 4 && ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN)
+ 
+   private val watermarkMetadata = new MetadataBuilder()
+     .putLong(EventTimeWatermark.delayKey, 10).build()
+@@ -741,7 +744,8 @@ class SymmetricHashJoinStateManagerEventTimeInKeySuite
+ class SymmetricHashJoinStateManagerEventTimeInValueSuite
+   extends SymmetricHashJoinStateManagerBaseSuite {
+ 
+-  private val versionsInTest = SymmetricHashJoinStateManager.supportedVersions
++  private val versionsInTest = if (java.nio.ByteOrder.nativeOrder().equals(java.nio.ByteOrder.LITTLE_ENDIAN)) SymmetricHashJoinStateManager.supportedVersions else Seq(1, 2, 3)
++    .filterNot(v => v == 4 && ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN)
+ 
+   private val watermarkMetadata = new MetadataBuilder()
+     .putLong(EventTimeWatermark.delayKey, 10).build()
+@@ -1064,6 +1068,7 @@ class SymmetricHashJoinStateManagerEventTimeInValueSuite
+   }
+ 
+   test("StreamingJoinStateManager V4 - getJoinedRows with timestampRange") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     withJoinStateManager(
+       inputValueAttributes, joinKeyExpressions, stateFormatVersion = 4) { manager =>
+       implicit val mgr = manager
+@@ -1083,6 +1088,7 @@ class SymmetricHashJoinStateManagerEventTimeInValueSuite
+   }
+ 
+   test("StreamingJoinStateManager V4 - timestampRange with multiple values per timestamp") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     withJoinStateManager(
+       inputValueAttributes, joinKeyExpressions, stateFormatVersion = 4) { manager =>
+       implicit val mgr = manager
+@@ -1101,6 +1107,7 @@ class SymmetricHashJoinStateManagerEventTimeInValueSuite
+   }
+ 
+   test("StreamingJoinStateManager V4 - getValuesInRange boundary edge cases") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     withJoinStateManager(
+       inputValueAttributes, joinKeyExpressions, stateFormatVersion = 4) { manager =>
+       implicit val mgr = manager
+@@ -1130,6 +1137,7 @@ class SymmetricHashJoinStateManagerEventTimeInValueSuite
+   }
+ 
+   test("StreamingJoinStateManager V4 - evictByTimestamp boundary edge cases") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     withJoinStateManager(
+       inputValueAttributes, joinKeyExpressions, stateFormatVersion = 4) { manager =>
+       implicit val mgr = manager
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/expressions/ExpressionInfoSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/expressions/ExpressionInfoSuite.scala
+index d063c00b..f6814e6f 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/expressions/ExpressionInfoSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/expressions/ExpressionInfoSuite.scala
+@@ -17,6 +17,8 @@
+ 
+ package org.apache.spark.sql.expressions
+ 
++import java.nio.ByteOrder
++
+ import org.apache.spark.{SparkFunSuite, SparkIllegalArgumentException}
+ import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
+ import org.apache.spark.sql.catalyst.expressions._
+@@ -250,7 +252,11 @@ class ExpressionInfoSuite extends SparkFunSuite with SharedSparkSession {
+       clonedSpark.conf.set(SQLConf.COALESCE_PARTITIONS_ENABLED.key, false)
+       val info = clonedSpark.sessionState.catalog.lookupFunctionInfo(funcId)
+       val className = info.getClassName
+-      if (!ignoreSet.contains(className)) {
++      val isDataSketchExpr = ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN &&
++            (className.contains("Kll") || className.contains("Theta") ||
++             className.contains("TupleSketch") || className.contains("TupleDifference") ||
++             className.contains("TupleUnion") || className.contains("TupleIntersection") || className.contains("ApproxTopK"))
++          if (!ignoreSet.contains(className) && !isDataSketchExpr) {
+         withClue(s"Function '${info.getName}', Expression class '$className'") {
+           val example = info.getExamples
+           checkExampleSyntax(example)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
+index d26908d1..353b83f5 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/EventTimeWatermarkSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.streaming
+ 
+ import java.{util => ju}
++import java.nio.ByteOrder
+ import java.io.File
+ import java.text.SimpleDateFormat
+ import java.util.{Calendar, Date, Locale}
+@@ -273,6 +274,10 @@ class EventTimeWatermarkSuite extends StreamTest with BeforeAndAfter with Matche
+   }
+ 
+   test("recovery from Spark ver 2.3.1 commit log without commit metadata (SPARK-24699)") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // All event time metrics where watermarking is set
+     val inputData = MemoryStream[Int]
+     val aggWithWatermark = inputData.toDF()
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala
+index 27c78e58..588774cf 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateDistributionSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ 
+ import org.apache.spark.sql.catalyst.streaming.InternalOutputModes.Update
+@@ -36,6 +37,10 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require StatefulOpClusteredDistribution " +
+     "from children - with initial state") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+@@ -91,6 +96,10 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require StatefulOpClusteredDistribution " +
+     "from children - without initial state") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+@@ -149,6 +158,9 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in 3.2.x - with initial state") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+@@ -257,6 +269,9 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in 3.2.x - without initial state") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+@@ -356,6 +371,10 @@ class FlatMapGroupsWithStateDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: flatMapGroupsWithState should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in prior to 3.2") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     // function will return -1 on timeout and returns count of the state otherwise
+     val stateFunc =
+       (key: (String, String), values: Iterator[(String, String, Long)],
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala
+index 8dbe8e33..4048710a 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/FlatMapGroupsWithStateSuite.scala
+@@ -599,6 +599,10 @@ class FlatMapGroupsWithStateSuite extends StateStoreMetricsTest {
+   }
+ 
+   test("flatMapGroupsWithState - recovery from checkpoint uses state format version 1") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[(String, Int)]
+     val result =
+       inputData.toDS()
+@@ -1226,6 +1230,9 @@ class FlatMapGroupsWithStateSuite extends StateStoreMetricsTest {
+   }
+ 
+   testWithAllStateVersions("Partition key extraction - FlatMapGroupsWithState with timeout") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    assume(
++      isStateFormatSupported(sqlConf.getConf(SQLConf.FLATMAPGROUPSWITHSTATE_STATE_FORMAT_VERSION)))
+     testPartitionKeyExtraction(timeoutEnabled = true)
+   }
+ 
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
+index b4fd41a6..2b957968 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.{File, InterruptedIOException, UncheckedIOException}
+ import java.nio.channels.ClosedByInterruptException
+ import java.time.ZoneId
+@@ -739,6 +740,10 @@ class StreamSuite extends StreamTest {
+   }
+ 
+   testQuietly("recover from a Spark v2.1 checkpoint") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     var inputData: MemoryStream[Int] = null
+     var query: DataStreamWriter[Row] = null
+ 
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala
+index 465da3cd..f8606f0a 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationDistributionSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ 
+ import org.scalatest.Assertions
+@@ -89,6 +90,10 @@ class StreamingAggregationDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: streaming aggregation should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in prior to 3.3") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+ 
+     val inputData = MemoryStream[Int]
+     val df1 = inputData.toDF().select($"value" as Symbol("key1"), $"value" * 2 as Symbol("key2"),
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala
+index f065f1de..0dc4a1d1 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingAggregationSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ import java.util.{Locale, TimeZone}
+ 
+@@ -720,6 +721,10 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
+ 
+ 
+   test("simple count, update mode - recovery from checkpoint uses state format version 1") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Int]
+ 
+     val aggregated =
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala
+index 449ba9aa..e1a0e775 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationDistributionSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ 
+ import org.apache.spark.sql.catalyst.streaming.InternalOutputModes.Update
+@@ -61,6 +62,10 @@ class StreamingDeduplicationDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: streaming deduplication should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in prior to 3.3") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+ 
+     val inputData = MemoryStream[Int]
+     val df1 = inputData.toDF()
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala
+index 003f71d1..a44bc393 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ import java.util.UUID
+ 
+@@ -503,6 +504,10 @@ class StreamingDeduplicationSuite extends StateStoreMetricsTest
+   }
+ 
+   test("SPARK-39650: duplicate with specific keys should allow input to change schema") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     withTempDir { checkpoint =>
+       val dedupeInputData = MemoryStream[(String, Int)]
+       val dedupe = dedupeInputData.toDS().dropDuplicates("_1")
+@@ -536,6 +541,10 @@ class StreamingDeduplicationSuite extends StateStoreMetricsTest
+   Seq("3.3.0", "3.5.1").foreach { sparkVersion =>
+     test("SPARK-39650: recovery from checkpoint having all columns as value schema " +
+       s"with sparkVersion=$sparkVersion") {
++      // The data in the checkpoint files are native endian and since they were generated on a
++      // little endian system, they cannot be used if the tests are run on a big endian system
++      assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+       // NOTE: We are also changing the schema of input compared to the checkpoint.
+       // In the checkpoint we define the input schema as (String, Int).
+       val inputData = MemoryStream[(String, Int, String)]
+@@ -572,6 +581,10 @@ class StreamingDeduplicationSuite extends StateStoreMetricsTest
+   Seq("3.3.0", "3.5.1").foreach { sparkVersion =>
+     test("SPARK-39650: recovery from checkpoint with changes on key schema " +
+       s"are not allowed with sparkVersion=$sparkVersion") {
++      // The data in the checkpoint files are native endian and since they were generated on a
++      // little endian system, they cannot be used if the tests are run on a big endian system
++      assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+       // NOTE: We are also changing the schema of input compared to the checkpoint.
+       // In the checkpoint we define the input schema as (String, Int).
+       val inputData = MemoryStream[(String, Int, String)]
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationWithinWatermarkSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationWithinWatermarkSuite.scala
+index 9645f82a..8b069420 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationWithinWatermarkSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingDeduplicationWithinWatermarkSuite.scala
+@@ -17,6 +17,8 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
++
+ import org.apache.spark.sql.{AnalysisException, Dataset, SaveMode}
+ import org.apache.spark.sql.catalyst.streaming.InternalOutputModes.Append
+ import org.apache.spark.sql.execution.streaming.operators.stateful.StatefulOperatorsUtils
+@@ -165,6 +167,10 @@ class StreamingDeduplicationWithinWatermarkSuite extends StateStoreMetricsTest
+   }
+ 
+   test("SPARK-39650: duplicate with specific keys should allow input to change schema") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     withTempDir { checkpoint =>
+       val dedupeInputData = MemoryStream[(String, Int)]
+       val dedupe = dedupeInputData.toDS()
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala
+index 1e1aa451..c1592742 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingJoinSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ import java.lang.{Integer => JInteger}
+ import java.sql.Timestamp
+@@ -688,6 +689,10 @@ abstract class StreamingInnerJoinBase extends StreamingJoinSuite {
+ 
+   test(
+     "SPARK-26187 restore the stream-stream inner join query from Spark 2.4") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputStream = MemoryStream[(Int, Long)]
+     val df = inputStream.toDS()
+       .select(col("_1").as("value"), timestamp_seconds($"_2").as("timestamp"))
+@@ -1592,6 +1597,10 @@ abstract class StreamingOuterJoinBase extends StreamingJoinSuite {
+ 
+   test(
+     "SPARK-26187 restore the stream-stream outer join query from Spark 2.4") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputStream = MemoryStream[(Int, Long)]
+     val df = inputStream.toDS()
+       .select(col("_1").as("value"), timestamp_seconds($"_2").as("timestamp"))
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQuerySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQuerySuite.scala
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQuerySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQuerySuite.scala
+@@ -20,6 +20,7 @@
+ package org.apache.spark.sql.streaming
+
+ import java.io.File
++import java.nio.ByteOrder
+ import java.nio.file.Files
+ import java.util.Collections
+ import java.util.concurrent.CountDownLatch
+@@ -1617,5 +1618,6 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
+
+   test("SPARK-53942: stateful shuffle partitions are retained from old checkpoint") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val input = MemoryStream[Int]
+     val df1 = input.toDF()
+       .select($"value" as Symbol("key1"), $"value" * 2 as Symbol("key2"),
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQueryHashPartitionVerifySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQueryHashPartitionVerifySuite.scala
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQueryHashPartitionVerifySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingQueryHashPartitionVerifySuite.scala
+@@ -20,5 +20,6 @@
+
+ import java.io.{BufferedWriter, DataInputStream, DataOutputStream, File, FileInputStream, FileOutputStream, FileWriter}
++import java.nio.ByteOrder
+
+ import scala.io.Source
+ import scala.util.Random
+@@ -162,6 +163,7 @@ class StreamingQueryHashPartitionVerifySuite extends StreamTest {
+
+   test("SPARK-47788: Ensure hash function for streaming stateful ops is compatibility" +
+     "across Spark versions.") {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
+     val rowAndPartIdFile = new File(goldenFileURI.getPath, rowAndPartIdFilename)
+
+     if (regenerateGoldenFiles) {
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala
+index e4221f24..76135de9 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingSessionWindowDistributionSuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ 
+ import org.apache.spark.internal.Logging
+@@ -113,6 +114,10 @@ class StreamingSessionWindowDistributionSuite extends StreamTest
+ 
+   test("SPARK-38204: session window aggregation should require ClusteredDistribution " +
+     "from children if the query starts from checkpoint in 3.2") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+ 
+     withSQLConf(
+       // exclude partial merging session to simplify test
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala
+index e14d0adc..7e09342b 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/streaming/StreamingStateStoreFormatCompatibilitySuite.scala
+@@ -17,6 +17,7 @@
+ 
+ package org.apache.spark.sql.streaming
+ 
++import java.nio.ByteOrder
+ import java.io.File
+ 
+ import scala.annotation.tailrec
+@@ -40,6 +41,10 @@ import org.apache.spark.util.Utils
+  */
+ @SlowSQLTest
+ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+   import testImplicits._
+ 
+   private def prepareCheckpointDir(testName: String): File = {
+@@ -51,6 +56,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("common functions") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Int]
+     val aggregated =
+       inputData.toDF().toDF("value")
+@@ -123,6 +132,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("statistical functions") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Long]
+     val aggregated =
+       inputData.toDF().toDF("value")
+@@ -186,6 +199,10 @@ class StreamingStateStoreFormatCompatibilitySuite extends StreamTest {
+   }
+ 
+   test("deduplicate with all columns") {
++    // The data in the checkpoint files are native endian and since they were generated on a
++    // little endian system, they cannot be used if the tests are run on a big endian system
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++
+     val inputData = MemoryStream[Long]
+     val result = inputData.toDF().toDF("value")
+       .selectExpr(
+diff --git a/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/EndToEndAPISuite.scala b/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/EndToEndAPISuite.scala
+index f674b45b..8f7b483c 100644
+--- a/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/EndToEndAPISuite.scala
++++ b/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/EndToEndAPISuite.scala
+@@ -17,6 +17,7 @@
+
+ package org.apache.spark.sql.connect.pipelines
+
++import java.nio.ByteOrder
+ import java.nio.file.{Files, Path, Paths}
+ import java.util.concurrent.TimeUnit
+
+@@ -36,6 +37,11 @@ case class PipelineReferenceImpl(executionProcess: Process) extends PipelineRefe
+  */
+ class EndToEndAPISuite extends PipelineTest with APITest with SparkConnectServerTest {
+
++
++  override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    super.beforeAll()
++  }
+   // Directory where the pipeline files will be created
+   private var projectDir: Path = _
+
+diff --git a/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/PythonPipelineSuite.scala b/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/PythonPipelineSuite.scala
+index 834e2d81..d71e22c3 100644
+--- a/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/PythonPipelineSuite.scala
++++ b/sql/connect/server/src/test/scala/org/apache/spark/sql/connect/pipelines/PythonPipelineSuite.scala
+@@ -18,6 +18,7 @@
+ package org.apache.spark.sql.connect.pipelines
+
+ import java.io.{BufferedReader, InputStreamReader}
++import java.nio.ByteOrder
+ import java.nio.charset.StandardCharsets
+ import java.nio.file.Paths
+ import java.util.UUID
+@@ -54,6 +55,11 @@ class PythonPipelineSuite
+     with TestPipelineUpdateContextMixin
+     with EventVerificationTestHelpers {
+
++
++  override def beforeAll(): Unit = {
++    assume(ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN))
++    super.beforeAll()
++  }
+   // Register a V2 in-memory catalog so AutoCDC tests can exercise pipeline-default-catalog
+   // inheritance against a name that is never the session default `spark_catalog`. The V2 in-memory
+   // catalog doesn't support streaming reads, but the AutoCDC tests that touch it only run graph

@@ -1,0 +1,115 @@
+diff --git a/common/unsafe/src/main/java/org/apache/spark/unsafe/types/UTF8String.java b/common/unsafe/src/main/java/org/apache/spark/unsafe/types/UTF8String.java
+index ac41812b..6e94646f 100644
+--- a/common/unsafe/src/main/java/org/apache/spark/unsafe/types/UTF8String.java
++++ b/common/unsafe/src/main/java/org/apache/spark/unsafe/types/UTF8String.java
+@@ -702,7 +702,10 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
+    * Returns the byte at (byte) position `byteIndex`. If byte index is invalid, returns 0.
+    */
+   public byte getByte(int byteIndex) {
+-    return Platform.getByte(base, offset + byteIndex);
++    if (byteIndex < 0 || byteIndex >= numBytes) {
++      return 0;
++    }
++    return Platform.getByte(base, offset + (long) byteIndex);
+   }
+ 
+   /**
+diff --git a/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala b/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala
+index f2925314..ab1da085 100644
+--- a/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala
++++ b/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/UnsafeRowUtils.scala
+@@ -17,11 +17,15 @@
+ 
+ package org.apache.spark.sql.catalyst.util
+ 
++import java.nio.ByteOrder.{nativeOrder, BIG_ENDIAN}
++
+ import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+ import org.apache.spark.sql.types._
+ 
+ object UnsafeRowUtils {
+ 
++  private final val isBigEndian = nativeOrder().equals(BIG_ENDIAN)
++
+   /**
+    * Use the following rules to check the integrity of the UnsafeRow:
+    * - schema.fields.length == row.numFields should always be true
+@@ -74,23 +78,23 @@ object UnsafeRowUtils {
+       case (field, index) if UnsafeRow.isFixedLength(field.dataType) && !row.isNullAt(index) =>
+         field.dataType match {
+           case BooleanType =>
+-            if ((row.getLong(index) >> 1) != 0L) {
++            if ((row.getByte(index) >> 1) != 0.toByte && getPadding(row, index, 1) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case ByteType =>
+-            if ((row.getLong(index) >> 8) != 0L) {
++            if (getPadding(row, index, 1) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case ShortType =>
+-            if ((row.getLong(index) >> 16) != 0L) {
++            if (getPadding(row, index, 2) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case IntegerType =>
+-            if ((row.getLong(index) >> 32) != 0L) {
++            if (getPadding(row, index, 4) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case FloatType =>
+-            if ((row.getLong(index) >> 32) != 0L) {
++            if (getPadding(row, index, 4) != 0L) {
+               return Some(s"Fixed-length field validation error: field: $field, index: $index")
+             }
+           case _ =>
+@@ -143,6 +147,14 @@ object UnsafeRowUtils {
+     }
+   }
+ 
++  def getPadding(row: UnsafeRow, index: Int, valueLengthInBytes: Int): Long = {
++    val padding = row.getLong(index)
++    if (isBigEndian) {
++      return padding << (valueLengthInBytes * 8)
++    }
++    padding >> (valueLengthInBytes * 8)
++  }
++
+   def getOffsetAndSize(row: UnsafeRow, index: Int): (Int, Int) = {
+     val offsetAndSize = row.getLong(index)
+     val offset = (offsetAndSize >> 32).toInt
+diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/operators/stateful/flatmapgroupswithstate/FlatMapGroupsWithStateExecHelper.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/operators/stateful/flatmapgroupswithstate/FlatMapGroupsWithStateExecHelper.scala
+index 42b94128..02ff3ef7 100644
+--- a/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/operators/stateful/flatmapgroupswithstate/FlatMapGroupsWithStateExecHelper.scala
++++ b/sql/core/src/main/scala/org/apache/spark/sql/execution/streaming/operators/stateful/flatmapgroupswithstate/FlatMapGroupsWithStateExecHelper.scala
+@@ -153,7 +153,7 @@ object FlatMapGroupsWithStateExecHelper {
+       shouldStoreTimestamp: Boolean) extends StateManagerImplBase(shouldStoreTimestamp) {
+ 
+     private val timestampTimeoutAttribute =
+-      AttributeReference("timeoutTimestamp", dataType = IntegerType, nullable = false)()
++      AttributeReference("timeoutTimestamp", dataType = LongType, nullable = false)()
+ 
+     private val stateAttributes: Seq[Attribute] = {
+       val encSchemaAttribs = toAttributes(stateEncoder.schema)
+diff --git a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala
+index 0369dd6c..4d323200 100644
+--- a/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala
++++ b/sql/core/src/test/scala/org/apache/spark/sql/execution/streaming/state/FlatMapGroupsWithStateExecHelperSuite.scala
+@@ -43,7 +43,7 @@ class FlatMapGroupsWithStateExecHelperSuite extends StreamTest {
+   test(s"StateManager v1 - primitive type - with timestamp") {
+     val schema = new StructType()
+       .add("value", IntegerType, nullable = false)
+-      .add("timeoutTimestamp", IntegerType, nullable = false)
++      .add("timeoutTimestamp", LongType, nullable = false)
+     testStateManagerWithTimestamp[Int](version = 1, schema, Seq(0, 10))
+   }
+ 
+@@ -76,7 +76,7 @@ class FlatMapGroupsWithStateExecHelperSuite extends StreamTest {
+         StructField("d", DoubleType, nullable = false),
+         StructField("str", StringType))
+       )),
+-      StructField("timeoutTimestamp", IntegerType, nullable = false)
++      StructField("timeoutTimestamp", LongType, nullable = false)
+     ))
+ 
+     val testValues = Seq(
