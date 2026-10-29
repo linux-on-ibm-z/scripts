@@ -1,0 +1,1335 @@
+diff --git a/configure.py b/configure.py
+index 6711ff9d..964168b0 100644
+--- a/configure.py
++++ b/configure.py
+@@ -1312,6 +1312,9 @@ def main():
+       if environ_cp.get('TF_NEED_CLANG') == '1':
+         clang_compiler_path = set_clang_compiler_path(environ_cp)
+         clang_version = retrieve_clang_version(clang_compiler_path)
++        if is_s390x():
++          write_to_bazelrc('build --linkopt=-rtlib=compiler-rt')
++          write_to_bazelrc('build --host_linkopt=-rtlib=compiler-rt')
+         disable_clang_offsetof_extension(clang_version)
+     if is_windows():
+       environ_cp['TF_NEED_CLANG'] = str(choose_compiler_Win(environ_cp))
+diff --git a/requirements_lock_3_10.txt b/requirements_lock_3_10.txt
+index af297f6e..a19c0738 100644
+--- a/requirements_lock_3_10.txt
++++ b/requirements_lock_3_10.txt
+@@ -285,70 +285,8 @@ namex==0.0.9 \
+     --hash=sha256:7bd4e4a2cc3876592111609fdf4cbe6ff19883adbe6b3b40d842fd340f77025e \
+     --hash=sha256:8adfea9da5cea5be8f4e632349b4669e30172c7859e1fd97459fdf3b17469253
+     # via keras
+-numpy==2.1.3 \
+-    --hash=sha256:016d0f6f5e77b0f0d45d77387ffa4bb89816b57c835580c3ce8e099ef830befe \
+-    --hash=sha256:02135ade8b8a84011cbb67dc44e07c58f28575cf9ecf8ab304e51c05528c19f0 \
+-    --hash=sha256:08788d27a5fd867a663f6fc753fd7c3ad7e92747efc73c53bca2f19f8bc06f48 \
+-    --hash=sha256:0d30c543f02e84e92c4b1f415b7c6b5326cbe45ee7882b6b77db7195fb971e3a \
+-    --hash=sha256:0fa14563cc46422e99daef53d725d0c326e99e468a9320a240affffe87852564 \
+-    --hash=sha256:13138eadd4f4da03074851a698ffa7e405f41a0845a6b1ad135b81596e4e9958 \
+-    --hash=sha256:14e253bd43fc6b37af4921b10f6add6925878a42a0c5fe83daee390bca80bc17 \
+-    --hash=sha256:15cb89f39fa6d0bdfb600ea24b250e5f1a3df23f901f51c8debaa6a5d122b2f0 \
+-    --hash=sha256:17ee83a1f4fef3c94d16dc1802b998668b5419362c8a4f4e8a491de1b41cc3ee \
+-    --hash=sha256:2312b2aa89e1f43ecea6da6ea9a810d06aae08321609d8dc0d0eda6d946a541b \
+-    --hash=sha256:2564fbdf2b99b3f815f2107c1bbc93e2de8ee655a69c261363a1172a79a257d4 \
+-    --hash=sha256:3522b0dfe983a575e6a9ab3a4a4dfe156c3e428468ff08ce582b9bb6bd1d71d4 \
+-    --hash=sha256:4394bc0dbd074b7f9b52024832d16e019decebf86caf909d94f6b3f77a8ee3b6 \
+-    --hash=sha256:45966d859916ad02b779706bb43b954281db43e185015df6eb3323120188f9e4 \
+-    --hash=sha256:4d1167c53b93f1f5d8a139a742b3c6f4d429b54e74e6b57d0eff40045187b15d \
+-    --hash=sha256:4f2015dfe437dfebbfce7c85c7b53d81ba49e71ba7eadbf1df40c915af75979f \
+-    --hash=sha256:50ca6aba6e163363f132b5c101ba078b8cbd3fa92c7865fd7d4d62d9779ac29f \
+-    --hash=sha256:50d18c4358a0a8a53f12a8ba9d772ab2d460321e6a93d6064fc22443d189853f \
+-    --hash=sha256:5641516794ca9e5f8a4d17bb45446998c6554704d888f86df9b200e66bdcce56 \
+-    --hash=sha256:576a1c1d25e9e02ed7fa5477f30a127fe56debd53b8d2c89d5578f9857d03ca9 \
+-    --hash=sha256:6a4825252fcc430a182ac4dee5a505053d262c807f8a924603d411f6718b88fd \
+-    --hash=sha256:72dcc4a35a8515d83e76b58fdf8113a5c969ccd505c8a946759b24e3182d1f23 \
+-    --hash=sha256:747641635d3d44bcb380d950679462fae44f54b131be347d5ec2bce47d3df9ed \
+-    --hash=sha256:762479be47a4863e261a840e8e01608d124ee1361e48b96916f38b119cfda04a \
+-    --hash=sha256:78574ac2d1a4a02421f25da9559850d59457bac82f2b8d7a44fe83a64f770098 \
+-    --hash=sha256:825656d0743699c529c5943554d223c021ff0494ff1442152ce887ef4f7561a1 \
+-    --hash=sha256:8637dcd2caa676e475503d1f8fdb327bc495554e10838019651b76d17b98e512 \
+-    --hash=sha256:96fe52fcdb9345b7cd82ecd34547fca4321f7656d500eca497eb7ea5a926692f \
+-    --hash=sha256:973faafebaae4c0aaa1a1ca1ce02434554d67e628b8d805e61f874b84e136b09 \
+-    --hash=sha256:996bb9399059c5b82f76b53ff8bb686069c05acc94656bb259b1d63d04a9506f \
+-    --hash=sha256:a38c19106902bb19351b83802531fea19dee18e5b37b36454f27f11ff956f7fc \
+-    --hash=sha256:a6b46587b14b888e95e4a24d7b13ae91fa22386c199ee7b418f449032b2fa3b8 \
+-    --hash=sha256:a9f7f672a3388133335589cfca93ed468509cb7b93ba3105fce780d04a6576a0 \
+-    --hash=sha256:aa08e04e08aaf974d4458def539dece0d28146d866a39da5639596f4921fd761 \
+-    --hash=sha256:b0df3635b9c8ef48bd3be5f862cf71b0a4716fa0e702155c45067c6b711ddcef \
+-    --hash=sha256:b47fbb433d3260adcd51eb54f92a2ffbc90a4595f8970ee00e064c644ac788f5 \
+-    --hash=sha256:baed7e8d7481bfe0874b566850cb0b85243e982388b7b23348c6db2ee2b2ae8e \
+-    --hash=sha256:bc6f24b3d1ecc1eebfbf5d6051faa49af40b03be1aaa781ebdadcbc090b4539b \
+-    --hash=sha256:c006b607a865b07cd981ccb218a04fc86b600411d83d6fc261357f1c0966755d \
+-    --hash=sha256:c181ba05ce8299c7aa3125c27b9c2167bca4a4445b7ce73d5febc411ca692e43 \
+-    --hash=sha256:c7662f0e3673fe4e832fe07b65c50342ea27d989f92c80355658c7f888fcc83c \
+-    --hash=sha256:c80e4a09b3d95b4e1cac08643f1152fa71a0a821a2d4277334c88d54b2219a41 \
+-    --hash=sha256:c894b4305373b9c5576d7a12b473702afdf48ce5369c074ba304cc5ad8730dff \
+-    --hash=sha256:d7aac50327da5d208db2eec22eb11e491e3fe13d22653dce51b0f4109101b408 \
+-    --hash=sha256:d89dd2b6da69c4fff5e39c28a382199ddedc3a5be5390115608345dec660b9e2 \
+-    --hash=sha256:d9beb777a78c331580705326d2367488d5bc473b49a9bc3036c154832520aca9 \
+-    --hash=sha256:dc258a761a16daa791081d026f0ed4399b582712e6fc887a95af09df10c5ca57 \
+-    --hash=sha256:e14e26956e6f1696070788252dcdff11b4aca4c3e8bd166e0df1bb8f315a67cb \
+-    --hash=sha256:e6988e90fcf617da2b5c78902fe8e668361b43b4fe26dbf2d7b0f8034d4cafb9 \
+-    --hash=sha256:e711e02f49e176a01d0349d82cb5f05ba4db7d5e7e0defd026328e5cfb3226d3 \
+-    --hash=sha256:ea4dedd6e394a9c180b33c2c872b92f7ce0f8e7ad93e9585312b0c5a04777a4a \
+-    --hash=sha256:ecc76a9ba2911d8d37ac01de72834d8849e55473457558e12995f4cd53e778e0 \
+-    --hash=sha256:f55ba01150f52b1027829b50d70ef1dafd9821ea82905b63936668403c3b471e \
+-    --hash=sha256:f653490b33e9c3a4c1c01d41bc2aef08f9475af51146e4a7710c450cf9761598 \
+-    --hash=sha256:fa2d1337dc61c8dc417fbccf20f6d1e139896a30721b7f1e832b2bb6ef4eb6c4
+-    # via
+-    #   -r ci/official/requirements_updater/requirements.in
+-    #   h5py
+-    #   jax
+-    #   keras
+-    #   ml-dtypes
+-    #   opt-einsum
+-    #   scipy
++numpy @ file://NUMPY_WHEEL_FILE \
++    --hash=sha256:NUMPY_WHEEL_HASH
+ nvidia-cublas-cu12==12.5.3.2 \
+     --hash=sha256:4960f3dc5f39699acadf76fa6d94b10a2a00f2956c2c442efa299fb22b0748f3 \
+     --hash=sha256:7d0191251180de606023d396b94d66f66470a0ae96d1dbb906c7656ea0f71eda \
+diff --git a/requirements_lock_3_11.txt b/requirements_lock_3_11.txt
+index 95b850d2..81ae200c 100644
+--- a/requirements_lock_3_11.txt
++++ b/requirements_lock_3_11.txt
+@@ -285,62 +285,7 @@ namex==0.0.8 \
+     --hash=sha256:32a50f6c565c0bb10aa76298c959507abdc0e850efe085dc38f3440fcb3aa90b \
+     --hash=sha256:7ddb6c2bb0e753a311b7590f84f6da659dd0c05e65cb89d519d54c0a250c0487
+     # via keras
+-numpy==2.1.3 \
+-    --hash=sha256:016d0f6f5e77b0f0d45d77387ffa4bb89816b57c835580c3ce8e099ef830befe \
+-    --hash=sha256:02135ade8b8a84011cbb67dc44e07c58f28575cf9ecf8ab304e51c05528c19f0 \
+-    --hash=sha256:08788d27a5fd867a663f6fc753fd7c3ad7e92747efc73c53bca2f19f8bc06f48 \
+-    --hash=sha256:0d30c543f02e84e92c4b1f415b7c6b5326cbe45ee7882b6b77db7195fb971e3a \
+-    --hash=sha256:0fa14563cc46422e99daef53d725d0c326e99e468a9320a240affffe87852564 \
+-    --hash=sha256:13138eadd4f4da03074851a698ffa7e405f41a0845a6b1ad135b81596e4e9958 \
+-    --hash=sha256:14e253bd43fc6b37af4921b10f6add6925878a42a0c5fe83daee390bca80bc17 \
+-    --hash=sha256:15cb89f39fa6d0bdfb600ea24b250e5f1a3df23f901f51c8debaa6a5d122b2f0 \
+-    --hash=sha256:17ee83a1f4fef3c94d16dc1802b998668b5419362c8a4f4e8a491de1b41cc3ee \
+-    --hash=sha256:2312b2aa89e1f43ecea6da6ea9a810d06aae08321609d8dc0d0eda6d946a541b \
+-    --hash=sha256:2564fbdf2b99b3f815f2107c1bbc93e2de8ee655a69c261363a1172a79a257d4 \
+-    --hash=sha256:3522b0dfe983a575e6a9ab3a4a4dfe156c3e428468ff08ce582b9bb6bd1d71d4 \
+-    --hash=sha256:4394bc0dbd074b7f9b52024832d16e019decebf86caf909d94f6b3f77a8ee3b6 \
+-    --hash=sha256:45966d859916ad02b779706bb43b954281db43e185015df6eb3323120188f9e4 \
+-    --hash=sha256:4d1167c53b93f1f5d8a139a742b3c6f4d429b54e74e6b57d0eff40045187b15d \
+-    --hash=sha256:4f2015dfe437dfebbfce7c85c7b53d81ba49e71ba7eadbf1df40c915af75979f \
+-    --hash=sha256:50ca6aba6e163363f132b5c101ba078b8cbd3fa92c7865fd7d4d62d9779ac29f \
+-    --hash=sha256:50d18c4358a0a8a53f12a8ba9d772ab2d460321e6a93d6064fc22443d189853f \
+-    --hash=sha256:5641516794ca9e5f8a4d17bb45446998c6554704d888f86df9b200e66bdcce56 \
+-    --hash=sha256:576a1c1d25e9e02ed7fa5477f30a127fe56debd53b8d2c89d5578f9857d03ca9 \
+-    --hash=sha256:6a4825252fcc430a182ac4dee5a505053d262c807f8a924603d411f6718b88fd \
+-    --hash=sha256:72dcc4a35a8515d83e76b58fdf8113a5c969ccd505c8a946759b24e3182d1f23 \
+-    --hash=sha256:747641635d3d44bcb380d950679462fae44f54b131be347d5ec2bce47d3df9ed \
+-    --hash=sha256:762479be47a4863e261a840e8e01608d124ee1361e48b96916f38b119cfda04a \
+-    --hash=sha256:78574ac2d1a4a02421f25da9559850d59457bac82f2b8d7a44fe83a64f770098 \
+-    --hash=sha256:825656d0743699c529c5943554d223c021ff0494ff1442152ce887ef4f7561a1 \
+-    --hash=sha256:8637dcd2caa676e475503d1f8fdb327bc495554e10838019651b76d17b98e512 \
+-    --hash=sha256:96fe52fcdb9345b7cd82ecd34547fca4321f7656d500eca497eb7ea5a926692f \
+-    --hash=sha256:973faafebaae4c0aaa1a1ca1ce02434554d67e628b8d805e61f874b84e136b09 \
+-    --hash=sha256:996bb9399059c5b82f76b53ff8bb686069c05acc94656bb259b1d63d04a9506f \
+-    --hash=sha256:a38c19106902bb19351b83802531fea19dee18e5b37b36454f27f11ff956f7fc \
+-    --hash=sha256:a6b46587b14b888e95e4a24d7b13ae91fa22386c199ee7b418f449032b2fa3b8 \
+-    --hash=sha256:a9f7f672a3388133335589cfca93ed468509cb7b93ba3105fce780d04a6576a0 \
+-    --hash=sha256:aa08e04e08aaf974d4458def539dece0d28146d866a39da5639596f4921fd761 \
+-    --hash=sha256:b0df3635b9c8ef48bd3be5f862cf71b0a4716fa0e702155c45067c6b711ddcef \
+-    --hash=sha256:b47fbb433d3260adcd51eb54f92a2ffbc90a4595f8970ee00e064c644ac788f5 \
+-    --hash=sha256:baed7e8d7481bfe0874b566850cb0b85243e982388b7b23348c6db2ee2b2ae8e \
+-    --hash=sha256:bc6f24b3d1ecc1eebfbf5d6051faa49af40b03be1aaa781ebdadcbc090b4539b \
+-    --hash=sha256:c006b607a865b07cd981ccb218a04fc86b600411d83d6fc261357f1c0966755d \
+-    --hash=sha256:c181ba05ce8299c7aa3125c27b9c2167bca4a4445b7ce73d5febc411ca692e43 \
+-    --hash=sha256:c7662f0e3673fe4e832fe07b65c50342ea27d989f92c80355658c7f888fcc83c \
+-    --hash=sha256:c80e4a09b3d95b4e1cac08643f1152fa71a0a821a2d4277334c88d54b2219a41 \
+-    --hash=sha256:c894b4305373b9c5576d7a12b473702afdf48ce5369c074ba304cc5ad8730dff \
+-    --hash=sha256:d7aac50327da5d208db2eec22eb11e491e3fe13d22653dce51b0f4109101b408 \
+-    --hash=sha256:d89dd2b6da69c4fff5e39c28a382199ddedc3a5be5390115608345dec660b9e2 \
+-    --hash=sha256:d9beb777a78c331580705326d2367488d5bc473b49a9bc3036c154832520aca9 \
+-    --hash=sha256:dc258a761a16daa791081d026f0ed4399b582712e6fc887a95af09df10c5ca57 \
+-    --hash=sha256:e14e26956e6f1696070788252dcdff11b4aca4c3e8bd166e0df1bb8f315a67cb \
+-    --hash=sha256:e6988e90fcf617da2b5c78902fe8e668361b43b4fe26dbf2d7b0f8034d4cafb9 \
+-    --hash=sha256:e711e02f49e176a01d0349d82cb5f05ba4db7d5e7e0defd026328e5cfb3226d3 \
+-    --hash=sha256:ea4dedd6e394a9c180b33c2c872b92f7ce0f8e7ad93e9585312b0c5a04777a4a \
+-    --hash=sha256:ecc76a9ba2911d8d37ac01de72834d8849e55473457558e12995f4cd53e778e0 \
+-    --hash=sha256:f55ba01150f52b1027829b50d70ef1dafd9821ea82905b63936668403c3b471e \
+-    --hash=sha256:f653490b33e9c3a4c1c01d41bc2aef08f9475af51146e4a7710c450cf9761598 \
+-    --hash=sha256:fa2d1337dc61c8dc417fbccf20f6d1e139896a30721b7f1e832b2bb6ef4eb6c4
++numpy==2.3.5 \
+     # via
+     #   -r ci/official/requirements_updater/requirements.in
+     #   h5py
+@@ -588,40 +533,7 @@ rich==14.0.0 \
+     --hash=sha256:1c9491e1951aac09caffd42f448ee3d04e58923ffe14993f6e83068dc395d7e0 \
+     --hash=sha256:82f1bc23a6a21ebca4ae0c45af9bdbc492ed20231dcb63f297d6d1021a9d5725
+     # via keras
+-scipy==1.14.1 \
+-    --hash=sha256:0c2f95de3b04e26f5f3ad5bb05e74ba7f68b837133a4492414b3afd79dfe540e \
+-    --hash=sha256:1729560c906963fc8389f6aac023739ff3983e727b1a4d87696b7bf108316a79 \
+-    --hash=sha256:278266012eb69f4a720827bdd2dc54b2271c97d84255b2faaa8f161a158c3b37 \
+-    --hash=sha256:2843f2d527d9eebec9a43e6b406fb7266f3af25a751aa91d62ff416f54170bc5 \
+-    --hash=sha256:2da0469a4ef0ecd3693761acbdc20f2fdeafb69e6819cc081308cc978153c675 \
+-    --hash=sha256:2ff0a7e01e422c15739ecd64432743cf7aae2b03f3084288f399affcefe5222d \
+-    --hash=sha256:2ff38e22128e6c03ff73b6bb0f85f897d2362f8c052e3b8ad00532198fbdae3f \
+-    --hash=sha256:30ac8812c1d2aab7131a79ba62933a2a76f582d5dbbc695192453dae67ad6310 \
+-    --hash=sha256:3a1b111fac6baec1c1d92f27e76511c9e7218f1695d61b59e05e0fe04dc59617 \
+-    --hash=sha256:4079b90df244709e675cdc8b93bfd8a395d59af40b72e339c2287c91860deb8e \
+-    --hash=sha256:5149e3fd2d686e42144a093b206aef01932a0059c2a33ddfa67f5f035bdfe13e \
+-    --hash=sha256:5a275584e726026a5699459aa72f828a610821006228e841b94275c4a7c08417 \
+-    --hash=sha256:631f07b3734d34aced009aaf6fedfd0eb3498a97e581c3b1e5f14a04164a456d \
+-    --hash=sha256:716e389b694c4bb564b4fc0c51bc84d381735e0d39d3f26ec1af2556ec6aad94 \
+-    --hash=sha256:8426251ad1e4ad903a4514712d2fa8fdd5382c978010d1c6f5f37ef286a713ad \
+-    --hash=sha256:8475230e55549ab3f207bff11ebfc91c805dc3463ef62eda3ccf593254524ce8 \
+-    --hash=sha256:8bddf15838ba768bb5f5083c1ea012d64c9a444e16192762bd858f1e126196d0 \
+-    --hash=sha256:8e32dced201274bf96899e6491d9ba3e9a5f6b336708656466ad0522d8528f69 \
+-    --hash=sha256:8f9ea80f2e65bdaa0b7627fb00cbeb2daf163caa015e59b7516395fe3bd1e066 \
+-    --hash=sha256:97c5dddd5932bd2a1a31c927ba5e1463a53b87ca96b5c9bdf5dfd6096e27efc3 \
+-    --hash=sha256:a49f6ed96f83966f576b33a44257d869756df6cf1ef4934f59dd58b25e0327e5 \
+-    --hash=sha256:af29a935803cc707ab2ed7791c44288a682f9c8107bc00f0eccc4f92c08d6e07 \
+-    --hash=sha256:b05d43735bb2f07d689f56f7b474788a13ed8adc484a85aa65c0fd931cf9ccd2 \
+-    --hash=sha256:b28d2ca4add7ac16ae8bb6632a3c86e4b9e4d52d3e34267f6e1b0c1f8d87e389 \
+-    --hash=sha256:b99722ea48b7ea25e8e015e8341ae74624f72e5f21fc2abd45f3a93266de4c5d \
+-    --hash=sha256:baff393942b550823bfce952bb62270ee17504d02a1801d7fd0719534dfb9c84 \
+-    --hash=sha256:c0ee987efa6737242745f347835da2cc5bb9f1b42996a4d97d5c7ff7928cb6f2 \
+-    --hash=sha256:d0d2821003174de06b69e58cef2316a6622b60ee613121199cb2852a873f8cf3 \
+-    --hash=sha256:e0cf28db0f24a38b2a0ca33a85a54852586e43cf6fd876365c86e0657cfe7d73 \
+-    --hash=sha256:e4f5a7c49323533f9103d4dacf4e4f07078f360743dec7f7596949149efeec06 \
+-    --hash=sha256:eb58ca0abd96911932f688528977858681a59d61a7ce908ffd355957f7025cfc \
+-    --hash=sha256:edaf02b82cd7639db00dbff629995ef185c8df4c3ffa71a5562a595765a06ce1 \
+-    --hash=sha256:fef8c87f8abfb884dac04e97824b61299880c43f4ce675dd2cbeadd3c9b466d2
++scipy==1.15.3 \
+     # via
+     #   -r ci/official/requirements_updater/requirements.in
+     #   jax
+diff --git a/requirements_lock_3_12.txt b/requirements_lock_3_12.txt
+index a5ec4875..7ea7a434 100644
+--- a/requirements_lock_3_12.txt
++++ b/requirements_lock_3_12.txt
+@@ -285,62 +285,7 @@ namex==0.0.9 \
+     --hash=sha256:7bd4e4a2cc3876592111609fdf4cbe6ff19883adbe6b3b40d842fd340f77025e \
+     --hash=sha256:8adfea9da5cea5be8f4e632349b4669e30172c7859e1fd97459fdf3b17469253
+     # via keras
+-numpy==2.1.3 \
+-    --hash=sha256:016d0f6f5e77b0f0d45d77387ffa4bb89816b57c835580c3ce8e099ef830befe \
+-    --hash=sha256:02135ade8b8a84011cbb67dc44e07c58f28575cf9ecf8ab304e51c05528c19f0 \
+-    --hash=sha256:08788d27a5fd867a663f6fc753fd7c3ad7e92747efc73c53bca2f19f8bc06f48 \
+-    --hash=sha256:0d30c543f02e84e92c4b1f415b7c6b5326cbe45ee7882b6b77db7195fb971e3a \
+-    --hash=sha256:0fa14563cc46422e99daef53d725d0c326e99e468a9320a240affffe87852564 \
+-    --hash=sha256:13138eadd4f4da03074851a698ffa7e405f41a0845a6b1ad135b81596e4e9958 \
+-    --hash=sha256:14e253bd43fc6b37af4921b10f6add6925878a42a0c5fe83daee390bca80bc17 \
+-    --hash=sha256:15cb89f39fa6d0bdfb600ea24b250e5f1a3df23f901f51c8debaa6a5d122b2f0 \
+-    --hash=sha256:17ee83a1f4fef3c94d16dc1802b998668b5419362c8a4f4e8a491de1b41cc3ee \
+-    --hash=sha256:2312b2aa89e1f43ecea6da6ea9a810d06aae08321609d8dc0d0eda6d946a541b \
+-    --hash=sha256:2564fbdf2b99b3f815f2107c1bbc93e2de8ee655a69c261363a1172a79a257d4 \
+-    --hash=sha256:3522b0dfe983a575e6a9ab3a4a4dfe156c3e428468ff08ce582b9bb6bd1d71d4 \
+-    --hash=sha256:4394bc0dbd074b7f9b52024832d16e019decebf86caf909d94f6b3f77a8ee3b6 \
+-    --hash=sha256:45966d859916ad02b779706bb43b954281db43e185015df6eb3323120188f9e4 \
+-    --hash=sha256:4d1167c53b93f1f5d8a139a742b3c6f4d429b54e74e6b57d0eff40045187b15d \
+-    --hash=sha256:4f2015dfe437dfebbfce7c85c7b53d81ba49e71ba7eadbf1df40c915af75979f \
+-    --hash=sha256:50ca6aba6e163363f132b5c101ba078b8cbd3fa92c7865fd7d4d62d9779ac29f \
+-    --hash=sha256:50d18c4358a0a8a53f12a8ba9d772ab2d460321e6a93d6064fc22443d189853f \
+-    --hash=sha256:5641516794ca9e5f8a4d17bb45446998c6554704d888f86df9b200e66bdcce56 \
+-    --hash=sha256:576a1c1d25e9e02ed7fa5477f30a127fe56debd53b8d2c89d5578f9857d03ca9 \
+-    --hash=sha256:6a4825252fcc430a182ac4dee5a505053d262c807f8a924603d411f6718b88fd \
+-    --hash=sha256:72dcc4a35a8515d83e76b58fdf8113a5c969ccd505c8a946759b24e3182d1f23 \
+-    --hash=sha256:747641635d3d44bcb380d950679462fae44f54b131be347d5ec2bce47d3df9ed \
+-    --hash=sha256:762479be47a4863e261a840e8e01608d124ee1361e48b96916f38b119cfda04a \
+-    --hash=sha256:78574ac2d1a4a02421f25da9559850d59457bac82f2b8d7a44fe83a64f770098 \
+-    --hash=sha256:825656d0743699c529c5943554d223c021ff0494ff1442152ce887ef4f7561a1 \
+-    --hash=sha256:8637dcd2caa676e475503d1f8fdb327bc495554e10838019651b76d17b98e512 \
+-    --hash=sha256:96fe52fcdb9345b7cd82ecd34547fca4321f7656d500eca497eb7ea5a926692f \
+-    --hash=sha256:973faafebaae4c0aaa1a1ca1ce02434554d67e628b8d805e61f874b84e136b09 \
+-    --hash=sha256:996bb9399059c5b82f76b53ff8bb686069c05acc94656bb259b1d63d04a9506f \
+-    --hash=sha256:a38c19106902bb19351b83802531fea19dee18e5b37b36454f27f11ff956f7fc \
+-    --hash=sha256:a6b46587b14b888e95e4a24d7b13ae91fa22386c199ee7b418f449032b2fa3b8 \
+-    --hash=sha256:a9f7f672a3388133335589cfca93ed468509cb7b93ba3105fce780d04a6576a0 \
+-    --hash=sha256:aa08e04e08aaf974d4458def539dece0d28146d866a39da5639596f4921fd761 \
+-    --hash=sha256:b0df3635b9c8ef48bd3be5f862cf71b0a4716fa0e702155c45067c6b711ddcef \
+-    --hash=sha256:b47fbb433d3260adcd51eb54f92a2ffbc90a4595f8970ee00e064c644ac788f5 \
+-    --hash=sha256:baed7e8d7481bfe0874b566850cb0b85243e982388b7b23348c6db2ee2b2ae8e \
+-    --hash=sha256:bc6f24b3d1ecc1eebfbf5d6051faa49af40b03be1aaa781ebdadcbc090b4539b \
+-    --hash=sha256:c006b607a865b07cd981ccb218a04fc86b600411d83d6fc261357f1c0966755d \
+-    --hash=sha256:c181ba05ce8299c7aa3125c27b9c2167bca4a4445b7ce73d5febc411ca692e43 \
+-    --hash=sha256:c7662f0e3673fe4e832fe07b65c50342ea27d989f92c80355658c7f888fcc83c \
+-    --hash=sha256:c80e4a09b3d95b4e1cac08643f1152fa71a0a821a2d4277334c88d54b2219a41 \
+-    --hash=sha256:c894b4305373b9c5576d7a12b473702afdf48ce5369c074ba304cc5ad8730dff \
+-    --hash=sha256:d7aac50327da5d208db2eec22eb11e491e3fe13d22653dce51b0f4109101b408 \
+-    --hash=sha256:d89dd2b6da69c4fff5e39c28a382199ddedc3a5be5390115608345dec660b9e2 \
+-    --hash=sha256:d9beb777a78c331580705326d2367488d5bc473b49a9bc3036c154832520aca9 \
+-    --hash=sha256:dc258a761a16daa791081d026f0ed4399b582712e6fc887a95af09df10c5ca57 \
+-    --hash=sha256:e14e26956e6f1696070788252dcdff11b4aca4c3e8bd166e0df1bb8f315a67cb \
+-    --hash=sha256:e6988e90fcf617da2b5c78902fe8e668361b43b4fe26dbf2d7b0f8034d4cafb9 \
+-    --hash=sha256:e711e02f49e176a01d0349d82cb5f05ba4db7d5e7e0defd026328e5cfb3226d3 \
+-    --hash=sha256:ea4dedd6e394a9c180b33c2c872b92f7ce0f8e7ad93e9585312b0c5a04777a4a \
+-    --hash=sha256:ecc76a9ba2911d8d37ac01de72834d8849e55473457558e12995f4cd53e778e0 \
+-    --hash=sha256:f55ba01150f52b1027829b50d70ef1dafd9821ea82905b63936668403c3b471e \
+-    --hash=sha256:f653490b33e9c3a4c1c01d41bc2aef08f9475af51146e4a7710c450cf9761598 \
+-    --hash=sha256:fa2d1337dc61c8dc417fbccf20f6d1e139896a30721b7f1e832b2bb6ef4eb6c4
++numpy==2.3.5 \
+     # via
+     #   -r ci/official/requirements_updater/requirements.in
+     #   h5py
+@@ -588,40 +533,7 @@ rich==14.0.0 \
+     --hash=sha256:1c9491e1951aac09caffd42f448ee3d04e58923ffe14993f6e83068dc395d7e0 \
+     --hash=sha256:82f1bc23a6a21ebca4ae0c45af9bdbc492ed20231dcb63f297d6d1021a9d5725
+     # via keras
+-scipy==1.14.1 \
+-    --hash=sha256:0c2f95de3b04e26f5f3ad5bb05e74ba7f68b837133a4492414b3afd79dfe540e \
+-    --hash=sha256:1729560c906963fc8389f6aac023739ff3983e727b1a4d87696b7bf108316a79 \
+-    --hash=sha256:278266012eb69f4a720827bdd2dc54b2271c97d84255b2faaa8f161a158c3b37 \
+-    --hash=sha256:2843f2d527d9eebec9a43e6b406fb7266f3af25a751aa91d62ff416f54170bc5 \
+-    --hash=sha256:2da0469a4ef0ecd3693761acbdc20f2fdeafb69e6819cc081308cc978153c675 \
+-    --hash=sha256:2ff0a7e01e422c15739ecd64432743cf7aae2b03f3084288f399affcefe5222d \
+-    --hash=sha256:2ff38e22128e6c03ff73b6bb0f85f897d2362f8c052e3b8ad00532198fbdae3f \
+-    --hash=sha256:30ac8812c1d2aab7131a79ba62933a2a76f582d5dbbc695192453dae67ad6310 \
+-    --hash=sha256:3a1b111fac6baec1c1d92f27e76511c9e7218f1695d61b59e05e0fe04dc59617 \
+-    --hash=sha256:4079b90df244709e675cdc8b93bfd8a395d59af40b72e339c2287c91860deb8e \
+-    --hash=sha256:5149e3fd2d686e42144a093b206aef01932a0059c2a33ddfa67f5f035bdfe13e \
+-    --hash=sha256:5a275584e726026a5699459aa72f828a610821006228e841b94275c4a7c08417 \
+-    --hash=sha256:631f07b3734d34aced009aaf6fedfd0eb3498a97e581c3b1e5f14a04164a456d \
+-    --hash=sha256:716e389b694c4bb564b4fc0c51bc84d381735e0d39d3f26ec1af2556ec6aad94 \
+-    --hash=sha256:8426251ad1e4ad903a4514712d2fa8fdd5382c978010d1c6f5f37ef286a713ad \
+-    --hash=sha256:8475230e55549ab3f207bff11ebfc91c805dc3463ef62eda3ccf593254524ce8 \
+-    --hash=sha256:8bddf15838ba768bb5f5083c1ea012d64c9a444e16192762bd858f1e126196d0 \
+-    --hash=sha256:8e32dced201274bf96899e6491d9ba3e9a5f6b336708656466ad0522d8528f69 \
+-    --hash=sha256:8f9ea80f2e65bdaa0b7627fb00cbeb2daf163caa015e59b7516395fe3bd1e066 \
+-    --hash=sha256:97c5dddd5932bd2a1a31c927ba5e1463a53b87ca96b5c9bdf5dfd6096e27efc3 \
+-    --hash=sha256:a49f6ed96f83966f576b33a44257d869756df6cf1ef4934f59dd58b25e0327e5 \
+-    --hash=sha256:af29a935803cc707ab2ed7791c44288a682f9c8107bc00f0eccc4f92c08d6e07 \
+-    --hash=sha256:b05d43735bb2f07d689f56f7b474788a13ed8adc484a85aa65c0fd931cf9ccd2 \
+-    --hash=sha256:b28d2ca4add7ac16ae8bb6632a3c86e4b9e4d52d3e34267f6e1b0c1f8d87e389 \
+-    --hash=sha256:b99722ea48b7ea25e8e015e8341ae74624f72e5f21fc2abd45f3a93266de4c5d \
+-    --hash=sha256:baff393942b550823bfce952bb62270ee17504d02a1801d7fd0719534dfb9c84 \
+-    --hash=sha256:c0ee987efa6737242745f347835da2cc5bb9f1b42996a4d97d5c7ff7928cb6f2 \
+-    --hash=sha256:d0d2821003174de06b69e58cef2316a6622b60ee613121199cb2852a873f8cf3 \
+-    --hash=sha256:e0cf28db0f24a38b2a0ca33a85a54852586e43cf6fd876365c86e0657cfe7d73 \
+-    --hash=sha256:e4f5a7c49323533f9103d4dacf4e4f07078f360743dec7f7596949149efeec06 \
+-    --hash=sha256:eb58ca0abd96911932f688528977858681a59d61a7ce908ffd355957f7025cfc \
+-    --hash=sha256:edaf02b82cd7639db00dbff629995ef185c8df4c3ffa71a5562a595765a06ce1 \
+-    --hash=sha256:fef8c87f8abfb884dac04e97824b61299880c43f4ce675dd2cbeadd3c9b466d2
++scipy==1.15.3 \
+     # via
+     #   -r ci/official/requirements_updater/requirements.in
+     #   jax
+diff --git a/requirements_lock_3_13.txt b/requirements_lock_3_13.txt
+index f869b96e..4d6093ab 100644
+--- a/requirements_lock_3_13.txt
++++ b/requirements_lock_3_13.txt
+@@ -285,62 +285,7 @@ namex==0.0.9 \
+     --hash=sha256:7bd4e4a2cc3876592111609fdf4cbe6ff19883adbe6b3b40d842fd340f77025e \
+     --hash=sha256:8adfea9da5cea5be8f4e632349b4669e30172c7859e1fd97459fdf3b17469253
+     # via keras
+-numpy==2.1.3 \
+-    --hash=sha256:016d0f6f5e77b0f0d45d77387ffa4bb89816b57c835580c3ce8e099ef830befe \
+-    --hash=sha256:02135ade8b8a84011cbb67dc44e07c58f28575cf9ecf8ab304e51c05528c19f0 \
+-    --hash=sha256:08788d27a5fd867a663f6fc753fd7c3ad7e92747efc73c53bca2f19f8bc06f48 \
+-    --hash=sha256:0d30c543f02e84e92c4b1f415b7c6b5326cbe45ee7882b6b77db7195fb971e3a \
+-    --hash=sha256:0fa14563cc46422e99daef53d725d0c326e99e468a9320a240affffe87852564 \
+-    --hash=sha256:13138eadd4f4da03074851a698ffa7e405f41a0845a6b1ad135b81596e4e9958 \
+-    --hash=sha256:14e253bd43fc6b37af4921b10f6add6925878a42a0c5fe83daee390bca80bc17 \
+-    --hash=sha256:15cb89f39fa6d0bdfb600ea24b250e5f1a3df23f901f51c8debaa6a5d122b2f0 \
+-    --hash=sha256:17ee83a1f4fef3c94d16dc1802b998668b5419362c8a4f4e8a491de1b41cc3ee \
+-    --hash=sha256:2312b2aa89e1f43ecea6da6ea9a810d06aae08321609d8dc0d0eda6d946a541b \
+-    --hash=sha256:2564fbdf2b99b3f815f2107c1bbc93e2de8ee655a69c261363a1172a79a257d4 \
+-    --hash=sha256:3522b0dfe983a575e6a9ab3a4a4dfe156c3e428468ff08ce582b9bb6bd1d71d4 \
+-    --hash=sha256:4394bc0dbd074b7f9b52024832d16e019decebf86caf909d94f6b3f77a8ee3b6 \
+-    --hash=sha256:45966d859916ad02b779706bb43b954281db43e185015df6eb3323120188f9e4 \
+-    --hash=sha256:4d1167c53b93f1f5d8a139a742b3c6f4d429b54e74e6b57d0eff40045187b15d \
+-    --hash=sha256:4f2015dfe437dfebbfce7c85c7b53d81ba49e71ba7eadbf1df40c915af75979f \
+-    --hash=sha256:50ca6aba6e163363f132b5c101ba078b8cbd3fa92c7865fd7d4d62d9779ac29f \
+-    --hash=sha256:50d18c4358a0a8a53f12a8ba9d772ab2d460321e6a93d6064fc22443d189853f \
+-    --hash=sha256:5641516794ca9e5f8a4d17bb45446998c6554704d888f86df9b200e66bdcce56 \
+-    --hash=sha256:576a1c1d25e9e02ed7fa5477f30a127fe56debd53b8d2c89d5578f9857d03ca9 \
+-    --hash=sha256:6a4825252fcc430a182ac4dee5a505053d262c807f8a924603d411f6718b88fd \
+-    --hash=sha256:72dcc4a35a8515d83e76b58fdf8113a5c969ccd505c8a946759b24e3182d1f23 \
+-    --hash=sha256:747641635d3d44bcb380d950679462fae44f54b131be347d5ec2bce47d3df9ed \
+-    --hash=sha256:762479be47a4863e261a840e8e01608d124ee1361e48b96916f38b119cfda04a \
+-    --hash=sha256:78574ac2d1a4a02421f25da9559850d59457bac82f2b8d7a44fe83a64f770098 \
+-    --hash=sha256:825656d0743699c529c5943554d223c021ff0494ff1442152ce887ef4f7561a1 \
+-    --hash=sha256:8637dcd2caa676e475503d1f8fdb327bc495554e10838019651b76d17b98e512 \
+-    --hash=sha256:96fe52fcdb9345b7cd82ecd34547fca4321f7656d500eca497eb7ea5a926692f \
+-    --hash=sha256:973faafebaae4c0aaa1a1ca1ce02434554d67e628b8d805e61f874b84e136b09 \
+-    --hash=sha256:996bb9399059c5b82f76b53ff8bb686069c05acc94656bb259b1d63d04a9506f \
+-    --hash=sha256:a38c19106902bb19351b83802531fea19dee18e5b37b36454f27f11ff956f7fc \
+-    --hash=sha256:a6b46587b14b888e95e4a24d7b13ae91fa22386c199ee7b418f449032b2fa3b8 \
+-    --hash=sha256:a9f7f672a3388133335589cfca93ed468509cb7b93ba3105fce780d04a6576a0 \
+-    --hash=sha256:aa08e04e08aaf974d4458def539dece0d28146d866a39da5639596f4921fd761 \
+-    --hash=sha256:b0df3635b9c8ef48bd3be5f862cf71b0a4716fa0e702155c45067c6b711ddcef \
+-    --hash=sha256:b47fbb433d3260adcd51eb54f92a2ffbc90a4595f8970ee00e064c644ac788f5 \
+-    --hash=sha256:baed7e8d7481bfe0874b566850cb0b85243e982388b7b23348c6db2ee2b2ae8e \
+-    --hash=sha256:bc6f24b3d1ecc1eebfbf5d6051faa49af40b03be1aaa781ebdadcbc090b4539b \
+-    --hash=sha256:c006b607a865b07cd981ccb218a04fc86b600411d83d6fc261357f1c0966755d \
+-    --hash=sha256:c181ba05ce8299c7aa3125c27b9c2167bca4a4445b7ce73d5febc411ca692e43 \
+-    --hash=sha256:c7662f0e3673fe4e832fe07b65c50342ea27d989f92c80355658c7f888fcc83c \
+-    --hash=sha256:c80e4a09b3d95b4e1cac08643f1152fa71a0a821a2d4277334c88d54b2219a41 \
+-    --hash=sha256:c894b4305373b9c5576d7a12b473702afdf48ce5369c074ba304cc5ad8730dff \
+-    --hash=sha256:d7aac50327da5d208db2eec22eb11e491e3fe13d22653dce51b0f4109101b408 \
+-    --hash=sha256:d89dd2b6da69c4fff5e39c28a382199ddedc3a5be5390115608345dec660b9e2 \
+-    --hash=sha256:d9beb777a78c331580705326d2367488d5bc473b49a9bc3036c154832520aca9 \
+-    --hash=sha256:dc258a761a16daa791081d026f0ed4399b582712e6fc887a95af09df10c5ca57 \
+-    --hash=sha256:e14e26956e6f1696070788252dcdff11b4aca4c3e8bd166e0df1bb8f315a67cb \
+-    --hash=sha256:e6988e90fcf617da2b5c78902fe8e668361b43b4fe26dbf2d7b0f8034d4cafb9 \
+-    --hash=sha256:e711e02f49e176a01d0349d82cb5f05ba4db7d5e7e0defd026328e5cfb3226d3 \
+-    --hash=sha256:ea4dedd6e394a9c180b33c2c872b92f7ce0f8e7ad93e9585312b0c5a04777a4a \
+-    --hash=sha256:ecc76a9ba2911d8d37ac01de72834d8849e55473457558e12995f4cd53e778e0 \
+-    --hash=sha256:f55ba01150f52b1027829b50d70ef1dafd9821ea82905b63936668403c3b471e \
+-    --hash=sha256:f653490b33e9c3a4c1c01d41bc2aef08f9475af51146e4a7710c450cf9761598 \
+-    --hash=sha256:fa2d1337dc61c8dc417fbccf20f6d1e139896a30721b7f1e832b2bb6ef4eb6c4
++numpy==2.3.5 \
+     # via
+     #   -r ci/official/requirements_updater/requirements.in
+     #   h5py
+@@ -588,40 +533,7 @@ rich==14.0.0 \
+     --hash=sha256:1c9491e1951aac09caffd42f448ee3d04e58923ffe14993f6e83068dc395d7e0 \
+     --hash=sha256:82f1bc23a6a21ebca4ae0c45af9bdbc492ed20231dcb63f297d6d1021a9d5725
+     # via keras
+-scipy==1.14.1 \
+-    --hash=sha256:0c2f95de3b04e26f5f3ad5bb05e74ba7f68b837133a4492414b3afd79dfe540e \
+-    --hash=sha256:1729560c906963fc8389f6aac023739ff3983e727b1a4d87696b7bf108316a79 \
+-    --hash=sha256:278266012eb69f4a720827bdd2dc54b2271c97d84255b2faaa8f161a158c3b37 \
+-    --hash=sha256:2843f2d527d9eebec9a43e6b406fb7266f3af25a751aa91d62ff416f54170bc5 \
+-    --hash=sha256:2da0469a4ef0ecd3693761acbdc20f2fdeafb69e6819cc081308cc978153c675 \
+-    --hash=sha256:2ff0a7e01e422c15739ecd64432743cf7aae2b03f3084288f399affcefe5222d \
+-    --hash=sha256:2ff38e22128e6c03ff73b6bb0f85f897d2362f8c052e3b8ad00532198fbdae3f \
+-    --hash=sha256:30ac8812c1d2aab7131a79ba62933a2a76f582d5dbbc695192453dae67ad6310 \
+-    --hash=sha256:3a1b111fac6baec1c1d92f27e76511c9e7218f1695d61b59e05e0fe04dc59617 \
+-    --hash=sha256:4079b90df244709e675cdc8b93bfd8a395d59af40b72e339c2287c91860deb8e \
+-    --hash=sha256:5149e3fd2d686e42144a093b206aef01932a0059c2a33ddfa67f5f035bdfe13e \
+-    --hash=sha256:5a275584e726026a5699459aa72f828a610821006228e841b94275c4a7c08417 \
+-    --hash=sha256:631f07b3734d34aced009aaf6fedfd0eb3498a97e581c3b1e5f14a04164a456d \
+-    --hash=sha256:716e389b694c4bb564b4fc0c51bc84d381735e0d39d3f26ec1af2556ec6aad94 \
+-    --hash=sha256:8426251ad1e4ad903a4514712d2fa8fdd5382c978010d1c6f5f37ef286a713ad \
+-    --hash=sha256:8475230e55549ab3f207bff11ebfc91c805dc3463ef62eda3ccf593254524ce8 \
+-    --hash=sha256:8bddf15838ba768bb5f5083c1ea012d64c9a444e16192762bd858f1e126196d0 \
+-    --hash=sha256:8e32dced201274bf96899e6491d9ba3e9a5f6b336708656466ad0522d8528f69 \
+-    --hash=sha256:8f9ea80f2e65bdaa0b7627fb00cbeb2daf163caa015e59b7516395fe3bd1e066 \
+-    --hash=sha256:97c5dddd5932bd2a1a31c927ba5e1463a53b87ca96b5c9bdf5dfd6096e27efc3 \
+-    --hash=sha256:a49f6ed96f83966f576b33a44257d869756df6cf1ef4934f59dd58b25e0327e5 \
+-    --hash=sha256:af29a935803cc707ab2ed7791c44288a682f9c8107bc00f0eccc4f92c08d6e07 \
+-    --hash=sha256:b05d43735bb2f07d689f56f7b474788a13ed8adc484a85aa65c0fd931cf9ccd2 \
+-    --hash=sha256:b28d2ca4add7ac16ae8bb6632a3c86e4b9e4d52d3e34267f6e1b0c1f8d87e389 \
+-    --hash=sha256:b99722ea48b7ea25e8e015e8341ae74624f72e5f21fc2abd45f3a93266de4c5d \
+-    --hash=sha256:baff393942b550823bfce952bb62270ee17504d02a1801d7fd0719534dfb9c84 \
+-    --hash=sha256:c0ee987efa6737242745f347835da2cc5bb9f1b42996a4d97d5c7ff7928cb6f2 \
+-    --hash=sha256:d0d2821003174de06b69e58cef2316a6622b60ee613121199cb2852a873f8cf3 \
+-    --hash=sha256:e0cf28db0f24a38b2a0ca33a85a54852586e43cf6fd876365c86e0657cfe7d73 \
+-    --hash=sha256:e4f5a7c49323533f9103d4dacf4e4f07078f360743dec7f7596949149efeec06 \
+-    --hash=sha256:eb58ca0abd96911932f688528977858681a59d61a7ce908ffd355957f7025cfc \
+-    --hash=sha256:edaf02b82cd7639db00dbff629995ef185c8df4c3ffa71a5562a595765a06ce1 \
+-    --hash=sha256:fef8c87f8abfb884dac04e97824b61299880c43f4ce675dd2cbeadd3c9b466d2
++scipy==1.15.3 \
+     # via
+     #   -r ci/official/requirements_updater/requirements.in
+     #   jax
+diff --git a/tensorflow/compiler/mlir/lite/core/model_builder_base.h b/tensorflow/compiler/mlir/lite/core/model_builder_base.h
+index faa10b1b..45bf9016 100644
+--- a/tensorflow/compiler/mlir/lite/core/model_builder_base.h
++++ b/tensorflow/compiler/mlir/lite/core/model_builder_base.h
+@@ -277,8 +277,14 @@ class FlatBufferModelBase {
+           if (!buffer_ || !buffer_->data()) continue;
+           auto* buffer = buffer_->data();
+           uint8_t* buff_ = const_cast<uint8_t*>(buffer->data());
+-          ByteSwapBuffer(tensor->type(), buffer->size(), buff_,
+-                         from_big_endian);
++          // A constant VARIANT tensor stores the data of its single subtype.
++          int8_t tensor_type = tensor->type();
++          if (tensor_type == tflite::TensorType_VARIANT &&
++              tensor->variant_tensors() &&
++              tensor->variant_tensors()->size() == 1) {
++            tensor_type = tensor->variant_tensors()->Get(0)->type();
++          }
++          ByteSwapBuffer(tensor_type, buffer->size(), buff_, from_big_endian);
+           buffer_swapped[tensor->buffer()] = true;
+         }
+       }
+@@ -331,7 +337,13 @@ class FlatBufferModelBase {
+               &(tfl_modelt->buffers[tensor->buffer].get()->data);
+           if (buffer && buffer->data()) {
+             uint8_t* buff_ = const_cast<uint8_t*>(buffer->data());
+-            ByteSwapBuffer(tensor->type, buffer->size(), buff_,
++            // A constant VARIANT tensor stores the data of its single subtype.
++            int8_t tensor_type = tensor->type;
++            if (tensor_type == tflite::TensorType_VARIANT &&
++                tensor->variant_tensors.size() == 1) {
++              tensor_type = tensor->variant_tensors[0]->type;
++            }
++            ByteSwapBuffer(tensor_type, buffer->size(), buff_,
+                            from_big_endian);
+             buffer_swapped[tensor->buffer] = true;
+           }
+diff --git a/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py b/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py
+index 87ad7a11..56799d25 100644
+--- a/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py
++++ b/tensorflow/compiler/mlir/quantization/tensorflow/python/save_model.py
+@@ -13,6 +13,8 @@
+ # limitations under the License.
+ # ==============================================================================
+ """Defines utilities involving SavedModel."""
++import sys
++
+ from typing import Collection, Dict, Mapping, Optional, Sequence
+ 
+ from absl import logging
+@@ -24,6 +26,7 @@ from tensorflow.core.framework import graph_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
+ from tensorflow.core.protobuf import saver_pb2
+ from tensorflow.python.client import session
++from tensorflow.python.framework import byte_swap_tensor
+ from tensorflow.python.framework import importer
+ from tensorflow.python.framework import ops
+ from tensorflow.python.lib.io import file_io
+@@ -255,6 +258,10 @@ def _save_function_alias(
+         function_alias
+     )
+ 
++  if sys.byteorder == "big":
++    byte_swap_tensor.swap_tensor_content_in_saved_model(loader.saved_model,
++                                                        "big", "little")
++
+   saved_model_proto_serialized = loader.saved_model.SerializeToString()
+ 
+   # TODO(b/266015731): Also update and set the SavedModel fingerprint.
+diff --git a/tensorflow/compiler/mlir/tensorflow/BUILD b/tensorflow/compiler/mlir/tensorflow/BUILD
+index a8446235..b864f2b5 100644
+--- a/tensorflow/compiler/mlir/tensorflow/BUILD
++++ b/tensorflow/compiler/mlir/tensorflow/BUILD
+@@ -901,6 +901,8 @@ cc_library(
+         "//tensorflow/core:lib",
+         "//tensorflow/core:protos_all_cc",
+         "//tensorflow/core/ir/importexport:mangling",
++        "//tensorflow/core/platform:byte_order",
++        "//tensorflow/core/util/tensor_bundle:byteswaptensor",
+         "@com_google_absl//absl/strings",
+     ],
+ )
+diff --git a/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.cc b/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.cc
+index fbcdc9e8..90d40153 100644
+--- a/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.cc
++++ b/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.cc
+@@ -26,7 +26,9 @@ limitations under the License.
+ #include "tensorflow/core/framework/types.h"
+ #include "tensorflow/core/ir/importexport/mangling.h"
+ #include "tensorflow/core/lib/core/errors.h"
++#include "tensorflow/core/platform/byte_order.h"
+ #include "tensorflow/core/platform/protobuf.h"
++#include "tensorflow/core/util/tensor_bundle/byte_swap_tensor.h"
+ 
+ namespace tensorflow {
+ namespace mangling_util {
+@@ -39,6 +41,18 @@ const char kDataTypePrefix[] = "tfdtype$";
+ const char kTensorShapePrefix[] = "tfshape$";
+ const char kTensorPrefix[] = "tftensor$";
+ 
++// `tensor_content` of a mangled TensorProto (e.g. the payload of
++// #tf_type<tensor_proto : "...">) is always stored in little-endian byte
++// order, so that MLIR text and bytecode containing such attributes mean the
++// same thing on every host. In memory, TensorProto::tensor_content follows the
++// TensorFlow convention of host byte order, so on big-endian hosts the bytes
++// are swapped when mangling and demangling. On little-endian hosts this is a
++// no-op.
++bool NeedsByteSwap(const TensorProto& tensor) {
++  return !port::kLittleEndian && !tensor.tensor_content().empty() &&
++         IsByteSwappable(tensor.dtype());
++}
++
+ }  // namespace
+ 
+ std::string MangleAttributeName(absl::string_view str) {
+@@ -75,11 +89,22 @@ absl::Status DemangleShape(absl::string_view str, TensorShapeProto* proto) {
+ }
+ 
+ std::string MangleTensor(const TensorProto& tensor) {
++  if (NeedsByteSwap(tensor)) {
++    TensorProto little_endian_tensor = tensor;
++    if (ByteSwapTensorProto(&little_endian_tensor).ok()) {
++      return absl::StrCat(kTensorPrefix,
++                          PrintShortTextProto(little_endian_tensor));
++    }
++  }
+   return absl::StrCat(kTensorPrefix, PrintShortTextProto(tensor));
+ }
+ 
+ absl::Status DemangleTensor(absl::string_view str, TensorProto* proto) {
+-  return ParseTextProto(str, kTensorPrefix, proto);
++  TF_RETURN_IF_ERROR(ParseTextProto(str, kTensorPrefix, proto));
++  if (NeedsByteSwap(*proto)) {
++    TF_RETURN_IF_ERROR(ByteSwapTensorProto(proto));
++  }
++  return absl::OkStatus();
+ }
+ 
+ std::string MangleDataType(const DataType& dtype) {
+diff --git a/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.h b/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.h
+index 7e95a27f..3c0c18c1 100644
+--- a/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.h
++++ b/tensorflow/compiler/mlir/tensorflow/utils/mangling_util.h
+@@ -46,8 +46,11 @@ std::string MangleShape(const TensorShapeProto& shape);
+ absl::Status DemangleShape(absl::string_view str, TensorShapeProto* proto);
+ 
+ // Return a TensorProto mangled as a string.
++// `tensor_content` is written in little-endian byte order regardless of the
++// host, so the mangled string is portable across architectures.
+ std::string MangleTensor(const TensorProto& tensor);
+-// Demangle a string mangled with MangleTensor.
++// Demangle a string mangled with MangleTensor. `tensor_content` in the result
++// is in host byte order.
+ absl::Status DemangleTensor(absl::string_view str, TensorProto* proto);
+ 
+ // Return a DataType mangled as a string.
+diff --git a/tensorflow/compiler/mlir/tf2xla/api/v2/BUILD b/tensorflow/compiler/mlir/tf2xla/api/v2/BUILD
+index df859840..191a237a 100644
+--- a/tensorflow/compiler/mlir/tf2xla/api/v2/BUILD
++++ b/tensorflow/compiler/mlir/tf2xla/api/v2/BUILD
+@@ -300,7 +300,9 @@ tf_cc_test(
+         "//tensorflow/core:framework",
+         "//tensorflow/core:protos_all_cc",
+         "//tensorflow/core:test_main",
++        "//tensorflow/core/platform:byte_order",
+         "//tensorflow/core/platform:resource_loader",
++        "//tensorflow/core/util/tensor_bundle:byteswaptensor",
+         "@com_google_absl//absl/container:flat_hash_set",
+         "@com_google_absl//absl/status:statusor",
+         "@com_google_googletest//:gtest_main",
+diff --git a/tensorflow/compiler/mlir/tf2xla/api/v2/tf_executor_to_graph_test.cc b/tensorflow/compiler/mlir/tf2xla/api/v2/tf_executor_to_graph_test.cc
+index 9a53e51e..e3506ced 100644
+--- a/tensorflow/compiler/mlir/tf2xla/api/v2/tf_executor_to_graph_test.cc
++++ b/tensorflow/compiler/mlir/tf2xla/api/v2/tf_executor_to_graph_test.cc
+@@ -37,7 +37,9 @@ limitations under the License.
+ #include "tensorflow/core/framework/graph.pb.h"
+ #include "tensorflow/core/framework/op.h"
+ #include "tensorflow/core/graph/graph.h"
++#include "tensorflow/core/platform/byte_order.h"
+ #include "tensorflow/core/platform/resource_loader.h"
++#include "tensorflow/core/util/tensor_bundle/byte_swap_tensor.h"
+ #include "tsl/platform/protobuf.h"
+ 
+ namespace tensorflow {
+@@ -78,6 +80,11 @@ class TfExecutorToGraphTest : public ::testing::Test {
+       return graph_def;
+     }
+     tsl::protobuf::TextFormat::ParseFromString(contents, &graph_def);
++    // GraphDef test data is little-endian; convert tensor_content to host
++    // byte order to match the exported graph.
++    if (!port::kLittleEndian) {
++      TF_CHECK_OK(ByteSwapTensorContentInGraphDef(&graph_def));
++    }
+     return graph_def;
+   }
+ 
+diff --git a/tensorflow/compiler/mlir/tf2xla/tests/registration/BUILD b/tensorflow/compiler/mlir/tf2xla/tests/registration/BUILD
+index 5a4a27bc..250d0847 100644
+--- a/tensorflow/compiler/mlir/tf2xla/tests/registration/BUILD
++++ b/tensorflow/compiler/mlir/tf2xla/tests/registration/BUILD
+@@ -22,6 +22,8 @@ cc_library(
+         "//tensorflow/core:core_cpu_base",
+         "//tensorflow/core:framework",
+         "//tensorflow/core:protos_all_cc",
++        "//tensorflow/core/platform:byte_order",
++        "//tensorflow/core/util/tensor_bundle:byteswaptensor",
+         "@com_google_absl//absl/container:flat_hash_set",
+         "@com_google_absl//absl/log",
+         "@com_google_absl//absl/status",
+diff --git a/tensorflow/compiler/mlir/tf2xla/tests/registration/graph_to_tf_executor_registration.cc b/tensorflow/compiler/mlir/tf2xla/tests/registration/graph_to_tf_executor_registration.cc
+index 8edb01f9..0381d7f4 100644
+--- a/tensorflow/compiler/mlir/tf2xla/tests/registration/graph_to_tf_executor_registration.cc
++++ b/tensorflow/compiler/mlir/tf2xla/tests/registration/graph_to_tf_executor_registration.cc
+@@ -43,6 +43,8 @@ limitations under the License.
+ #include "tensorflow/core/framework/graph.pb.h"
+ #include "tensorflow/core/framework/op.h"
+ #include "tensorflow/core/framework/types.h"
++#include "tensorflow/core/platform/byte_order.h"
++#include "tensorflow/core/util/tensor_bundle/byte_swap_tensor.h"
+ #include "tsl/platform/protobuf.h"
+ 
+ namespace tensorflow {
+@@ -177,6 +179,15 @@ static llvm::LogicalResult MlirToGraphdefTranslateFunction(
+ 
+   tensorflow::GraphDef graphdef;
+   graph->ToGraphDef(&graphdef);
++  // GraphDef files are little-endian; mirror the byte swap done on import in
++  // GraphdefToMlirImport so the emitted tensor_content is host independent.
++  if (!tensorflow::port::kLittleEndian) {
++    status = tensorflow::ByteSwapTensorContentInGraphDef(&graphdef);
++    if (!status.ok()) {
++      LOG(ERROR) << "Byte swapping GraphDef failed: " << status;
++      return mlir::failure();
++    }
++  }
+   output << tsl::LegacyUnredactedDebugString(graphdef);
+   return mlir::success();
+ }
+diff --git a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
+index 0bf78feb..d42ca01f 100644
+--- a/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
++++ b/tensorflow/core/util/tensor_bundle/byte_swap_tensor.cc
+@@ -96,14 +96,18 @@ absl::Status ByteSwapBuffer(char* buff, size_t size, DataType dtype,
+     // Complex types need special handling
+     case DT_COMPLEX64:
+       bytes_per_elem = 4;
+-      array_len = (array_len == -1) ? size / bytes_per_elem : array_len;
+-      array_len *= 2;
++      // Each complex element holds two floating-point components. When the
++      // length is derived from `size` it already counts components, so only
++      // scale an explicit element count.
++      array_len = (array_len == -1) ? size / bytes_per_elem : array_len * 2;
+       break;
+ 
+     case DT_COMPLEX128:
+       bytes_per_elem = 8;
+-      array_len = (array_len == -1) ? size / bytes_per_elem : array_len;
+-      array_len *= 2;
++      // Each complex element holds two floating-point components. When the
++      // length is derived from `size` it already counts components, so only
++      // scale an explicit element count.
++      array_len = (array_len == -1) ? size / bytes_per_elem : array_len * 2;
+       break;
+ 
+     // Types that ought to be supported in the future
+@@ -210,17 +214,20 @@ absl::Status ByteSwapTensorContentInNode(NodeDef& node) {
+ }
+ 
+ absl::Status ByteSwapTensorContentInMetaGraphDef(MetaGraphDef* meta_graph_def) {
+-  for (auto& function : *meta_graph_def->mutable_graph_def()
+-                             ->mutable_library()
+-                             ->mutable_function())
+-    for (auto& node : (*function.mutable_node_def()))
+-      TF_RETURN_IF_ERROR(ByteSwapTensorContentInNode(node));
++  auto graph_def = meta_graph_def->mutable_graph_def();
++  TF_RETURN_IF_ERROR(ByteSwapTensorContentInGraphDef(graph_def));
+   return absl::OkStatus();
+ }
+ 
+ absl::Status ByteSwapTensorContentInGraphDef(GraphDef* graph_def) {
+   for (auto& node : *graph_def->mutable_node())
+     TF_RETURN_IF_ERROR(ByteSwapTensorContentInNode(node));
++
++  for (auto& function : *graph_def->mutable_library()
++                             ->mutable_function())
++    for (auto& node : (*function.mutable_node_def()))
++      TF_RETURN_IF_ERROR(ByteSwapTensorContentInNode(node));
++
+   return absl::OkStatus();
+ }
+ 
+diff --git a/tensorflow/lite/delegates/xnnpack/flexbuffers_util.h b/tensorflow/lite/delegates/xnnpack/flexbuffers_util.h
+index 6f303c8a..da017a5f 100644
+--- a/tensorflow/lite/delegates/xnnpack/flexbuffers_util.h
++++ b/tensorflow/lite/delegates/xnnpack/flexbuffers_util.h
+@@ -48,7 +48,7 @@ tflite::xnnpack::FloatPointer inline flexbuffers::Reference::As<
+ #if !FLATBUFFERS_LITTLEENDIAN
+   // Flexbuffers are always stored in little endian order. Returning a pointer
+   // to the float data on a big endian architecture is meaningless.
+-  return nullptr;
++  return {nullptr};
+ #else
+   return {IsFloat() ? reinterpret_cast<const float*>(data_) : nullptr};
+ #endif
+diff --git a/tensorflow/lite/python/lite.py b/tensorflow/lite/python/lite.py
+index 55afc80c..2492fb1e 100644
+--- a/tensorflow/lite/python/lite.py
++++ b/tensorflow/lite/python/lite.py
+@@ -3229,7 +3229,7 @@ class TFLiteConverter(TFLiteFrozenGraphConverter):
+             )
+ 
+         if sys.byteorder == "big":
+-          bst.swap_tensor_content_in_graph_node(graph_def, "little", "big")
++          bst.swap_tensor_content_in_graph(graph_def, "little", "big")
+ 
+         # Handles models with custom TFLite ops that cannot be resolved in
+         # TensorFlow.
+diff --git a/tensorflow/python/framework/byte_swap_tensor.py b/tensorflow/python/framework/byte_swap_tensor.py
+index 704f151a..2ed886b9 100644
+--- a/tensorflow/python/framework/byte_swap_tensor.py
++++ b/tensorflow/python/framework/byte_swap_tensor.py
+@@ -17,6 +17,7 @@
+ 
+ from tensorflow.core.framework import graph_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
++from tensorflow.core.protobuf import saved_model_pb2
+ from tensorflow.python.framework import dtypes
+ 
+ # Based on tensor_bundle/byte_swap.cc
+@@ -72,32 +73,28 @@ def byte_swap_tensor_content(tensor, from_endiness, to_endiness):
+       )
+ 
+ 
+-def swap_tensor_content_in_graph_function(
+-    graph_def, from_endiness, to_endiness
+-):
+-  """Fix endiness of tensor contents.
++def swap_tensor_content_in_saved_model(saved_model, from_endiness, to_endiness):
++  if not isinstance(saved_model, saved_model_pb2.SavedModel):
++    return
++  for meta_graph in saved_model.meta_graphs:
++    swap_tensor_content_in_graph(meta_graph, from_endiness, to_endiness)
+ 
+-  Args:
+-    graph_def: Target graph_def to change endiness.
+-    from_endiness: The original endianness format. "big" or "little"
+-    to_endiness: The target endianness format. "big" or "little"
+-  """
+-  if isinstance(graph_def, meta_graph_pb2.MetaGraphDef):
+-    functions = graph_def.graph_def.library.function
+-  elif isinstance(graph_def, graph_pb2.GraphDef):
+-    functions = graph_def.library.function
++def swap_tensor_content_in_graph(graph_or_meta_graph_def,
++                                 from_endiness, to_endiness):
++  if isinstance(graph_or_meta_graph_def, meta_graph_pb2.MetaGraphDef):
++    g = graph_or_meta_graph_def.graph_def
++  elif isinstance(graph_or_meta_graph_def, graph_pb2.GraphDef):
++    g = graph_or_meta_graph_def
+   else:
+     return
+-  for function in functions:
+-    node_def = function.node_def
+-    for node in node_def:
+-      if node.op == "Const":
+-        tensor = node.attr["value"].tensor
+-        byte_swap_tensor_content(tensor, from_endiness, to_endiness)
+ 
++  swap_tensor_content_in_nodes(g.node, from_endiness, to_endiness)
++
++  for function in g.library.function:
++    swap_tensor_content_in_nodes(function.node_def, from_endiness, to_endiness)
+ 
+-def swap_tensor_content_in_graph_node(graph_def, from_endiness, to_endiness):
+-  for node in graph_def.node:
++def swap_tensor_content_in_nodes(nodes, from_endiness, to_endiness):
++  for node in nodes:
+     if node.op == "Const":
+       tensor = node.attr["value"].tensor
+       byte_swap_tensor_content(tensor, from_endiness, to_endiness)
+diff --git a/tensorflow/python/framework/graph_io.py b/tensorflow/python/framework/graph_io.py
+index 3a3c8bca..de834ccf 100644
+--- a/tensorflow/python/framework/graph_io.py
++++ b/tensorflow/python/framework/graph_io.py
+@@ -61,14 +61,8 @@ def write_graph(graph_or_graph_def, logdir, name, as_text=True):
+     graph_def = graph_or_graph_def
+ 
+   if sys.byteorder == 'big':
+-    if hasattr(graph_def, 'node'):
+-      byte_swap_tensor.swap_tensor_content_in_graph_node(
+-          graph_def, 'big', 'little'
+-      )
+-    else:
+-      byte_swap_tensor.swap_tensor_content_in_graph_function(
+-          graph_def, 'big', 'little'
+-      )
++    byte_swap_tensor.swap_tensor_content_in_graph(graph_def,
++                                                  "big", "little")
+ 
+   # gcs does not have the concept of directory at the moment.
+   if not logdir.startswith('gs:'):
+@@ -81,4 +75,8 @@ def write_graph(graph_or_graph_def, logdir, name, as_text=True):
+   else:
+     file_io.atomic_write_string_to_file(
+         path, graph_def.SerializeToString(deterministic=True))
++
++  if sys.byteorder == 'big':
++    byte_swap_tensor.swap_tensor_content_in_graph(graph_def,
++                                                  "little", "big")
+   return path
+diff --git a/tensorflow/python/framework/meta_graph.py b/tensorflow/python/framework/meta_graph.py
+index f621119a..5e1ec886 100644
+--- a/tensorflow/python/framework/meta_graph.py
++++ b/tensorflow/python/framework/meta_graph.py
+@@ -615,7 +615,7 @@ def read_meta_graph_file(filename):
+   try:
+     meta_graph_def.ParseFromString(file_content)
+     if sys.byteorder == "big":
+-      bst.swap_tensor_content_in_graph_function(meta_graph_def, "little", "big")
++      bst.swap_tensor_content_in_graph(meta_graph_def, "little", "big")
+     return meta_graph_def
+   except Exception:  # pylint: disable=broad-except
+     pass
+@@ -624,7 +624,7 @@ def read_meta_graph_file(filename):
+   try:
+     text_format.Merge(file_content.decode("utf-8"), meta_graph_def)
+     if sys.byteorder == "big":
+-      bst.swap_tensor_content_in_graph_function(meta_graph_def, "little", "big")
++      bst.swap_tensor_content_in_graph(meta_graph_def, "little", "big")
+   except text_format.ParseError as e:
+     raise IOError(f"Cannot parse file {filename}: {str(e)}.")
+ 
+diff --git a/tensorflow/python/saved_model/builder_impl.py b/tensorflow/python/saved_model/builder_impl.py
+index ab9767ad..862b6eb2 100644
+--- a/tensorflow/python/saved_model/builder_impl.py
++++ b/tensorflow/python/saved_model/builder_impl.py
+@@ -16,19 +16,20 @@
+ 
+ import functools
+ import os
++import sys
+ 
+ from google.protobuf.any_pb2 import Any
+ from tensorflow.core.framework import types_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
+ from tensorflow.core.protobuf import saved_model_pb2
+ from tensorflow.core.protobuf import saver_pb2
++from tensorflow.python.framework import byte_swap_tensor
+ from tensorflow.python.framework import dtypes
+ from tensorflow.python.framework import ops
+ from tensorflow.python.framework import tensor
+ from tensorflow.python.lib.io import file_io
+ from tensorflow.python.ops import variables
+ from tensorflow.python.platform import tf_logging
+-from tensorflow.python.saved_model import fingerprinting_utils
+ from tensorflow.python.saved_model import path_helpers
+ from tensorflow.python.saved_model import signature_def_utils
+ from tensorflow.python.saved_model.pywrap_saved_model import constants
+@@ -432,6 +433,10 @@ class _SavedModelBuilder(object):
+     if not file_io.file_exists(self._export_dir):
+       file_io.recursive_create_dir(self._export_dir)
+ 
++    if sys.byteorder == 'big':
++      byte_swap_tensor.swap_tensor_content_in_saved_model(self._saved_model,
++                                                          "big", "little")
++
+     if as_text:
+       path = file_io.join(
+           compat.as_bytes(self._export_dir),
+@@ -468,6 +473,10 @@ class _SavedModelBuilder(object):
+     tf_logging.info("SavedModel written to: %s", compat.as_text(path))
+     metrics.IncrementWrite(write_version="1")
+ 
++    if sys.byteorder == 'big':
++      byte_swap_tensor.swap_tensor_content_in_saved_model(self._saved_model,
++                                                          "little", "big")
++
+     return path
+ 
+ 
+diff --git a/tensorflow/python/saved_model/load.py b/tensorflow/python/saved_model/load.py
+index aa4f18e8..694ba16d 100644
+--- a/tensorflow/python/saved_model/load.py
++++ b/tensorflow/python/saved_model/load.py
+@@ -17,7 +17,6 @@
+ import collections
+ import functools
+ import os
+-import sys
+ 
+ from absl import logging
+ 
+@@ -53,7 +52,6 @@ from tensorflow.python.saved_model import loader_impl
+ from tensorflow.python.saved_model import path_helpers
+ from tensorflow.python.saved_model import registration
+ from tensorflow.python.saved_model import revived_types
+-from tensorflow.python.saved_model import utils_impl as saved_model_utils
+ from tensorflow.python.saved_model.pywrap_saved_model import metrics
+ from tensorflow.python.trackable import asset
+ from tensorflow.python.trackable import autotrackable
+@@ -1020,12 +1018,6 @@ def load_partial(export_dir, filters, tags=None, options=None):
+       saved_model_proto.meta_graphs[0].HasField("object_graph_def")):
+     metrics.IncrementReadApi(_LOAD_V2_LABEL)
+     meta_graph_def = saved_model_proto.meta_graphs[0]
+-    # tensor_content field contains raw bytes in litle endian format
+-    # which causes problems when loaded on big-endian systems
+-    # requiring byteswap
+-    if sys.byteorder == "big":
+-      saved_model_utils.swap_function_tensor_content(meta_graph_def, "little",
+-                                                     "big")
+     if (tags is not None
+         and set(tags) != set(meta_graph_def.meta_info_def.tags)):
+       raise ValueError(
+diff --git a/tensorflow/python/saved_model/loader_impl.py b/tensorflow/python/saved_model/loader_impl.py
+index 1200dc24..3d7f9c25 100644
+--- a/tensorflow/python/saved_model/loader_impl.py
++++ b/tensorflow/python/saved_model/loader_impl.py
+@@ -24,6 +24,7 @@ from google.protobuf import text_format
+ from tensorflow.core.framework import graph_debug_info_pb2
+ from tensorflow.core.protobuf import meta_graph_pb2
+ from tensorflow.core.protobuf import saved_model_pb2
++from tensorflow.python.framework import byte_swap_tensor
+ from tensorflow.python.framework import ops
+ from tensorflow.python.lib.io import file_io
+ from tensorflow.python.ops import variables
+@@ -31,7 +32,6 @@ from tensorflow.python.platform import tf_logging
+ from tensorflow.python.saved_model import constants
+ from tensorflow.python.saved_model import path_helpers
+ from tensorflow.python.saved_model import signature_def_utils
+-from tensorflow.python.saved_model import utils_impl as saved_model_utils
+ # Placeholder for protosplitter merger import.
+ from tensorflow.python.saved_model.pywrap_saved_model import metrics
+ from tensorflow.python.training import saver as tf_saver
+@@ -120,6 +120,11 @@ def parse_saved_model(export_dir):
+         f"SavedModel file does not exist at: {export_dir}{os.path.sep}"
+         f"{{{constants.SAVED_MODEL_FILENAME_PBTXT}|"
+         f"{constants.SAVED_MODEL_FILENAME_PB}}}")
++
++  if sys.byteorder == "big":
++    byte_swap_tensor.swap_tensor_content_in_saved_model(saved_model,
++                                                        "little", "big")
++
+   return saved_model
+ 
+ 
+@@ -424,9 +429,6 @@ class SavedModelLoader(object):
+           `tf.import_graph_def` (may be `None`).
+     """
+     meta_graph_def = self.get_meta_graph_def_from_tags(tags)
+-    if sys.byteorder == "big":
+-      saved_model_utils.swap_function_tensor_content(meta_graph_def, "little",
+-                                                     "big")
+     with graph.as_default():
+       return tf_saver._import_meta_graph_with_return_elements(  # pylint: disable=protected-access
+           meta_graph_def, import_scope=import_scope, **saver_kwargs)
+diff --git a/tensorflow/python/saved_model/save.py b/tensorflow/python/saved_model/save.py
+index 5b56dc40..11947f90 100644
+--- a/tensorflow/python/saved_model/save.py
++++ b/tensorflow/python/saved_model/save.py
+@@ -1052,7 +1052,7 @@ def _fill_meta_graph_def(
+   meta_graph.strip_graph_default_valued_attrs(meta_graph_def)
+   # store tensor_content in litle endian format
+   if sys.byteorder == "big":
+-    utils_impl.swap_function_tensor_content(meta_graph_def, "big", "little")
++    utils_impl.swap_tensor_content_in_graph(meta_graph_def, "big", "little")
+   if enable_debug_stripper:
+     _strip_debug_nodes(meta_graph_def)
+   meta_graph_def.meta_info_def.stripped_op_list.MergeFrom(
+diff --git a/tensorflow/python/saved_model/utils_impl.py b/tensorflow/python/saved_model/utils_impl.py
+index b3f5a684..40b243a5 100644
+--- a/tensorflow/python/saved_model/utils_impl.py
++++ b/tensorflow/python/saved_model/utils_impl.py
+@@ -207,8 +207,5 @@ def get_element_from_tensor_info(tensor_info, graph=None, import_scope=None):
+   return graph.as_graph_element(
+       ops.prepend_name_scope(tensor_info.name, import_scope=import_scope))
+ 
+-
+-def swap_function_tensor_content(meta_graph_def, from_endiness, to_endiness):
+-  bst.swap_tensor_content_in_graph_function(
+-      meta_graph_def, from_endiness, to_endiness
+-  )
++def swap_tensor_content_in_graph(meta_graph_def, from_endiness, to_endiness):
++  bst.swap_tensor_content_in_graph(meta_graph_def, from_endiness, to_endiness)
+diff --git a/tensorflow/python/tfcompile_wrapper.cc b/tensorflow/python/tfcompile_wrapper.cc
+index 912cc1ff..23024708 100644
+--- a/tensorflow/python/tfcompile_wrapper.cc
++++ b/tensorflow/python/tfcompile_wrapper.cc
+@@ -18,6 +18,7 @@ limitations under the License.
+ #ifdef __s390x__
+ #include "llvm/ADT/StringRef.h"
+ #include "llvm/TargetParser/Host.h"
++#include "llvm/TargetParser/Triple.h"
+ #endif
+ #include "pybind11/cast.h"  // from @pybind11
+ #include "pybind11/pybind11.h"  // from @pybind11
+@@ -49,12 +50,24 @@ PYBIND11_MODULE(_pywrap_tfcompile, m) {
+         flags.graph = std::move(graph);
+         flags.config = std::move(config);
+ #ifdef __s390x__
+-        flags.target_triple = std::move(
+-            target_triple.empty() ? llvm::sys::getDefaultTargetTriple()
+-                                  : target_triple);
+-        flags.target_cpu =
+-            std::move(target_cpu.empty() ? llvm::sys::getHostCPUName().str()
+-                                         : target_cpu);
++        bool is_cross_compile = false;
++        if (target_triple.empty()) {
++          flags.target_triple = llvm::sys::getDefaultTargetTriple();
++        } else {
++          flags.target_triple = std::move(target_triple);
++          is_cross_compile =
++              llvm::Triple(flags.target_triple).getArch() !=
++              llvm::Triple(llvm::sys::getDefaultTargetTriple()).getArch();
++        }
++
++        // Only default to the host CPU when not cross-compiling to prevent
++        // passing host-specific CPU flags (e.g., z14) to target backends of
++        // different architectures.
++        if (target_cpu.empty() && !is_cross_compile) {
++          flags.target_cpu = llvm::sys::getHostCPUName().str();
++        } else {
++          flags.target_cpu = std::move(target_cpu);
++        }
+ #else
+         flags.target_triple = std::move(target_triple);
+         flags.target_cpu = std::move(target_cpu);
+diff --git a/tensorflow/python/tools/saved_model_cli_test.py b/tensorflow/python/tools/saved_model_cli_test.py
+index 7cff072f..617431c6 100644
+--- a/tensorflow/python/tools/saved_model_cli_test.py
++++ b/tensorflow/python/tools/saved_model_cli_test.py
+@@ -1098,9 +1098,6 @@ Concrete Functions:
+     if not test.is_cpu_target_available(target_triple.partition('-')[0]):
+       self.skipTest('Skipping test because target support is not compiled in.')
+ 
+-    if platform.machine() == 's390x' and 'aarch64' in str(target_triple):
+-      self.skipTest('Skipping arm tests on s390x.')
+-
+     saved_model_dir = os.path.join(test.get_temp_dir(), 'dummy_model')
+     dummy_model = self.AOTCompileDummyModel()
+     func = getattr(dummy_model, func)
+diff --git a/tensorflow/tools/pip_package/BUILD b/tensorflow/tools/pip_package/BUILD
+index 3437fa02..a91f98a1 100644
+--- a/tensorflow/tools/pip_package/BUILD
++++ b/tensorflow/tools/pip_package/BUILD
+@@ -329,6 +329,7 @@ tf_wheel(
+         "@platforms//cpu:arm64": "arm64",
+         "@platforms//cpu:x86_64": "x86_64",
+         "@platforms//cpu:ppc": "ppc64le",
++        "@platforms//cpu:s390x": "s390x",
+     }),
+     source_files = [
+         "MANIFEST.in",
+diff --git a/third_party/icu/data/BUILD.bazel b/third_party/icu/data/BUILD.bazel
+index ded85987..b1cde56e 100644
+--- a/third_party/icu/data/BUILD.bazel
++++ b/third_party/icu/data/BUILD.bazel
+@@ -43,7 +43,10 @@ exports_files(["LICENSE"])
+ # Please make sure to keep this updated if you change the data files.
+ filegroup(
+     name = "conversion_files",
+-    srcs = glob(["icu_conversion_data.c.gz.*"]),
++    srcs = select({
++        "@org_tensorflow//tensorflow:linux_s390x": glob(["icu_conversion_data_big_endian.c.gz.*"]),
++        "//conditions:default": glob(["icu_conversion_data.c.gz.*"]),
++    }),
+ )
+ 
+ # Data files are compressed and split to work around git performance degradation
+diff --git a/third_party/tf_runtime/temporary.patch b/third_party/tf_runtime/temporary.patch
+new file mode 100644
+index 00000000..3dc124ac
+--- /dev/null
++++ b/third_party/tf_runtime/temporary.patch
+@@ -0,0 +1,70 @@
++diff --git a/include/tfrt/bef/bef_reader.h b/include/tfrt/bef/bef_reader.h
++index b0ff7ab5..20bc6e62 100644
++--- a/include/tfrt/bef/bef_reader.h
+++++ b/include/tfrt/bef/bef_reader.h
++@@ -146,7 +146,7 @@ class BEFKernel {
++                                                    kKernelEntryAlignment) /
++                                          kKernelEntryAlignment),
++         body_start_(result_table_ + header_->num_results) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++   }
++
++   uint32_t kernel_code() const { return header_->kernel_code; }
++diff --git a/include/tfrt/bef_converter/bef_emitter.h b/include/tfrt/bef_converter/bef_emitter.h
++index 2aae7d44..154eda31 100644
++--- a/include/tfrt/bef_converter/bef_emitter.h
+++++ b/include/tfrt/bef_converter/bef_emitter.h
++@@ -59,7 +59,7 @@ class BefEmitter {
++   // Emit a generic typed value: e.g., Emit<uint32_t>(val).
++   template <typename T>
++   void Emit(T value) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++     EmitAlignment(alignof(T));
++     EmitBytes(llvm::ArrayRef(reinterpret_cast<uint8_t*>(&value), sizeof(T)));
++   }
++diff --git a/include/tfrt/host_context/attribute_utils.h b/include/tfrt/host_context/attribute_utils.h
++index cbded469..b1074096 100644
++--- a/include/tfrt/host_context/attribute_utils.h
+++++ b/include/tfrt/host_context/attribute_utils.h
++@@ -52,7 +52,7 @@ class Attribute {
++  public:
++   explicit Attribute(const void* value)
++       : value_(*reinterpret_cast<const T*>(value)) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++   }
++
++   const T& get() const { return value_; }
++@@ -127,7 +127,7 @@ class CompilationUnitAttribute {
++  public:
++   explicit CompilationUnitAttribute(const void* value)
++       : addr_(reinterpret_cast<intptr_t>(value)) {
++-    ASSERT_LITTLE_ENDIAN();
+++    //ASSERT_LITTLE_ENDIAN();
++     const auto* ptr = static_cast<const uint8_t*>(value);
++
++     ptr = ReadVbrInt(ptr, &id_);
++diff --git a/lib/tensor/tensor_serialize_utils.cc b/lib/tensor/tensor_serialize_utils.cc
++index ddaa7b1b..c585054e 100644
++--- a/lib/tensor/tensor_serialize_utils.cc
+++++ b/lib/tensor/tensor_serialize_utils.cc
++@@ -102,7 +102,7 @@ std::string SerializeTensorMetadata(const TensorMetadata& md) {
++
++ llvm::Expected<TensorMetadata> DeserializeTensorMetadataInternal(
++     const char* pos, size_t size) {
++-  ASSERT_LITTLE_ENDIAN();
+++  //ASSERT_LITTLE_ENDIAN();
++   DType kind = static_cast<DType>(*reinterpret_cast<const uint64_t*>(pos));
++   pos += sizeof(uint64_t);
++   const int num_dimensions = size / 8 - 1;
++@@ -119,7 +119,7 @@ llvm::Expected<TensorMetadata> DeserializeTensorMetadataInternal(
++
++ llvm::Expected<TensorMetadata> DeserializeTensorMetadata(
++     string_view serialized) {
++-  ASSERT_LITTLE_ENDIAN();
+++  //ASSERT_LITTLE_ENDIAN();
++   return DeserializeTensorMetadataInternal(serialized.data(),
++                                            serialized.size());
++ }
+diff --git a/third_party/tf_runtime/workspace.bzl b/third_party/tf_runtime/workspace.bzl
+index 5c8ec13c..98da2623 100644
+--- a/third_party/tf_runtime/workspace.bzl
++++ b/third_party/tf_runtime/workspace.bzl
+@@ -20,5 +20,7 @@ def repo():
+         },
+         # A patch file can be provided for atomic commits to both TF and TFRT.
+         # The job that bumps the TFRT_COMMIT also resets patch_file to 'None'.
+-        patch_file = None,
++       patch_file = [
++               "//third_party/tf_runtime:temporary.patch",  # Cherry-picks and temporary reverts. Do not remove even if temporary.patch is empty.
++        ],
+     )
+diff --git a/third_party/xla/third_party/py/python_init_pip.bzl b/third_party/xla/third_party/py/python_init_pip.bzl
+index 39901b9b..30fb03a7 100644
+--- a/third_party/xla/third_party/py/python_init_pip.bzl
++++ b/third_party/xla/third_party/py/python_init_pip.bzl
+@@ -43,4 +43,5 @@ cc_library(
+             "numpy": ["numpy_headers"],
+         },
+         requirements_lock = REQUIREMENTS_WITH_LOCAL_WHEELS,
++       timeout = 3600,
+     )
+diff --git a/third_party/xla/xla/backends/cpu/codegen/builtin_definition_generator.cc b/third_party/xla/xla/backends/cpu/codegen/builtin_definition_generator.cc
+index 7da8fc54..67ecec39 100644
+--- a/third_party/xla/xla/backends/cpu/codegen/builtin_definition_generator.cc
++++ b/third_party/xla/xla/backends/cpu/codegen/builtin_definition_generator.cc
+@@ -97,12 +97,12 @@ uint16_t __truncsfbf2(float);
+ // Converts an F64 value to a BF16.
+ uint16_t __truncdfbf2(double);
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__s390x__)
+ // Converts an F32 value to a F16.
+ uint16_t __truncsfhf2(float);
+ 
+ float __extendhfsf2(uint16_t a);
+-#endif  // __APPLE__
++#endif  // __APPLE__ || __s390x__
+ 
+ }  // extern "C"
+ 
+@@ -231,9 +231,12 @@ static Registry CreateRegistry() {
+ 
+ #undef REGISTER_LIBM_SYMBOL
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__s390x__)
+   registry["__truncsfhf2"] = SymbolDef(__truncsfhf2);
+   registry["__extendhfsf2"] = SymbolDef(__extendhfsf2);
++#endif
++
++#ifdef __APPLE__
+   registry["__bzero"] = SymbolDef(bzero);
+   registry["bzero"] = SymbolDef(bzero);
+   registry["memset_pattern16"] = SymbolDef(memset_pattern16);
+diff --git a/third_party/xla/xla/backends/cpu/codegen/computation_kernel_emitter.cc b/third_party/xla/xla/backends/cpu/codegen/computation_kernel_emitter.cc
+index 1e2e846f..580f7abb 100644
+--- a/third_party/xla/xla/backends/cpu/codegen/computation_kernel_emitter.cc
++++ b/third_party/xla/xla/backends/cpu/codegen/computation_kernel_emitter.cc
+@@ -157,6 +157,9 @@ ComputationKernelEmitter::EmitKernelDefinition() {
+   std::unique_ptr<llvm::Module> llvm_module = KernelApiIrBuilder::CreateModule(
+       absl::StrCat(instr_->name(), "_computation_kernel_module"), *ctx);
+ 
++  llvm_module->setTargetTriple(target_machine_->target_machine()->getTargetTriple());
++  llvm_module->setDataLayout(target_machine_->target_machine()->createDataLayout());
++
+   TF_ASSIGN_OR_RETURN(std::string kernel_name,
+                       kernel_api_ir_builder.GetKernelName(instr_, "_kernel"));
+ 
+diff --git a/third_party/xla/xla/backends/cpu/codegen/elemental/elemental_kernel_emitter.cc b/third_party/xla/xla/backends/cpu/codegen/elemental/elemental_kernel_emitter.cc
+index a311e724..0cb88fc6 100644
+--- a/third_party/xla/xla/backends/cpu/codegen/elemental/elemental_kernel_emitter.cc
++++ b/third_party/xla/xla/backends/cpu/codegen/elemental/elemental_kernel_emitter.cc
+@@ -186,6 +186,9 @@ ElementalKernelEmitter::EmitKernelDefinition() {
+   std::unique_ptr<llvm::Module> llvm_module = KernelApiIrBuilder::CreateModule(
+       absl::StrCat(instr_->name(), "_elemental_kernel_module"), *ctx);
+ 
++  llvm_module->setTargetTriple(target_machine_->target_machine()->getTargetTriple());
++  llvm_module->setDataLayout(target_machine_->target_machine()->createDataLayout());
++
+   TF_ASSIGN_OR_RETURN(
+       KernelApiIrBuilder::KernelPrototype kernel_prototype,
+       kernel_api_ir_builder.EmitKernelPrototype(
+diff --git a/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc b/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc
+index 4befeb37..c5f843aa 100644
+--- a/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc
++++ b/third_party/xla/xla/backends/cpu/runtime/rng_state_lib.cc
+@@ -38,7 +38,7 @@ void RngState::GetAndUpdateState(uint64_t* data) {
+   uint64_t low = absl::Int128Low64(state_);
+   uint64_t high = absl::Int128High64(state_);
+ 
+-  static_assert(ABSL_IS_LITTLE_ENDIAN, "Big endian not supported");
++  //static_assert(ABSL_IS_LITTLE_ENDIAN, "Big endian not supported");
+   std::memcpy(data, &low, sizeof(low));
+   std::memcpy(data + 1, &high, sizeof(high));
+ 
+diff --git a/third_party/xla/third_party/llvm/systemz_f16_store.patch b/third_party/xla/third_party/llvm/systemz_f16_store.patch
+new file mode 100644
+index 00000000..9f12a5cd
+--- /dev/null
++++ b/third_party/xla/third_party/llvm/systemz_f16_store.patch
+@@ -0,0 +1,28 @@
++diff --git a/llvm/lib/Target/SystemZ/SystemZInstrFP.td b/llvm/lib/Target/SystemZ/SystemZInstrFP.td
++--- a/llvm/lib/Target/SystemZ/SystemZInstrFP.td
+++++ b/llvm/lib/Target/SystemZ/SystemZInstrFP.td
++@@ -180,6 +180,6 @@ let SimpleBDXLoad = 1, mayLoad = 1 in {
++ let SimpleBDXStore = 1, mayStore = 1 in {
++   let isCodeGenOnly = 1 in
++     // Spill f16 to 4-byte spill slot.
++-    defm STE16 : StoreRXPair<"ste", 0x70, 0xED66, store, FP16, 4>;
+++    defm STE16 : StoreRXPair<"ste", 0x70, 0xED66, null_frag, FP16, 4>;
++   defm STE : StoreRXPair<"ste", 0x70, 0xED66, store, FP32, 4>;
++   defm STD : StoreRXPair<"std", 0x60, 0xED67, store, FP64, 8>;
++
++diff --git a/llvm/lib/Target/SystemZ/SystemZInstrVector.td b/llvm/lib/Target/SystemZ/SystemZInstrVector.td
++--- a/llvm/lib/Target/SystemZ/SystemZInstrVector.td
+++++ b/llvm/lib/Target/SystemZ/SystemZInstrVector.td
++@@ -246,9 +246,8 @@ let Predicates = [FeatureVector] in {
++   // Use VSTE to store subvectors.  These patterns use "12pair" because
++-  // STEY and STDY offer full 20-bit displacement fields.  It's often better
++-  // to use those instructions rather than force a 20-bit displacement
++-  // into a GPR temporary.
+++  // STEY and STDY offer full 20-bit displacement fields.  VST16 must use
+++  // "12only" because the paired 20-bit fallback is STEY, which stores 4 bytes.
++   let mayStore = 1, SimpleBDXStore = 1 in {
++-    def VST16 : StoreAliasVRX<store, v16hb, bdxaddr12pair>;
+++    def VST16 : StoreAliasVRX<store, v16hb, bdxaddr12only>;
++     def VST32 : StoreAliasVRX<store, v32sb, bdxaddr12pair>;
++     def VST64 : StoreAliasVRX<store, v64db, bdxaddr12pair>;
++   }
+diff --git a/third_party/xla/third_party/llvm/workspace.bzl b/third_party/xla/third_party/llvm/workspace.bzl
+index 9b5614a7..7ca3945c 100644
+--- a/third_party/xla/third_party/llvm/workspace.bzl
++++ b/third_party/xla/third_party/llvm/workspace.bzl
+@@ -23,6 +23,7 @@ def repo(name):
+             "//third_party/llvm:toolchains.patch",
+             "//third_party/llvm:zstd.patch",
+             "//third_party/llvm:lit_test.patch",
++            "//third_party/llvm:systemz_f16_store.patch",
+         ],
+         link_files = {"//third_party/llvm:run_lit.sh": "mlir/run_lit.sh"},
+     )
+diff --git a/tensorflow/core/kernels/argmax_op.cc b/tensorflow/core/kernels/argmax_op.cc
+index 8c562587..cdb8d299 100644
+--- a/tensorflow/core/kernels/argmax_op.cc
++++ b/tensorflow/core/kernels/argmax_op.cc
+@@ -56,15 +56,21 @@ class ArgOp : public OpKernel {
+                     "dim must be a scalar, but received tensor of shape: ",
+                     dimension.shape().DebugString()));
+
+-    const int32_t dim = internal::SubtleMustCopy(dimension.scalar<int32>()());
++    const int64_t dim =
++        dimension.dtype() == DT_INT64
++            ? internal::SubtleMustCopy(dimension.scalar<int64_t>()())
++            : internal::SubtleMustCopy(dimension.scalar<int32_t>()());
+     const int input_dims = input.dims();
+
+-    int axis = dim < 0 ? dim + input_dims : dim;
++    const int64_t axis64 = dim < 0 ? dim + input_dims : dim;
+
+-    OP_REQUIRES(context, FastBoundsCheck(axis, input_dims),
++    OP_REQUIRES(context, FastBoundsCheck(axis64, input_dims),
+                 errors::InvalidArgument("Expected dimension in the range [",
+                                         -input_dims, ", ", input_dims,
+                                         "), but got ", dim));
++
++    const int axis = static_cast<int>(axis64);
++
+     OP_REQUIRES(
+         context, input.dim_size(axis) > 0,
+         errors::InvalidArgument("Reduction axis ", dim, " is empty in shape ",
