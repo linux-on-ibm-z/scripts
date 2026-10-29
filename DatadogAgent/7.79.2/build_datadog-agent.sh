@@ -1,16 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# © Copyright IBM Corporation 2026
 # this file has been modified with the assistance of AI Tool [claude 4.6]
-# © Copyright IBM Corporation 2026.
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 #
-# Build Datadog Agent 7.79.2 on s390x (IBM Z) with eBPF support.
+# Instructions:
+# Download build script: wget https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/DatadogAgent/7.79.2/build_datadog-agent.sh
+# Execute build script: build_datadog-agent.sh   (provide -h for help)
 #
-# Usage:
-#   bash build_datadog-agent.sh          # interactive
-#   bash build_datadog-agent.sh -y       # non-interactive
-#   bash build_datadog-agent.sh -y -t    # build + test
-#   bash build_datadog-agent.sh -h       # help
-
 
 set -e -o pipefail
 
@@ -20,7 +16,8 @@ GO_VERSION="1.26.3"
 SOURCE_ROOT="$(pwd)"
 SOURCE_REPO="https://github.com/DataDog/datadog-agent.git"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PATCH_DIR="$SCRIPT_DIR/patch"
+BASE_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/DatadogAgent/${PACKAGE_VERSION}"
+PATCH_URL="${BASE_URL}/patch"
 LOG_FILE="${SOURCE_ROOT}/logs/${PACKAGE_NAME}-${PACKAGE_VERSION}-$(date +"%F-%T").log"
 FORCE="false"
 TESTS="false"
@@ -86,9 +83,20 @@ function configureAndInstall() {
     git clone --depth 1 --branch "$PACKAGE_VERSION" "$SOURCE_REPO" "${PACKAGE_NAME}-${PACKAGE_VERSION}" |& tee -a "$LOG_FILE"
     cd "${PACKAGE_NAME}-${PACKAGE_VERSION}"
 
-    # Apply s390x patches
+    # Apply s390x patches. Patches always come from the scripts repo over
+    # https; there is no local patch directory.
     printf -- "Applying s390x patches...\n"
-    bash "$SCRIPT_DIR/apply-patch.sh" "$PATCH_DIR" |& tee -a "$LOG_FILE"
+    printf -- "Using patch location: %s\n" "$PATCH_URL" |& tee -a "$LOG_FILE"
+
+    if [ -f "$SCRIPT_DIR/apply-patch.sh" ]; then
+        APPLY_PATCH="$SCRIPT_DIR/apply-patch.sh"
+    else
+        APPLY_PATCH="$(mktemp -d)/apply-patch.sh"
+        curl -sSLf --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            "$BASE_URL/apply-patch.sh" -o "$APPLY_PATCH" ||
+            { printf -- "FATAL: could not fetch apply-patch.sh from %s\n" "$BASE_URL" >&2; exit 1; }
+    fi
+    bash "$APPLY_PATCH" "$PATCH_URL" |& tee -a "$LOG_FILE"
 
     # Build environment
     export CGO_LDFLAGS_ALLOW="-Wl,--wrap=.*"
@@ -237,20 +245,20 @@ prepare
 
 DISTRO="$ID-$VERSION_ID"
 case "$DISTRO" in
-"rhel-9"* | "rhel-10"* | "rocky-9"* | "rocky-10"*)
+"rhel-9"* | "rhel-10"*)
     printf -- "Installing dependencies for %s...\n" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo yum install -y gcc gcc-c++ make wget tar git patch diffutils file |& tee -a "$LOG_FILE"
+    sudo yum install -y gcc gcc-c++ make wget curl tar git patch diffutils file |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
-"ubuntu-24.04" | "debian-12"* | "debian-13"*)
+"ubuntu-22.04" | "ubuntu-24.04")
     printf -- "Installing dependencies for %s...\n" "$DISTRO" |& tee -a "$LOG_FILE"
     sudo apt-get update
-    sudo apt-get install -y gcc g++ make wget ca-certificates tar git patch file |& tee -a "$LOG_FILE"
+    sudo apt-get install -y gcc g++ make wget curl ca-certificates tar git patch file |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 "sles-16"*)
     printf -- "Installing dependencies for %s...\n" "$DISTRO" |& tee -a "$LOG_FILE"
-    sudo zypper install -y gcc gcc-c++ make wget tar git patch file |& tee -a "$LOG_FILE"
+    sudo zypper install -y gcc gcc-c++ make wget curl tar git patch file |& tee -a "$LOG_FILE"
     configureAndInstall |& tee -a "$LOG_FILE"
     ;;
 *)
