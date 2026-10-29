@@ -1,0 +1,79 @@
+diff --git a/Dockerfile.rego b/Dockerfile.rego
+index 04eef065c0..946aa11882 100644
+--- a/Dockerfile.rego
++++ b/Dockerfile.rego
+@@ -3,14 +3,15 @@ package docker
+ 
+ import rego.v1
+ 
+-# Deny base images that are not from the approved chainguard namespace.
++# Deny base images that are not approved.
+ deny_msgs contains msg if {
+-	input.image
+-	not startswith(input.image.fullRepo, "docker.io/chainguard/")
+-	msg := sprintf("base image %q is not allowed; only docker.io/chainguard images are permitted", [input.image.ref])
++        input.image
++        not startswith(input.image.fullRepo, "docker.io/chainguard/")
++        input.image.fullRepo != "gcr.io/distroless/cc"
++        msg := sprintf("base image %q is not allowed; only approved base images are permitted", [input.image.ref])
+ }
+ 
+ decision := {
+-	"allow": count(deny_msgs) == 0,
+-	"deny_msg": [msg | some msg in deny_msgs],
++        "allow": count(deny_msgs) == 0,
++        "deny_msg": [msg | some msg in deny_msgs],
+ }
+diff --git a/Makefile b/Makefile
+index 2345d61cce..3c67372638 100644
+--- a/Makefile
++++ b/Makefile
+@@ -235,7 +235,7 @@ wasm-test: wasm-lib-test wasm-rego-test
+ .PHONY: wasm-lib-build
+ wasm-lib-build:
+ ifeq ($(DOCKER_RUNNING), 1)
+-	@$(MAKE) -C wasm ensure-builder build
++	@$(MAKE) -C wasm builder build
+ 	cp wasm/_obj/opa.wasm internal/compiler/wasm/opa/opa.wasm
+ 	cp wasm/_obj/callgraph.csv internal/compiler/wasm/opa/callgraph.csv
+ else
+@@ -347,6 +347,13 @@ build-all-platforms: ci-build-linux ci-build-linux-static ci-build-darwin ci-bui
+ .PHONY: image-quick
+ image-quick: image-quick-$(GOARCH)
+ 
++.PHONY: image-s390x
++image-s390x: build
++	$(DOCKER) build \
++		-t $(DOCKER_IMAGE):$(VERSION) \
++		--build-arg BASE=gcr.io/distroless/cc \
++		--platform linux/s390x \
++		.
+ # % = arch
+ .PHONY: image-quick-%
+ image-quick-%: ensure-executable-bin
+diff --git a/build/run-wasm-rego-tests.sh b/build/run-wasm-rego-tests.sh
+index 51bbdaf3f8..e9b07ce85f 100755
+--- a/build/run-wasm-rego-tests.sh
++++ b/build/run-wasm-rego-tests.sh
+@@ -75,7 +75,7 @@ function run_testcases {
+         --volumes-from $TESTGEN_CONTAINER_NAME:z \
+         -e VERBOSE=$VERBOSE \
+         -w /scratch \
+-        node:14 \
++        node:14-bullseye \
+         sh -c 'tar xzf \
+             /src/.go/cache/testcases.tar.gz \
+             && node test.js opa.wasm' &
+diff --git a/wasm/Makefile b/wasm/Makefile
+index 7d5959d07e..10f04a07db 100644
+--- a/wasm/Makefile
++++ b/wasm/Makefile
+@@ -10,7 +10,7 @@ endif
+ DOCKER_WASM_BUILDER_IMAGE ?= openpolicyagent/opa-wasm-builder
+ WASM_BUILDER_VERSION := 1.7
+ WASM_BUILDER_IMAGE := $(DOCKER_WASM_BUILDER_IMAGE):$(WASM_BUILDER_VERSION)
+-WASM_TEST_NODE_VERSION := lts
++WASM_TEST_NODE_VERSION := 14-bullseye
+ WASM_OBJ_DIR := _obj
+ 
+ # Set compilers for local builds when not using Docker
