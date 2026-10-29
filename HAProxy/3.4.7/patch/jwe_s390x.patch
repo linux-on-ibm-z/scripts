@@ -1,0 +1,44 @@
+diff --git a/src/jwe.c b/src/jwe.c
+index b16ba41..2635015 100644
+--- a/src/jwe.c
++++ b/src/jwe.c
+@@ -377,6 +377,7 @@ static int decrypt_cek_aeskw(struct buffer *cek, struct buffer *decrypted_cek, s
+ 	int iv_size = 0;
+ 	int retval = 0;
+ 	int length = 0;
++	int final_length = 0;
+ 
+ 	ctx = EVP_CIPHER_CTX_new();
+ 
+@@ -428,10 +429,10 @@ static int decrypt_cek_aeskw(struct buffer *cek, struct buffer *decrypted_cek, s
+ 			      (unsigned char*)b_orig(cek), b_data(cek)) <= 0)
+ 		goto end;
+ 
+-	if (EVP_DecryptFinal_ex(ctx, (unsigned char*)decrypted_cek->area + length, (int*)&decrypted_cek->data) <= 0)
++	if (EVP_DecryptFinal_ex(ctx, (unsigned char*)decrypted_cek->area + length, &final_length) <= 0)
+ 		goto end;
+ 
+-	decrypted_cek->data += length;
++	decrypted_cek->data = length + final_length;
+ 
+ 	retval = 1;
+ 
+@@ -461,6 +462,7 @@ static int build_and_check_tag(jwe_enc enc,  struct jwt_item items[JWE_ELT_MAX],
+ 
+ 	struct buffer *tag_data = alloc_trash_chunk();
+ 	struct buffer *hmac = alloc_trash_chunk();
++	unsigned int hmac_len = 0;
+ 
+ 	if (!tag_data || !hmac)
+ 		goto end;
+@@ -489,8 +491,9 @@ static int build_and_check_tag(jwe_enc enc,  struct jwt_item items[JWE_ELT_MAX],
+ 	/* Compute the HMAC SHA-XXX of the concatenated value above */
+ 	if (!HMAC(hash, b_orig(decrypted_cek), mac_key_len,
+ 	          (unsigned char*)b_orig(tag_data), b_data(tag_data),
+-	          (unsigned char*)b_orig(hmac), (unsigned int*)&hmac->data))
++	          (unsigned char*)b_orig(hmac), &hmac_len))
+ 		goto end;
++	hmac->data = hmac_len;
+ 
+ 	/* Double check that buffer lengths line up before the comparison */
+ 	if (unlikely(b_data(decoded_items[JWE_ELT_TAG]) != b_data(hmac) >> 1))
