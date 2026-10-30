@@ -1,0 +1,1424 @@
+diff --git a/.buildkite/scripts/steps/create_dra.sh b/.buildkite/scripts/steps/create_dra.sh
+index 759f833..6a8f35c 100755
+--- a/.buildkite/scripts/steps/create_dra.sh
++++ b/.buildkite/scripts/steps/create_dra.sh
+@@ -48,7 +48,7 @@ fi
+ # Extract each platform specific zip file & combine to an 'uber' zip file.
+ rm -rf build/temp
+ mkdir -p build/temp
+-for it in darwin-aarch64 darwin-x86_64 linux-aarch64 linux-x86_64 windows-x86_64; do
++for it in darwin-aarch64 darwin-x86_64 linux-aarch64 linux-s390x linux-x86_64 windows-x86_64; do
+   unzip -o build/distributions/ml-cpp-${VERSION}-${it}.zip -d build/temp;
+ done
+ cd build/temp
+diff --git a/3rd_party/3rd_party.cmake b/3rd_party/3rd_party.cmake
+index 51acf9b..ce676c8 100644
+--- a/3rd_party/3rd_party.cmake
++++ b/3rd_party/3rd_party.cmake
+@@ -72,6 +72,8 @@ elseif ("${HOST_SYSTEM_NAME}" STREQUAL "linux")
+     set(BOOST_COMPILER "gcc${CMAKE_CXX_COMPILER_VERSION_MAJOR}")
+     if( "${ARCH}" STREQUAL "aarch64" )
+       set(BOOST_ARCH "a64")
++    elseif( "${ARCH}" STREQUAL "s390x" )
++      set(BOOST_ARCH "s64")
+     else()
+       set(BOOST_ARCH "x64")
+       set(MKL_LOCATION "/usr/local/gcc133/lib")
+@@ -93,7 +95,14 @@ elseif ("${HOST_SYSTEM_NAME}" STREQUAL "linux")
+     set(OMP_EXTENSION ".so.1")
+     set(ZLIB_LOCATION)
+     set(TORCH_LIBRARIES "libtorch_cpu" "libc10")
+-    set(TORCH_LOCATION "/usr/local/gcc133/lib")
++    if(DEFINED ML_PYTORCH_LIB_DIR AND NOT "${ML_PYTORCH_LIB_DIR}" STREQUAL "")
++      set(TORCH_LOCATION "${ML_PYTORCH_LIB_DIR}")
++    elseif(DEFINED ENV{ML_PYTORCH_LIB_DIR} AND
++           NOT "$ENV{ML_PYTORCH_LIB_DIR}" STREQUAL "")
++      set(TORCH_LOCATION "$ENV{ML_PYTORCH_LIB_DIR}")
++    else()
++      set(TORCH_LOCATION "/usr/local/gcc133/lib")
++    endif()
+     set(TORCH_EXTENSION ".so")
+   elseif("$ENV{CPP_CROSS_COMPILE}" STREQUAL "macosx")
+     message(STATUS "3rd_party: Cross compile for macosx: Copying macOS 3rd party libraries")
+diff --git a/3rd_party/CMakeLists.txt b/3rd_party/CMakeLists.txt
+index f2b092f..684a9fe 100644
+--- a/3rd_party/CMakeLists.txt
++++ b/3rd_party/CMakeLists.txt
+@@ -21,8 +21,13 @@ add_custom_target(licenses ALL
+ # Install 3rd party libraries in our build tree
+ # as part of the CMake configuration step - avoiding
+ # the need for it to be done on every build
++set(ML_3RD_PARTY_CMAKE_ARGS)
++if(DEFINED ML_PYTORCH_LIB_DIR AND NOT "${ML_PYTORCH_LIB_DIR}" STREQUAL "")
++  list(APPEND ML_3RD_PARTY_CMAKE_ARGS
++       -DML_PYTORCH_LIB_DIR=${ML_PYTORCH_LIB_DIR})
++endif()
+ execute_process(
+-    COMMAND ${CMAKE_COMMAND} -DINSTALL_DIR=${INSTALL_DIR} -DCMAKE_CXX_COMPILER_VERSION_MAJOR=${CMAKE_CXX_COMPILER_VERSION_MAJOR} -P ./3rd_party.cmake
++    COMMAND ${CMAKE_COMMAND} -DINSTALL_DIR=${INSTALL_DIR} -DCMAKE_CXX_COMPILER_VERSION_MAJOR=${CMAKE_CXX_COMPILER_VERSION_MAJOR} ${ML_3RD_PARTY_CMAKE_ARGS} -P ./3rd_party.cmake
+     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+ )
+ 
+diff --git a/bin/controller/CMakeLists.txt b/bin/controller/CMakeLists.txt
+index 661b935..1e311d2 100644
+--- a/bin/controller/CMakeLists.txt
++++ b/bin/controller/CMakeLists.txt
+@@ -16,6 +16,9 @@ set(ML_LINK_LIBRARIES
+   MlCore
+   MlSeccomp
+   MlVer
++  ${ZLIB_LIBRARIES}
++  ${Boost_LIBRARIES}
++  ${CMAKE_DL_LIBS}
+   )
+ 
+ ml_add_executable(controller
+diff --git a/build.gradle b/build.gradle
+index 0807148..b20b1da 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -55,8 +55,8 @@ if (cppCrossCompile == null) {
+     cppCrossCompile = ''
+   }
+ }
+-if (cppCrossCompile != '' && cppCrossCompile != 'macosx') {
+-  throw new GradleException("CPP_CROSS_COMPILE property must be empty or 'macosx'")
++if (cppCrossCompile != '' && cppCrossCompile != 'macosx' && cppCrossCompile != 's390x') {
++  throw new GradleException("CPP_CROSS_COMPILE property must be empty, 'macosx' or 's390x'")
+ }
+ 
+ String osArch = System.properties['os.arch']
+@@ -66,6 +66,8 @@ if (osArch == 'amd64') {
+   osArch = 'x86_64'
+ } else if (osArch == 'arm64') {
+   osArch = 'aarch64'
++} else if (osArch == 's390') {
++  osArch = 's390x'
+ }
+ String artifactClassifier
+ if (isWindows) {
+@@ -118,7 +120,12 @@ if (isWindows && msystem != 'MINGW64') {
+   project.ext.stripCmd = "cmake -P cmake/strip-binaries.cmake"
+ }
+ 
+-project.ext.numCpus = Runtime.runtime.availableProcessors()
++String cmakeParallelLevel = System.env.CMAKE_BUILD_PARALLEL_LEVEL
++if (cmakeParallelLevel != null && cmakeParallelLevel ==~ /\d+/) {
++  project.ext.numCpus = cmakeParallelLevel.toInteger()
++} else {
++  project.ext.numCpus = Runtime.runtime.availableProcessors()
++}
+ project.ext.makeEnvironment = [ 'CPP_CROSS_COMPILE': cppCrossCompile,
+                                 'VERSION_QUALIFIER': versionQualifier,
+                                 'SNAPSHOT': (isSnapshot ? 'yes' : 'no'),
+@@ -297,7 +304,7 @@ class DownloadPlatformSpecific extends DefaultTask {
+   File extractDirectory
+ 
+   @Input
+-  List<String> platforms = [ 'darwin-aarch64', 'darwin-x86_64', 'linux-aarch64', 'linux-x86_64', 'windows-x86_64' ]
++  List<String> platforms = [ 'darwin-aarch64', 'darwin-x86_64', 'linux-aarch64', 'linux-s390x', 'linux-x86_64', 'windows-x86_64' ]
+ 
+   DownloadPlatformSpecific() {
+     // Always run this task, in case the platform-specific zips have changed
+@@ -464,7 +471,7 @@ task upload(type: UploadS3Task) {
+   bucket='prelert-artifacts'
+   // Only upload the platform-specific artifacts in this task
+   def zipFileDir = fileTree("${buildDir}/distributions").matching {
+-    include "*-aarch64.zip", "*-x86_64.zip"
++    include "*-aarch64.zip", "*-s390x.zip", "*-x86_64.zip"
+   }
+   for (zipFile in zipFileDir) {
+     upload zipFile, "maven/${artifactGroupPath}/${artifactName}/${project.version}/${zipFile.name}"
+diff --git a/cmake/architecture/aarch64.cmake b/cmake/architecture/aarch64.cmake
+index 39a7f0d..86cc8df 100644
+--- a/cmake/architecture/aarch64.cmake
++++ b/cmake/architecture/aarch64.cmake
+@@ -10,4 +10,5 @@
+ #
+ 
+ message(STATUS "aarch64 detected for target")
++set(ML_ARCH_PROCESSOR "aarch64")
+ set(ARCHCFLAGS "-march=armv8-a+crc+crypto" "-ffp-contract=on") 
+diff --git a/cmake/architecture/s390x.cmake b/cmake/architecture/s390x.cmake
+new file mode 100644
+index 0000000..f857150
+--- /dev/null
++++ b/cmake/architecture/s390x.cmake
+@@ -0,0 +1,14 @@
++#
++# Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
++# or more contributor license agreements. Licensed under the Elastic License
++# 2.0 and the following additional limitation. Functionality enabled by the
++# files subject to the Elastic License 2.0 may only be used in production when
++# invoked by an Elasticsearch process with a license key installed that permits
++# use of machine learning features. You may not use this file except in
++# compliance with the Elastic License 2.0 and the foregoing additional
++# limitation.
++#
++
++message(STATUS "s390x detected for target")
++set(ML_ARCH_PROCESSOR "s390x")
++set(ARCHCFLAGS "")
+diff --git a/cmake/architecture/x86_64.cmake b/cmake/architecture/x86_64.cmake
+index 1b9821d..f82c112 100644
+--- a/cmake/architecture/x86_64.cmake
++++ b/cmake/architecture/x86_64.cmake
+@@ -10,6 +10,7 @@
+ #
+ 
+ message(STATUS "x86_64 detected for target")
++set(ML_ARCH_PROCESSOR "x86_64")
+ set (ARCHCFLAGS "-msse4.2")
+ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+   list(APPEND ARCHCFLAGS "-mfpmath=sse")
+diff --git a/cmake/compiler/gcc.cmake b/cmake/compiler/gcc.cmake
+index 3aff5fa..2a9604d 100644
+--- a/cmake/compiler/gcc.cmake
++++ b/cmake/compiler/gcc.cmake
+@@ -10,20 +10,46 @@
+ #
+ 
+ # which compilers to use for C and C++
+-set(CMAKE_C_COMPILER   "/usr/local/gcc133/bin/gcc")
+-set(CMAKE_CXX_COMPILER "/usr/local/gcc133/bin/g++")
++if(EXISTS "/usr/local/gcc133/bin/gcc" AND EXISTS "/usr/local/gcc133/bin/g++")
++  set(CMAKE_C_COMPILER   "/usr/local/gcc133/bin/gcc")
++  set(CMAKE_CXX_COMPILER "/usr/local/gcc133/bin/g++")
++elseif(DEFINED ENV{ML_GCC_COMPILER} AND DEFINED ENV{ML_GXX_COMPILER})
++  set(ML_GCC_COMPILER "$ENV{ML_GCC_COMPILER}" CACHE FILEPATH "Selected GCC compiler" FORCE)
++  set(ML_GXX_COMPILER "$ENV{ML_GXX_COMPILER}" CACHE FILEPATH "Selected GXX compiler" FORCE)
++  set(CMAKE_C_COMPILER   "${ML_GCC_COMPILER}")
++  set(CMAKE_CXX_COMPILER "${ML_GXX_COMPILER}")
++else()
++  find_program(ML_GCC_COMPILER gcc REQUIRED)
++  find_program(ML_GXX_COMPILER g++ REQUIRED)
++  set(CMAKE_C_COMPILER   "${ML_GCC_COMPILER}")
++  set(CMAKE_CXX_COMPILER "${ML_GXX_COMPILER}")
++endif()
+ 
+ # Detect architecture from ARCHCFLAGS (set by architecture/*.cmake files)
+-if(ARCHCFLAGS MATCHES "-march=armv8")
++if(ML_ARCH_PROCESSOR)
++  set(CMAKE_SYSTEM_PROCESSOR "${ML_ARCH_PROCESSOR}")
++elseif(ARCHCFLAGS MATCHES "-march=armv8")
+   set(CMAKE_SYSTEM_PROCESSOR "aarch64")
+ else()
+   set(CMAKE_SYSTEM_PROCESSOR "x86_64")
+ endif()
+ 
+-set(CMAKE_AR       "/usr/local/gcc133/bin/ar")
+-set(CMAKE_RANLIB   "/usr/local/gcc133/bin/ranlib")
+-set(CMAKE_STRIP    "/usr/local/gcc133/bin/strip")
+-set(CMAKE_LINKER   "/usr/local/gcc133/bin/ld")
++if(EXISTS "/usr/local/gcc133/bin/ar" AND EXISTS "/usr/local/gcc133/bin/ranlib" AND
++   EXISTS "/usr/local/gcc133/bin/strip" AND EXISTS "/usr/local/gcc133/bin/ld")
++  set(CMAKE_AR       "/usr/local/gcc133/bin/ar")
++  set(CMAKE_RANLIB   "/usr/local/gcc133/bin/ranlib")
++  set(CMAKE_STRIP    "/usr/local/gcc133/bin/strip")
++  set(CMAKE_LINKER   "/usr/local/gcc133/bin/ld")
++else()
++  find_program(ML_AR ar REQUIRED)
++  find_program(ML_RANLIB ranlib REQUIRED)
++  find_program(ML_STRIP strip REQUIRED)
++  find_program(ML_LINKER ld REQUIRED)
++  set(CMAKE_AR       "${ML_AR}")
++  set(CMAKE_RANLIB   "${ML_RANLIB}")
++  set(CMAKE_STRIP    "${ML_STRIP}")
++  set(CMAKE_LINKER   "${ML_LINKER}")
++endif()
+ 
+ SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> -ru <TARGET> <OBJECTS>")
+ 
+@@ -51,4 +77,3 @@ list(APPEND ML_CXX_FLAGS
+   "-fvisibility-inlines-hidden"
+   )
+ 
+-
+diff --git a/cmake/linux-s390x.cmake b/cmake/linux-s390x.cmake
+new file mode 100644
+index 0000000..be65950
+--- /dev/null
++++ b/cmake/linux-s390x.cmake
+@@ -0,0 +1,26 @@
++#
++# Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
++# or more contributor license agreements. Licensed under the Elastic License
++# 2.0 and the following additional limitation. Functionality enabled by the
++# files subject to the Elastic License 2.0 may only be used in production when
++# invoked by an Elasticsearch process with a license key installed that permits
++# use of machine learning features. You may not use this file except in
++# compliance with the Elastic License 2.0 and the foregoing additional
++# limitation.
++#
++
++set(CPP_PLATFORM_HOME $ENV{CPP_SRC_HOME}/build/distribution/platform/linux-s390x)
++
++message(STATUS "CMAKE_SYSTEM_NAME ${CMAKE_SYSTEM_NAME}")
++
++# this must be first
++include("${CMAKE_CURRENT_LIST_DIR}/functions.cmake")
++
++# include linux specific settings
++include("${CMAKE_CURRENT_LIST_DIR}/os/linux.cmake")
++
++# set the architecture bits
++include("${CMAKE_CURRENT_LIST_DIR}/architecture/s390x.cmake")
++
++# include gcc specific settings
++include("${CMAKE_CURRENT_LIST_DIR}/compiler/gcc.cmake")
+diff --git a/cmake/variables.cmake b/cmake/variables.cmake
+index afd4cca..b95066b 100644
+--- a/cmake/variables.cmake
++++ b/cmake/variables.cmake
+@@ -66,6 +66,12 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+   endif()
+ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+   set(ML_BOOST_COMPILER_VER "gcc${CMAKE_CXX_COMPILER_VERSION_MAJOR}")
++  if(DEFINED ENV{ML_BOOST_COMPILER_VER})
++    set(ML_BOOST_COMPILER_VER "$ENV{ML_BOOST_COMPILER_VER}")
++  endif()
++  if(NOT Boost_ROOT AND NOT DEFINED ENV{BOOST_ROOT})
++    set(Boost_ROOT /usr/local/gcc133)
++  endif()
+ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+   string(CONCAT BOOST_VCVER "vc" ${VCVER_MAJOR} ${VCVER_MINOR} )
+   string(SUBSTRING ${BOOST_VCVER} 0 5 BOOST_VCVER)
+@@ -98,13 +104,70 @@ else()
+   set(ML_LIBEXT ".lib")
+ endif()
+ 
+-set(TORCH_INC "${ML_BASE_PATH}/include/pytorch")
++if(DEFINED ML_PYTORCH_HOME)
++  set(TORCH_INC
++    "${ML_PYTORCH_HOME}"
++    "${ML_PYTORCH_HOME}/torch/csrc/api/include"
++    "${ML_PYTORCH_HOME}/aten/src"
++    "${ML_PYTORCH_HOME}/build"
++    "${ML_PYTORCH_HOME}/build/aten/src"
++    )
++elseif(DEFINED ENV{ML_PYTORCH_HOME})
++  set(ML_PYTORCH_HOME "$ENV{ML_PYTORCH_HOME}")
++  set(TORCH_INC
++    "${ML_PYTORCH_HOME}"
++    "${ML_PYTORCH_HOME}/torch/csrc/api/include"
++    "${ML_PYTORCH_HOME}/aten/src"
++    "${ML_PYTORCH_HOME}/build"
++    "${ML_PYTORCH_HOME}/build/aten/src"
++    )
++else()
++  set(TORCH_INC "${ML_BASE_PATH}/include/pytorch")
++endif()
++if(ML_PYTORCH_HOME AND NOT EXISTS "${ML_PYTORCH_HOME}/c10/macros/cmake_macros.h")
++  set(ML_PYTORCH_GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/pytorch_generated")
++  file(MAKE_DIRECTORY "${ML_PYTORCH_GENERATED_INCLUDE_DIR}/c10/macros")
++  file(WRITE "${ML_PYTORCH_GENERATED_INCLUDE_DIR}/c10/macros/cmake_macros.h" [=[
++#ifndef C10_MACROS_CMAKE_MACROS_H_
++#define C10_MACROS_CMAKE_MACROS_H_
++#define C10_BUILD_SHARED_LIBS 1
++#endif // C10_MACROS_CMAKE_MACROS_H_
++]=])
++  list(APPEND TORCH_INC "${ML_PYTORCH_GENERATED_INCLUDE_DIR}")
++endif()
++
++if(ML_PYTORCH_HOME AND
++   EXISTS "${ML_PYTORCH_HOME}/torch/csrc/api/include/torch/version.h.in" AND
++   NOT EXISTS "${ML_PYTORCH_HOME}/torch/csrc/api/include/torch/version.h")
++  set(ML_PYTORCH_GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/pytorch_generated")
++  file(MAKE_DIRECTORY "${ML_PYTORCH_GENERATED_INCLUDE_DIR}/torch/csrc/api/include/torch")
++  file(READ "${ML_PYTORCH_HOME}/version.txt" ML_PYTORCH_VERSION)
++  string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" ML_PYTORCH_VERSION_MATCH "${ML_PYTORCH_VERSION}")
++  if(NOT ML_PYTORCH_VERSION_MATCH)
++    message(FATAL_ERROR "Unable to parse PyTorch version from ${ML_PYTORCH_HOME}/version.txt")
++  endif()
++  set(TORCH_VERSION_MAJOR "${CMAKE_MATCH_1}")
++  set(TORCH_VERSION_MINOR "${CMAKE_MATCH_2}")
++  set(TORCH_VERSION_PATCH "${CMAKE_MATCH_3}")
++  configure_file("${ML_PYTORCH_HOME}/torch/csrc/api/include/torch/version.h.in"
++    "${ML_PYTORCH_GENERATED_INCLUDE_DIR}/torch/csrc/api/include/torch/version.h" @ONLY)
++  list(APPEND TORCH_INC "${ML_PYTORCH_GENERATED_INCLUDE_DIR}")
++endif()
++
++if(DEFINED ML_PYTORCH_LIB_DIR)
++  set(TORCH_LIB_DIR "${ML_PYTORCH_LIB_DIR}")
++elseif(DEFINED ENV{ML_PYTORCH_LIB_DIR})
++  set(TORCH_LIB_DIR "$ENV{ML_PYTORCH_LIB_DIR}")
++else()
++  set(TORCH_LIB_DIR "${ML_BASE_PATH}/lib")
++endif()
++
+ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+-  set(TORCH_LIB "${ML_BASE_PATH}/lib/torch_cpu${ML_LIBEXT}")
+-  set(C10_LIB   "${ML_BASE_PATH}/lib/c10${ML_LIBEXT}")
++  set(TORCH_LIB "${TORCH_LIB_DIR}/torch_cpu${ML_LIBEXT}")
++  set(C10_LIB   "${TORCH_LIB_DIR}/c10${ML_LIBEXT}")
+ else()
+-  set(TORCH_LIB "${ML_BASE_PATH}/lib/libtorch_cpu${ML_LIBEXT}")
+-  set(C10_LIB   "${ML_BASE_PATH}/lib/libc10${ML_LIBEXT}")
++  set(TORCH_LIB "${TORCH_LIB_DIR}/libtorch_cpu${ML_LIBEXT}")
++  set(C10_LIB   "${TORCH_LIB_DIR}/libc10${ML_LIBEXT}")
+ endif()
+ 
+ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+diff --git a/include/core/CHashing.h b/include/core/CHashing.h
+index 617f837..8be2bbd 100644
+--- a/include/core/CHashing.h
++++ b/include/core/CHashing.h
+@@ -304,10 +304,11 @@ public:
+     //!   reinterpret_cast<std::size_t>(key) & 0x3 == 0
+     //! \endcode
+     //!
+-    //! Furthermore, you should not serialize the hashed values because
+-    //! they will be different on machines with different endian
+-    //! conventions. If you aren't sure that you can safely use this
+-    //! version then use safeMurmurHash32.
++    //! Furthermore, you should not serialize the hashed values because they
++    //! will be different on machines with different endian conventions. On
++    //! big-endian builds this delegates to safeMurmurHash32 so persisted hash
++    //! values match little-endian builds. If you aren't sure that you can
++    //! safely use this version then use safeMurmurHash32.
+     static std::uint32_t murmurHash32(const void* key, int length, std::uint32_t seed);
+ 
+     //! MurmurHash2: safe 32-bit hash.
+@@ -336,10 +337,11 @@ public:
+     //!   reinterpret_cast<std::size_t>(key) & 0x7 == 0
+     //! \endcode
+     //!
+-    //! Furthermore, you should not serialize the hashed values because
+-    //! they will be different on machines with different endian
+-    //! conventions. If you aren't sure that you can safely use this
+-    //! version then use safeMurmurHash64.
++    //! Furthermore, you should not serialize the hashed values because they
++    //! will be different on machines with different endian conventions. On
++    //! big-endian builds this delegates to safeMurmurHash64 so persisted hash
++    //! values match little-endian builds. If you aren't sure that you can
++    //! safely use this version then use safeMurmurHash64.
+     static std::uint64_t murmurHash64(const void* key, int length, std::uint64_t seed);
+ 
+     //! MurmurHash2: safe 64-bit hash.
+diff --git a/include/core/CIEEE754.h b/include/core/CIEEE754.h
+index 4774d8b..afaf556 100644
+--- a/include/core/CIEEE754.h
++++ b/include/core/CIEEE754.h
+@@ -45,7 +45,8 @@ public:
+     //! as an integer.
+     //! \note The actual "exponent" is "exponent - 1022" in two's complement.
+     struct SDoubleRep {
+-#ifdef __sparc                         // Add any other big endian architectures
++#if defined(__sparc) || (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
++                         __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+         std::uint64_t s_Sign : 1;      // sign bit
+         std::uint64_t s_Exponent : 11; // exponent
+         std::uint64_t s_Mantissa : 52; // mantissa
+@@ -63,13 +64,13 @@ public:
+     //! \note This is closely related to std::frexp for double but returns
+     //! the mantissa interpreted as an integer.
+     static void decompose(double value, std::uint64_t& mantissa, int& exponent) {
+-        SDoubleRep parsed;
+-        static_assert(sizeof(double) == sizeof(SDoubleRep),
+-                      "SDoubleRep definition unsuitable for memcpy to double");
++        std::uint64_t bits;
++        static_assert(sizeof(double) == sizeof(std::uint64_t),
++                      "uint64_t definition unsuitable for memcpy to double");
+         // Use memcpy() rather than union to adhere to strict aliasing rules
+-        std::memcpy(&parsed, &value, sizeof(double));
+-        exponent = static_cast<int>(parsed.s_Exponent) - 1022;
+-        mantissa = parsed.s_Mantissa;
++        std::memcpy(&bits, &value, sizeof(double));
++        exponent = static_cast<int>((bits >> 52) & 0x7FF) - 1022;
++        mantissa = bits & IEEE754_MANTISSA_MASK;
+     }
+ 
+     //! Drop \p bits trailing bits from the mantissa of \p value in a stable way
+diff --git a/include/maths/common/CLbfgs.h b/include/maths/common/CLbfgs.h
+index 1ac4844..514991c 100644
+--- a/include/maths/common/CLbfgs.h
++++ b/include/maths/common/CLbfgs.h
+@@ -258,7 +258,7 @@ private:
+         double fs{f(xs)};
+ 
+         for (std::size_t i = 0; i < MAXIMUM_BACK_TRACKING_ITERATIONS &&
+-                                fs - m_Fx > this->minimumDecrease(s);
++                                m_Fx - fs < this->minimumDecrease(s);
+              ++i) {
+             s *= m_StepScale;
+             xs = m_X - s * m_P;
+diff --git a/include/maths/common/CTools.h b/include/maths/common/CTools.h
+index ec15728..fe52ffe 100644
+--- a/include/maths/common/CTools.h
++++ b/include/maths/common/CTools.h
+@@ -328,18 +328,16 @@ private:
+             //      double value and fastLog uses the same approach
+             //      to extract the mantissa.
+             std::uint64_t dx = 0x10000000000000ull / BINS;
+-            core::CIEEE754::SDoubleRep x;
+-            x.s_Sign = 0;
+-            x.s_Mantissa = (dx / 2) & core::CIEEE754::IEEE754_MANTISSA_MASK;
+-            x.s_Exponent = 1022;
++            std::uint64_t mantissa{(dx / 2) & core::CIEEE754::IEEE754_MANTISSA_MASK};
+             for (std::size_t i = 0; i < BINS;
+-                 ++i, x.s_Mantissa = (x.s_Mantissa + dx) & core::CIEEE754::IEEE754_MANTISSA_MASK) {
++                 ++i, mantissa = (mantissa + dx) & core::CIEEE754::IEEE754_MANTISSA_MASK) {
++                std::uint64_t bits{(std::uint64_t{1022} << 52) | mantissa};
+                 double value;
+-                static_assert(sizeof(double) == sizeof(core::CIEEE754::SDoubleRep),
+-                              "SDoubleRep definition unsuitable for memcpy to double");
++                static_assert(sizeof(double) == sizeof(std::uint64_t),
++                              "uint64_t definition unsuitable for memcpy to double");
+                 // Use memcpy() rather than union to adhere to strict
+                 // aliasing rules
+-                std::memcpy(&value, &x, sizeof(double));
++                std::memcpy(&value, &bits, sizeof(double));
+                 m_Table[i] = stable(std::log2(value));
+             }
+         }
+diff --git a/lib/core/CCrashHandler_Linux.cc b/lib/core/CCrashHandler_Linux.cc
+index 8fe4508..ad49825 100644
+--- a/lib/core/CCrashHandler_Linux.cc
++++ b/lib/core/CCrashHandler_Linux.cc
+@@ -45,6 +45,8 @@ void crashHandler(int sig, siginfo_t* info, void* context) {
+     errorAddress = reinterpret_cast<void*>(uContext->uc_mcontext.arm_pc);
+ #elif defined(__aarch64__)
+     errorAddress = reinterpret_cast<void*>(uContext->uc_mcontext.pc);
++#elif defined(__s390x__)
++    errorAddress = reinterpret_cast<void*>(uContext->uc_mcontext.psw.addr);
+ #elif defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__)
+     errorAddress = reinterpret_cast<void*>(uContext->uc_mcontext.regs->nip);
+ #else
+diff --git a/lib/core/CHashing.cc b/lib/core/CHashing.cc
+index b8a4130..0eeb26e 100644
+--- a/lib/core/CHashing.cc
++++ b/lib/core/CHashing.cc
+@@ -294,6 +294,10 @@ void CHashing::CUniversalHash::generateHashes(std::size_t k,
+ }
+ 
+ std::uint32_t CHashing::murmurHash32(const void* key, int length, std::uint32_t seed) {
++#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
++    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++    return CHashing::safeMurmurHash32(key, length, seed);
++#else
+     constexpr std::uint32_t m = 0x5bd1e995;
+     constexpr int r = 24;
+ 
+@@ -340,6 +344,7 @@ std::uint32_t CHashing::murmurHash32(const void* key, int length, std::uint32_t
+     h ^= h >> 15;
+ 
+     return h;
++#endif
+ }
+ 
+ std::uint32_t CHashing::safeMurmurHash32(const void* key, int length, std::uint32_t seed) {
+@@ -393,6 +398,10 @@ std::uint32_t CHashing::safeMurmurHash32(const void* key, int length, std::uint3
+ }
+ 
+ std::uint64_t CHashing::murmurHash64(const void* key, int length, std::uint64_t seed) {
++#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
++    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++    return CHashing::safeMurmurHash64(key, length, seed);
++#else
+     constexpr std::uint64_t m = 0xc6a4a7935bd1e995ULL;
+     constexpr int r = 47;
+ 
+@@ -451,6 +460,7 @@ std::uint64_t CHashing::murmurHash64(const void* key, int length, std::uint64_t
+     h ^= h >> r;
+ 
+     return h;
++#endif
+ }
+ 
+ std::uint64_t CHashing::safeMurmurHash64(const void* key, int length, std::uint64_t seed) {
+diff --git a/lib/core/CIEEE754.cc b/lib/core/CIEEE754.cc
+index 0b88155..fd60219 100644
+--- a/lib/core/CIEEE754.cc
++++ b/lib/core/CIEEE754.cc
+@@ -46,12 +46,14 @@ double CIEEE754::round(double value, EPrecision precision) {
+ }
+ 
+ double CIEEE754::dropbits(double value, int bits) {
+-    SDoubleRep parsed;
+-    static_assert(sizeof(double) == sizeof(SDoubleRep),
+-                  "SDoubleRep definition unsuitable for memcpy to double");
+-    std::memcpy(&parsed, &value, sizeof(double));
+-    parsed.s_Mantissa &= ((IEEE754_MANTISSA_MASK << bits) & IEEE754_MANTISSA_MASK);
+-    std::memcpy(&value, &parsed, sizeof(double));
++    std::uint64_t rawBits;
++    static_assert(sizeof(double) == sizeof(std::uint64_t),
++                  "uint64_t definition unsuitable for memcpy to double");
++    std::memcpy(&rawBits, &value, sizeof(double));
++    rawBits = (rawBits & ~IEEE754_MANTISSA_MASK) |
++              ((rawBits & IEEE754_MANTISSA_MASK) &
++               ((IEEE754_MANTISSA_MASK << bits) & IEEE754_MANTISSA_MASK));
++    std::memcpy(&value, &rawBits, sizeof(double));
+     return value;
+ }
+ }
+diff --git a/lib/core/CMakeLists.txt b/lib/core/CMakeLists.txt
+index bb9647d..ebaf93e 100644
+--- a/lib/core/CMakeLists.txt
++++ b/lib/core/CMakeLists.txt
+@@ -14,7 +14,8 @@ project("ML Core")
+ set(ML_LINK_LIBRARIES
+   ${ZLIB_LIBRARIES}
+   ${LIBXML2_LIBRARIES}
+-  ${Boost_LIBRARIES})
++  ${Boost_LIBRARIES}
++  ${CMAKE_DL_LIBS})
+ 
+ ml_add_library(MlCore SHARED
+   CBase64Filter.cc
+diff --git a/lib/maths/common/unittest/CLbfgsTest.cc b/lib/maths/common/unittest/CLbfgsTest.cc
+index 3807671..207a928 100644
+--- a/lib/maths/common/unittest/CLbfgsTest.cc
++++ b/lib/maths/common/unittest/CLbfgsTest.cc
+@@ -153,7 +153,7 @@ BOOST_AUTO_TEST_CASE(testSingularHessian) {
+ 
+         TVector x;
+         double fx;
+-        std::tie(x, fx) = lbfgs.minimize(f, g, points[x0[0]], 1e-8, 75);
++        std::tie(x, fx) = lbfgs.minimize(f, g, points[x0[0]], 1e-10, 200);
+ 
+         // Test we're near the minimum.
+         TVector eps{10};
+diff --git a/lib/maths/common/unittest/CToolsTest.cc b/lib/maths/common/unittest/CToolsTest.cc
+index 12a6485..6ee18ca 100644
+--- a/lib/maths/common/unittest/CToolsTest.cc
++++ b/lib/maths/common/unittest/CToolsTest.cc
+@@ -31,6 +31,9 @@
+ 
+ #include <array>
+ #include <bitset>
++#include <climits>
++#include <cstdint>
++#include <cstring>
+ #include <numeric>
+ 
+ BOOST_AUTO_TEST_SUITE(CToolsTest)
+@@ -350,16 +353,19 @@ private:
+     const maths::common::CMixtureDistribution<T>& m_Mixture;
+ };
+ 
+-void printByte(const unsigned char& byte, std::ostream& o) {
+-    o << std::bitset<CHAR_BIT>{byte};
++void printByte(std::uint64_t bits, std::size_t byte, std::ostream& o) {
++    o << std::bitset<CHAR_BIT>{static_cast<unsigned char>(bits >> (CHAR_BIT * byte))};
+ }
+ 
+-template<typename T>
+-std::string printBits(const T& t) {
++std::string printBits(double value) {
++    std::uint64_t bits;
++    static_assert(sizeof(bits) == sizeof(value),
++                  "uint64_t definition unsuitable for memcpy to double");
++    std::memcpy(&bits, &value, sizeof(bits));
++
+     std::ostringstream o;
+-    const unsigned char* byte{reinterpret_cast<const unsigned char*>(&t)};
+-    for (std::size_t s = 0; s < sizeof(t); ++s, ++byte) {
+-        printByte(*byte, o);
++    for (std::size_t byte = 0; byte < sizeof(bits); ++byte) {
++        printByte(bits, byte, o);
+     }
+     return o.str();
+ }
+diff --git a/lib/seccomp/CSystemCallFilter_Linux.cc b/lib/seccomp/CSystemCallFilter_Linux.cc
+index 9d53971..479d5e2 100644
+--- a/lib/seccomp/CSystemCallFilter_Linux.cc
++++ b/lib/seccomp/CSystemCallFilter_Linux.cc
+@@ -84,6 +84,54 @@ const struct sock_filter FILTER[] = {
+ #define __NR_clone3 435
+ #endif
+     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_faccessat, 45, 0),
++#elif defined(__s390x__)
++// The statx, rseq and clone3 syscalls won't be defined on a RHEL/CentOS 7 build
++// machine, but might exist on the kernel we run on
++#ifndef __NR_statx
++#define __NR_statx 379
++#endif
++#ifndef __NR_rseq
++#define __NR_rseq 383
++#endif
++#ifndef __NR_clone3
++#define __NR_clone3 435
++#endif
++#ifndef __NR_statfs64
++#define __NR_statfs64 265
++#endif
++#ifndef __NR_fstatfs64
++#define __NR_fstatfs64 266
++#endif
++#ifndef __NR_sigreturn
++#define __NR_sigreturn 119
++#endif
++#ifndef __NR_gettid
++#define __NR_gettid 236
++#endif
++#ifndef __NR_sigaltstack
++#define __NR_sigaltstack 186
++#endif
++#ifndef __NR_unlinkat
++#define __NR_unlinkat 294
++#endif
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sigaltstack, 62, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_unlinkat, 61, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sigreturn, 60, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_gettid, 59, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_access, 58, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 57, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_dup2, 56, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_unlink, 55, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_stat, 54, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_lstat, 53, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_readlink, 52, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_getdents, 51, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rmdir, 50, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mkdir, 49, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_mknod, 48, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_statfs64, 47, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fstatfs64, 46, 0),
++    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_faccessat, 45, 0),
+ #else
+ #error Unsupported hardware architecture
+ #endif
+diff --git a/s390x/build_ml_cpp.sh b/s390x/build_ml_cpp.sh
+new file mode 100755
+index 0000000..8103d8f
+--- /dev/null
++++ b/s390x/build_ml_cpp.sh
+@@ -0,0 +1,738 @@
++#!/usr/bin/env bash
++# ml-cpp build helpers sourced by build_elasticsearch.sh.
++
++ML_CPP_REPO_URL="${ML_CPP_REPO_URL:-https://github.com/elastic/ml-cpp}"
++ML_CPP_REF="${ML_CPP_REF:-v${PACKAGE_VERSION}}"
++ML_CPP_REPO="${ML_CPP_REPO:-/tmp/mlcpp-ivy}"
++ML_CPP_GRADLE_OPTS=""
++ML_CPP_GRADLE_TASKS="${ML_CPP_GRADLE_TASKS:-buildZip buildDependenciesZip buildNoDependenciesZip}"
++ML_CPP_FORCE_REBUILD="${ML_CPP_FORCE_REBUILD:-false}"
++ML_CPP_SOURCE_DIR="${ML_CPP_SOURCE_DIR:-$SOURCE_ROOT/ml-cpp}"
++ML_CPP_JAVA_HOME="${ML_CPP_JAVA_HOME:-/opt/java/jdk17}"
++ML_CPP_BOOST_ROOT="${ML_CPP_BOOST_ROOT:-/usr/local/gcc133}"
++ML_CPP_BOOST_SOURCE_DIR="${ML_CPP_BOOST_SOURCE_DIR:-$SOURCE_ROOT/boost_1_86_0}"
++ML_PYTORCH_ROOT="${ML_PYTORCH_ROOT:-}"
++ML_PYTORCH_HOME="${ML_PYTORCH_HOME:-}"
++ML_PYTORCH_LIB_DIR="${ML_PYTORCH_LIB_DIR:-}"
++ML_PYTORCH_REPO_URL="${ML_PYTORCH_REPO_URL:-https://github.com/pytorch/pytorch}"
++ML_PYTORCH_REF="${ML_PYTORCH_REF:-v2.7.1}"
++ML_PYTORCH_SOURCE_DIR="${ML_PYTORCH_SOURCE_DIR:-$SOURCE_ROOT/pytorch}"
++ML_PYTORCH_BUILD_FROM_SOURCE="${ML_PYTORCH_BUILD_FROM_SOURCE:-true}"
++ML_PYTORCH_BUILD_PARALLEL_LEVEL="${ML_PYTORCH_BUILD_PARALLEL_LEVEL:-${ML_CPP_BUILD_PARALLEL_LEVEL:-4}}"
++ML_PYTORCH_SUBMODULE_JOBS="${ML_PYTORCH_SUBMODULE_JOBS:-1}"
++PYTHON_BIN="${PYTHON_BIN:-python3}"
++EXPAT_RUNTIME_VERSION="${EXPAT_RUNTIME_VERSION:-2.8.1}"
++EXPAT_RUNTIME_URL="${EXPAT_RUNTIME_URL:-https://github.com/libexpat/libexpat/releases/download/R_2_8_1/expat-2.8.1.tar.bz2}"
++EXPAT_RUNTIME_PREFIX="${EXPAT_RUNTIME_PREFIX:-$SOURCE_ROOT/expat-${EXPAT_RUNTIME_VERSION}-runtime}"
++PYTHON_RUNTIME_LIBRARY_PATH="${PYTHON_RUNTIME_LIBRARY_PATH:-}"
++
++function mlCppRepoPath() {
++    if [[ "$ML_CPP_REPO" == file://* ]]; then
++        printf -- '%s' "${ML_CPP_REPO#file://}"
++    elif [[ "$ML_CPP_REPO" == http://* || "$ML_CPP_REPO" == https://* ]]; then
++        printf -- ''
++    else
++        printf -- '%s' "$ML_CPP_REPO"
++    fi
++}
++
++function mlCppRepoUrl() {
++    if [[ "$ML_CPP_REPO" == file://* || "$ML_CPP_REPO" == http://* || "$ML_CPP_REPO" == https://* ]]; then
++        printf -- '%s' "$ML_CPP_REPO"
++    else
++        printf -- 'file://%s' "$ML_CPP_REPO"
++    fi
++}
++
++function mlCppArtifactDir() {
++    local ml_cpp_repo_path="$1"
++    printf -- '%s/maven/org/elasticsearch/ml/ml-cpp/%s-SNAPSHOT' "$ml_cpp_repo_path" "$PACKAGE_VERSION"
++}
++
++function ensureMlCppDepsZip() {
++    local deps_zip="$1"
++
++    if [[ -f "$deps_zip" ]]; then
++        return 0
++    fi
++
++    printf -- 'ml-cpp deps zip was not found; creating an empty deps artifact at %s.\n' "$deps_zip" |& tee -a "$LOG_FILE"
++    mkdir -p "$(dirname "$deps_zip")"
++    python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1], "w").close()' "$deps_zip"
++}
++
++function runBuildPython() {
++    if [[ -n "$PYTHON_RUNTIME_LIBRARY_PATH" ]]; then
++        env LD_LIBRARY_PATH="$PYTHON_RUNTIME_LIBRARY_PATH" "$PYTHON_BIN" "$@"
++    else
++        env -u LD_LIBRARY_PATH "$PYTHON_BIN" "$@"
++    fi
++}
++
++function expatRuntimeHasPythonSymbol() {
++    local expat_lib="$1"
++
++    [[ -e "$expat_lib" ]] || return 1
++    if command -v nm >/dev/null 2>&1 && nm -D "$expat_lib" 2>/dev/null | awk '{print $NF}' | grep -qx 'XML_SetAllocTrackerActivationThreshold'; then
++        return 0
++    fi
++    if command -v readelf >/dev/null 2>&1 && readelf -Ws "$expat_lib" 2>/dev/null | awk '{print $NF}' | grep -qx 'XML_SetAllocTrackerActivationThreshold'; then
++        return 0
++    fi
++    strings "$expat_lib" 2>/dev/null | grep -q 'XML_SetAllocTrackerActivationThreshold'
++}
++
++function useExistingPythonExpatRuntime() {
++    [[ -e "$EXPAT_RUNTIME_PREFIX/lib/libexpat.so.1" ]] || return 1
++    PYTHON_RUNTIME_LIBRARY_PATH="$EXPAT_RUNTIME_PREFIX/lib"
++    export PYTHON_RUNTIME_LIBRARY_PATH
++}
++
++function configurePythonExpatRuntime() {
++    local expat_source_dir="$SOURCE_ROOT/expat-${EXPAT_RUNTIME_VERSION}"
++    local expat_archive="$SOURCE_ROOT/expat-${EXPAT_RUNTIME_VERSION}.tar.bz2"
++
++    if useExistingPythonExpatRuntime && runBuildPython -c 'import xml.parsers.expat' >/dev/null 2>&1; then
++        return
++    fi
++    PYTHON_RUNTIME_LIBRARY_PATH=""
++
++    printf -- 'Building Expat %s runtime for %s because its system pyexpat runtime is incompatible.\n' "$EXPAT_RUNTIME_VERSION" "$PYTHON_BIN" |& tee -a "$LOG_FILE"
++    rm -rf "$expat_source_dir" "$EXPAT_RUNTIME_PREFIX"
++    curl -SL -o "$expat_archive" "$EXPAT_RUNTIME_URL"
++    tar -xjf "$expat_archive" -C "$SOURCE_ROOT"
++
++    cd "$expat_source_dir"
++    ./configure --prefix="$EXPAT_RUNTIME_PREFIX" --without-docbook --without-examples |& tee -a "$LOG_FILE"
++    make -j "${ML_CPP_BUILD_PARALLEL_LEVEL:-4}" |& tee -a "$LOG_FILE"
++    make install |& tee -a "$LOG_FILE"
++
++    PYTHON_RUNTIME_LIBRARY_PATH="$EXPAT_RUNTIME_PREFIX/lib"
++    export PYTHON_RUNTIME_LIBRARY_PATH
++    if ! expatRuntimeHasPythonSymbol "$EXPAT_RUNTIME_PREFIX/lib/libexpat.so.1"; then
++        printf -- 'Built Expat runtime did not expose XML_SetAllocTrackerActivationThreshold via symbol inspection; validating with Python import instead.\n' |& tee -a "$LOG_FILE"
++    fi
++}
++
++function ensureBuildPythonUsable() {
++    local python_check_output
++
++    if python_check_output="$(runBuildPython -c 'import sys; print(sys.version); import xml.parsers.expat; print("pyexpat ok")' 2>&1)"; then
++        printf -- 'Using build Python %s: %s\n' "$PYTHON_BIN" "$(printf -- '%s\n' "$python_check_output" | head -1)" |& tee -a "$LOG_FILE"
++        return
++    fi
++
++    printf -- 'Build Python %s failed pyexpat import:\n%s\n' "$PYTHON_BIN" "$python_check_output" |& tee -a "$LOG_FILE"
++    if useExistingPythonExpatRuntime && python_check_output="$(runBuildPython -c 'import sys; print(sys.version); import xml.parsers.expat; print("pyexpat ok")' 2>&1)"; then
++        printf -- 'Using build Python %s with existing Expat runtime %s: %s\n' "$PYTHON_BIN" "$EXPAT_RUNTIME_PREFIX" "$(printf -- '%s\n' "$python_check_output" | head -1)" |& tee -a "$LOG_FILE"
++        return
++    fi
++    PYTHON_RUNTIME_LIBRARY_PATH=""
++    configurePythonExpatRuntime
++
++    if ! python_check_output="$(runBuildPython -c 'import sys; print(sys.version); import xml.parsers.expat; print("pyexpat ok")' 2>&1)"; then
++        printf -- 'Build Python %s is still unusable after configuring Expat runtime:\n%s\n' "$PYTHON_BIN" "$python_check_output" |& tee -a "$LOG_FILE"
++        exit 1
++    fi
++
++    printf -- 'Using build Python %s with Expat runtime %s: %s\n' "$PYTHON_BIN" "$EXPAT_RUNTIME_PREFIX" "$(printf -- '%s\n' "$python_check_output" | head -1)" |& tee -a "$LOG_FILE"
++}
++
++function findSystemLibrary() {
++    local library="$1" candidate candidates=("/usr/lib64/$library" "/usr/lib/$library" "/usr/lib/$(uname -m)-linux-gnu/$library")
++    if command -v gcc >/dev/null 2>&1; then
++        candidate="$(gcc -print-file-name="$library" 2>/dev/null || true)"
++        [[ -n "$candidate" && "$candidate" != "$library" ]] && candidates+=("$candidate")
++    fi
++    if command -v ldconfig >/dev/null 2>&1; then
++        candidate="$(ldconfig -p 2>/dev/null | awk -v library="$library" '$1 == library { print $NF; exit }')"
++        [[ -n "$candidate" ]] && candidates+=("$candidate")
++    fi
++    for candidate in "${candidates[@]}"; do [[ -e "$candidate" ]] && readlink -f "$candidate" && return 0; done
++    return 1
++}
++
++function findMlCppBoostLibDir() {
++    local candidate_dir
++
++    for candidate_dir in "$ML_CPP_BOOST_ROOT/lib" "$ML_CPP_BOOST_SOURCE_DIR/stage/lib"; do
++        if [[ -d "$candidate_dir" ]] && find "$candidate_dir" -maxdepth 1 -type f -name 'libboost_program_options*.so.*' -print -quit | grep -q .; then
++            printf -- '%s' "$candidate_dir"
++            return 0
++        fi
++    done
++
++    return 1
++}
++
++function mlCppBoostCompilerTag() {
++    local boost_lib boost_name
++
++    boost_lib="$(find "$ML_CPP_BOOST_ROOT/lib" -maxdepth 1 -type f -name 'libboost_iostreams-gcc*-1_86.*' 2>/dev/null | head -1 || true)"
++    [[ -n "$boost_lib" ]] || return 1
++    boost_name="$(basename "$boost_lib")"
++    if [[ "$boost_name" =~ -(gcc[0-9]+)- ]]; then
++        printf -- '%s' "${BASH_REMATCH[1]}"
++        return 0
++    fi
++    return 1
++}
++
++function patchMlCppS390xBoostDepsZip() {
++    local deps_zip="$1" deps_zip_abs boost_lib_dir staging_dir torch_lib_dir
++
++    ensureMlCppDepsZip "$deps_zip"
++    deps_zip_abs="$(cd "$(dirname "$deps_zip")" && pwd -P)/$(basename "$deps_zip")"
++
++    if ! boost_lib_dir="$(findMlCppBoostLibDir)"; then
++        printf -- 'Unable to find Boost runtime libraries for s390x ml-cpp packaging.\n' |& tee -a "$LOG_FILE"
++        printf -- 'Checked %s/lib and %s/stage/lib.\n' "$ML_CPP_BOOST_ROOT" "$ML_CPP_BOOST_SOURCE_DIR" |& tee -a "$LOG_FILE"
++        exit 1
++    fi
++
++    staging_dir="$(mktemp -d)"
++    mkdir -p "$staging_dir/platform/linux-s390x/lib"
++
++    printf -- 'Adding s390x Boost runtime libraries from %s to %s.\n' "$boost_lib_dir" "$deps_zip" |& tee -a "$LOG_FILE"
++    find "$boost_lib_dir" -maxdepth 1 -type f -name 'libboost*.so.*' ! -name '*unit_test_framework*' ! -name '*prg_exec_monitor*' -exec cp -av {} "$staging_dir/platform/linux-s390x/lib" \; |& tee -a "$LOG_FILE"
++
++    if ! find "$staging_dir/platform/linux-s390x/lib" -maxdepth 1 -type f -name 'libboost*.so.*' -print -quit | grep -q .; then
++        printf -- 'No Boost runtime libraries were staged for s390x ml-cpp packaging.\n' |& tee -a "$LOG_FILE"
++        rm -rf "$staging_dir"
++        exit 1
++    fi
++
++    if ! unzip -Z1 "$deps_zip_abs" 2>/dev/null | grep -qx 'platform/linux-s390x/lib/libtorch_cpu.so' || ! unzip -Z1 "$deps_zip_abs" 2>/dev/null | grep -qx 'platform/linux-s390x/lib/libc10.so'; then
++        if [[ -z "${ML_PYTORCH_LIB_DIR:-}" || ! -f "$ML_PYTORCH_LIB_DIR/libtorch_cpu.so" || ! -f "$ML_PYTORCH_LIB_DIR/libc10.so" ]]; then
++            configureMlCppPytorch
++        fi
++        torch_lib_dir="$ML_PYTORCH_LIB_DIR"
++        printf -- 'Adding s390x PyTorch runtime libraries from %s to %s.\n' "$torch_lib_dir" "$deps_zip" |& tee -a "$LOG_FILE"
++        find "$torch_lib_dir" -maxdepth 1 -type f \( -name 'libtorch*.so*' -o -name 'libc10*.so*' \) -exec cp -av {} "$staging_dir/platform/linux-s390x/lib" \; |& tee -a "$LOG_FILE"
++    fi
++
++    (
++        cd "$staging_dir"; set +e
++        find platform/linux-s390x/lib -maxdepth 1 -type f -print -exec touch -t 2401010000 {} \; | sort | zip -X -u "$deps_zip_abs" -@
++        zip_status=$?; set -e
++        [[ "$zip_status" -eq 12 ]] && printf -- 's390x runtime libraries are already present in %s.\n' "$deps_zip_abs"
++        [[ "$zip_status" -eq 0 || "$zip_status" -eq 12 ]] || exit "$zip_status"
++    ) |& tee -a "$LOG_FILE"
++
++    rm -rf "$staging_dir"
++}
++
++function hasMlCppIvyArtifacts() {
++    local ml_cpp_repo_path="$1"
++    local ml_cpp_artifact_dir
++    local ml_cpp_deps_zip
++    local ml_cpp_nodeps_zip
++
++    [[ -n "$ml_cpp_repo_path" ]] || return 1
++    ml_cpp_artifact_dir="$(mlCppArtifactDir "$ml_cpp_repo_path")"
++    ml_cpp_deps_zip="$ml_cpp_artifact_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-deps.zip"
++    ml_cpp_nodeps_zip="$ml_cpp_artifact_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-nodeps.zip"
++
++    if [[ -f "$ml_cpp_nodeps_zip" ]]; then
++        ensureMlCppDepsZip "$ml_cpp_deps_zip"
++        if [[ -f "$ml_cpp_deps_zip" ]]; then
++            return 0
++        fi
++    fi
++
++    return 1
++}
++
++function getMlCppJavaUrl() {
++    local jruntime=$1
++    local jdist=$2
++    case "${jruntime}" in
++    "Temurin17")
++        echo "https://api.adoptium.net/v3/binary/latest/17/ga/linux/s390x/${jdist}/hotspot/normal/eclipse"
++        ;;
++    esac
++}
++
++function installMlCppJava() {
++    if [[ -x "$ML_CPP_JAVA_HOME/bin/java" ]]; then
++        return
++    fi
++
++    printf -- "Download and install Java 17 for ml-cpp build \n"
++    cd "$SOURCE_ROOT"
++    sudo mkdir -p "$ML_CPP_JAVA_HOME"
++    curl -SL -o jdk17.tar.gz "$(getMlCppJavaUrl Temurin17 jdk)"
++    sudo tar -zxf jdk17.tar.gz -C "$ML_CPP_JAVA_HOME" --strip-components 1
++}
++
++function installMlCppBoost() {
++    local boost_args
++    local boost_iostreams
++    local zlib_lib
++    local zlib_libdir
++
++    if find "$ML_CPP_BOOST_ROOT" -path '*/BoostConfig.cmake' -print -quit 2>/dev/null | grep -q .; then
++        boost_iostreams="$(find "$ML_CPP_BOOST_ROOT/lib" -maxdepth 1 -type f -name 'libboost_iostreams*.so*' 2>/dev/null | head -1 || true)"
++        if [[ -n "$boost_iostreams" ]] && nm -D "$boost_iostreams" 2>/dev/null | c++filt | grep -q 'boost::iostreams::zlib::deflated'; then
++            printf -- 'Using existing Boost 1.86 installation at %s\n' "$ML_CPP_BOOST_ROOT" |& tee -a "$LOG_FILE"
++            return
++        fi
++        printf -- 'Existing Boost 1.86 installation lacks zlib iostreams support; rebuilding.\n' |& tee -a "$LOG_FILE"
++        sudo rm -rf "$ML_CPP_BOOST_ROOT/include/boost" "$ML_CPP_BOOST_ROOT/lib/libboost_"* "$ML_CPP_BOOST_ROOT/lib/cmake/Boost"* "$ML_CPP_BOOST_ROOT/lib/cmake/boost_"*
++        rm -rf "$ML_CPP_BOOST_SOURCE_DIR"
++    fi
++
++    printf -- 'Building Boost 1.86 for ml-cpp.\n' |& tee -a "$LOG_FILE"
++    cd "$SOURCE_ROOT"
++    if [[ ! -d "$ML_CPP_BOOST_SOURCE_DIR" ]]; then
++        curl -SL -o boost_1_86_0.tar.bz2 https://archives.boost.io/release/1.86.0/source/boost_1_86_0.tar.bz2
++        tar -xjf boost_1_86_0.tar.bz2
++    fi
++
++    cd "$ML_CPP_BOOST_SOURCE_DIR"
++    ./bootstrap.sh --without-libraries=context,coroutine,graph_parallel,mpi,python --without-icu |& tee -a "$LOG_FILE"
++    zlib_lib="$(find /usr/lib64 /usr/lib /lib64 /lib /usr/lib/s390x-linux-gnu /lib/s390x-linux-gnu -maxdepth 1 -name 'libz.so' 2>/dev/null | head -1 || true)"
++    zlib_libdir="$(dirname "${zlib_lib:-/usr/lib64/libz.so}")"
++    boost_args=(--with-iostreams --with-filesystem --with-program_options --with-regex --with-date_time --with-log --with-thread --with-test --layout=versioned --disable-icu pch=off optimization=speed inlining=full define=BOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS define=BOOST_LOG_WITHOUT_DEBUG_OUTPUT define=BOOST_LOG_WITHOUT_EVENT_LOG define=BOOST_LOG_WITHOUT_SYSLOG define=BOOST_LOG_WITHOUT_IPC define=_FORTIFY_SOURCE=2 "-sZLIB_INCLUDE=/usr/include" "-sZLIB_LIBPATH=$zlib_libdir" "cxxflags=-std=gnu++17 -fstack-protector" "cflags=-D__STDC_FORMAT_MACROS" "linkflags=-std=gnu++17 -Wl,-z,relro -Wl,-z,now")
++    ./b2 -j"${ML_CPP_BUILD_PARALLEL_LEVEL:-4}" "${boost_args[@]}" |& tee -a "$LOG_FILE"
++    sudo ./b2 install --prefix="$ML_CPP_BOOST_ROOT" "${boost_args[@]}" |& tee -a "$LOG_FILE"
++}
++
++function installMlCppSystemPrefixLinks() {
++    local libxml2_path
++
++    sudo mkdir -p "$ML_CPP_BOOST_ROOT/include" "$ML_CPP_BOOST_ROOT/lib"
++
++    if [[ -d /usr/include/libxml2 && ! -e "$ML_CPP_BOOST_ROOT/include/libxml2" ]]; then
++        sudo ln -s /usr/include/libxml2 "$ML_CPP_BOOST_ROOT/include/libxml2"
++    fi
++
++    if libxml2_path="$(findSystemLibrary libxml2.so)"; then
++        sudo ln -sfn "$libxml2_path" "$ML_CPP_BOOST_ROOT/lib/libxml2.so"
++    else
++        printf -- 'Warning: unable to locate system libxml2.so for ml-cpp prefix links.\n' |& tee -a "$LOG_FILE"
++    fi
++}
++
++function cleanStaleMlCppBuildDir() {
++    local build_dir="$ML_CPP_SOURCE_DIR/cmake-build-relwithdebinfo" missing_prefix_lib="$ML_CPP_BOOST_ROOT/lib/libxml2.so"
++    local cmake_cache="$build_dir/CMakeCache.txt" selected_cxx cached_cxx cached_cxx_major
++
++    [[ -d "$build_dir" ]] || return
++
++    if [[ ! -e "$missing_prefix_lib" ]] && grep -R -q -F "$missing_prefix_lib" "$build_dir" 2>/dev/null; then
++        printf -- 'Removing stale ml-cpp CMake build directory that references missing %s.\n' "$missing_prefix_lib" |& tee -a "$LOG_FILE"
++        rm -rf "$build_dir"
++        return
++    fi
++
++    if [[ -f "$cmake_cache" && -n "${CMAKE_CXX_COMPILER:-}" ]]; then
++        selected_cxx="$(command -v "$CMAKE_CXX_COMPILER" 2>/dev/null || printf -- '%s' "$CMAKE_CXX_COMPILER")"
++        cached_cxx="$(sed -n 's/^CMAKE_CXX_COMPILER:[^=]*=//p' "$cmake_cache" | tail -1)"
++        if [[ -n "$cached_cxx" && -x "$cached_cxx" ]]; then
++            cached_cxx_major="$("$cached_cxx" -dumpfullversion -dumpversion 2>/dev/null | cut -d. -f1)"
++            if [[ "$cached_cxx_major" =~ ^[0-9]+$ && "$cached_cxx_major" -lt 9 ]]; then
++                printf -- 'Removing stale ml-cpp CMake build directory configured with C++20-incompatible compiler %s.\n' "$cached_cxx" |& tee -a "$LOG_FILE"
++                rm -rf "$build_dir"
++                return
++            fi
++        fi
++        if [[ -n "$cached_cxx" && "$cached_cxx" != "$selected_cxx" && "$cached_cxx" != "$CMAKE_CXX_COMPILER" ]]; then
++            printf -- 'Removing stale ml-cpp CMake build directory configured with %s; selected compiler is %s.\n' "$cached_cxx" "$selected_cxx" |& tee -a "$LOG_FILE"
++            rm -rf "$build_dir"
++        fi
++    fi
++}
++
++function installMlCppBinutilsAliases() {
++    [[ "$(uname -m)" == "s390x" ]] || return
++
++    local objcopy_path strip_path
++    objcopy_path="$(command -v objcopy || true)"
++    strip_path="$(command -v strip || true)"
++
++    if [[ -z "$objcopy_path" || -z "$strip_path" ]]; then
++        printf -- 'binutils objcopy and strip are required for the s390x ml-cpp strip task.\n' |& tee -a "$LOG_FILE"
++        exit 1
++    fi
++
++    sudo ln -sfn "$objcopy_path" /usr/local/bin/s390x-linux-gnu-objcopy
++    sudo ln -sfn "$strip_path" /usr/local/bin/s390x-linux-gnu-strip
++}
++
++function mlCppS390xPatchLooksApplied() {
++    [[ -f "cmake/linux-s390x.cmake" ]] || return 1
++    [[ -f "cmake/architecture/s390x.cmake" ]] || return 1
++    grep -q "linux-s390x" ".buildkite/scripts/steps/create_dra.sh" || return 1
++    grep -q "linux-s390x" "build.gradle" || return 1
++    grep -q "s390x" "3rd_party/3rd_party.cmake" || return 1
++    grep -q "ML_PYTORCH_LIB_DIR" "3rd_party/3rd_party.cmake" || return 1
++    grep -q "ML_ARCH_PROCESSOR" "cmake/architecture/s390x.cmake" || return 1
++    grep -q "ENV{ML_GCC_COMPILER}" "cmake/compiler/gcc.cmake" || return 1
++    grep -q "ENV{ML_BOOST_COMPILER_VER}" "cmake/variables.cmake" || return 1
++}
++
++function verifyMlCppRepo() {
++    local ml_cpp_repo_path ml_cpp_artifact_dir missing_artifacts=()
++
++    ml_cpp_repo_path="$(mlCppRepoPath)"
++
++    if [[ -n "$ml_cpp_repo_path" && ! -d "$ml_cpp_repo_path" ]]; then
++        printf -- 'Required ml-cpp Ivy repository not found at %s.\n' "$ml_cpp_repo_path" |& tee -a "$LOG_FILE"
++        printf -- 'The ml-cpp build did not create the expected Ivy repository.\n' |& tee -a "$LOG_FILE"
++        exit 1
++    fi
++
++    if [[ -n "$ml_cpp_repo_path" ]]; then
++        ml_cpp_artifact_dir="$(mlCppArtifactDir "$ml_cpp_repo_path")"
++        if hasMlCppIvyArtifacts "$ml_cpp_repo_path"; then
++            return 0
++        fi
++        for artifact in "$ml_cpp_artifact_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-deps.zip" "$ml_cpp_artifact_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-nodeps.zip"; do
++            [[ -f "$artifact" ]] || missing_artifacts+=("$artifact")
++        done
++
++        if (( ${#missing_artifacts[@]} > 0 )); then
++            printf -- 'Required s390x ml-cpp artifacts are missing:\n' |& tee -a "$LOG_FILE"
++            printf -- '  %s\n' "${missing_artifacts[@]}" |& tee -a "$LOG_FILE"
++            printf -- 'The ml-cpp build did not create the expected deps/nodeps artifacts.\n' |& tee -a "$LOG_FILE"
++            exit 1
++        fi
++    fi
++}
++
++function configureMlCppRepo() {
++    local ml_cpp_repo_url
++
++    verifyMlCppRepo
++    ml_cpp_repo_url="$(mlCppRepoUrl)"
++    ML_CPP_GRADLE_OPTS="-Dbuild.ml_cpp.repo=$ml_cpp_repo_url"
++    export ML_CPP_REPO ML_CPP_GRADLE_OPTS
++    grep -q "ML_CPP_REPO" "$BUILD_ENV" || printf -- "export ML_CPP_REPO=%q\n" "$ML_CPP_REPO" >> "$BUILD_ENV"
++    grep -q "ML_CPP_GRADLE_OPTS" "$BUILD_ENV" || printf -- "export ML_CPP_GRADLE_OPTS=%q\n" "$ML_CPP_GRADLE_OPTS" >> "$BUILD_ENV"
++    printf -- "Using ml-cpp Ivy repository: %s\n" "$ml_cpp_repo_url" |& tee -a "$LOG_FILE"
++}
++
++function resolveMlCppPytorchRoot() {
++    local root="$1"
++    local include_dir="$root/include"
++
++    if [[ -d "$root/include/pytorch/torch" || -d "$root/include/pytorch/c10" ]]; then
++        include_dir="$root/include/pytorch"
++    fi
++
++    if [[ -d "$include_dir" && -f "$root/lib/libtorch_cpu.so" && -f "$root/lib/libc10.so" ]]; then
++        ML_PYTORCH_HOME="$include_dir"
++        ML_PYTORCH_LIB_DIR="$root/lib"
++        return 0
++    fi
++    return 1
++}
++
++function resolveMlCppPytorchSourceBuild() {
++    local root="$1"
++    local lib_dir="$root/build/lib"
++
++    if [[ -d "$root/torch/csrc/api/include" && -f "$lib_dir/libtorch_cpu.so" && -f "$lib_dir/libc10.so" ]]; then
++        ML_PYTORCH_HOME="$root"
++        ML_PYTORCH_LIB_DIR="$lib_dir"
++        return 0
++    fi
++    return 1
++}
++
++function validateMlCppPytorch() {
++    if [[ -z "$ML_PYTORCH_HOME" || -z "$ML_PYTORCH_LIB_DIR" ]]; then
++        printf -- 'ML_PYTORCH_HOME and ML_PYTORCH_LIB_DIR must both be set for the s390x ml-cpp build.\n' |& tee -a "$LOG_FILE"
++        [[ -n "${ML_PYTORCH_SEARCH_PATHS:-}" ]] && printf -- 'Searched for a GCC13 PyTorch root in:\n%s\n' "$ML_PYTORCH_SEARCH_PATHS" |& tee -a "$LOG_FILE"
++        printf -- 'Provide ML_PYTORCH_ROOT, or mount/copy the GCC13 PyTorch bundle to one of the searched locations.\n' |& tee -a "$LOG_FILE"
++        exit 1
++    fi
++    [[ -d "$ML_PYTORCH_HOME" ]] || { printf -- 'ML_PYTORCH_HOME does not exist: %s\n' "$ML_PYTORCH_HOME" |& tee -a "$LOG_FILE"; exit 1; }
++    [[ -f "$ML_PYTORCH_LIB_DIR/libtorch_cpu.so" && -f "$ML_PYTORCH_LIB_DIR/libc10.so" ]] || { printf -- 'ML_PYTORCH_LIB_DIR must contain libtorch_cpu.so and libc10.so: %s\n' "$ML_PYTORCH_LIB_DIR" |& tee -a "$LOG_FILE"; exit 1; }
++
++    if command -v readelf >/dev/null 2>&1; then
++        local torch_comment
++        torch_comment="$(readelf -p .comment "$ML_PYTORCH_LIB_DIR/libtorch_cpu.so" 2>/dev/null || true)"
++        if [[ "$torch_comment" == *"GCC:"* && ! "$torch_comment" =~ GCC:.*13\. ]]; then
++            printf -- 'Warning: libtorch_cpu.so was not built with GCC 13; continuing with the available toolchain.\n' |& tee -a "$LOG_FILE"
++        fi
++    fi
++}
++
++function isSelectedCompilerPytorchLib() {
++    local libtorch_cpu="$1"
++    local torch_comment
++    local selected_major
++
++    if [[ ! -f "$libtorch_cpu" ]]; then
++        return 1
++    fi
++
++    if ! command -v readelf >/dev/null 2>&1; then
++        return 0
++    fi
++
++    torch_comment="$(readelf -p .comment "$libtorch_cpu" 2>/dev/null || true)"
++    if [[ "$torch_comment" != *"GCC:"* ]]; then
++        return 0
++    fi
++
++    selected_major="$("$CXX" -dumpfullversion -dumpversion 2>/dev/null | cut -d. -f1 || true)"
++    [[ -n "$selected_major" && "$torch_comment" =~ GCC:.*${selected_major}\. ]]
++}
++
++function configureGcc13Toolchain() {
++    local version gcc_bin gxx_bin default_gcc_major
++
++    ML_PYTORCH_GCC13_AVAILABLE="false"
++    if [[ -f /opt/rh/gcc-toolset-13/enable ]]; then
++        # shellcheck disable=SC1091
++        source /opt/rh/gcc-toolset-13/enable
++    fi
++
++    if [[ -x /opt/rh/gcc-toolset-13/root/usr/bin/gcc && -x /opt/rh/gcc-toolset-13/root/usr/bin/g++ ]]; then
++        CC="/opt/rh/gcc-toolset-13/root/usr/bin/gcc"; CXX="/opt/rh/gcc-toolset-13/root/usr/bin/g++"
++        export CC CXX ML_PYTORCH_GCC13_AVAILABLE="true" CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX"
++        printf -- 'Using GCC 13 toolchain for PyTorch: CC=%s CXX=%s\n' "$CC" "$CXX" |& tee -a "$LOG_FILE"
++        return
++    fi
++
++    for version in 15 14 13 12 11 10 9; do
++        for gcc_bin in "gcc-$version" "gcc$version"; do
++            [[ "$gcc_bin" == gcc-* ]] && gxx_bin="g++-${version}" || gxx_bin="g++${version}"
++            if command -v "$gcc_bin" >/dev/null 2>&1 && command -v "$gxx_bin" >/dev/null 2>&1; then
++                CC="$(command -v "$gcc_bin")"; CXX="$(command -v "$gxx_bin")"
++                export CC CXX ML_PYTORCH_GCC13_AVAILABLE="true" CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX"
++                printf -- 'Using GCC %s toolchain for PyTorch: CC=%s CXX=%s\n' "$version" "$CC" "$CXX" |& tee -a "$LOG_FILE"
++                return
++            fi
++        done
++    done
++
++    if command -v gcc >/dev/null 2>&1 && command -v g++ >/dev/null 2>&1; then
++        default_gcc_major="$(gcc -dumpfullversion -dumpversion 2>/dev/null | cut -d. -f1)"
++        if [[ "$default_gcc_major" =~ ^[0-9]+$ && "$default_gcc_major" -ge 9 ]]; then
++            CC="$(command -v gcc)"; CXX="$(command -v g++)"
++            export CC CXX ML_PYTORCH_GCC13_AVAILABLE="true" CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX"
++            printf -- 'Using default GCC %s toolchain for PyTorch: CC=%s CXX=%s\n' "$default_gcc_major" "$CC" "$CXX" |& tee -a "$LOG_FILE"
++            return
++        fi
++    fi
++
++    CC="${CC:-gcc}"; CXX="${CXX:-g++}"
++    export CC CXX CMAKE_C_COMPILER="$CC" CMAKE_CXX_COMPILER="$CXX"
++    printf -- 'Warning: GCC >= 9 was not found; building PyTorch with CC=%s CXX=%s.\n' "$CC" "$CXX" |& tee -a "$LOG_FILE"
++    printf -- 'Using selected toolchain for PyTorch: CC=%s CXX=%s\n' "$CC" "$CXX" |& tee -a "$LOG_FILE"
++}
++
++function configureGitForLargePytorchClone() {
++    git config --global http.version HTTP/1.1 || true
++    git config --global http.postBuffer 524288000 || true
++    git config --global core.compression 0 || true
++    git config --global submodule.fetchJobs "$ML_PYTORCH_SUBMODULE_JOBS" || true
++}
++
++function buildMlCppPytorch() {
++    [[ "$ML_PYTORCH_BUILD_FROM_SOURCE" == "true" ]] || return
++
++    configureGcc13Toolchain
++    ensureBuildPythonUsable
++    configureGitForLargePytorchClone
++
++    if [[ -d "$ML_PYTORCH_SOURCE_DIR" && ! -f "$ML_PYTORCH_SOURCE_DIR/torch/abi-check.cpp" ]]; then
++        printf -- 'Removing incomplete PyTorch source at %s; missing torch/abi-check.cpp.\n' "$ML_PYTORCH_SOURCE_DIR" |& tee -a "$LOG_FILE"
++        rm -rf "$ML_PYTORCH_SOURCE_DIR"
++    fi
++
++    if resolveMlCppPytorchSourceBuild "$ML_PYTORCH_SOURCE_DIR"; then
++        if isSelectedCompilerPytorchLib "$ML_PYTORCH_LIB_DIR/libtorch_cpu.so"; then
++            printf -- 'Using existing PyTorch source build: source=%s lib=%s\n' "$ML_PYTORCH_HOME" "$ML_PYTORCH_LIB_DIR" |& tee -a "$LOG_FILE"
++            return
++        fi
++        if [[ "$ML_PYTORCH_GCC13_AVAILABLE" != "true" ]]; then
++            printf -- 'Using existing PyTorch build because no preferred compiler was found.\n' |& tee -a "$LOG_FILE"
++            return
++        fi
++        printf -- 'Existing PyTorch source build was not built with the selected compiler; rebuilding it.\n' |& tee -a "$LOG_FILE"
++        rm -rf "$ML_PYTORCH_SOURCE_DIR/build"
++        ML_PYTORCH_HOME=""
++        ML_PYTORCH_LIB_DIR=""
++    fi
++
++    printf -- 'Building PyTorch %s from source for s390x ml-cpp.\n' "$ML_PYTORCH_REF" |& tee -a "$LOG_FILE"
++    if [[ ! -d "$ML_PYTORCH_SOURCE_DIR/.git" ]]; then
++        local clone_attempt
++        for clone_attempt in 1 2 3 4 5; do
++            rm -rf "$ML_PYTORCH_SOURCE_DIR"
++            if git clone --depth 1 --branch "$ML_PYTORCH_REF" "$ML_PYTORCH_REPO_URL" "$ML_PYTORCH_SOURCE_DIR"; then
++                break
++            fi
++            if [[ "$clone_attempt" == "5" ]]; then
++                return 1
++            fi
++            printf -- 'PyTorch clone failed on attempt %s; retrying with a clean source directory.\n' "$clone_attempt" |& tee -a "$LOG_FILE"
++            sleep $((clone_attempt * 15))
++        done
++    else
++        printf -- 'Using existing PyTorch source at %s\n' "$ML_PYTORCH_SOURCE_DIR" |& tee -a "$LOG_FILE"
++    fi
++
++    cd "$ML_PYTORCH_SOURCE_DIR"
++    git submodule sync --recursive
++    local submodule_attempt required_submodule_file incomplete_submodule
++    for submodule_attempt in 1 2 3 4 5; do
++        if git submodule update --init --recursive --jobs "${ML_PYTORCH_SUBMODULE_JOBS}"; then
++            incomplete_submodule=0
++            for required_submodule_file in third_party/FP16/CMakeLists.txt third_party/FXdiv/CMakeLists.txt third_party/psimd/CMakeLists.txt; do
++                if [[ ! -f "$required_submodule_file" ]]; then
++                    printf -- 'PyTorch submodule update left %s missing; removing %s before retry.\n' "$required_submodule_file" "${required_submodule_file%/*}" |& tee -a "$LOG_FILE"
++                    rm -rf "${required_submodule_file%/*}"
++                    incomplete_submodule=1
++                fi
++            done
++            if [[ "$incomplete_submodule" == "0" ]]; then
++                break
++            fi
++        fi
++        if [[ "$submodule_attempt" == "5" ]]; then
++            return 1
++        fi
++        printf -- 'PyTorch submodule update failed on attempt %s; retrying.\n' "$submodule_attempt" |& tee -a "$LOG_FILE"
++        cd "$SOURCE_ROOT"
++        rm -rf "$ML_PYTORCH_SOURCE_DIR"
++        git clone --depth 1 --branch "$ML_PYTORCH_REF" "$ML_PYTORCH_REPO_URL" "$ML_PYTORCH_SOURCE_DIR" || return 1
++        cd "$ML_PYTORCH_SOURCE_DIR"
++        git submodule sync --recursive || true
++        sleep $((submodule_attempt * 15))
++    done
++
++    if ! runBuildPython -m pip --version >/dev/null 2>&1; then
++        local python_version get_pip_url
++        python_version="$(runBuildPython -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
++        get_pip_url="https://bootstrap.pypa.io/get-pip.py"
++        if [[ "$python_version" == "3.9" ]]; then
++            get_pip_url="https://bootstrap.pypa.io/pip/3.9/get-pip.py"
++        elif [[ "$python_version" == "3.8" ]]; then
++            get_pip_url="https://bootstrap.pypa.io/pip/3.8/get-pip.py"
++        fi
++        curl -SL -o get-pip.py "$get_pip_url"
++        runBuildPython get-pip.py --user
++    fi
++
++    local pip_user_opts=(--user)
++    runBuildPython -m pip install --help | grep -q -- '--break-system-packages' && pip_user_opts+=(--break-system-packages)
++
++    cd "$ML_PYTORCH_SOURCE_DIR"
++    runBuildPython -m pip install "${pip_user_opts[@]}" --upgrade pip setuptools wheel cython 'scikit-build<0.18'
++    runBuildPython -m pip install "${pip_user_opts[@]}" -r requirements.txt
++    runBuildPython -m pip install "${pip_user_opts[@]}" pyyaml typing_extensions numpy ninja cmake cffi sympy networkx jinja2 fsspec filelock cython
++
++    export PATH="$HOME/.local/bin:$PATH"
++    export MAX_JOBS="$ML_PYTORCH_BUILD_PARALLEL_LEVEL"
++    export BUILD_SHARED_LIBS=ON
++    for disabled in BUILD_TEST BUILD_PYTHON BUILD_CAFFE2_OPS USE_CUDA USE_ROCM USE_DISTRIBUTED USE_MPI USE_NCCL USE_GLOO USE_MKLDNN USE_FBGEMM USE_NNPACK USE_QNNPACK USE_XNNPACK USE_KINETO USE_MPS; do
++        export "$disabled=0"
++    done
++
++    if [[ -f "$ML_PYTORCH_SOURCE_DIR/build/CMakeCache.txt" ]]; then
++        printf -- 'Removing stale PyTorch CMake build directory before rebuilding libtorch.\n' |& tee -a "$LOG_FILE"
++        rm -rf "$ML_PYTORCH_SOURCE_DIR/build"
++    fi
++
++    cd "$ML_PYTORCH_SOURCE_DIR"
++    runBuildPython "$ML_PYTORCH_SOURCE_DIR/tools/build_libtorch.py" |& tee -a "$LOG_FILE"
++
++    resolveMlCppPytorchSourceBuild "$ML_PYTORCH_SOURCE_DIR" || { printf -- 'PyTorch build did not create required libtorch artifacts under %s/build/lib.\n' "$ML_PYTORCH_SOURCE_DIR" |& tee -a "$LOG_FILE"; exit 1; }
++}
++
++function configureMlCppPytorch() {
++    local candidate candidates
++
++    if [[ -n "$ML_PYTORCH_ROOT" ]]; then
++        if ! resolveMlCppPytorchRoot "$ML_PYTORCH_ROOT"; then
++            printf -- 'ML_PYTORCH_ROOT must contain include/, lib/libtorch_cpu.so and lib/libc10.so: %s\n' "$ML_PYTORCH_ROOT" |& tee -a "$LOG_FILE"
++            exit 1
++        fi
++    elif [[ -z "$ML_PYTORCH_HOME" && -z "$ML_PYTORCH_LIB_DIR" ]]; then
++        candidates=("$ML_CPP_SOURCE_DIR/deps/pytorch-gcc13" "$SOURCE_ROOT/deps/pytorch-gcc13" "$SOURCE_ROOT/pytorch-gcc13" "/usr/local/gcc133" "/opt/pytorch-gcc13" "/usr/local/pytorch-gcc13")
++        ML_PYTORCH_SEARCH_PATHS="$(printf -- '  %s\n' "${candidates[@]}")"
++        for candidate in "${candidates[@]}"; do
++            resolveMlCppPytorchRoot "$candidate" && break
++        done
++    fi
++
++    [[ -n "$ML_PYTORCH_HOME" && -n "$ML_PYTORCH_LIB_DIR" ]] || buildMlCppPytorch
++
++    validateMlCppPytorch
++    export ML_PYTORCH_HOME ML_PYTORCH_LIB_DIR
++    grep -q "ML_PYTORCH_HOME" "$BUILD_ENV" || printf -- "export ML_PYTORCH_HOME=%q\n" "$ML_PYTORCH_HOME" >> "$BUILD_ENV"
++    grep -q "ML_PYTORCH_LIB_DIR" "$BUILD_ENV" || printf -- "export ML_PYTORCH_LIB_DIR=%q\n" "$ML_PYTORCH_LIB_DIR" >> "$BUILD_ENV"
++    printf -- "Using GCC13 PyTorch for ml-cpp: include=%s lib=%s\n" "$ML_PYTORCH_HOME" "$ML_PYTORCH_LIB_DIR" |& tee -a "$LOG_FILE"
++}
++
++function buildMlCpp() {
++    local ml_cpp_repo_path ml_cpp_artifact_dir ml_cpp_dist_dir ml_cpp_deps_zip ml_cpp_nodeps_zip ml_cpp_cmake_flags="${CMAKE_FLAGS:-}" boost_compiler_tag
++
++    ml_cpp_repo_path="$(mlCppRepoPath)"
++    if [[ -z "$ml_cpp_repo_path" ]]; then
++        printf -- 'Using remote ml-cpp Ivy repository: %s\n' "$(mlCppRepoUrl)" |& tee -a "$LOG_FILE"
++        configureMlCppRepo
++        return
++    fi
++
++    ml_cpp_artifact_dir="$(mlCppArtifactDir "$ml_cpp_repo_path")"
++    if [[ "$ML_CPP_FORCE_REBUILD" != "true" ]] && hasMlCppIvyArtifacts "$ml_cpp_repo_path"; then
++        printf -- 'Using existing s390x ml-cpp Ivy artifacts from %s\n' "$ml_cpp_artifact_dir" |& tee -a "$LOG_FILE"
++        patchMlCppS390xBoostDepsZip "$ml_cpp_artifact_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-deps.zip"
++        configureMlCppRepo
++        return
++    fi
++
++    [[ -d "$ML_CPP_SOURCE_DIR" ]] || { printf -- 'ml-cpp source directory not found: %s\n' "$ML_CPP_SOURCE_DIR" |& tee -a "$LOG_FILE"; exit 1; }
++
++    installMlCppJava
++    installMlCppBoost
++    installMlCppSystemPrefixLinks
++    installMlCppBinutilsAliases
++    configureMlCppPytorch
++    configureGcc13Toolchain
++    cleanStaleMlCppBuildDir
++
++    cd "$ML_CPP_SOURCE_DIR"
++    ml_cpp_dist_dir="$ML_CPP_SOURCE_DIR/build/distributions"
++    ml_cpp_deps_zip="$ml_cpp_dist_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-deps.zip"
++    ml_cpp_nodeps_zip="$ml_cpp_dist_dir/ml-cpp-${PACKAGE_VERSION}-SNAPSHOT-nodeps.zip"
++    if [[ -f "$ml_cpp_nodeps_zip" ]]; then
++        [[ -f "$ml_cpp_deps_zip" ]] || ensureMlCppDepsZip "$ml_cpp_deps_zip"
++        patchMlCppS390xBoostDepsZip "$ml_cpp_deps_zip"
++        mkdir -p "$ml_cpp_artifact_dir"
++        cp "$ml_cpp_deps_zip" "$ml_cpp_nodeps_zip" "$ml_cpp_artifact_dir/"
++        printf -- 'Using existing ml-cpp artifacts from %s\n' "$ml_cpp_dist_dir" |& tee -a "$LOG_FILE"
++        configureMlCppRepo
++        return
++    fi
++
++    printf -- 'Building s390x ml-cpp artifacts.\n' |& tee -a "$LOG_FILE"
++    export GRADLE_USER_HOME=$SOURCE_ROOT/.gradle
++    if [[ -n "${CMAKE_C_COMPILER:-}" && -n "${CMAKE_CXX_COMPILER:-}" ]]; then
++        export ML_GCC_COMPILER="$CMAKE_C_COMPILER" ML_GXX_COMPILER="$CMAKE_CXX_COMPILER"
++        ml_cpp_cmake_flags="${ml_cpp_cmake_flags} -DCMAKE_C_COMPILER=$CMAKE_C_COMPILER -DCMAKE_CXX_COMPILER=$CMAKE_CXX_COMPILER -DML_GCC_COMPILER=$CMAKE_C_COMPILER -DML_GXX_COMPILER=$CMAKE_CXX_COMPILER"
++    fi
++    if boost_compiler_tag="$(mlCppBoostCompilerTag)"; then
++        export ML_BOOST_COMPILER_VER="$boost_compiler_tag"
++        ml_cpp_cmake_flags="${ml_cpp_cmake_flags} -DBoost_COMPILER=$boost_compiler_tag"
++    fi
++    CPP_CROSS_COMPILE=s390x CMAKE_BUILD_PARALLEL_LEVEL="${ML_CPP_BUILD_PARALLEL_LEVEL:-4}" JAVA_HOME="$ML_CPP_JAVA_HOME" PATH="$ML_CPP_JAVA_HOME/bin:$PATH" CMAKE_FLAGS="$ml_cpp_cmake_flags" BOOST_ROOT="$ML_CPP_BOOST_ROOT" ML_PYTORCH_HOME="$ML_PYTORCH_HOME" ML_PYTORCH_LIB_DIR="$ML_PYTORCH_LIB_DIR" ./gradlew ${ML_CPP_GRADLE_TASKS} -Dbuild.snapshot=true |& tee -a "$LOG_FILE"
++
++    [[ -f "$ml_cpp_deps_zip" ]] || ensureMlCppDepsZip "$ml_cpp_deps_zip"
++    patchMlCppS390xBoostDepsZip "$ml_cpp_deps_zip"
++    mkdir -p "$ml_cpp_artifact_dir"
++    cp "$ml_cpp_deps_zip" "$ml_cpp_nodeps_zip" "$ml_cpp_artifact_dir/"
++
++    configureMlCppRepo
++}
++
++if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
++    buildMlCpp "$@"
++fi
