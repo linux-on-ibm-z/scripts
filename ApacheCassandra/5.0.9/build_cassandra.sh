@@ -320,8 +320,6 @@ function runTest() {
     if [[ "$TESTS" == "true" ]]; then
         printf -- "TEST Flag is set, continue with running test \n" >>"$LOG_FILE"
         cd $CURDIR/cassandra
-        sed -i '468s/?)/?) USING TIMESTAMP 1000/' test/unit/org/apache/cassandra/cql3/ViewPKTest.java
-        sed -i '473s/SET/USING TIMESTAMP 2000 SET/' test/unit/org/apache/cassandra/cql3/ViewPKTest.java
         sed -i '/name="test.timeout"/ s/value.*/value="1000000" \/>/' "$CURDIR/cassandra/build.xml"
 
         if [[ "$JAVA_PROVIDED" == "OpenJDK11" && "$DISTRO" == "ubuntu"* ]]; then
