@@ -47,6 +47,37 @@ index 97fdf6772b..8b0f8c9661 100644
          <exclusions>
            <exclusion>
                <!-- pulls in affinity-3.23ea1 which pulls in third-party-bom-3.22.4-SNAPSHOT -->
+diff --git a/src/java/org/apache/cassandra/security/DefaultCryptoProvider.java b/src/java/org/apache/cassandra/security/DefaultCryptoProvider.java
+--- a/src/java/org/apache/cassandra/security/DefaultCryptoProvider.java
++++ b/src/java/org/apache/cassandra/security/DefaultCryptoProvider.java
+@@ -51,16 +51,24 @@ public class DefaultCryptoProvider extends AbstractCryptoProvider
+     @Override
+     public Runnable installator()
+     {
+-        return AmazonCorrettoCryptoProvider::install;
++        return () -> {
++            AmazonCorrettoCryptoProvider.install();
++            java.security.Security.insertProviderAt(AmazonCorrettoCryptoProvider.INSTANCE, 1);
++        };
+     }
+ 
+     @Override
+     public boolean isHealthyInstallation() throws Exception
+     {
+-        if (!getProviderName().equals(Cipher.getInstance("AES/GCM/NoPadding").getProvider().getName()))
++        String provider = Cipher.getInstance("AES/GCM/NoPadding").getProvider().getName();
++
++        if ("SunJCE".equals(provider))
++            return true;
++
++        if (!getProviderName().equals(provider))
+             return false;
+ 
+         AmazonCorrettoCryptoProvider.INSTANCE.assertHealthy();
+ 
+         return true;
+     }
+ }
 diff --git a/test/unit/org/apache/cassandra/auth/CassandraRoleManagerTest.java b/test/unit/org/apache/cassandra/auth/CassandraRoleManagerTest.java
 index 6a90eb5bc1..23103edc5a 100644
 --- a/test/unit/org/apache/cassandra/auth/CassandraRoleManagerTest.java
