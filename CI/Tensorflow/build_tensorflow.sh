@@ -2,7 +2,7 @@
 # © Copyright IBM Corporation 2026
 # LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 
-set -x
+set -ex
 
 cat /etc/os-release
 df -h
@@ -102,7 +102,7 @@ curl -sSL "${PATCH_URL}/patch_vector_ops.txt" -o $work_dir/patch/patch_vector_op
 patch -p1 < $work_dir/patch/patch_file1.txt
 patch -p1 < $work_dir/patch/patch_xnnpack.txt
 patch -p1 < $work_dir/patch/patch_file2.txt
-patch -p1 < $work_dir/patch/patch_BUILD_llvm.txt
+patch -p1 < $work_dir/patch/patch_file_3.txt
 patch -p1 < $work_dir/patch/patch_builtin_fp16.txt
 patch -p1 < $work_dir/patch/patch_vector_ops.txt
 
