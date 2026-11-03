@@ -321,7 +321,7 @@ function buildBoost() {
     sudo ldconfig /usr/local/lib64 /usr/local/lib
     cd $SOURCE_ROOT
     TOOLSET=gcc
-    URL=https://github.com/boostorg/boost/releases/download/boost-$VERSION_BOOST/boost-$VERSION_BOOST.tar.gz
+    URL=https://github.com/boostorg/boost/releases/download/boost-$VERSION_BOOST/boost-$VERSION_BOOST-cmake.tar.gz
     curl -sSL $URL |tar xzf -
     cd boost-1.86.0
     ./bootstrap.sh --with-libraries=context,chrono,date_time,filesystem,program_options,regex,system,thread --prefix=$(pwd)/_build --libdir=$(pwd)/_build/lib
@@ -587,7 +587,7 @@ function buildSnappy() {
     cd $SOURCE_ROOT
     git clone -b $VERSION_SNAPPY --depth 1 https://github.com/google/snappy.git
     cd snappy
-    wget https://raw.githubusercontent.com/couchbase/tlm/8.0.3/deps/packages/snappy/snappy.patch
+    wget https://raw.githubusercontent.com/couchbase/tlm/8.0.0/deps/packages/snappy/snappy.patch
     git apply snappy.patch
     cmake -D CMAKE_INSTALL_PREFIX=$(pwd)/_build \
         -D SNAPPY_BUILD_TESTS=OFF \
@@ -1493,7 +1493,7 @@ function buildSpdlog() {
     FMT_BUILD_DIR=$SOURCE_ROOT/fmt/_build
     git clone -b $VERSION_SPDLOG --depth 1 https://github.com/gabime/spdlog.git
     cd spdlog
-    wget https://raw.githubusercontent.com/couchbase/tlm/8.0.3/deps/packages/spdlog/custom_level_names.patch
+    wget https://raw.githubusercontent.com/couchbase/tlm/8.0.0/deps/packages/spdlog/custom_level_names.patch
     git apply custom_level_names.patch
     mkdir build && cd build
     cmake \
