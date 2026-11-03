@@ -198,17 +198,10 @@ case "$DISTRO" in
 
     configureAndInstall |& tee -a "$LOG_FILE"
         ;;
-"rhel-9.6" | "rhel-9.8" | "rhel-10.0" | "rhel-10.2")
+"rhel-9.6" | "rhel-9.8")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y postgresql postgresql-server postgresql-server-devel postgresql-contrib make gcc gcc-c++ git git perl-IPC-Run diffutils perl-Test-Harness perl-core redhat-rpm-config bzip2 readline-devel zlib-devel wget |& tee -a "$LOG_FILE"
-
-    configureAndInstall |& tee -a "$LOG_FILE"
-        ;;
-"sles-15.7" | "sles-16.0")
-    printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
-    printf -- "Installing dependencies... it may take some time.\n"
-    sudo zypper install -y postgresql postgresql-server postgresql-server-devel postgresql-contrib make gcc gcc-c++ git perl-IPC-Run perl diffutils bzip2 readline-devel zlib-devel wget |& tee -a "$LOG_FILE"
 
     configureAndInstall |& tee -a "$LOG_FILE"
         ;;
