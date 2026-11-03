@@ -140,18 +140,6 @@ index f0e3f47a..0c743344 100644
      )
      rules_rust_dependencies()
      rust_register_toolchains(
-diff --git a/bazel/envoy_binary.bzl b/bazel/envoy_binary.bzl
-index fed61187..d20949b1 100644
---- a/bazel/envoy_binary.bzl
-+++ b/bazel/envoy_binary.bzl
-@@ -85,6 +85,7 @@ def _envoy_linkopts():
-         ],
-         "//conditions:default": [
-             "-pthread",
-+            "-latomic",
-             "-lrt",
-             "-ldl",
-             "-Wl,-z,relro,-z,now",
 diff --git a/bazel/platforms/BUILD b/bazel/platforms/BUILD
 index f204c708..6a3934a6 100644
 --- a/bazel/platforms/BUILD
