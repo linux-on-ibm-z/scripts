@@ -95,7 +95,7 @@ mkdir $work_dir/patch
 curl -sSL "${PATCH_URL}/patch_file1.txt" -o $work_dir/patch/patch_file1.txt
 curl -sSL "${PATCH_URL}/patch_xnnpack.txt" -o $work_dir/patch/patch_xnnpack.txt
 curl -sSL "${PATCH_URL}/patch_file2.txt" -o $work_dir/patch/patch_file2.txt
-curl -sSL "${PATCH_URL}/patch_BUILD_llvm.txt" -o $work_dir/patch/patch_BUILD_llvm.txt
+curl -sSL "${PATCH_URL}/patch_file_3.txt" -o $work_dir/patch/patch_file_3.txt
 curl -sSL "${PATCH_URL}/patch_builtin_fp16.txt" -o $work_dir/patch/patch_builtin_fp16.txt
 curl -sSL "${PATCH_URL}/patch_vector_ops.txt" -o $work_dir/patch/patch_vector_ops.txt
 
