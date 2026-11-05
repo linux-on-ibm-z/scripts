@@ -16,26 +16,23 @@ cat /etc/os-release
 gcc -v 2>&1 | head -3 || true
 ls
 
-sudo rm -rf "$SOURCE_ROOT/build_bazel.sh"* "$SOURCE_ROOT/logs"
-sudo rm -rf .cache "$SOURCE_ROOT/.cache" /root/.cache
-sudo rm -rf "$SOURCE_ROOT/gcc_build" "$SOURCE_ROOT/gcc-11.4.0"
-sudo rm -rf "$SOURCE_ROOT/rules_foreign_cc"
-sudo rm -rf "$SOURCE_ROOT/rules_rust"
+SOURCE_ROOT="$(pwd)"
+
+sudo rm -rf "$SOURCE_ROOT/.cache" /root/.cache
 sudo rm -rf "$SOURCE_ROOT/.rustup" "$SOURCE_ROOT/.cargo"
 sudo rm -rf /root/.rustup /root/.cargo
 sudo rm -rf "$SOURCE_ROOT/bazel/"
 ls
 
-SOURCE_ROOT="$(pwd)"
 CLANG_VERSION="22.1.8"
-BAZEL_VERSION="8.8.1"
-GO_VERSION="1.25.0"
+BAZEL_VERSION="9.3.1"
+GO_VERSION="1.27.3"
 LLVM_HOME_DIR="${SOURCE_ROOT}/clang/LLVM-${CLANG_VERSION}-Linux"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CI/Envoy/patch"
 
 # Pinned bazel-registry commit that matches the dependency versions used below.
 # Do not update this commit independently of the dep versions — they must stay in sync.
-ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/b1cba19104bc62dc70d04cf2f08e84d1c3809f48"
+ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/29dbfbff59651766d176a285744a6861c6ef0751"
 
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x
 export PATH=$JAVA_HOME/bin:$PATH
@@ -118,31 +115,7 @@ SPCFG_EOF
 
   cd "$SOURCE_ROOT/envoy" || { echo "ERROR: envoy dir missing for bazel build"; exit 1; }
 
-  # jinja2 must be installed into the hermetic Python 3.12 that Bazel extracts
-  # under the output base. The genrule replaces PATH with that Python, so system
-  # site-packages is unreachable regardless of PYTHONPATH.
-  # Pre-install if already on disk (warm cache). On cold cache, pass 1 extracts
-  # the hermetic Python, we install into it, pass 2 succeeds via action cache.
-  _jinja2_install() {
-    local _py
-    _py="$(bazel info output_base 2>/dev/null)/external/rules_python++python+python_3_12_s390x-unknown-linux-gnu/bin/python3"
-    [[ -x "$_py" ]] || return 0
-    "$_py" -m pip install --quiet jinja2==3.0.3 markupsafe==2.1.5
-    msg "jinja2: installed into hermetic Python3.12"
-  }
-
-  _jinja2_install
-
-  set +e
   bazel build //source/exe:envoy-static "${_BAZEL_FLAGS[@]}"
-  _rc=$?
-  set -e
-
-  if [[ $_rc -ne 0 ]]; then
-    _jinja2_install
-    msg "jinja2 installed — retrying build"
-    bazel build //source/exe:envoy-static "${_BAZEL_FLAGS[@]}"
-  fi
 
   msglog "Build complete."
   msglog "Binary: ${SOURCE_ROOT}/envoy/bazel-bin/source/exe/envoy-static"
@@ -168,7 +141,7 @@ buildAndInstallClang() {
   rm -rf "$SOURCE_ROOT/clang-build"
   mkdir -p "$SOURCE_ROOT/clang-build"
   cd "$SOURCE_ROOT/clang-build"
-  curl -sSL "${PATCH_URL}/Release-s390x.cmake" -o Release-s390x.cmake
+  curl -fsSL "${PATCH_URL}/Release-s390x.cmake" -o Release-s390x.cmake
   git clone -b "llvmorg-$CLANG_VERSION" --depth=1 https://github.com/llvm/llvm-project.git  || { echo "Could not clone the llvm repo. Exiting..."; exit 1; }
   cd llvm-project
   sed -i 's/set_final_stage_var(CLANG_BOLT "INSTRUMENT" STRING)/set_final_stage_var(CLANG_BOLT "OFF" STRING)/' clang/cmake/caches/Release.cmake
@@ -211,6 +184,11 @@ buildAndInstallBazel() {
   wget -q https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-dist.zip
   unzip -q bazel-${BAZEL_VERSION}-dist.zip
   chmod -R +w .
+  # Bazel 9 bundles protobuf's upb, whose wire decoder mishandles enums on
+  # big-endian; the unpatched bootstrap crashes (protoc-gen-upb_minitable,
+  # signal 11). Same patch LOZ applies in its Bazel/${BAZEL_VERSION} build script.
+  curl -fsSL -o protobuf.patch "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/${BAZEL_VERSION}/patch/protobuf.patch"
+  git apply --ignore-whitespace protobuf.patch
   env EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk" BAZEL_DEV_VERSION_OVERRIDE="$BAZEL_VERSION" bash ./compile.sh
   sudo cp output/bazel /usr/local/bin/
   cd "$SOURCE_ROOT"
@@ -253,105 +231,19 @@ installRust() {
 # user.bazelrc is git-ignored and therefore survives git clean.
 # ===========================================================================
 setupBazelEnvironment() {
-  # Disable heap checking — gperftools has no s390x support and causes timeouts
-  echo "build --test_env=HEAPCHECK=" >> "${SOURCE_ROOT}/envoy/user.bazelrc"
-  echo "test  --test_env=HEAPCHECK=" >> "${SOURCE_ROOT}/envoy/user.bazelrc"
-  # cargo-bazel must not run in isolated mode on s390x (no pre-built binary)
-  echo "build --repo_env=CARGO_BAZEL_ISOLATED=false" >> "${SOURCE_ROOT}/envoy/user.bazelrc"
+  local rc="${SOURCE_ROOT}/envoy/user.bazelrc" l
+  # HEAPCHECK off: gperftools has no s390x support. cargo-bazel has no s390x binary.
+  for l in "build --test_env=HEAPCHECK=" "test  --test_env=HEAPCHECK=" \
+           "build --repo_env=CARGO_BAZEL_ISOLATED=false"; do
+    grep -qxF "$l" "$rc" 2>/dev/null || echo "$l" >> "$rc"
+  done
 }
 
-# ===========================================================================
-# Inline patch writers (re-written after every git clean)
-# ===========================================================================
-
-installBoringsslPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  rm -f "$SOURCE_ROOT/envoy/bazel/boringssl-s390x.patch"
-  curl -sSL "${PATCH_URL}/boringssl-s390x.patch" -o $SOURCE_ROOT/envoy/bazel/boringssl-s390x.patch
-  msg "boringssl-s390x.patch: written"
-}
-
-installRulesRustPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  # Two-file patch:
-  #  1. generate_utils.bzl: add CARGO_HOME to CRATES_REPOSITORY_ENVIRON so
-  #     --repo_env=CARGO_HOME is visible inside the module extension context.
-  #  2. common_utils.bzl: when isolated=False, explicitly return CARGO_HOME
-  #     in the env dict passed to repository_ctx.execute() (which replaces
-  #     the subprocess env entirely — cargo-bazel would otherwise have no HOME).
-  rm -f "$SOURCE_ROOT/envoy/bazel/rules_rust-s390x.patch"
-  curl -sSL "${PATCH_URL}/rules_rust-s390x.patch" -o $SOURCE_ROOT/envoy/bazel/rules_rust-s390x.patch
-  msg "rules_rust-s390x.patch: written (generate_utils.bzl + common_utils.bzl)"
-}
-
-installLuajitAsPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  rm -f "$SOURCE_ROOT/envoy/bazel/luajit-as.patch"
-  curl -sSL "${PATCH_URL}/luajit-as.patch" -o $SOURCE_ROOT/envoy/bazel/luajit-as.patch
-  msg "luajit-as.patch: written"
-}
-
-installToolchainsLlvmPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  rm -f "$SOURCE_ROOT/envoy/bazel/toolchains_llvm-s390x.patch"
-  curl -sSL "${PATCH_URL}/toolchains_llvm-s390x.patch" -o $SOURCE_ROOT/envoy/bazel/toolchains_llvm-s390x.patch
-  msg "toolchains_llvm-s390x.patch: written"
-}
-
-installGrpcS390xPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  rm -f "$SOURCE_ROOT/envoy/bazel/grpc-s390x.patch"
-  curl -sSL "${PATCH_URL}/grpc-s390x.patch" -o $SOURCE_ROOT/envoy/bazel/grpc-s390x.patch
-  msg "grpc-s390x.patch: written"
-}
-
-installProtobufS390xPatch() {
-  # protobuf 35.1 no longer uses the protoc alias block that needed s390x patching
-  msg "protobuf-s390x.patch: not needed for 35.1"
-}
-
-installQuicheS390xPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel/external"
-  rm -f "$SOURCE_ROOT/envoy/bazel/external/quiche-s390x.patch"
-  curl -sSL "${PATCH_URL}/quiche-s390x.patch" -o $SOURCE_ROOT/envoy/bazel/external/quiche-s390x.patch
-  msg "quiche-s390x.patch: written"
-}
-
-installV8S390xPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  curl -fsSL \
-    "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/1.39.0/patch/v8-s390x.patch" \
-    -o "$SOURCE_ROOT/envoy/bazel/v8-s390x.patch"
-  msg "v8-s390x.patch: fetched"
-}
-
-installV8BzlmodPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  rm -f "$SOURCE_ROOT/envoy/bazel/v8-bzlmod.patch"
-  curl -sSL "${PATCH_URL}/v8-bzlmod.patch" -o $SOURCE_ROOT/envoy/bazel/v8-bzlmod.patch
-  msg "v8-bzlmod.patch: written"
-}
-
-installHighwayS390xPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  curl -fsSL \
-    "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/1.39.0/patch/highway-s390x.patch" \
-    -o "$SOURCE_ROOT/envoy/bazel/highway-s390x.patch"
-  msg "highway-s390x.patch: fetched"
-}
-
-installProxyWasmCppHostS390xPatch() {
-  mkdir -p "$SOURCE_ROOT/envoy/bazel"
-  curl -fsSL \
-    "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Envoy/1.39.0/patch/proxy_wasm_cpp_host-s390x.patch" \
-    -o "$SOURCE_ROOT/envoy/bazel/proxy-wasm-cpp-host-s390x.patch"
-  msg "proxy-wasm-cpp-host-s390x.patch: fetched"
-}
-
-installV8NoPipPatch() {
-  # v8-nopip.patch is generated by runModulePatch (write_v8_nopip_patch function).
-  # No manual patch content here — the file is created in the runModulePatch step.
-  msg "v8-nopip.patch: will be written by runModulePatch"
+# fetchPatch <url> <path under envoy/>
+fetchPatch() {
+  mkdir -p "$(dirname "$SOURCE_ROOT/envoy/$2")"
+  curl -fsSL "$1" -o "$SOURCE_ROOT/envoy/$2"
+  msg "$2: fetched"
 }
 
 # ===========================================================================
@@ -370,19 +262,16 @@ installEnvoyBuildPatch() {
   git reset --hard HEAD 2>/dev/null || true
   git clean -fd bazel/ 2>/dev/null || true
 
-  # Re-write patch files (git clean removes untracked files)
-  installBoringsslPatch
-  installRulesRustPatch
-  installLuajitAsPatch
-  installToolchainsLlvmPatch
-  installGrpcS390xPatch
-  installProtobufS390xPatch
-  installQuicheS390xPatch
-  installHighwayS390xPatch
-  installProxyWasmCppHostS390xPatch
-  installV8S390xPatch
-  installV8BzlmodPatch
-  installV8NoPipPatch
+  # Fetch patch files (git clean removed them from bazel/)
+  fetchPatch "${PATCH_URL}/boringssl-s390x.patch"            bazel/boringssl-s390x.patch
+  fetchPatch "${PATCH_URL}/rules_rust-s390x.patch"           bazel/rules_rust-s390x.patch
+  fetchPatch "${PATCH_URL}/luajit-as.patch"                  bazel/luajit-as.patch
+  fetchPatch "${PATCH_URL}/toolchains_llvm-s390x.patch"      bazel/toolchains_llvm-s390x.patch
+  fetchPatch "${PATCH_URL}/grpc-s390x.patch"                 bazel/grpc-s390x.patch
+  fetchPatch "${PATCH_URL}/quiche-s390x.patch"               bazel/external/quiche-s390x.patch
+  fetchPatch "${PATCH_URL}/v8-bzlmod.patch"                  bazel/v8-bzlmod.patch
+  fetchPatch "${PATCH_URL}/v8-s390x.patch"                   bazel/v8-s390x.patch
+  fetchPatch "${PATCH_URL}/proxy_wasm_cpp_host-s390x.patch"  bazel/proxy-wasm-cpp-host-s390x.patch
 
   # ---- 1. Cargo.Bazel.lock: mirror aarch64 entries as s390x ----
   runCargoBazelLockPatch
@@ -603,30 +492,30 @@ deps = [
     },
     {
         "name": "quiche",
-        "url": "https://github.com/google/quiche/archive/67bce2eb0cd084582ed5fd8898a8f3f0fb87deff.tar.gz",
-        "integrity": "sha256-ZgiAOuS44myg1EPjM6Itx4vWjRffN/k+K3kDslCT1g4=",
-        "strip": "quiche-67bce2eb0cd084582ed5fd8898a8f3f0fb87deff",
+        "url": "https://github.com/google/quiche/archive/f53fd81ba7cf3fa89070e63680aa8aa7b9be3dae.tar.gz",
+        "integrity": "sha256-CvS217nua9gR5xIFA7ysys//gecTUOX7O7BF7tC315I=",
+        "strip": "quiche-f53fd81ba7cf3fa89070e63680aa8aa7b9be3dae",
         "pstrip": 1,
         "patches": [
-            (ER, "modules/quiche/0.0.0-261019-67bce2e.envoy/patches/delete-bazel-files.patch",
+            (ER, "modules/quiche/0.0.0-261027-f53fd81.envoy/patches/delete-bazel-files.patch",
              bdir + "/external/delete-bazel-files.patch"),
-            (ER, "modules/quiche/0.0.0-261019-67bce2e.envoy/patches/balsa_frame_unused_variable.patch",
+            (ER, "modules/quiche/0.0.0-261027-f53fd81.envoy/patches/balsa_frame_unused_variable.patch",
              bdir + "/external/balsa_frame_unused_variable.patch"),
         ],
         "overlays": [
-            (ER + "/modules/quiche/0.0.0-261019-67bce2e.envoy/overlay/BUILD.bazel",
+            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/BUILD.bazel",
              bdir + "/external/quiche-overlay-BUILD.patch", "BUILD.bazel", None),
-            (ER + "/modules/quiche/0.0.0-261019-67bce2e.envoy/overlay/quiche_overlay.bzl",
+            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/quiche_overlay.bzl",
              bdir + "/external/quiche-overlay-quiche_overlay_bzl.patch", "quiche_overlay.bzl", None),
-            (ER + "/modules/quiche/0.0.0-261019-67bce2e.envoy/overlay/extensions.bzl",
+            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/extensions.bzl",
              bdir + "/external/quiche-overlay-extensions_bzl.patch", "extensions.bzl", None),
-            (ER + "/modules/quiche/0.0.0-261019-67bce2e.envoy/overlay/envoy_deps.bzl",
+            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/envoy_deps.bzl",
              bdir + "/external/quiche-overlay-envoy_deps_bzl.patch", "envoy_deps.bzl", None),
             # Replace upstream MODULE.bazel (missing @platforms dep and
             # extensions.bzl use_extension) with the registry overlay.
-            (ER + "/modules/quiche/0.0.0-261019-67bce2e.envoy/MODULE.bazel",
+            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/MODULE.bazel",
              bdir + "/external/quiche-overlay-MODULE.patch", "MODULE.bazel",
-             "https://raw.githubusercontent.com/google/quiche/67bce2eb0cd084582ed5fd8898a8f3f0fb87deff/MODULE.bazel"),
+             "https://raw.githubusercontent.com/google/quiche/f53fd81ba7cf3fa89070e63680aa8aa7b9be3dae/MODULE.bazel"),
         ],
         "s390x": bdir + "/external/quiche-s390x.patch",
     },
@@ -650,12 +539,12 @@ deps = [
     },
     {
         "name": "rules_foreign_cc",
-        "url": "https://github.com/bazel-contrib/rules_foreign_cc/releases/download/0.16.0/rules_foreign_cc-0.16.0.tar.gz",
-        "integrity": "sha256-Mns/ys3pe5ZlQk2ytsN+b42lnsx4PcW4aDxpOW+CChI=",
-        "strip": "rules_foreign_cc-0.16.0",
+        "url": "https://github.com/bazel-contrib/rules_foreign_cc/releases/download/0.17.0/rules_foreign_cc-0.17.0.tar.gz",
+        "integrity": "sha256-PQicRsG719oQRG3kV648++ewz66INtYiX2KhXJATTKo=",
+        "strip": "rules_foreign_cc-0.17.0",
         "pstrip": 1,
         "patches": [
-            (bcr, "modules/rules_foreign_cc/0.16.0/patches/module_dot_bazel_version.patch",
+            (bcr, "modules/rules_foreign_cc/0.17.0/patches/module_dot_bazel_version.patch",
              bdir + "/module_dot_bazel_version.patch"),
         ],
         "overlays": [],
@@ -747,15 +636,57 @@ for dep in deps:
 def strip_pip_parse(content):
     import re as _re
     content = _re.sub(r'\npip = use_extension\([^\n]*\)\n', '\n', content)
-    content = _re.sub(r'\npip\.parse\(.*?\)\n', '\n', content, flags=_re.DOTALL)
+    # Use depth counter to correctly handle nested parens inside pip.parse(...).
+    while True:
+        m = _re.search(r'\npip\.parse\(', content)
+        if not m:
+            break
+        depth = 0
+        i = m.end() - 1
+        while i < len(content):
+            if content[i] == '(': depth += 1
+            elif content[i] == ')': depth -= 1
+            if depth == 0:
+                break
+            i += 1
+        end = content.find('\n', i) + 1
+        content = content[:m.start()] + '\n' + content[end:]
     content = _re.sub(r'\nuse_repo\(pip[^)]*\)\n', '\n', content)
     return content
+
+def _vendored_py_archive(name, url, sha256, prefix, pkg):
+    bf = ('load("@rules_python//python:defs.bzl", "py_library")\\n'
+          'py_library(name = "' + pkg + '", srcs = glob(["' + pkg + '/**/*.py"]), '
+          'imports = ["."], visibility = ["//visibility:public"])\\n')
+    return ('\nhttp_archive(\n'
+            '    name = "' + name + '",\n'
+            '    urls = ["' + url + '"],\n'
+            '    sha256 = "' + sha256 + '",\n'
+            '    strip_prefix = "' + prefix + '",\n'
+            "    build_file_content = '" + bf + "',\n"
+            ')\n')
+
+# Vendored jinja2/markupsafe (versions from v8 bazel/requirements.txt) for the inspector generator.
+V8_PY_VENDOR = (
+    '\n# Pure-Python jinja2 + markupsafe for the inspector code generator.\n'
+    'http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")\n'
+    + _vendored_py_archive(
+        "v8_markupsafe",
+        "https://files.pythonhosted.org/packages/bf/10/ff66fea6d1788c458663a84d88787bae15d45daa16f6b3ef33322a51fc7e/MarkupSafe-2.0.1.tar.gz",
+        "594c67807fb16238b30c44bdf74f36c02cdf22d1c8cda91ef8a0ed8dabf5620a",
+        "MarkupSafe-2.0.1/src", "markupsafe")
+    + _vendored_py_archive(
+        "v8_jinja2",
+        "https://files.pythonhosted.org/packages/91/a5/429efc6246119e1e3fbf562c00187d04e83e54619249eb732bb423efa6c6/Jinja2-3.0.3.tar.gz",
+        "611bb273cd68f3b993fabdc4064fc858c5b47a973cb5aa7999ec1ba405c87cd7",
+        "Jinja2-3.0.3/src", "jinja2")
+)
 
 for dep in deps:
     for (url, dest, fname, old_url) in dep["overlays"]:
         new_c = fetch_text(url)
         if dep["name"] == "v8" and fname == "MODULE.bazel":
-            new_c = strip_pip_parse(new_c)
+            new_c = strip_pip_parse(new_c) + V8_PY_VENDOR
         if old_url:
             replace_file_patch(dest, fetch_text(old_url), new_c, fname)
         else:
@@ -771,10 +702,12 @@ def write_v8_nopip_patch(dest):
         if lines[i].strip() == 'load("@v8_python_deps//:requirements.bzl", "requirement")':
             i += 1
             continue
-        if (lines[i].strip() == 'deps = [' and
-                i + 1 < len(lines) and 'requirement("jinja2")' in lines[i+1] and
-                i + 2 < len(lines) and lines[i+2].strip() == '],'):
-            i += 3
+        # Swap the pip requirement for the vendored sdist archives (V8_PY_VENDOR).
+        if lines[i].strip() == 'requirement("jinja2"),':
+            ind = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+            new_lines.append(ind + '"@v8_jinja2//:jinja2",\n')
+            new_lines.append(ind + '"@v8_markupsafe//:markupsafe",\n')
+            i += 1
             continue
         new_lines.append(lines[i])
         i += 1
@@ -931,23 +864,8 @@ luajit_stanza = (
 mod = mod.replace(anchor, luajit_stanza + anchor, 1)
 print("MODULE.bazel: archive_override for luajit")
 
-# ---- highway single_version_override with s390x patch ----
-highway_s390x_patch = bdir + "/highway-s390x.patch"
-if os.path.exists(highway_s390x_patch):
-    for ot in ["single_version_override", "archive_override"]:
-        mod = re.sub(
-            r"\n" + ot + r"\(\s*\n\s*module_name\s*=\s*\"highway\".*?\n\)\n",
-            "", mod, flags=re.DOTALL)
-    highway_stanza = (
-        "\nsingle_version_override(\n"
-        "    module_name = \"highway\",\n"
-        "    version = \"1.2.0\",\n"
-        "    patches = [\"//bazel:highway-s390x.patch\"],\n"
-        "    patch_strip = 1,\n"
-        ")\n"
-    )
-    mod = mod.replace(anchor, highway_stanza + anchor, 1)
-    print("MODULE.bazel: single_version_override for highway (s390x patch)")
+
+# highway: no override; v8 uses highway 1.3.0.bcr.1, which already has the s390x fixes.
 
 def inject_luajit_s390x(content):
     setting_s390x = """
@@ -1064,50 +982,45 @@ if reg_tc in mod and "register_toolchains(\"@llvm_toolchain_s390x//:all\")" not 
                       reg_tc + "\nregister_toolchains(\"@llvm_toolchain_s390x//:all\")", 1)
     print("MODULE.bazel: registered llvm_toolchain_s390x")
 
-# ---- envoy_llvm_extension: inject host() tag so s390x bypasses the
-#      _llvm_alias_repo platform check (only supports x86/arm/mac).
-#      Without this, the build fails with "Unsupported host platform for
-#      llvm_toolchain_llvm: linux s390x" on any s390x host. ----
-_ENVOY_LLVM_EXT_MARKER = 'envoy_llvm_ext = use_extension("//bazel:extensions.bzl", "envoy_llvm_extension")'
-_ENVOY_LLVM_HOST_TAG = (
-    'envoy_llvm_ext = use_extension("//bazel:extensions.bzl", "envoy_llvm_extension")\n'
-    'envoy_llvm_ext.host(\n'
+# ---- llvm_toolchain_alias_extension: host() tag (no s390x artifacts upstream) ----
+_LLVM_ALIAS_MARKER = 'llvm_toolchain_alias_ext = use_extension("@envoy_toolshed//compile:extensions.bzl", "llvm_toolchain_alias_extension")\n'
+_LLVM_ALIAS_HOST_TAG = (
+    _LLVM_ALIAS_MARKER +
+    'llvm_toolchain_alias_ext.host(\n'
     '    llvm_version = "22.1.8",\n'
     '    path = "' + llvm_path + '",\n'
     ')\n'
 )
-if _ENVOY_LLVM_EXT_MARKER in mod:
-    if 'envoy_llvm_ext.host(' not in mod:
-        mod = mod.replace(_ENVOY_LLVM_EXT_MARKER, _ENVOY_LLVM_HOST_TAG, 1)
-        print("MODULE.bazel: injected envoy_llvm_ext.host() for s390x")
+if _LLVM_ALIAS_MARKER in mod:
+    if 'llvm_toolchain_alias_ext.host(' not in mod:
+        mod = mod.replace(_LLVM_ALIAS_MARKER, _LLVM_ALIAS_HOST_TAG, 1)
+        print("MODULE.bazel: injected llvm_toolchain_alias_ext.host() for s390x")
     else:
-        print("MODULE.bazel: envoy_llvm_ext.host() already present")
+        print("MODULE.bazel: llvm_toolchain_alias_ext.host() already present")
 else:
-    print("WARNING: envoy_llvm_ext marker not found — skipping host() injection")
+    print("ERROR: llvm_toolchain_alias_extension marker not found in MODULE.bazel", file=sys.stderr)
+    sys.exit(1)
 
-# ---- go_sdk.download(): add linux_s390x entry ----
-# The go_sdk.download() block in MODULE.bazel only lists amd64/arm64/darwin
-# platforms.  On s390x rules_go fails with "unsupported platform linux_s390x"
-# during the gazelle extension load.  We inject the s390x SDK entry so
-# rules_go can resolve the toolchain without trying to download anything
-# (the system Go in /usr/local/go is used at build time via GOPATH, but
-# rules_go still needs to parse the sdks dict during analysis).
-# Inject linux_s390x into go_sdk.download() sdks dict.
-# The upstream block only lists amd64/arm64/darwin — rules_go fails with
-# "unsupported platform linux_s390x" during analysis without this entry.
+# ---- go_sdk.download(): add linux_s390x (rules_go fails on s390x without it) ----
 _GO_S390X_LINE = (
     '        "linux_s390x": ("go1.27.3.linux-s390x.tar.gz",'
     ' "62e109a6280a073c9025e1b51ea298ec1d3575d3ce62238721311f5ff2c854e6"),\n'
 )
 _GO_ANCHOR = '        "darwin_amd64":'
-# Check specifically inside the go_sdk.download() block, not the whole file
-# (linux_s390x already appears in rust.repository_set stanzas above).
+# Check inside the go_sdk.download() block only (linux_s390x also appears in rust stanzas).
 _go_sdk_idx = mod.find('go_sdk.download(')
-_go_sdk_end = mod.find(')', _go_sdk_idx) if _go_sdk_idx != -1 else -1
+if _go_sdk_idx != -1:
+    _d, _pos = 0, _go_sdk_idx + len('go_sdk.download(')
+    for _ch in mod[_pos - 1:]:
+        if _ch == '(': _d += 1
+        elif _ch == ')': _d -= 1
+        _pos += 1
+        if _d == 0: break
+    _go_sdk_end = _pos
+else:
+    _go_sdk_end = -1
 _go_sdk_block = mod[_go_sdk_idx:_go_sdk_end] if _go_sdk_idx != -1 else ''
 if 'go_sdk.download(' in mod and 'linux_s390x' not in _go_sdk_block:
-    # Find the darwin_amd64 line (always last in the upstream sdks dict)
-    # and insert s390x right after it.
     idx = mod.find(_GO_ANCHOR)
     if idx != -1:
         eol = mod.index("\n", idx)
