@@ -85,17 +85,27 @@ function prepareRHEL9() {
     echo 'export CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++' >> $PRESERVE_ENVARS
     echo 'export PATH=/opt/rh/gcc-toolset-13/root/usr/bin:$PATH' >> $PRESERVE_ENVARS
 }
-
+function buildPython311() {
+    sudo zypper install -y gcc make tar xz zlib-devel libffi-devel libopenssl-devel readline-devel sqlite3-devel xz-devel libbz2-devel
+    cd $SOURCE_ROOT
+    wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tgz
+    tar -xf "Python-3.11.9.tgz"
+    cd "Python-3.11.9"
+    ./configure --enable-optimizations --with-ensurepip=install
+    make -j4
+    sudo make altinstall
+}
 function prepareSUSE15() {
     sudo zypper install -y asciidoc autoconf automake cmake curl libcurl-devel flex openssh \
         gcc gcc-c++ gcc14-c++ gcc14 git-core glib2 glib2-devel \
         libopenssl-devel libncurses6 xz glibc-locale bzip2 ccache\
         libexpat1 libexpat-devel libtirpc-devel libtool libxml2-tools libxslt-tools binutils-devel\
         make makedepend ncurses-devel ninja patch pkg-config libpsl-devel\
-        python3.11 python-xml python3-httplib2 re2c ruby sqlite3 tar \
+        python3 python-xml python3-httplib2 re2c ruby sqlite3 tar \
         unixODBC wget which  xmlto python3-pip python3-devel jq
 
-    sudo ln -sf /usr/bin/python3.11 /usr/bin/python3
+    buildPython311
+    sudo ln -sf /usr/local/bin/python3.11 /usr/bin/python3
     sudo ln -sf /usr/bin/python3 /usr/bin/python
     pip3 install pyparsing
     pip3 install httplib2 --user
