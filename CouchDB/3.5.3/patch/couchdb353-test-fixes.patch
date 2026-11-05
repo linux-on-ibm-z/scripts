@@ -1,0 +1,72 @@
+diff --git a/Makefile b/Makefile
+index 4b1f07364..c4e56cca2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -170,7 +170,7 @@ check: all
+ ifdef apps
+ EUNIT_SUBDIRS = $(strip $(subst $(comma),$(space),$(apps)))
+ else
+-EUNIT_SUBDIRS = $(filter-out fauxton docs, $(shell ls src))
++EUNIT_SUBDIRS = $(filter-out fauxton docs, $(shell for d in src/*/; do test -d "$$d" && basename "$$d"; done))
+ endif
+ 
+ # target: eunit - Run EUnit tests, use EUNIT_OPTS to provide custom options
+diff --git a/test/elixir/test/attachment_views_test.exs b/test/elixir/test/attachment_views_test.exs
+index 3da62f042..952ca8900 100644
+--- a/test/elixir/test/attachment_views_test.exs
++++ b/test/elixir/test/attachment_views_test.exs
+@@ -13,6 +13,12 @@ defmodule AttachmentViewTest do
+     db_name = context[:db_name]
+     attachment_data = "VGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVkIHRleHQ="
+ 
++
++expected_encoded_length =
++  attachment_data
++  |> Base.decode64!()
++  |> :zlib.gzip()
++  |> IO.iodata_length()
+     attachment_template_1 = %{
+       "_attachments" => %{
+         "foo.txt" => %{
+@@ -136,7 +142,7 @@ defmodule AttachmentViewTest do
+     attachment = Enum.at(result["rows"], 0)["doc"]["_attachments"]["baz.txt"]
+     assert attachment["stub"] == true
+     assert attachment["encoding"] == "gzip"
+-    assert attachment["encoded_length"] == 47
++    assert attachment["encoded_length"] == expected_encoded_length
+     assert Map.has_key?(attachment, "data") == false
+   end
+ end
+diff --git a/test/elixir/test/changes_test.exs b/test/elixir/test/changes_test.exs
+index 8547af59f..178a89597 100644
+--- a/test/elixir/test/changes_test.exs
++++ b/test/elixir/test/changes_test.exs
+@@ -357,6 +357,12 @@ defmodule ChangesTest do
+     db_name = context[:db_name]
+     attachment_data = "VGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVkIHRleHQ="
+ 
++
++expected_encoded_length =
++    attachment_data
++    |> Base.decode64!()
++    |> :zlib.gzip()
++    |> IO.iodata_length()
+     docs =
+       make_docs(20..29, %{
+         _attachments: %{
+@@ -410,11 +416,13 @@ defmodule ChangesTest do
+     assert first_doc["_attachments"]["foo.txt"]["stub"]
+     assert not Enum.member?(first_doc["_attachments"]["foo.txt"], "data")
+     assert first_doc["_attachments"]["foo.txt"]["encoding"] == "gzip"
+-    assert first_doc["_attachments"]["foo.txt"]["encoded_length"] == 47
++    assert first_doc["_attachments"]["foo.txt"]["encoded_length"] ==
++         expected_encoded_length
+     assert first_doc["_attachments"]["bar.txt"]["stub"]
+     assert not Enum.member?(first_doc["_attachments"]["bar.txt"], "data")
+     assert first_doc["_attachments"]["bar.txt"]["encoding"] == "gzip"
+-    assert first_doc["_attachments"]["bar.txt"]["encoded_length"] == 47
++    assert first_doc["_attachments"]["bar.txt"]["encoded_length"] ==
++         expected_encoded_length
+   end
+ 
+   defp create_erlang_filters_view(db_name) do
