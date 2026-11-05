@@ -210,7 +210,7 @@ function configureAndInstall() {
 
     elif [[ "$JAVA_PROVIDED" == "OpenJDK11" ]]; then
         if [[ "$ID" == "rhel" ]]; then
-            if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-10.1" ]]; then
+            if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-10.1" || "$DISTRO" == "rhel-10.2" ]]; then
                 printf -- 'OpenJDK11 is not supported on rhel 10.X, Please use IBM Semeru runtime or Eclipse Adoptium Temurin runtime instead.\n' >> "$LOG_FILE"
                 exit 1
 	    fi
@@ -232,7 +232,7 @@ function configureAndInstall() {
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK17" ]]; then
         if [[ "$ID" == "rhel" ]]; then
-            if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-10.1" ]]; then
+            if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-10.1" || "$DISTRO" == "rhel-10.2" ]]; then
                 printf -- 'OpenJDK17 is not supported on rhel 10.X, Please use IBM Semeru runtime or Eclipse Adoptium Temurin runtime instead.\n' >> "$LOG_FILE"
                 exit 1
 	    fi
@@ -282,7 +282,7 @@ function configureAndInstall() {
         fi
     elif [[ "$JAVA_PROVIDED" == "OpenJDK8" ]]; then
         if [[ "$ID" == "rhel" ]]; then
-            if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-10.1" ]]; then
+            if [[ "$DISTRO" == "rhel-10.0" || "$DISTRO" == "rhel-10.1" || "$DISTRO" == "rhel-10.2" ]]; then
                 printf -- 'OpenJDK8 is not supported on rhel 10.X, Please use IBM Semeru runtime or Eclipse Adoptium Temurin runtime instead.\n' >> "$LOG_FILE"
                 exit 1
 	    fi
@@ -419,7 +419,7 @@ prepare # Check Prerequisites
 DISTRO="$ID-$VERSION_ID"
 
 case "$DISTRO" in
-"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7"| "rhel-10.0" | "rhel-10.1")
+"rhel-8.10" | "rhel-9.4" | "rhel-9.6" | "rhel-9.7"| "rhel-9.8"| "rhel-10.0" | "rhel-10.1" | "rhel-10.2")
     printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "$LOG_FILE"
     printf -- "Installing dependencies... it may take some time.\n"
     sudo yum install -y autoconf flex gawk gcc gcc-c++ gzip libxml2-devel libxslt ncurses-devel openssl-devel make tar unixODBC-devel wget |& tee -a "$LOG_FILE"
