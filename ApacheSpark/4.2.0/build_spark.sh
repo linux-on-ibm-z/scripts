@@ -299,7 +299,7 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo yum groupinstall -y 'Development Tools'  |& tee -a "${LOG_FILE}"
-        sudo yum install -y --allowerasing rpmdevtools wget tar git libtool autoconf make curl python3 flex gcc redhat-rpm-config rpm-build pkgconfig gettext automake gdb bison gcc-c++ binutils procps-ng |& tee -a "${LOG_FILE}"
+        sudo yum install -y --allowerasing rpmdevtools wget tar git libtool autoconf make curl python3 flex gcc redhat-rpm-config rpm-build pkgconfig gettext automake gdb bison gcc-c++ binutils procps-ng zip |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
 
@@ -314,7 +314,7 @@ case "$DISTRO" in
         printf -- "Installing %s %s for %s \n" "$PACKAGE_NAME" "$PACKAGE_VERSION" "$DISTRO" |& tee -a "${LOG_FILE}"
         printf -- "Installing dependencies... it may take some time.\n"
         sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y wget tar git libtool autoconf build-essential curl apt-transport-https cmake python3 procps |& tee -a "${LOG_FILE}"
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y wget tar git libtool autoconf build-essential curl apt-transport-https cmake python3 procps zip |& tee -a "${LOG_FILE}"
         configureAndInstall |& tee -a "${LOG_FILE}"
         ;;
         
