@@ -25,14 +25,15 @@ sudo rm -rf "$SOURCE_ROOT/bazel/"
 ls
 
 CLANG_VERSION="22.1.8"
-BAZEL_VERSION="9.3.1"
+BAZEL_VERSION="9.3.2"
 GO_VERSION="1.27.3"
+GO_S390X_SHA256="62e109a6280a073c9025e1b51ea298ec1d3575d3ce62238721311f5ff2c854e6"
 LLVM_HOME_DIR="${SOURCE_ROOT}/clang/LLVM-${CLANG_VERSION}-Linux"
 PATCH_URL="https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/CI/Envoy/patch"
 
 # Pinned bazel-registry commit that matches the dependency versions used below.
 # Do not update this commit independently of the dep versions — they must stay in sync.
-ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/29dbfbff59651766d176a285744a6861c6ef0751"
+ENVOY_REGISTRY="https://raw.githubusercontent.com/envoyproxy/bazel-registry/417c07db4ecb93a16c52ef73a350482dec76c00c"
 
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-s390x
 export PATH=$JAVA_HOME/bin:$PATH
@@ -186,9 +187,9 @@ buildAndInstallBazel() {
   chmod -R +w .
   # Bazel 9 bundles protobuf's upb, whose wire decoder mishandles enums on
   # big-endian; the unpatched bootstrap crashes (protoc-gen-upb_minitable,
-  # signal 11). Same patch LOZ applies in its Bazel/${BAZEL_VERSION} build script.
-  curl -fsSL -o protobuf.patch "https://raw.githubusercontent.com/linux-on-ibm-z/scripts/master/Bazel/${BAZEL_VERSION}/patch/protobuf.patch"
-  git apply --ignore-whitespace protobuf.patch
+  # signal 11).
+  curl -fsSL -o bazel-protobuf.patch "${PATCH_URL}/bazel-protobuf.patch"
+  git apply --ignore-whitespace bazel-protobuf.patch
   env EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk" BAZEL_DEV_VERSION_OVERRIDE="$BAZEL_VERSION" bash ./compile.sh
   sudo cp output/bazel /usr/local/bin/
   cd "$SOURCE_ROOT"
@@ -280,6 +281,7 @@ installEnvoyBuildPatch() {
   if ! grep -q '"-latomic"' bazel/envoy_binary.bzl; then
     sed -i 's/            "-pthread",/            "-pthread",\n            "-latomic",/' \
       bazel/envoy_binary.bzl
+    grep -q '"-latomic"' bazel/envoy_binary.bzl || { echo "ERROR: -latomic patch did not apply"; exit 1; }
     msg "bazel/envoy_binary.bzl: patched (-latomic)"
   else
     msg "bazel/envoy_binary.bzl: already patched"
@@ -306,6 +308,7 @@ PLATFORMS_EOF
   if ! grep -q '"s390x"' bazel/extensions.bzl; then
     sed -i 's|"aarch64": str(Label("//bazel/platforms/rbe:linux_arm64")),|"aarch64": str(Label("//bazel/platforms/rbe:linux_arm64")),\n            "s390x": str(Label("//bazel/platforms:linux_s390x")),|' \
       bazel/extensions.bzl
+    grep -q '"s390x"' bazel/extensions.bzl || { echo "ERROR: s390x arch_alias patch did not apply"; exit 1; }
     msg "bazel/extensions.bzl: patched (s390x arch_alias)"
   else
     msg "bazel/extensions.bzl: already patched"
@@ -386,11 +389,17 @@ runModulePatch() {
   ENVOY_DIR="$SOURCE_ROOT/envoy" \
   LLVM_HOME_DIR="$LLVM_HOME_DIR" \
   ENVOY_REGISTRY="$ENVOY_REGISTRY" \
+  CLANG_VERSION="$CLANG_VERSION" \
+  GO_VERSION="$GO_VERSION" \
+  GO_S390X_SHA256="$GO_S390X_SHA256" \
     python3 - << 'MODULE_PY_EOF'
 import os, sys, re, subprocess
 
 llvm_path = os.environ["LLVM_HOME_DIR"]
 envoy_reg = os.environ["ENVOY_REGISTRY"]
+clang_ver = os.environ["CLANG_VERSION"]
+go_ver    = os.environ["GO_VERSION"]
+go_sha    = os.environ["GO_S390X_SHA256"]
 bcr       = "https://bcr.bazel.build"
 bdir      = "bazel"
 os.chdir(os.environ.get("ENVOY_DIR", "."))
@@ -492,30 +501,30 @@ deps = [
     },
     {
         "name": "quiche",
-        "url": "https://github.com/google/quiche/archive/f53fd81ba7cf3fa89070e63680aa8aa7b9be3dae.tar.gz",
-        "integrity": "sha256-CvS217nua9gR5xIFA7ysys//gecTUOX7O7BF7tC315I=",
-        "strip": "quiche-f53fd81ba7cf3fa89070e63680aa8aa7b9be3dae",
+        "url": "https://github.com/google/quiche/archive/35cbd037cb2b739525d8ee853eeb8aac118c576a.tar.gz",
+        "integrity": "sha256-gONJ3tHwed33GEZ0pDB2h417JbPZUwml6MThcfzBU68=",
+        "strip": "quiche-35cbd037cb2b739525d8ee853eeb8aac118c576a",
         "pstrip": 1,
         "patches": [
-            (ER, "modules/quiche/0.0.0-261027-f53fd81.envoy/patches/delete-bazel-files.patch",
+            (ER, "modules/quiche/0.0.0-261105-35cbd03.envoy/patches/delete-bazel-files.patch",
              bdir + "/external/delete-bazel-files.patch"),
-            (ER, "modules/quiche/0.0.0-261027-f53fd81.envoy/patches/balsa_frame_unused_variable.patch",
+            (ER, "modules/quiche/0.0.0-261105-35cbd03.envoy/patches/balsa_frame_unused_variable.patch",
              bdir + "/external/balsa_frame_unused_variable.patch"),
         ],
         "overlays": [
-            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/BUILD.bazel",
+            (ER + "/modules/quiche/0.0.0-261105-35cbd03.envoy/overlay/BUILD.bazel",
              bdir + "/external/quiche-overlay-BUILD.patch", "BUILD.bazel", None),
-            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/quiche_overlay.bzl",
+            (ER + "/modules/quiche/0.0.0-261105-35cbd03.envoy/overlay/quiche_overlay.bzl",
              bdir + "/external/quiche-overlay-quiche_overlay_bzl.patch", "quiche_overlay.bzl", None),
-            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/extensions.bzl",
+            (ER + "/modules/quiche/0.0.0-261105-35cbd03.envoy/overlay/extensions.bzl",
              bdir + "/external/quiche-overlay-extensions_bzl.patch", "extensions.bzl", None),
-            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/overlay/envoy_deps.bzl",
+            (ER + "/modules/quiche/0.0.0-261105-35cbd03.envoy/overlay/envoy_deps.bzl",
              bdir + "/external/quiche-overlay-envoy_deps_bzl.patch", "envoy_deps.bzl", None),
             # Replace upstream MODULE.bazel (missing @platforms dep and
             # extensions.bzl use_extension) with the registry overlay.
-            (ER + "/modules/quiche/0.0.0-261027-f53fd81.envoy/MODULE.bazel",
+            (ER + "/modules/quiche/0.0.0-261105-35cbd03.envoy/MODULE.bazel",
              bdir + "/external/quiche-overlay-MODULE.patch", "MODULE.bazel",
-             "https://raw.githubusercontent.com/google/quiche/f53fd81ba7cf3fa89070e63680aa8aa7b9be3dae/MODULE.bazel"),
+             "https://raw.githubusercontent.com/google/quiche/35cbd037cb2b739525d8ee853eeb8aac118c576a/MODULE.bazel"),
         ],
         "s390x": bdir + "/external/quiche-s390x.patch",
     },
@@ -557,8 +566,10 @@ deps = [
         "strip": "",
         "pstrip": 1,
         "patches": [
-            (ER, "modules/rules_rust/0.74.0.envoy/patches/rules_rust.patch",
+            (ER, "modules/rules_rust/0.74.0.envoy.1/patches/rules_rust.patch",
              bdir + "/rules_rust-envoy.patch"),
+            (ER, "modules/rules_rust/0.74.0.envoy.1/patches/rules_rust_shared_exec_tools.patch",
+             bdir + "/rules_rust-shared-exec-tools.patch"),
         ],
         "overlays": [],
         "s390x": bdir + "/rules_rust-s390x.patch",
@@ -731,12 +742,14 @@ for dep in deps:
         if os.path.exists(dep["s390x"]):
             labels.append(blabel(dep["s390x"]))
         else:
-            print("WARNING: missing s390x patch: " + dep["s390x"], file=sys.stderr)
+            print("ERROR: missing s390x patch: " + dep["s390x"], file=sys.stderr)
+            sys.exit(1)
     for ep in dep.get("extra_patches", []):
         if os.path.exists(ep):
             labels.append(blabel(ep))
         else:
-            print("WARNING: missing extra patch: " + ep, file=sys.stderr)
+            print("ERROR: missing extra patch: " + ep, file=sys.stderr)
+            sys.exit(1)
     dep["labels"] = labels
 
 def make_override(dep):
@@ -864,6 +877,19 @@ luajit_stanza = (
 mod = mod.replace(anchor, luajit_stanza + anchor, 1)
 print("MODULE.bazel: archive_override for luajit")
 
+# protoc-gen-validate >=1.3.3.envoy.1 ships only prebuilt plugin binaries (no s390x);
+# 1.3.3.envoy builds the plugin from Go source.
+_PGV_DEP = 'bazel_dep(name = "protoc-gen-validate", version = "1.3.3.envoy.1")'
+if _PGV_DEP in mod:
+    mod = mod.replace(_PGV_DEP, _PGV_DEP.replace("1.3.3.envoy.1", "1.3.3.envoy"), 1)
+if 'module_name = "protoc-gen-validate"' not in mod:
+    mod = mod.replace(anchor,
+        '\nsingle_version_override(\n'
+        '    module_name = "protoc-gen-validate",\n'
+        '    version = "1.3.3.envoy",\n'
+        ')\n' + anchor, 1)
+    print("MODULE.bazel: pinned protoc-gen-validate 1.3.3.envoy")
+
 
 # highway: no override; v8 uses highway 1.3.0.bcr.1, which already has the s390x fixes.
 
@@ -958,7 +984,7 @@ s390x_ext = (
     "\"@toolchains_llvm//toolchain/extensions:llvm.bzl\", \"llvm\")\n"
     "llvm_s390x.toolchain(\n"
     "    name = \"llvm_toolchain_s390x\",\n"
-    "    llvm_version = \"22.1.8\",\n"
+    "    llvm_version = \"" + clang_ver + "\",\n"
     ")\n"
     "llvm_s390x.toolchain_root(\n"
     "    name = \"llvm_toolchain_s390x\",\n"
@@ -973,8 +999,8 @@ if marker in mod:
     mod = mod.replace(marker, s390x_ext + marker, 1)
     print("MODULE.bazel: inserted llvm_toolchain_s390x")
 else:
-    print("WARNING: llvm marker not found, appending s390x ext")
-    mod += s390x_ext
+    print("ERROR: llvm marker not found in MODULE.bazel", file=sys.stderr)
+    sys.exit(1)
 
 reg_tc = "register_toolchains(\"@llvm_toolchain//:all\")"
 if reg_tc in mod and "register_toolchains(\"@llvm_toolchain_s390x//:all\")" not in mod:
@@ -987,7 +1013,7 @@ _LLVM_ALIAS_MARKER = 'llvm_toolchain_alias_ext = use_extension("@envoy_toolshed/
 _LLVM_ALIAS_HOST_TAG = (
     _LLVM_ALIAS_MARKER +
     'llvm_toolchain_alias_ext.host(\n'
-    '    llvm_version = "22.1.8",\n'
+    '    llvm_version = "' + clang_ver + '",\n'
     '    path = "' + llvm_path + '",\n'
     ')\n'
 )
@@ -1003,8 +1029,8 @@ else:
 
 # ---- go_sdk.download(): add linux_s390x (rules_go fails on s390x without it) ----
 _GO_S390X_LINE = (
-    '        "linux_s390x": ("go1.27.3.linux-s390x.tar.gz",'
-    ' "62e109a6280a073c9025e1b51ea298ec1d3575d3ce62238721311f5ff2c854e6"),\n'
+    '        "linux_s390x": ("go' + go_ver + '.linux-s390x.tar.gz",'
+    ' "' + go_sha + '"),\n'
 )
 _GO_ANCHOR = '        "darwin_amd64":'
 # Check inside the go_sdk.download() block only (linux_s390x also appears in rust stanzas).
@@ -1027,7 +1053,8 @@ if 'go_sdk.download(' in mod and 'linux_s390x' not in _go_sdk_block:
         mod = mod[:eol+1] + _GO_S390X_LINE + mod[eol+1:]
         print("MODULE.bazel: injected linux_s390x into go_sdk.download()")
     else:
-        print("WARNING: go_sdk.download darwin_amd64 anchor not found")
+        print("ERROR: go_sdk.download darwin_amd64 anchor not found", file=sys.stderr)
+        sys.exit(1)
 
 with open("MODULE.bazel", "w") as f:
     f.write(mod)
