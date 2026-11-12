@@ -1,5 +1,5 @@
 diff --git a/api/src/main/java/com/cloud/cpu/CPU.java b/api/src/main/java/com/cloud/cpu/CPU.java
-index 3016e542db..11b38b73da 100644
+index 3016e54..11b38b7 100644
 --- a/api/src/main/java/com/cloud/cpu/CPU.java
 +++ b/api/src/main/java/com/cloud/cpu/CPU.java
 @@ -22,7 +22,8 @@ public class CPU {
@@ -13,7 +13,7 @@ index 3016e542db..11b38b73da 100644
          private final String type;
          private final int bits;
 diff --git a/api/src/test/java/com/cloud/cpu/CPUTest.java b/api/src/test/java/com/cloud/cpu/CPUTest.java
-index dfedf21864..0a059cf9a9 100644
+index dfedf21..0a059cf 100644
 --- a/api/src/test/java/com/cloud/cpu/CPUTest.java
 +++ b/api/src/test/java/com/cloud/cpu/CPUTest.java
 @@ -28,6 +28,7 @@ public class CPUTest {
@@ -49,8 +49,45 @@ index dfedf21864..0a059cf9a9 100644
          assertEquals(expectedCSV, CPU.CPUArch.getTypesAsCSV());
      }
  }
+diff --git a/core/src/test/java/com/cloud/agent/api/SecurityGroupRulesCmdTest.java b/core/src/test/java/com/cloud/agent/api/SecurityGroupRulesCmdTest.java
+index 1ce3cfb..3920c7b 100644
+--- a/core/src/test/java/com/cloud/agent/api/SecurityGroupRulesCmdTest.java
++++ b/core/src/test/java/com/cloud/agent/api/SecurityGroupRulesCmdTest.java
+@@ -19,11 +19,16 @@
+ 
+ package com.cloud.agent.api;
+ 
++import static org.junit.Assert.assertEquals;
+ import static org.junit.Assert.assertTrue;
+ 
++import java.io.ByteArrayInputStream;
+ import java.util.List;
+ import java.util.Vector;
++import java.util.zip.InflaterInputStream;
+ 
++import org.apache.commons.codec.binary.Base64;
++import org.apache.commons.io.IOUtils;
+ import org.junit.Before;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+@@ -86,9 +91,13 @@ public class SecurityGroupRulesCmdTest {
+      */
+     @Test
+     public void testCompressStringifiedRules() throws Exception {
+-        final String compressed = "eJzztEpMSrY2tDayNtQz0jPWM9E31THTM9ez0LPUN9Dxc40IUXAlrAQAPusP4w==";
++        // The compressed bytes depend on the zlib implementation (e.g. IBM Z hardware deflate yields a
++        // different, but valid, stream), so verify the round trip instead of a fixed encoded string.
+         final String a = securityGroupRulesCmd.compressStringifiedRules();
+-        assertTrue(compressed.equals(a));
++        try (InflaterInputStream in = new InflaterInputStream(new ByteArrayInputStream(Base64.decodeBase64(a)))) {
++            final String inflated = new String(IOUtils.toByteArray(in));
++            assertEquals(securityGroupRulesCmd.stringifyRules(), inflated);
++        }
+     }
+ 
+ }
 diff --git a/packaging/el8/cloud.spec b/packaging/el8/cloud.spec
-index 7e97957473..6372b8fd74 100644
+index 7e97957..6372b8f 100644
 --- a/packaging/el8/cloud.spec
 +++ b/packaging/el8/cloud.spec
 @@ -47,7 +47,7 @@ BuildRequires: glibc-devel
@@ -75,7 +112,7 @@ index 7e97957473..6372b8fd74 100644
  Group:     System Environment/Libraries
  %description baremetal-agent
 diff --git a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
-index bf002b37f3..0cb357e13b 100644
+index bf002b3..0cb357e 100644
 --- a/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
 +++ b/plugins/hypervisors/kvm/src/main/java/com/cloud/hypervisor/kvm/resource/LibvirtVMDef.java
 @@ -249,7 +249,9 @@ public class LibvirtVMDef {
@@ -90,7 +127,7 @@ index bf002b37f3..0cb357e13b 100644
                  if (iothreads) {
                      guestDef.append(String.format("<iothreads>%s</iothreads>", NUMBER_OF_IOTHREADS));
 diff --git a/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java b/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
-index f721c723ea..e32386ae8b 100644
+index f721c72..e32386a 100644
 --- a/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
 +++ b/plugins/hypervisors/kvm/src/test/java/com/cloud/hypervisor/kvm/resource/LibvirtComputingResourceTest.java
 @@ -865,7 +865,9 @@ public class LibvirtComputingResourceTest {
@@ -105,7 +142,7 @@ index f721c723ea..e32386ae8b 100644
  
      private void verifyHeader(Document domainDoc, String hvsType, String name, String uuid, String os) {
 diff --git a/tools/appliance/systemvmtemplate/scripts/configure_grub.sh b/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
-index f9103925b3..c8a7d06555 100755
+index f910392..c8a7d06 100755
 --- a/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
 +++ b/tools/appliance/systemvmtemplate/scripts/configure_grub.sh
 @@ -42,8 +42,8 @@ GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=
@@ -120,7 +157,7 @@ index f9103925b3..c8a7d06555 100755
  
  return 2>/dev/null || configure_grub
 diff --git a/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh b/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
-index 8bc71d29c1..93e72f06db 100755
+index 8bc71d2..93e72f0 100755
 --- a/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
 +++ b/tools/appliance/systemvmtemplate/scripts/configure_systemvm_services.sh
 @@ -106,7 +106,7 @@ function configure_services() {
@@ -163,7 +200,7 @@ index 8bc71d29c1..93e72f06db 100755
    # Disable cloud init by default
    cat <<EOF > /etc/cloud/cloud.cfg.d/cloudstack.cfg
 diff --git a/tools/appliance/systemvmtemplate/scripts/finalize.sh b/tools/appliance/systemvmtemplate/scripts/finalize.sh
-index 507d4a4133..69d26cd0bf 100755
+index 507d4a4..69d26cd 100755
 --- a/tools/appliance/systemvmtemplate/scripts/finalize.sh
 +++ b/tools/appliance/systemvmtemplate/scripts/finalize.sh
 @@ -67,7 +67,61 @@ function zero_disk() {
@@ -229,7 +266,7 @@ index 507d4a4133..69d26cd0bf 100755
    configure_misc
    configure_rundisk_size
 diff --git a/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh b/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
-index d391b5c4e1..c111c257e9 100755
+index d391b5c..c111c25 100755
 --- a/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
 +++ b/tools/appliance/systemvmtemplate/scripts/install_systemvm_packages.sh
 @@ -50,7 +50,7 @@ function install_packages() {
@@ -270,7 +307,7 @@ index d391b5c4e1..c111c257e9 100755
    apt_clean
  
 diff --git a/ui/src/components/view/DeployVMFromBackup.vue b/ui/src/components/view/DeployVMFromBackup.vue
-index c1f0ffc6d1..7c3e6c724d 100644
+index c1f0ffc..7c3e6c7 100644
 --- a/ui/src/components/view/DeployVMFromBackup.vue
 +++ b/ui/src/components/view/DeployVMFromBackup.vue
 @@ -975,6 +975,9 @@ export default {
@@ -284,7 +321,7 @@ index c1f0ffc6d1..7c3e6c724d 100644
          ]
        }
 diff --git a/ui/src/utils/plugins.js b/ui/src/utils/plugins.js
-index 648bc3ae08..37165e7e60 100644
+index 648bc3a..37165e7 100644
 --- a/ui/src/utils/plugins.js
 +++ b/ui/src/utils/plugins.js
 @@ -557,7 +557,8 @@ export const cpuArchitectureUtilPlugin = {
@@ -298,7 +335,7 @@ index 648bc3ae08..37165e7e60 100644
        return architectures.map(item => ({ ...item, description: item.name }))
      }
 diff --git a/ui/src/views/infra/ClusterUpdate.vue b/ui/src/views/infra/ClusterUpdate.vue
-index 1af7f420e6..29b8e57fa6 100644
+index 1af7f42..29b8e57 100644
 --- a/ui/src/views/infra/ClusterUpdate.vue
 +++ b/ui/src/views/infra/ClusterUpdate.vue
 @@ -168,6 +168,10 @@ export default {
@@ -313,7 +350,7 @@ index 1af7f420e6..29b8e57fa6 100644
      },
      fetchExtensionResourceMapDetails () {
 diff --git a/ui/src/views/infra/zone/ZoneWizardAddResources.vue b/ui/src/views/infra/zone/ZoneWizardAddResources.vue
-index b2a273f4c8..c05dc2f8f8 100644
+index b2a273f..c05dc2f 100644
 --- a/ui/src/views/infra/zone/ZoneWizardAddResources.vue
 +++ b/ui/src/views/infra/zone/ZoneWizardAddResources.vue
 @@ -865,6 +865,9 @@ export default {
@@ -326,4 +363,3 @@ index b2a273f4c8..c05dc2f8f8 100644
        }],
        storageProviders: [],
        currentStep: null,
- 
