@@ -1,0 +1,485 @@
+diff --git a/bazel/platforms/BUILD b/bazel/platforms/BUILD
+index d522f9cb..cd0d0099 100644
+--- a/bazel/platforms/BUILD
++++ b/bazel/platforms/BUILD
+@@ -96,6 +96,14 @@ platform(
+     ],
+ )
+ 
++platform(
++    name = "linux_s390x",
++    constraint_values = [
++        "@platforms//os:linux",
++        "@platforms//cpu:s390x",
++    ],
++)
++
+ platform(
+     name = "macos_x86_64",
+     constraint_values = [
+diff --git a/source/extensions/all_extensions.bzl b/source/extensions/all_extensions.bzl
+index 475cf1b8..8910c427 100644
+--- a/source/extensions/all_extensions.bzl
++++ b/source/extensions/all_extensions.bzl
+@@ -48,10 +48,10 @@ def envoy_all_core_extensions():
+ _http_filter_prefix = "envoy.filters.http"
+ _upstream_http_filter_prefix = "envoy.filters.http.upstream"
+ 
+-def envoy_all_http_filters():
++def envoy_all_http_filters(denylist = []):
+     all_extensions = dicts.add(_required_extensions, EXTENSIONS)
+ 
+-    return {_selected_extension_target(v): True for k, v in all_extensions.items() if (k.startswith(_http_filter_prefix) or k.startswith(_upstream_http_filter_prefix))}.keys()
++    return {_selected_extension_target(v): True for k, v in all_extensions.items() if k not in denylist and (k.startswith(_http_filter_prefix) or k.startswith(_upstream_http_filter_prefix))}.keys()
+ 
+ # Return 'selected' network-layer filter extensions to be compiled into network-layer filter generic fuzzer.
+ def envoy_filters_from_selected(selected):
+diff --git a/source/extensions/common/wasm/context.cc b/source/extensions/common/wasm/context.cc
+index f773f333..8f016c0a 100644
+--- a/source/extensions/common/wasm/context.cc
++++ b/source/extensions/common/wasm/context.cc
+@@ -358,9 +358,12 @@ void Context::onStatsUpdate(Envoy::Stats::MetricSnapshot& snapshot) {
+ }
+ 
+ // Native serializer carrying over bit representation from CEL value to the extension.
+-// This implementation assumes that the value type is static and known to the consumer.
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result) {
++// On big-endian hosts the values are byte-swapped to little-endian (Wasm convention) when
++// swap_bytes is true (i.e. when the VM uses Wasm byte order).
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool swap_bytes) {
+   using Filters::Common::Expr::CelValue;
++  using proxy_wasm::bswap;
+   int64_t out_int64;
+   uint64_t out_uint64;
+   double out_double;
+@@ -374,15 +377,15 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     result->assign(value.BytesOrDie().value().data(), value.BytesOrDie().value().size());
+     return WasmResult::Ok;
+   case CelValue::Type::kInt64:
+-    out_int64 = value.Int64OrDie();
++    out_int64 = htowasm(value.Int64OrDie(), swap_bytes);
+     result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
+     return WasmResult::Ok;
+   case CelValue::Type::kUint64:
+-    out_uint64 = value.Uint64OrDie();
++    out_uint64 = htowasm(value.Uint64OrDie(), swap_bytes);
+     result->assign(reinterpret_cast<const char*>(&out_uint64), sizeof(uint64_t));
+     return WasmResult::Ok;
+   case CelValue::Type::kDouble:
+-    out_double = value.DoubleOrDie();
++    out_double = htowasm(value.DoubleOrDie(), swap_bytes);
+     result->assign(reinterpret_cast<const char*>(&out_double), sizeof(double));
+     return WasmResult::Ok;
+   case CelValue::Type::kBool:
+@@ -391,12 +394,12 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     return WasmResult::Ok;
+   case CelValue::Type::kDuration:
+     // Warning: loss of precision to nanoseconds
+-    out_int64 = absl::ToInt64Nanoseconds(value.DurationOrDie());
++    out_int64 = htowasm(absl::ToInt64Nanoseconds(value.DurationOrDie()), swap_bytes);
+     result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
+     return WasmResult::Ok;
+   case CelValue::Type::kTimestamp:
+     // Warning: loss of precision to nanoseconds
+-    out_int64 = absl::ToUnixNanos(value.TimestampOrDie());
++    out_int64 = htowasm(absl::ToUnixNanos(value.TimestampOrDie()), swap_bytes);
+     result->assign(reinterpret_cast<const char*>(&out_int64), sizeof(int64_t));
+     return WasmResult::Ok;
+   case CelValue::Type::kMessage:
+@@ -415,10 +418,10 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& keys = *keys_list.value();
+     std::vector<std::pair<std::string, std::string>> pairs(map.size(), std::make_pair("", ""));
+     for (auto i = 0; i < map.size(); i++) {
+-      if (serializeValue(keys[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(keys[i], &pairs[i].first, swap_bytes) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+-      if (serializeValue(map[keys[i]].value(), &pairs[i].second) != WasmResult::Ok) {
++      if (serializeValue(map[keys[i]].value(), &pairs[i].second, swap_bytes) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -435,7 +438,7 @@ WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* re
+     const auto& list = *value.ListOrDie();
+     std::vector<std::pair<std::string, std::string>> pairs(list.size(), std::make_pair("", ""));
+     for (auto i = 0; i < list.size(); i++) {
+-      if (serializeValue(list[i], &pairs[i].first) != WasmResult::Ok) {
++      if (serializeValue(list[i], &pairs[i].first, swap_bytes) != WasmResult::Ok) {
+         return WasmResult::SerializationFailure;
+       }
+     }
+@@ -619,7 +622,7 @@ WasmResult Context::getProperty(std::string_view path, std::string* result) {
+     }
+   }
+ 
+-  return serializeValue(value, result);
++  return serializeValue(value, result, wasm_->wasm_vm()->usesWasmByteOrder());
+ }
+ 
+ // Header/Trailer/Metadata Maps.
+diff --git a/source/extensions/common/wasm/context.h b/source/extensions/common/wasm/context.h
+index 7c337fba..ee4184e5 100644
+--- a/source/extensions/common/wasm/context.h
++++ b/source/extensions/common/wasm/context.h
+@@ -467,7 +467,8 @@ protected:
+ };
+ using ContextSharedPtr = std::shared_ptr<Context>;
+ 
+-WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result);
++WasmResult serializeValue(Filters::Common::Expr::CelValue value, std::string* result,
++                          bool swap_bytes);
+ 
+ } // namespace Wasm
+ } // namespace Common
+diff --git a/source/extensions/common/wasm/foreign.cc b/source/extensions/common/wasm/foreign.cc
+index 5b955315..e12c7b90 100644
+--- a/source/extensions/common/wasm/foreign.cc
++++ b/source/extensions/common/wasm/foreign.cc
+@@ -349,7 +349,8 @@ public:
+         return WasmResult::InternalFailure;
+       }
+       std::string result;
+-      auto serialize_status = serializeValue(value, &result);
++      auto serialize_status =
++          serializeValue(value, &result, proxy_wasm::current_context_->wasmVm()->usesWasmByteOrder());
+       if (serialize_status != WasmResult::Ok) {
+         return serialize_status;
+       }
+diff --git a/source/extensions/filters/http/dynamic_modules/filter.cc b/source/extensions/filters/http/dynamic_modules/filter.cc
+index a2325775..a6372d82 100644
+--- a/source/extensions/filters/http/dynamic_modules/filter.cc
++++ b/source/extensions/filters/http/dynamic_modules/filter.cc
+@@ -450,8 +450,11 @@ void DynamicModuleHttpFilter::resetHttpStream(uint64_t stream_id) {
+ bool DynamicModuleHttpFilter::sendStreamData(uint64_t stream_id, Buffer::Instance& data,
+                                              bool end_stream) {
+   auto it = http_stream_callouts_.find(stream_id);
+-  if (it == http_stream_callouts_.end() || !it->second->stream_) {
+-    return false;
++  if (it == http_stream_callouts_.end()) {
++    return completed_stream_ids_.count(stream_id) > 0;
++  }
++  if (it->second->cleaned_up_ || !it->second->stream_) {
++    return true;
+   }
+   it->second->stream_->sendData(data, end_stream);
+   return true;
+@@ -460,8 +463,11 @@ bool DynamicModuleHttpFilter::sendStreamData(uint64_t stream_id, Buffer::Instanc
+ bool DynamicModuleHttpFilter::sendStreamTrailers(uint64_t stream_id,
+                                                  Http::RequestTrailerMapPtr trailers) {
+   auto it = http_stream_callouts_.find(stream_id);
+-  if (it == http_stream_callouts_.end() || !it->second->stream_) {
+-    return false;
++  if (it == http_stream_callouts_.end()) {
++    return completed_stream_ids_.count(stream_id) > 0;
++  }
++  if (it->second->cleaned_up_ || !it->second->stream_) {
++    return true;
+   }
+ 
+   // Store the trailers in the callback to keep them alive, since AsyncStream stores a pointer.
+@@ -572,6 +578,7 @@ void DynamicModuleHttpFilter::HttpStreamCalloutCallback::onComplete() {
+   }
+   auto callback = std::move(it->second);
+   filter.http_stream_callouts_.erase(it);
++  filter.completed_stream_ids_.insert(callout_id);
+ 
+   // Any in map callback must have a non-null stream_, reset it.
+   ASSERT(stream_ != nullptr);
+diff --git a/source/extensions/filters/http/dynamic_modules/filter.h b/source/extensions/filters/http/dynamic_modules/filter.h
+index 8709a3ff..8896a5bd 100644
+--- a/source/extensions/filters/http/dynamic_modules/filter.h
++++ b/source/extensions/filters/http/dynamic_modules/filter.h
+@@ -403,6 +403,7 @@ private:
+   // unique identifier. We store the callback objects here to manage their lifetime.
+   absl::flat_hash_map<uint64_t, std::unique_ptr<DynamicModuleHttpFilter::HttpStreamCalloutCallback>>
+       http_stream_callouts_;
++  absl::flat_hash_set<uint64_t> completed_stream_ids_;
+ 
+   // Socket options storage for HTTP filters.
+   struct StoredSocketOption {
+diff --git a/source/extensions/filters/http/oauth2/filter.cc b/source/extensions/filters/http/oauth2/filter.cc
+index b35f80e7..1095680d 100644
+--- a/source/extensions/filters/http/oauth2/filter.cc
++++ b/source/extensions/filters/http/oauth2/filter.cc
+@@ -441,7 +441,7 @@ std::string generateCodeVerifier(Random::RandomGenerator& random) {
+   // create 4 random uint64_t values to fill the buffer because RFC 7636 recommends 32 octets of
+   // randomness.
+   for (size_t i = 0; i < 4; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+ 
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+@@ -535,7 +535,7 @@ std::string encryptCbc(absl::string_view plaintext, absl::string_view secret,
+   // Generate a random IV. Two random uint64_t values fill the 16 bytes AES-256-CBC requires.
+   MemBlockBuilder<uint64_t> mem_block(2);
+   for (size_t i = 0; i < 2; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+   const auto* random_bytes = reinterpret_cast<const unsigned char*>(data.get());
+@@ -651,7 +651,7 @@ std::string encrypt(absl::string_view plaintext, absl::string_view secret,
+   // Generate a random IV.
+   MemBlockBuilder<uint64_t> mem_block(2);
+   for (size_t i = 0; i < 2; i++) {
+-    mem_block.appendOne(random.random());
++    mem_block.appendOne(htole64(random.random()));
+   }
+ 
+   std::unique_ptr<uint64_t[]> data = mem_block.release();
+diff --git a/test/config_test/BUILD b/test/config_test/BUILD
+index bce5ade3..26d90533 100644
+--- a/test/config_test/BUILD
++++ b/test/config_test/BUILD
+@@ -82,6 +82,7 @@ envoy_cc_test_library(
+     ] + select({
+         "//bazel:enable_http3_on_windows_x86_64": envoy_all_extensions(WINDOWS_SKIP_TARGETS),
+         "//bazel:enable_http3_on_linux_ppc": envoy_all_extensions(PPC_SKIP_TARGETS),
++        "//bazel:linux_s390x": envoy_all_extensions(PPC_SKIP_TARGETS),
+         "//bazel:disable_http3_on_windows_x86_64": envoy_all_extensions(NO_HTTP3_SKIP_TARGETS + WINDOWS_SKIP_TARGETS),
+         "//bazel:disable_http3_on_linux_ppc": envoy_all_extensions(NO_HTTP3_SKIP_TARGETS + PPC_SKIP_TARGETS),
+         "//bazel:disable_http3": envoy_all_extensions(NO_HTTP3_SKIP_TARGETS),
+diff --git a/test/extensions/common/wasm/context_test.cc b/test/extensions/common/wasm/context_test.cc
+index b3228fc4..472a3f1d 100644
+--- a/test/extensions/common/wasm/context_test.cc
++++ b/test/extensions/common/wasm/context_test.cc
+@@ -203,13 +203,13 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   CelValue value = CelValue::CreateMap(&mock_cel_map_);
+   EXPECT_CALL(mock_cel_map_, ListKeys())
+       .WillOnce(testing::Return(absl::UnimplementedError("CelMap::ListKeys is not implemented")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_map_, size()).WillRepeatedly(testing::Return(1));
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -217,7 +217,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(2)
+@@ -225,7 +225,7 @@ TEST_F(ContextTest, SerializeValueMapTest) {
+   EXPECT_CALL(mock_cel_map_, ListKeys()).WillOnce(testing::Return(&mock_cel_list_));
+   EXPECT_CALL(mock_cel_map_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+ 
+ TEST_F(ContextTest, SerializeValueListTest) {
+@@ -235,12 +235,12 @@ TEST_F(ContextTest, SerializeValueListTest) {
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .WillOnce(testing::Return(CelValue::CreateNull()));
+   EXPECT_CALL(mock_cel_list_, size()).WillRepeatedly(testing::Return(1));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::SerializationFailure);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::SerializationFailure);
+ 
+   EXPECT_CALL(mock_cel_list_, MockIndexOperator(_))
+       .Times(1)
+       .WillRepeatedly(testing::Return(CelValue::CreateStringView("test")));
+-  EXPECT_EQ(serializeValue(value, &result), WasmResult::Ok);
++  EXPECT_EQ(serializeValue(value, &result, false), WasmResult::Ok);
+ }
+ 
+ TEST_F(ContextTest, FindValueTest) {
+diff --git a/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc b/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc
+index 80fef73a..a1d197b0 100644
+--- a/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc
++++ b/test/extensions/dynamic_modules/test_data/cpp/http_integration_test.cc
+@@ -24,9 +24,19 @@ void assertEq(const std::string& a, const std::string& b, const std::string& msg
+   }
+ }
+ 
+-void assertEq(size_t a, size_t b, const std::string& msg) { assert(a == b); }
++void assertEq(size_t a, size_t b, const std::string& msg) {
++  if (a != b) {
++    fprintf(stderr, "assertEq FAILED [%s]: expected %zu == %zu\n", msg.c_str(), a, b);
++    assert(a == b);
++  }
++}
+ 
+-void assertTrue(bool cond, const std::string& msg) { assert(cond); }
++void assertTrue(bool cond, const std::string& msg) {
++  if (!cond) {
++    fprintf(stderr, "assertTrue FAILED [%s]\n", msg.c_str());
++    assert(cond);
++  }
++}
+ 
+ // -----------------------------------------------------------------------------
+ // ConfigScheduler
+@@ -1695,6 +1705,9 @@ public:
+ 
+   void onHttpStreamComplete(uint64_t stream_id) override {
+     assertEq(stream_id, stream_id_, "id");
++    assertTrue(recv_headers_, "recvHeaders");
++    assertTrue(recv_chunks_ > 0, "recvChunks");
++    assertTrue(recv_trailers_, "recvTrailers");
+     complete_ = true;
+     std::vector<HeaderView> h = {
+         {"x-stream-test", "bidirectional"},
+@@ -1708,9 +1721,6 @@ public:
+ 
+   void onStreamComplete() override {
+     assertTrue(sent_trailers_, "sentTrailers");
+-    assertTrue(recv_headers_, "recvHeaders");
+-    assertTrue(recv_chunks_ > 0, "recvChunks");
+-    assertTrue(recv_trailers_, "recvTrailers");
+     assertTrue(complete_, "complete");
+   }
+   void onDestroy() override {}
+diff --git a/test/extensions/filters/http/common/fuzz/BUILD b/test/extensions/filters/http/common/fuzz/BUILD
+index 9df44c6d..fbaee959 100644
+--- a/test/extensions/filters/http/common/fuzz/BUILD
++++ b/test/extensions/filters/http/common/fuzz/BUILD
+@@ -9,6 +9,7 @@ load(
+     "//source/extensions:all_extensions.bzl",
+     "envoy_all_http_filters",
+ )
++load("//bazel:extension_configs.bzl", "PPC_SKIP_TARGETS")
+ 
+ licenses(["notice"])  # Apache 2
+ 
+@@ -81,5 +82,8 @@ envoy_cc_fuzz_test(
+         "//test/config:utility_lib",
+         "@envoy_api//envoy/service/auth/v2alpha:pkg_cc_proto",
+         "@envoy_api//envoy/service/auth/v3:pkg_cc_proto",
+-    ] + envoy_all_http_filters(),
++    ] + select({
++        "//bazel:linux_s390x": envoy_all_http_filters(PPC_SKIP_TARGETS),
++        "//conditions:default": envoy_all_http_filters(),
++    }),
+ )
+diff --git a/test/extensions/filters/http/wasm/test_data/test_cpp.cc b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+index 044d8ed6..bb71cdde 100644
+--- a/test/extensions/filters/http/wasm/test_data/test_cpp.cc
++++ b/test/extensions/filters/http/wasm/test_data/test_cpp.cc
+@@ -594,10 +594,14 @@ void TestContext::onLog() {
+     }
+     {
+       // Some properties are defined in the stream context.
++      // Note: connection_id is serialized as a raw uint64_t in host byte order.
++      uint64_t connection_id_val = 4;
++      std::string connection_id_bytes(reinterpret_cast<const char*>(&connection_id_val),
++                                      sizeof(uint64_t));
+       std::vector<std::pair<std::vector<std::string>, std::string>> properties = {
+           {{"plugin_name"}, "plugin_name"},
+           {{"plugin_vm_id"}, "vm_id"},
+-          {{"connection_id"}, std::string("\x4\0\0\0\0\0\0\0\0", 8)},
++          {{"connection_id"}, connection_id_bytes},
+           {{"connection", "requested_server_name"}, "w3.org"},
+           {{"source", "address"}, "127.0.0.1:0"},
+           {{"destination", "address"}, "127.0.0.2:0"},
+diff --git a/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc b/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc
+index f63f6445..cd982fe6 100644
+--- a/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc
++++ b/test/extensions/network/socket_interface/sockmap/bpf_datapath_test.cc
+@@ -62,19 +62,30 @@ TEST(SockKey, LayoutMatchesKernelContract) {
+   EXPECT_EQ(offsetof(SockKey, sport), 12u);
+   EXPECT_EQ(offsetof(SockKey, dport), 16u);
+ 
+-  // A key built for 1.2.3.4:1111 -> 5.6.7.8:2222 must serialize to this exact wire image on the
+-  // little-endian targets Envoy supports.
++  // A key built for 1.2.3.4:1111 -> 5.6.7.8:2222 must serialize to this exact wire image.
++  // sport/dport are htons(port) stored in the low 16 bits of a uint32_t, so the in-memory
++  // layout differs between little-endian and big-endian hosts.
+   Address::Ipv4Instance local("1.2.3.4", 1111);
+   Address::Ipv4Instance peer("5.6.7.8", 2222);
+   SockKey key;
+   ASSERT_TRUE(buildSockKey(local, peer, key));
++#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+   const uint8_t expected[sizeof(SockKey)] = {
+       0x01, 0x02, 0x03, 0x04, // sip4 1.2.3.4 network order
+       0x05, 0x06, 0x07, 0x08, // dip4 5.6.7.8 network order
+       0x01, 0x00, 0x00, 0x00, // family 1, pads
+-      0x04, 0x57, 0x00, 0x00, // source port htons(1111) in the low 16 bits
+-      0x08, 0xae, 0x00, 0x00, // destination port htons(2222) in the low 16 bits
++      0x00, 0x00, 0x04, 0x57, // source port htons(1111) in the low 16 bits (big-endian)
++      0x00, 0x00, 0x08, 0xae, // destination port htons(2222) in the low 16 bits (big-endian)
+   };
++#else
++  const uint8_t expected[sizeof(SockKey)] = {
++      0x01, 0x02, 0x03, 0x04, // sip4 1.2.3.4 network order
++      0x05, 0x06, 0x07, 0x08, // dip4 5.6.7.8 network order
++      0x01, 0x00, 0x00, 0x00, // family 1, pads
++      0x04, 0x57, 0x00, 0x00, // source port htons(1111) in the low 16 bits (little-endian)
++      0x08, 0xae, 0x00, 0x00, // destination port htons(2222) in the low 16 bits (little-endian)
++  };
++#endif
+   EXPECT_EQ(0, std::memcmp(&key, expected, sizeof(SockKey)));
+ }
+ 
+diff --git a/test/server/BUILD b/test/server/BUILD
+index d10ea2f0..6e74cda1 100644
+--- a/test/server/BUILD
++++ b/test/server/BUILD
+@@ -384,6 +384,7 @@ envoy_cc_fuzz_test(
+     ] + select({
+         "//bazel:windows_x86_64": envoy_all_extensions(WINDOWS_SKIP_TARGETS),
+         "//bazel:linux_ppc": envoy_all_extensions(PPC_SKIP_TARGETS),
++        "//bazel:linux_s390x": envoy_all_extensions(PPC_SKIP_TARGETS),
+         "//bazel:gcc_build": [],
+         "//conditions:default": envoy_all_extensions(),
+     }),
+diff --git a/test/server/config_validation/BUILD b/test/server/config_validation/BUILD
+index f96416b7..75feee13 100644
+--- a/test/server/config_validation/BUILD
++++ b/test/server/config_validation/BUILD
+@@ -103,6 +103,7 @@ envoy_cc_fuzz_test(
+     ] + select({
+         "//bazel:windows_x86_64": envoy_all_extensions(WINDOWS_SKIP_TARGETS),
+         "//bazel:linux_ppc": envoy_all_extensions(PPC_SKIP_TARGETS),
++        "//bazel:linux_s390x": envoy_all_extensions(PPC_SKIP_TARGETS),
+         "//bazel:gcc_build": [],
+         "//conditions:default": envoy_all_extensions(),
+     }),
+diff --git a/test/test_common/utility.h b/test/test_common/utility.h
+index 1b3d2b6f..63129a5d 100644
+--- a/test/test_common/utility.h
++++ b/test/test_common/utility.h
+@@ -66,6 +66,9 @@ template <class... Args> constexpr bool always_false = false;
+ #define TIMEOUT_FACTOR 3
+ #elif defined(ENVOY_CONFIG_COVERAGE)
+ #define TIMEOUT_FACTOR 3
++#elif defined(__s390x__)
++// s390x is slower than x8664; use 3x timeouts to prevent flaky timeouts.
++#define TIMEOUT_FACTOR 3
+ #else
+ #define TIMEOUT_FACTOR 1
+ #endif
+diff --git a/test/tools/router_check/BUILD b/test/tools/router_check/BUILD
+index 8d1c04b2..1ee1f318 100644
+--- a/test/tools/router_check/BUILD
++++ b/test/tools/router_check/BUILD
+@@ -22,6 +22,7 @@ envoy_cc_test_binary(
+         "//bazel:coverage_build": [],
+         "//bazel:windows_x86_64": envoy_all_extensions(WINDOWS_SKIP_TARGETS),
+         "//bazel:linux_ppc": envoy_all_extensions(PPC_SKIP_TARGETS),
++        "//bazel:linux_s390x": envoy_all_extensions(PPC_SKIP_TARGETS),
+         "//conditions:default": envoy_all_extensions(),
+     }),
+ )
+diff --git a/test/tools/schema_validator/BUILD b/test/tools/schema_validator/BUILD
+index cb990e65..47914368 100644
+--- a/test/tools/schema_validator/BUILD
++++ b/test/tools/schema_validator/BUILD
+@@ -18,6 +18,7 @@ envoy_cc_test_binary(
+     deps = [":schema_validator_lib"] + select({
+         "//bazel:windows_x86_64": envoy_all_extensions(WINDOWS_SKIP_TARGETS),
+         "//bazel:linux_ppc": envoy_all_extensions(PPC_SKIP_TARGETS),
++        "//bazel:linux_s390x": envoy_all_extensions(PPC_SKIP_TARGETS),
+         "//conditions:default": envoy_all_extensions(),
+     }),
+ )
