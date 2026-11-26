@@ -1,0 +1,20 @@
+diff --git a/tests/libs/zbxalgo/zbx_channel.c b/tests/libs/zbxalgo/zbx_channel.c
+index 97690ee..df3f6ea 100644
+--- a/tests/libs/zbxalgo/zbx_channel.c
++++ b/tests/libs/zbxalgo/zbx_channel.c
+@@ -69,13 +69,13 @@ static void	test_channel_range_values(int iterations, int msg_size, zbx_vector_p
+ 		for (i = 0; i < values->values_num; i++)
+ 		{
+ 			ptr = NULL;
+-			ret = zbx_chan_recv_batch(&chan, &ptr, 1);
++			ret = zbx_chan_recv_batch(&chan, (unsigned char *)&ptr + offset, 1);
+ 
+ 			zbx_mock_assert_int_eq("return", ret, 1);
+ 			zbx_mock_assert_ptr_eq("value", ptr, values->values[i]);
+ 		}
+ 
+-		ret = zbx_chan_recv_batch(&chan, &ptr, 1);
++		ret = zbx_chan_recv_batch(&chan, (unsigned char *)&ptr + offset, 1);
+ 		zbx_mock_assert_int_eq("return", ret, 0);
+ 	}
+ 
