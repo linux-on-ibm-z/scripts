@@ -1,0 +1,15 @@
+diff --git a/libraries/cmake/source/rocksdb/src/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h b/libraries/cmake/source/rocksdb/src/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
+index 4425a4a..a3251ed 100644
+--- a/libraries/cmake/source/rocksdb/src/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
++++ b/libraries/cmake/source/rocksdb/src/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
+@@ -133,6 +133,10 @@ static inline tokutime_t toku_time_now(void) {
+   return result;
+ #elif defined(__powerpc__)
+   return __ppc_get_timebase();
++#elif defined(__s390x__)
++  uint64_t result;
++  __asm__ __volatile__("stck %0" : "=Q"(result) : : "cc");
++  return result;
+ #else
+ #error No timer implementation for this platform
+ #endif
