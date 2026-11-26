@@ -1,0 +1,82 @@
+diff --git a/boringssl-static/pom.xml b/boringssl-static/pom.xml
+index cb14718..f98a669 100644
+--- a/boringssl-static/pom.xml
++++ b/boringssl-static/pom.xml
+@@ -84,7 +84,7 @@
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+     <boringsslHome>${boringsslSourceDir}/build</boringsslHome>
+     <boringsslSourceDir>${project.build.directory}/boringssl-${boringsslBranch}</boringsslSourceDir>
+-    <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
++    <boringsslRepository>https://github.com/linux-on-ibm-z/boringssl</boringsslRepository>
+     <linkStatic>true</linkStatic>
+     <compileLibrary>true</compileLibrary>
+     <msvcSslIncludeDirs>${boringsslSourceDir}/include</msvcSslIncludeDirs>
+diff --git a/openssl-dynamic/src/main/c/sslcredential.c b/openssl-dynamic/src/main/c/sslcredential.c
+index b34bf69..71a0f5b 100644
+--- a/openssl-dynamic/src/main/c/sslcredential.c
++++ b/openssl-dynamic/src/main/c/sslcredential.c
+@@ -27,6 +27,13 @@
+ #include "ssl_private.h"
+ #include "sslcredential.h"
+ 
++#ifdef OPENSSL_IS_BORINGSSL
++/* Not present in the s390x BoringSSL fork (patch-s390x-Sep2024); resolved at runtime. */
++__attribute__((weak)) extern int  SSL_CREDENTIAL_set1_trust_anchor_id(SSL_CREDENTIAL*, const uint8_t*, size_t);
++__attribute__((weak)) extern void SSL_CREDENTIAL_set_must_match_issuer(SSL_CREDENTIAL*, int);
++__attribute__((weak)) extern int  SSL_CREDENTIAL_set1_certificate_properties(SSL_CREDENTIAL*, CRYPTO_BUFFER*);
++#endif
++
+ #define SSLCREDENTIAL_CLASSNAME "io/netty/internal/tcnative/SSLCredential"
+ 
+ // Helper functions
+@@ -203,6 +210,10 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setSigningAlgorithmPrefs)(TCN_STDARGS, j
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setCertificateProperties)(TCN_STDARGS, jlong cred, jbyteArray cert_props) {
+ #ifdef OPENSSL_IS_BORINGSSL
++    if (SSL_CREDENTIAL_set1_certificate_properties == NULL) {
++        tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL_set1_certificate_properties not available.");
++        return;
++    }
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+     TCN_CHECK_NULL(cert_props, certificateProperties, /* void */);
+@@ -265,6 +276,10 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setSignedCertTimestampList)(TCN_STDARGS,
+ 
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setMustMatchIssuer)(TCN_STDARGS, jlong cred, jboolean match) {
+ #ifdef OPENSSL_IS_BORINGSSL
++    if (SSL_CREDENTIAL_set_must_match_issuer == NULL) {
++        tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL_set_must_match_issuer not available.");
++        return;
++    }
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+     SSL_CREDENTIAL_set_must_match_issuer(c, match == JNI_TRUE ? 1 : 0);
+@@ -276,6 +291,10 @@ TCN_IMPLEMENT_CALL(void, SSLCredential, setMustMatchIssuer)(TCN_STDARGS, jlong c
+ // Trust anchor configuration
+ TCN_IMPLEMENT_CALL(void, SSLCredential, setTrustAnchorId)(TCN_STDARGS, jlong cred, jbyteArray id) {
+ #ifdef OPENSSL_IS_BORINGSSL
++    if (SSL_CREDENTIAL_set1_trust_anchor_id == NULL) {
++        tcn_ThrowUnsupportedOperationException(e, "SSL_CREDENTIAL_set1_trust_anchor_id not available.");
++        return;
++    }
+     SSL_CREDENTIAL* c = (SSL_CREDENTIAL*)(intptr_t)cred;
+     TCN_CHECK_NULL(c, credential, /* void */);
+     TCN_CHECK_NULL(id, trustAnchorId, /* void */);
+diff --git a/pom.xml b/pom.xml
+index 1245035..f6fb0dc 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -94,11 +94,11 @@
+     <aprVersion>1.7.6</aprVersion>
+     <aprSha256>6a10e7f7430510600af25fabf466e1df61aaae910bf1dc5d10c44a4433ccc81d</aprSha256>
+     <aprWinSha256>ded6d19a5f76e7d133d25c1c130bb34986701590245ecccceca0f2a682015e13</aprWinSha256>
+-    <boringsslBranch>main</boringsslBranch>
++    <boringsslBranch>patch-s390x-Sep2024</boringsslBranch>
+     <!--
+       See https://boringssl.googlesource.com/boringssl/+/refs/heads/main for the latest commit
+     -->
+-    <boringsslCommitSha>0226f30467f540a3f62ef48d453f93927da199b6</boringsslCommitSha>
++    <boringsslCommitSha>d40d43c5e00d8adfbaa88d5cf521d52f0549464c</boringsslCommitSha>
+     <libresslVersion>3.4.3</libresslVersion>
+     <!--
+       See https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/SHA256 for the SHA256 signature
